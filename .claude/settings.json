@@ -12,9 +12,13 @@
         ]
       }
     ],
-    "SessionEnd": [
+    "Stop": [
       {
         "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/session-stop.js"
+          }
         ]
       }
     ],
