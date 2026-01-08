@@ -60,8 +60,8 @@ test('initCommand copies expected templates with replacements', async () => {
   const cwd = '/tmp/project';
   await initCommand({ cwd, endpoint: DEFAULT_ENDPOINT, group: DEFAULT_GROUP, force: true }, services);
 
-  // Expect 2 skill files + 2 docker assets = 4 copies.
-  assert.equal(services.templateCopier.calls.length, 4);
+  // Expect: 2 skills + 3 shared rules + 3 typescript rules + 3 claude files + 2 docker assets = 13 copies.
+  assert.equal(services.templateCopier.calls.length, 13);
   const memoryCopy = services.templateCopier.calls.find((c) => c.dest.endsWith(path.join('.agents', 'skills', 'memory', 'SKILL.md')));
   assert.ok(memoryCopy, 'memory SKILL should be copied');
   assert.equal(memoryCopy?.replacements.GRAPHITI_ENDPOINT, DEFAULT_ENDPOINT);
@@ -73,8 +73,8 @@ test('initCommand skips docker assets when includeDocker is false', async () => 
   const cwd = '/tmp/project';
   await initCommand({ cwd, endpoint: DEFAULT_ENDPOINT, group: DEFAULT_GROUP, force: true, includeDocker: false }, services);
 
-  // Expect 2 skill files only.
-  assert.equal(services.templateCopier.calls.length, 2);
+  // Expect: 2 skills + 3 shared rules + 3 typescript rules + 3 claude files = 11 copies (no docker).
+  assert.equal(services.templateCopier.calls.length, 11);
   assert.ok(!services.templateCopier.calls.find((c) => c.dest.endsWith('docker-compose.graphiti.yml')));
 });
 
