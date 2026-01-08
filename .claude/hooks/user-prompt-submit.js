@@ -7,7 +7,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
  * This hook runs before a user's prompt is submitted to Claude.
  * It can be used to validate, enhance, or log prompts.
  *
- * Configuration: .claude/settings.json -> hooks.UserPromptSubmitAct
+ * Configuration: .claude/settings.json -> hooks.UserPromptSubmit
  *
  * Note: This hook is optional and only runs if configured.
  * If the hook exits with non-zero status, the prompt submission is cancelled.
