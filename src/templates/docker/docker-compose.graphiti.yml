@@ -1,0 +1,87 @@
+name: agent-memory
+
+services:
+  neo4j:
+    image: neo4j:5.26.2
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - NEO4J_AUTH=${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-demodemo}
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  graph:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=${NEO4J_USER:-neo4j}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-demodemo}
+      - PORT=8000
+      - db_backend=neo4j
+    restart: always
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthcheck')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  graphiti-mcp:
+    build:
+      context: ./mcp_server
+      dockerfile: docker/Dockerfile.standalone
+      args:
+        GRAPHITI_CORE_VERSION: ${GRAPHITI_CORE_VERSION:-0.23.1}
+        MCP_SERVER_VERSION: ${MCP_SERVER_VERSION:-1.0.1}
+    env_file:
+      - path: ./.env.graphiti
+        required: false
+      - path: ./.env
+        required: false
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    environment:
+      - NEO4J_URI=${NEO4J_URI:-bolt://neo4j:7687}
+      - NEO4J_USER=${NEO4J_USER:-neo4j}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-demodemo}
+      - NEO4J_DATABASE=${NEO4J_DATABASE:-neo4j}
+      - USE_PARALLEL_RUNTIME=${USE_PARALLEL_RUNTIME:-false}
+      - GRAPHITI_GROUP_ID=${GRAPHITI_GROUP_ID:-main}
+      - SEMAPHORE_LIMIT=${SEMAPHORE_LIMIT:-10}
+      - CONFIG_PATH=/app/mcp/config/config.yaml
+      - PATH=/root/.local/bin:${PATH}
+    volumes:
+      - ./mcp_server/config/config-docker-neo4j.yaml:/app/mcp/config/config.yaml:ro
+      - mcp_logs:/var/log/graphiti
+    ports:
+      - "8010:8000"
+    restart: always
+    command: ["uv", "run", "--no-sync", "main.py"]
+
+volumes:
+  neo4j_data:
+  neo4j_logs:
+  mcp_logs:

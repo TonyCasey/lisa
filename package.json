@@ -1,0 +1,51 @@
+{
+  "name": "agent-memory",
+  "version": "0.5.0",
+  "description": "Plug-and-play memory and rules for Claude Code. Install and start coding - automatic context persistence via Graphiti.",
+  "bin": {
+    "remember": "dist/cli.js",
+    "agent-memory": "dist/cli.js"
+  },
+  "type": "commonjs",
+  "main": "dist/cli.js",
+  "files": [
+    "dist",
+    "scripts/postinstall.js"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "build:local": "DEPLOY_AGENTS_LOCAL=1 npm run build",
+    "postbuild": "node scripts/postbuild-copy-templates.js && node scripts/prepare-dist-package.js && node scripts/deploy-agents.js",
+    "postinstall": "node scripts/postinstall.js",
+    "clean": "rimraf dist",
+    "lint": "eslint 'src/**/*.{ts,js}'",
+    "test": "tsx --test src/**/*.test.ts"
+  },
+  "keywords": [
+    "graphiti",
+    "mcp",
+    "memory",
+    "hooks",
+    "cli"
+  ],
+  "author": "Tony Casey",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "cli-table3": "^0.6.5",
+    "commander": "^11.1.0",
+    "execa": "^8.0.1",
+    "fs-extra": "^11.2.0",
+    "yaml": "^2.4.2"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^20.12.7",
+    "@typescript-eslint/eslint-plugin": "^8.52.0",
+    "@typescript-eslint/parser": "^8.52.0",
+    "eslint": "^8.56.0",
+    "tsx": "^4.19.0",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.6.3"
+  }
+}
