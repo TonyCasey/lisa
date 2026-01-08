@@ -143,9 +143,9 @@ async function downCommand(opts: { composeFile: string }, services: IServices) {
 
 const program = new Command();
 program
-  .name('agent-memory')
-  .description('Scaffold and manage Graphiti memory hooks + Docker stack')
-  .version('0.1.0');
+  .name('lisa')
+  .description('Lisa remembers everything. Memory for Claude Code and AI assistants.')
+  .version('0.5.0');
 
 program
   .command('init')

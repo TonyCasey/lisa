@@ -5,7 +5,7 @@ const DEFAULT_BODY = {
   params: {
     protocolVersion: '2024-11-05',
     capabilities: {},
-    clientInfo: { name: 'agent-memory', version: '0.1.0' },
+    clientInfo: { name: 'lisa', version: '0.5.0' },
   },
 };
 

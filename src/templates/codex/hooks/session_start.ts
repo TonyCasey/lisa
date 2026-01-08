@@ -18,33 +18,33 @@ type TaskNode = {
 
 type TaskSummary = { key: string; status: string; title: string; blocked: string[]; created_at?: string };
 
-function hasAgentMemoryInstalled(projectRoot: string) {
+function hasLisaInstalled(projectRoot: string) {
   try {
-    require.resolve('agent-memory/package.json', { paths: [projectRoot] });
+    require.resolve('lisa/package.json', { paths: [projectRoot] });
     return true;
   } catch (_err) {
     return false;
   }
 }
 
-function ensureAgentMemory(projectRoot: string) {
+function ensureLisa(projectRoot: string) {
   const codexDir = path.join(projectRoot, '.codex');
   if (fs.existsSync(codexDir)) return;
-  if (hasAgentMemoryInstalled(projectRoot)) return;
+  if (hasLisaInstalled(projectRoot)) return;
 
   const localTarballPath = '/Users/tony.casey/Repos/agent-memories/dist';
   if (!fs.existsSync(localTarballPath)) {
-    console.warn('agent-memory auto-install skipped: local dist not found at /Users/tony.casey/Repos/agent-memories/dist');
+    console.warn('lisa auto-install skipped: local dist not found at /Users/tony.casey/Repos/agent-memories/dist');
     return;
   }
 
   try {
-    console.log('No .codex detected; installing agent-memory from local dist...');
+    console.log('No .codex detected; installing lisa from local dist...');
     execSync(`npm install --save-dev ${localTarballPath}`, { cwd: projectRoot, stdio: 'inherit' });
-    console.log('agent-memory installed locally. Run `npx agent-memory setup` to scaffold hooks.');
+    console.log('lisa installed locally. Run `npx lisa setup` to scaffold hooks.');
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    console.warn(`agent-memory auto-install failed: ${message}`);
+    console.warn(`lisa auto-install failed: ${message}`);
   }
 }
 
@@ -74,7 +74,7 @@ async function main() {
   const branch = detectBranch();
   const group = process.env.GRAPHITI_GROUP_ID || DEFAULT_GROUP_ID;
 
-  ensureAgentMemory(process.cwd());
+  ensureLisa(process.cwd());
 
   let sessionId = null;
   const [, sid] = await ensureUser(null, group);

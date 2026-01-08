@@ -1,10 +1,10 @@
 {
-  "name": "agent-memory",
+  "name": "lisa",
   "version": "0.5.0",
-  "description": "Plug-and-play memory and rules for Claude Code. Install and start coding - automatic context persistence via Graphiti.",
+  "description": "Lisa remembers everything. Plug-and-play memory for Claude Code and AI coding assistants.",
   "bin": {
-    "remember": "dist/cli.js",
-    "agent-memory": "dist/cli.js"
+    "lisa": "dist/cli.js",
+    "remember": "dist/cli.js"
   },
   "type": "commonjs",
   "main": "dist/cli.js",
