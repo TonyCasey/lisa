@@ -1,4 +1,4 @@
-name: agent-memory
+name: lisa
 
 services:
   neo4j:

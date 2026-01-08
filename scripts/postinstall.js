@@ -12,7 +12,7 @@ const fs = require('fs-extra');
 const { execSync, spawn } = require('child_process');
 const readline = require('readline');
 
-// When installed as a dependency, the project root is two levels up from node_modules/agent-memory/scripts
+// When installed as a dependency, the project root is two levels up from node_modules/lisa/scripts
 // When running locally (development), use the current working directory
 const isInstalledAsDependency = __dirname.includes('node_modules');
 const projectRoot = isInstalledAsDependency
@@ -242,7 +242,7 @@ async function setupDocker() {
 
 async function main() {
   console.log('');
-  console.log('agent-memory: Setting up Claude Code memory and rules...');
+  console.log('lisa: Setting up Claude Code memory and rules...');
   console.log('');
 
   // Check if templates exist
@@ -299,13 +299,13 @@ async function main() {
 
   console.log('');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('  agent-memory: Setup complete!');
+  console.log('  lisa: Setup complete!');
   console.log('  Claude Code now has automatic memory and coding rules.');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('');
 }
 
 main().catch((err) => {
-  console.error('agent-memory postinstall failed:', err.message);
+  console.error('lisa postinstall failed:', err.message);
   // Don't exit with error - allow npm install to complete
 });

@@ -16,7 +16,7 @@ const distPkg = {
   main: 'cli.js',
   bin: {
     remember: 'cli.js',
-    'agent-memory': 'cli.js',
+    'lisa': 'cli.js',
   },
   files: ['**/*'],
 };
