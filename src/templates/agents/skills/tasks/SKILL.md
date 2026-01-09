@@ -12,7 +12,7 @@ Use when the user says: "add a task", "list tasks", "load tasks", "task status".
 ## How to use
 1) List: `scripts/tasks.js list --cache [--group <id>] [--limit 20]`
 2) Add: `scripts/tasks.js add "<task text>" [--status todo|doing|done] [--tag foo] [--group <id>] --cache`
-3) Defaults: reads ${GRAPHITI_ENDPOINT} / ${GRAPHITI_GROUP_ID} from `.agents/skills/.env` (written by init); see root `AGENTS.md` for canonical defaults.
+3) Defaults: reads ${GRAPHITI_ENDPOINT} / ${GRAPHITI_GROUP_ID} from `.agents/.env` (written by init); see root `AGENTS.md` for canonical defaults.
 4) Cache fallback: writes/reads `cache/tasks.log` when `--cache` is passed, returning last cached result on MCP failure.
 5) Keep prompts model-neutral; models only orchestrate script calls and summarize JSON output.
 

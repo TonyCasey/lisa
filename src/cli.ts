@@ -255,7 +255,7 @@ async function initCommand(opts: {
   const claudeDir = path.join(cwd, '.claude');
   const composeDest = path.join(cwd, 'docker-compose.graphiti.yml');
   const envDest = path.join(cwd, '.env.graphiti.example');
-  const skillsEnvDest = path.join(skillsDir, '.env');
+  const agentsEnvDest = path.join(agentsDir, '.env');
 
   const copies: Array<Promise<any>> = [];
 
@@ -282,18 +282,18 @@ async function initCommand(opts: {
   const docsDir = path.join(agentsDir, 'docs');
   copies.push(services.templateCopier.copy('agents/docs/STORAGE_SETUP.md', path.join(docsDir, 'STORAGE_SETUP.md'), replacements, force));
 
-  // Provide a baseline skills .env configured to the chosen mode/endpoint/group.
-  if (force || !(await fs.pathExists(skillsEnvDest))) {
-    await fs.ensureDir(path.dirname(skillsEnvDest));
+  // Provide a baseline .env configured to the chosen mode/endpoint/group.
+  if (force || !(await fs.pathExists(agentsEnvDest))) {
+    await fs.ensureDir(path.dirname(agentsEnvDest));
     const envContent = generateEnvContent(config);
-    await fs.writeFile(skillsEnvDest, envContent, 'utf8');
+    await fs.writeFile(agentsEnvDest, envContent, 'utf8');
 
     // Write secrets to .env.local (should be gitignored)
     if (config.mode !== 'local' && config.mode !== 'skip') {
-      const envLocalDest = path.join(skillsDir, '.env.local');
+      const envLocalDest = path.join(agentsDir, '.env.local');
       const envLocalContent = generateEnvLocalContent(config);
       await fs.writeFile(envLocalDest, envLocalContent, 'utf8');
-      console.log(chalk.yellow('Secrets saved to .agents/skills/.env.local - add to .gitignore!'));
+      console.log(chalk.yellow('Secrets saved to .agents/.env.local - add to .gitignore!'));
     }
   }
 
@@ -317,16 +317,16 @@ async function initCommand(opts: {
     console.log('');
     console.log(chalk.cyan('To configure storage later:'));
     console.log(chalk.cyan('  1. Read .agents/docs/STORAGE_SETUP.md'));
-    console.log(chalk.cyan('  2. Edit .agents/skills/.env with your configuration'));
+    console.log(chalk.cyan('  2. Edit .agents/.env with your configuration'));
     console.log(chalk.cyan('  3. Start a new terminal session'));
     console.log(chalk.cyan('  4. Run `lisa doctor` to verify connection'));
   }
 }
 
 async function loadConfig(cwd: string): Promise<{ endpoint?: string; group?: string; mode?: DeploymentMode } | null> {
-  const skillsEnv = path.join(cwd, '.agents', 'skills', '.env');
-  if (!(await fs.pathExists(skillsEnv))) return null;
-  const raw = await fs.readFile(skillsEnv, 'utf8');
+  const agentsEnv = path.join(cwd, '.agents', '.env');
+  if (!(await fs.pathExists(agentsEnv))) return null;
+  const raw = await fs.readFile(agentsEnv, 'utf8');
   const map: Record<string, string> = {};
   raw.split(/\r?\n/).forEach((line) => {
     if (!line || line.startsWith('#')) return;

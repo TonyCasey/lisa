@@ -5,8 +5,8 @@ export {}; // mark as a module to keep scoped declarations
 const path = require('path');
 const fs = require('fs');
 
-// Load .env from .agents/skills/.env if present
-const envPath = path.join(process.cwd(), '.agents', 'skills', '.env');
+// Load .env from .agents/.env if present
+const envPath = path.join(process.cwd(), '.agents', '.env');
 const env: Record<string, string> = {};
 try {
   const raw = fs.readFileSync(envPath, 'utf8');

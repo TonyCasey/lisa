@@ -88,7 +88,7 @@ Connect to a cloud-hosted Neo4j instance. Great for production or team environme
    ```
 
 ### Security Note
-Credentials are stored in `.agents/skills/.env.local` which should be added to `.gitignore`.
+Credentials are stored in `.agents/.env.local` which should be added to `.gitignore`.
 
 ---
 
@@ -131,7 +131,7 @@ If you chose "Set up later" during initialization, follow these steps:
 
 1. **Edit the environment file:**
    ```bash
-   nano .agents/skills/.env
+   nano .agents/.env
    ```
 
 2. **Uncomment and configure your chosen option:**

@@ -65,7 +65,8 @@ function detectPrefixTag(text: string): string | null {
 
 const args: string[] = process.argv.slice(2);
 const env = (() => {
-  const envPath = path.join(__dirname, '..', '..', '.env');
+  // Read from .agents/.env (3 levels up from scripts/memory/scripts/)
+  const envPath = path.join(__dirname, '..', '..', '..', '.env');
   const out: Record<string, string> = {};
   try {
     const raw = fs.readFileSync(envPath, 'utf8');

@@ -12,7 +12,7 @@ Store every prompt (and optional role/kind) as a memory episode in Graphiti MCP,
 
 ## Usage
 - `node scripts/prompt.js add --text "..." [--role user|assistant] [--kind Direction|Decision|Requirement|Observation] [--force]`
-- By default uses `GRAPHITI_ENDPOINT` and `GRAPHITI_GROUP_ID` from `.agents/skills/.env`. Falls back to `http://localhost:8010/mcp/` and `lisa`.
+- By default uses `GRAPHITI_ENDPOINT` and `GRAPHITI_GROUP_ID` from `.agents/.env`. Falls back to `http://localhost:8010/mcp/` and `lisa`.
 
 ## Notes
 - Adds a fingerprint tag to avoid duplicate prompts unless `--force` is passed.
