@@ -104,24 +104,24 @@ Use Zep's managed service for the easiest setup with no local infrastructure.
 1. **Create a Zep project:**
    - Go to [cloud.getzep.com](https://cloud.getzep.com)
    - Create a new project
-   - Copy your API key and project ID
+   - Copy your API key (starts with `z_`)
 
 2. **Initialize with zep-cloud mode:**
    ```bash
    lisa init --mode zep-cloud
    ```
 
-3. **Enter Zep credentials when prompted:**
-   - Zep API key
-   - Zep project ID
+3. **Enter Zep API key when prompted**
 
 4. **Verify the connection:**
    ```bash
    lisa doctor
    ```
 
-### Note
-No local Docker required for Zep Cloud mode.
+### How It Works
+- **No Docker required** - Lisa connects directly to Zep's REST API
+- **No MCP server** - Uses Zep's native `/api/v2` endpoints
+- **Free tier** - 1,000 episodes/month, unlimited storage
 
 ---
 
@@ -157,11 +157,10 @@ If you chose "Set up later" during initialization, follow these steps:
    **For Zep Cloud:**
    ```env
    GRAPHITI_MODE=zep-cloud
-   GRAPHITI_ENDPOINT=https://api.getzep.com/mcp/
    GRAPHITI_GROUP_ID=your-project-name
-   ZEP_API_KEY=zep_xxxxx
-   ZEP_PROJECT_ID=your-project-id
+   ZEP_API_KEY=z_xxxxx
    ```
+   Note: No endpoint needed - Lisa uses Zep's native REST API directly.
 
 3. **Start a new terminal session** (to load new environment variables)
 
@@ -174,14 +173,13 @@ If you chose "Set up later" during initialization, follow these steps:
 | Variable | Mode | Description |
 |----------|------|-------------|
 | `GRAPHITI_MODE` | all | Storage mode: `local`, `remote-neo4j`, `zep-cloud`, or `skip` |
-| `GRAPHITI_ENDPOINT` | all | MCP server endpoint URL |
+| `GRAPHITI_ENDPOINT` | local, remote-neo4j | MCP server endpoint URL (not needed for zep-cloud) |
 | `GRAPHITI_GROUP_ID` | all | Memory group identifier (usually project name) |
 | `NEO4J_URI` | remote-neo4j | Neo4j connection URI |
 | `NEO4J_USER` | remote-neo4j | Neo4j username |
 | `NEO4J_PASSWORD` | remote-neo4j | Neo4j password |
 | `OPENAI_API_KEY` | remote-neo4j | OpenAI API key for embeddings |
-| `ZEP_API_KEY` | zep-cloud | Zep Cloud API key |
-| `ZEP_PROJECT_ID` | zep-cloud | Zep Cloud project ID |
+| `ZEP_API_KEY` | zep-cloud | Zep Cloud API key (starts with `z_`) |
 
 ---
 

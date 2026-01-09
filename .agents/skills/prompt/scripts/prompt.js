@@ -35,7 +35,8 @@ function hasFlag(name) {
     args.splice(idx, 1);
     return true;
 }
-const envPath = path.join(__dirname, '..', '..', '.env');
+// Read from .agents/.env (3 levels up from skills/prompt/scripts/)
+const envPath = path.join(__dirname, '..', '..', '..', '.env');
 const env = {};
 try {
     const raw = fs.readFileSync(envPath, 'utf8');

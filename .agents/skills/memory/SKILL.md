@@ -12,7 +12,7 @@ Use when the user says things like: "load memory", "recall notes", "remember", "
 ## How to use
 1) For recall: run `scripts/memory.js load --cache [--query <q>] [--limit 10] [--group <id>]`. Reads Graphiti facts and prints JSON. Uses cache if MCP is down.
 2) For remember: run `scripts/memory.js add "<text>" --cache [--group <id>] [--tag foo] [--source <src>]` to append an episode.
-3) Endpoint/group: reads ${GRAPHITI_ENDPOINT} / ${GRAPHITI_GROUP_ID} from `.agents/skills/.env` (written by init); see root `AGENTS.md` for canonical defaults.
+3) Endpoint/group: reads ${GRAPHITI_ENDPOINT} / ${GRAPHITI_GROUP_ID} from `.agents/.env` (written by init); see root `AGENTS.md` for canonical defaults.
 4) Cache fallback: stored at `cache/memory.log` inside this skill. On failure, last cached result is returned with `status: "fallback"`.
 5) Keep prompts model-neutral; avoid role tokens. Models just orchestrate the script and summarize results to the user.
 

@@ -11,11 +11,11 @@ name: lisa-remote
 
 services:
   graphiti-mcp:
-    image: zepai/graphiti-mcp:latest
+    image: zepai/knowledge-graph-mcp:latest
     env_file:
-      - path: ./.env.graphiti
+      - path: ../../../.env.graphiti
         required: false
-      - path: ./.env
+      - path: ../../../.env
         required: false
     environment:
       - NEO4J_URI=${NEO4J_URI}
@@ -27,6 +27,8 @@ services:
       - SEMAPHORE_LIMIT=${SEMAPHORE_LIMIT:-10}
     ports:
       - "8010:8000"
+    volumes:
+      - ./mcp_server/config/config-docker-neo4j.yaml:/app/mcp/config/config.yaml:ro
     restart: always
     healthcheck:
       test:
