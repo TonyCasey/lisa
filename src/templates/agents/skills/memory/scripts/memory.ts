@@ -100,7 +100,7 @@ function hasFlag(name: string) {
 
 const command = args.shift() ?? '';
 const endpoint: string = popFlag('--endpoint', env.GRAPHITI_ENDPOINT || process.env.GRAPHITI_ENDPOINT || 'http://localhost:8010/mcp/');
-const groupId = popFlag('--group', env.GRAPHITI_GROUP_ID || process.env.GRAPHITI_GROUP_ID || 'agent-memories');
+const groupId = popFlag('--group', env.GRAPHITI_GROUP_ID || process.env.GRAPHITI_GROUP_ID || 'lisa');
 const query = popFlag('--query', '');
 const limit = Number(popFlag('--limit', '10')) || 10;
 const explicitTag = popFlag('--tag', null);

@@ -186,3 +186,9 @@ next-env.d.ts
 .dev/.session-state.json
 .dev/.session-stats.json
 .dev/.prompt-log.jsonl
+
+# Work session logs (local only, not for Graphiti)
+.logs/
+.logs/*.jsonl
+.logs/*.log
+.logs/archive/

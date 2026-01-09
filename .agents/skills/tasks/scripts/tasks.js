@@ -46,7 +46,7 @@ function hasFlag(name) {
 }
 const command = args.shift() ?? '';
 const endpoint = popFlag('--endpoint', env.GRAPHITI_ENDPOINT || process.env.GRAPHITI_ENDPOINT || 'http://localhost:8010/mcp/');
-const groupId = popFlag('--group', env.GRAPHITI_GROUP_ID || process.env.GRAPHITI_GROUP_ID || 'agent-memories');
+const groupId = popFlag('--group', env.GRAPHITI_GROUP_ID || process.env.GRAPHITI_GROUP_ID || 'lisa');
 const limit = Number(popFlag('--limit', '20')) || 20;
 const status = popFlag('--status', 'Pending');
 const tag = popFlag('--tag', null);

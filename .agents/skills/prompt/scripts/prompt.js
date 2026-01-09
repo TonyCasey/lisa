@@ -52,7 +52,7 @@ catch (_) {
     /* optional */
 }
 const endpoint = popFlag('--endpoint', env.GRAPHITI_ENDPOINT || process.env.GRAPHITI_ENDPOINT || 'http://localhost:8010/mcp/');
-const groupId = popFlag('--group', env.GRAPHITI_GROUP_ID || process.env.GRAPHITI_GROUP_ID || 'agent-memories');
+const groupId = popFlag('--group', env.GRAPHITI_GROUP_ID || process.env.GRAPHITI_GROUP_ID || 'lisa');
 const force = hasFlag('--force') || popFlag('--force', false);
 function parseArgs() {
     const out = { role: 'user', source: 'user-prompt' };
