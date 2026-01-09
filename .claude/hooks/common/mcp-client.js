@@ -1,12 +1,23 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const { MCP_ENDPOINT, DEFAULT_GROUP_ID } = require('../../config');
+const { MCP_ENDPOINT, DEFAULT_GROUP_ID, ZEP_API_KEY } = require('../../config');
 const CLIENT_INFO = { name: 'claude-hooks', version: '0.1.0' };
 const PROTOCOL_VERSION = '2024-11-05';
-const BASE_HEADERS = {
-    'Content-Type': 'application/json',
-    Accept: 'application/json, text/event-stream',
-};
+/**
+ * Get headers for MCP requests.
+ * Adds Zep API key authentication when using Zep Cloud endpoint.
+ */
+function getHeaders() {
+    const headers = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+    };
+    // Add Zep auth header when using Zep Cloud
+    if (ZEP_API_KEY && MCP_ENDPOINT.includes('getzep.com')) {
+        headers['Authorization'] = `Api-Key ${ZEP_API_KEY}`;
+    }
+    return headers;
+}
 let SESSION_ID = null;
 class MCPError extends Error {
     constructor(message, status) {
@@ -40,7 +51,7 @@ async function initialize(timeoutMs = 8000) {
     };
     const resp = await fetch(MCP_ENDPOINT, {
         method: 'POST',
-        headers: BASE_HEADERS,
+        headers: getHeaders(),
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(timeoutMs),
     });
@@ -52,7 +63,7 @@ async function initialize(timeoutMs = 8000) {
 }
 async function rpcCall(method, params = {}, sessionId = null, timeoutMs = 8000) {
     const sid = sessionId || SESSION_ID || (await initialize(timeoutMs));
-    const headers = { ...BASE_HEADERS, 'MCP-SESSION-ID': sid };
+    const headers = { ...getHeaders(), 'MCP-SESSION-ID': sid };
     const payload = method === 'initialize' || method === 'ping' || method.startsWith('tools/')
         ? { jsonrpc: '2.0', id: '1', method, params }
         : { jsonrpc: '2.0', id: '1', method: 'tools/call', params: { name: method, arguments: params } };

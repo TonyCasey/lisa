@@ -2,8 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const path = require('path');
 const fs = require('fs');
-// Load .env from .agents/skills/.env if present
-const envPath = path.join(process.cwd(), '.agents', 'skills', '.env');
+// Load .env from .agents/.env if present
+const envPath = path.join(process.cwd(), '.agents', '.env');
 const env = {};
 try {
     const raw = fs.readFileSync(envPath, 'utf8');
@@ -24,10 +24,17 @@ const PROMPT_SKILL_PATH = path.join(PROJECT_ROOT, '.agents/skills/prompt/scripts
 const DEV_DIR = path.join(PROJECT_ROOT, '.dev');
 const MCP_ENDPOINT = env.GRAPHITI_ENDPOINT || process.env.GRAPHITI_ENDPOINT || 'http://localhost:8010/mcp/';
 const DEFAULT_GROUP_ID = env.GRAPHITI_GROUP_ID || process.env.GRAPHITI_GROUP_ID || 'lisa';
+const ZEP_API_KEY = env.ZEP_API_KEY || process.env.ZEP_API_KEY || '';
+const GRAPHITI_MODE = env.GRAPHITI_MODE || process.env.GRAPHITI_MODE || 'local';
+// Helper to check if using Zep Cloud native API (not MCP)
+const isZepCloudMode = () => GRAPHITI_MODE === 'zep-cloud';
 module.exports = {
     PROJECT_ROOT,
     PROMPT_SKILL_PATH,
     DEV_DIR,
     MCP_ENDPOINT,
     DEFAULT_GROUP_ID,
+    ZEP_API_KEY,
+    GRAPHITI_MODE,
+    isZepCloudMode,
 };
