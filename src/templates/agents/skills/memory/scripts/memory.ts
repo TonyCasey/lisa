@@ -7,11 +7,195 @@
 //   --endpoint <url> : MCP endpoint (default env GRAPHITI_ENDPOINT or http://localhost:8010/mcp/)
 //   --type <type>    : Entity type (decision, pattern, bug, etc.) - maps to tag
 //   --cache          : write successful responses to cache/memory.log and use it as fallback on errors.
+// Modes:
+//   local        : Local Docker MCP server (default)
+//   remote-neo4j : Remote Neo4j with local Docker MCP
+//   zep-cloud    : Zep Cloud native REST API (no Docker required)
 
 export {}; // ensure module scope to prevent global collisions across templates
 
 const fs = require('fs');
 const path = require('path');
+
+// ============================================================================
+// Zep Cloud Native API Client (for zep-cloud mode)
+// ============================================================================
+const ZEP_BASE_URL = 'https://api.getzep.com/api/v2';
+
+interface ZepFact {
+  uuid: string;
+  name: string;
+  fact: string;
+  created_at: string;
+}
+
+async function zepFetch<T>(
+  apiKey: string,
+  urlPath: string,
+  options: RequestInit = {},
+  timeoutMs = 15000
+): Promise<T> {
+  const url = `${ZEP_BASE_URL}${urlPath}`;
+  const resp = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Api-Key ${apiKey}`,
+      ...(options.headers || {}),
+    },
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+
+  const text = await resp.text();
+  let data: Record<string, unknown>;
+
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (_err) {
+    throw new Error(`Invalid JSON from Zep (${resp.status}): ${text.slice(0, 200)}`);
+  }
+
+  if (!resp.ok) {
+    // Zep returns errors in 'message' field, not 'error.message'
+    const errorMsg =
+      (data as Record<string, string>).message ||
+      (data.error as Record<string, string>)?.message ||
+      (data.error as Record<string, string>)?.detail ||
+      `HTTP ${resp.status}`;
+    throw new Error(errorMsg);
+  }
+
+  return data as T;
+}
+
+/**
+ * Zep v3 uses a thread-based approach:
+ * 1. Ensure user exists
+ * 2. Get or create a thread for the project
+ * 3. Add messages to the thread
+ * Zep extracts facts automatically from messages
+ */
+
+async function zepEnsureUser(
+  apiKey: string,
+  userId: string
+): Promise<{ user_id: string }> {
+  try {
+    // Try to create user - will fail if exists, which is fine
+    await zepFetch<unknown>(apiKey, '/users', {
+      method: 'POST',
+      body: JSON.stringify({
+        user_id: userId,
+        first_name: 'Lisa',
+        last_name: 'Memory',
+      }),
+    });
+  } catch (err) {
+    // User already exists is ok (400 with "user already exists")
+    if (!(err instanceof Error && err.message.includes('already exists'))) {
+      throw err;
+    }
+  }
+  return { user_id: userId };
+}
+
+async function zepGetOrCreateThread(
+  apiKey: string,
+  threadId: string,
+  userId: string
+): Promise<{ thread_id: string }> {
+  try {
+    // Try to create thread - will fail if exists
+    await zepFetch<unknown>(apiKey, '/threads', {
+      method: 'POST',
+      body: JSON.stringify({
+        thread_id: threadId,
+        user_id: userId,
+        metadata: { project: threadId, created_by: 'lisa' },
+      }),
+    });
+  } catch (err) {
+    // Thread already exists is ok
+    if (!(err instanceof Error && err.message.includes('already exists'))) {
+      throw err;
+    }
+  }
+  return { thread_id: threadId };
+}
+
+async function zepAddMemory(
+  apiKey: string,
+  text: string,
+  groupId: string,
+  source: string
+): Promise<{ message_uuid?: string }> {
+  // Use groupId as both user_id and thread_id base for consistent storage
+  const userId = `lisa-${groupId}`;
+  const threadId = `lisa-memory-${groupId}`;
+
+  // Ensure user and thread exist
+  await zepEnsureUser(apiKey, userId);
+  await zepGetOrCreateThread(apiKey, threadId, userId);
+
+  // Add message to thread (Zep extracts facts automatically)
+  const result = await zepFetch<{ message_uuids?: string[] }>(
+    apiKey,
+    `/threads/${encodeURIComponent(threadId)}/messages`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        messages: [
+          {
+            role: 'user',
+            role_type: 'user',
+            content: `[${source}] ${text}`,
+          },
+        ],
+      }),
+    }
+  );
+
+  return { message_uuid: result.message_uuids?.[0] };
+}
+
+async function zepSearchFacts(
+  apiKey: string,
+  query: string,
+  groupId: string,
+  limit: number
+): Promise<{ facts: ZepFact[] }> {
+  // Use the Lisa user ID for this project
+  const userId = `lisa-${groupId}`;
+
+  // First try to search by user_id (Zep v3 way)
+  const result = await zepFetch<{ edges?: Array<{ fact: string; name: string; uuid: string; created_at: string }> }>(
+    apiKey,
+    '/graph/search',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        user_id: userId,
+        query,
+        limit,
+        search_scope: 'facts',
+      }),
+    }
+  );
+
+  // Transform edges to facts format for compatibility
+  const facts: ZepFact[] = (result.edges || []).map((edge) => ({
+    uuid: edge.uuid,
+    name: edge.name,
+    fact: edge.fact,
+    created_at: edge.created_at,
+  }));
+
+  return { facts };
+}
+
+// ============================================================================
+// End Zep Cloud Client
+// ============================================================================
 
 // Entity type to tag mapping
 const TYPE_MAP: Record<string, string> = {
@@ -111,6 +295,11 @@ const useCache = hasFlag('--cache');
 const payload = args.join(' ').trim();
 const cacheFile = path.join(__dirname, '..', 'cache', 'memory.log');
 
+// Mode detection
+const graphitiMode = env.GRAPHITI_MODE || process.env.GRAPHITI_MODE || 'local';
+const zepApiKey = env.ZEP_API_KEY || process.env.ZEP_API_KEY || '';
+const isZepCloud = graphitiMode === 'zep-cloud';
+
 // Resolve tag: explicit --tag > --type mapping > prefix detection > undefined
 function resolveTag(text: string): string | undefined {
   if (explicitTag) return explicitTag;
@@ -198,6 +387,42 @@ async function loadMemory(sessionId: string) {
   return { status: 'ok', action: 'load', group: groupId, query, facts };
 }
 
+// ============================================================================
+// Zep Cloud Mode Functions (no MCP/Docker required)
+// ============================================================================
+async function addMemoryZep() {
+  if (!payload) throw new Error('add requires text payload');
+  if (!zepApiKey) throw new Error('ZEP_API_KEY required for zep-cloud mode');
+  const resolvedTag = resolveTag(payload);
+
+  // Include tag in the text for Zep (Zep extracts facts from message content)
+  const textWithTag = resolvedTag ? `[${resolvedTag}] ${payload}` : payload;
+
+  const result = await zepAddMemory(zepApiKey, textWithTag, groupId, source);
+  return {
+    status: 'ok',
+    action: 'add',
+    group: groupId,
+    text: payload,
+    tag: resolvedTag,
+    message_uuid: result.message_uuid,
+    mode: 'zep-cloud',
+  };
+}
+
+async function loadMemoryZep() {
+  if (!zepApiKey) throw new Error('ZEP_API_KEY required for zep-cloud mode');
+  const result = await zepSearchFacts(zepApiKey, query || '*', groupId, limit);
+  return {
+    status: 'ok',
+    action: 'load',
+    group: groupId,
+    query,
+    facts: result.facts,
+    mode: 'zep-cloud',
+  };
+}
+
 function writeCache(obj: Record<string, unknown>) {
   try {
     const line = JSON.stringify({ ts: new Date().toISOString(), ...obj });
@@ -220,9 +445,19 @@ function readCacheFallback(): Record<string, unknown> | null {
 async function main() {
   try {
     if (!['add', 'load'].includes(command)) throw new Error('command must be add|load');
-    const sid = await initialize();
-    const out = command === 'add' ? await addMemory(sid) : await loadMemory(sid);
-    if (useCache) writeCache(out as Record<string, unknown>);
+
+    let out: Record<string, unknown>;
+
+    if (isZepCloud) {
+      // Zep Cloud mode: use native REST API (no Docker/MCP required)
+      out = command === 'add' ? await addMemoryZep() : await loadMemoryZep();
+    } else {
+      // MCP mode: local or remote-neo4j (requires Docker MCP server)
+      const sid = await initialize();
+      out = command === 'add' ? await addMemory(sid) : await loadMemory(sid);
+    }
+
+    if (useCache) writeCache(out);
     console.log(JSON.stringify(out, null, 2));
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
