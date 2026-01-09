@@ -14,7 +14,7 @@ const DEFAULT_GROUP = 'sample-group';
 const ZEP_CLOUD_ENDPOINT = 'https://api.getzep.com/mcp/';
 
 // Deployment mode types
-type DeploymentMode = 'local' | 'remote-neo4j' | 'zep-cloud';
+type DeploymentMode = 'local' | 'remote-neo4j' | 'zep-cloud' | 'skip';
 
 interface IGraphitiConfig {
   mode: DeploymentMode;
@@ -33,10 +33,10 @@ interface IGraphitiConfig {
 // Interactive prompt functions
 async function promptDeploymentMode(): Promise<DeploymentMode> {
   return await select({
-    message: 'How would you like to connect to Graphiti?',
+    message: 'How would you like to configure storage?',
     choices: [
       {
-        name: 'Local Docker (runs Neo4j + Graphiti locally)',
+        name: 'Local Docker (runs Neo4j + MCP server locally)',
         value: 'local' as DeploymentMode,
       },
       {
@@ -44,8 +44,12 @@ async function promptDeploymentMode(): Promise<DeploymentMode> {
         value: 'remote-neo4j' as DeploymentMode,
       },
       {
-        name: 'Zep Cloud (managed Graphiti service)',
+        name: 'Zep Cloud (managed storage service)',
         value: 'zep-cloud' as DeploymentMode,
+      },
+      {
+        name: 'Set up later (scaffold project, configure storage later)',
+        value: 'skip' as DeploymentMode,
       },
     ],
   });
@@ -114,6 +118,36 @@ async function promptGroupId(): Promise<string> {
 
 // Generate .env content based on mode
 function generateEnvContent(config: IGraphitiConfig): string {
+  // For 'skip' mode, generate a template with commented examples
+  if (config.mode === 'skip') {
+    return `# Storage Configuration
+# See .agents/docs/STORAGE_SETUP.md for setup instructions
+
+GRAPHITI_GROUP_ID=${config.groupId}
+GRAPHITI_MODE=skip
+
+# Uncomment ONE of the following configurations:
+
+# === Option 1: Local Docker ===
+# GRAPHITI_MODE=local
+# GRAPHITI_ENDPOINT=http://localhost:8010/mcp/
+
+# === Option 2: Remote Neo4j ===
+# GRAPHITI_MODE=remote-neo4j
+# GRAPHITI_ENDPOINT=http://localhost:8010/mcp/
+# NEO4J_URI=neo4j+s://xxxxx.databases.neo4j.io
+# NEO4J_USER=neo4j
+# NEO4J_PASSWORD=your-password
+# OPENAI_API_KEY=sk-xxxxx
+
+# === Option 3: Zep Cloud ===
+# GRAPHITI_MODE=zep-cloud
+# GRAPHITI_ENDPOINT=https://api.getzep.com/mcp/
+# ZEP_API_KEY=zep_xxxxx
+# ZEP_PROJECT_ID=your-project-id
+`;
+  }
+
   const lines: string[] = [
     `GRAPHITI_ENDPOINT=${config.endpoint}`,
     `GRAPHITI_GROUP_ID=${config.groupId}`,
@@ -208,7 +242,7 @@ async function initCommand(opts: {
     };
   }
 
-  const includeDocker = opts.includeDocker !== false && config.mode !== 'zep-cloud';
+  const includeDocker = opts.includeDocker !== false && config.mode !== 'zep-cloud' && config.mode !== 'skip';
 
   const replacements = {
     GRAPHITI_ENDPOINT: config.endpoint,
@@ -244,6 +278,10 @@ async function initCommand(opts: {
   copies.push(services.templateCopier.copy('claude/config.js', path.join(claudeDir, 'config.js'), replacements, force));
   copies.push(services.templateCopier.copy('claude/hooks/user-prompt-submit.js', path.join(claudeDir, 'hooks', 'user-prompt-submit.js'), replacements, force));
 
+  // Storage setup documentation
+  const docsDir = path.join(agentsDir, 'docs');
+  copies.push(services.templateCopier.copy('agents/docs/STORAGE_SETUP.md', path.join(docsDir, 'STORAGE_SETUP.md'), replacements, force));
+
   // Provide a baseline skills .env configured to the chosen mode/endpoint/group.
   if (force || !(await fs.pathExists(skillsEnvDest))) {
     await fs.ensureDir(path.dirname(skillsEnvDest));
@@ -251,7 +289,7 @@ async function initCommand(opts: {
     await fs.writeFile(skillsEnvDest, envContent, 'utf8');
 
     // Write secrets to .env.local (should be gitignored)
-    if (config.mode !== 'local') {
+    if (config.mode !== 'local' && config.mode !== 'skip') {
       const envLocalDest = path.join(skillsDir, '.env.local');
       const envLocalContent = generateEnvLocalContent(config);
       await fs.writeFile(envLocalDest, envLocalContent, 'utf8');
@@ -273,6 +311,16 @@ async function initCommand(opts: {
   console.log(`Mode: ${config.mode}`);
   console.log(`Endpoint: ${config.endpoint}`);
   console.log(`Group ID: ${config.groupId}`);
+
+  // Show skip mode instructions
+  if (config.mode === 'skip') {
+    console.log('');
+    console.log(chalk.cyan('To configure storage later:'));
+    console.log(chalk.cyan('  1. Read .agents/docs/STORAGE_SETUP.md'));
+    console.log(chalk.cyan('  2. Edit .agents/skills/.env with your configuration'));
+    console.log(chalk.cyan('  3. Start a new terminal session'));
+    console.log(chalk.cyan('  4. Run `lisa doctor` to verify connection'));
+  }
 }
 
 async function loadConfig(cwd: string): Promise<{ endpoint?: string; group?: string; mode?: DeploymentMode } | null> {

@@ -77,6 +77,19 @@ test('initCommand skips docker assets when includeDocker is false', async () => 
   assert.ok(!services.templateCopier.calls.find((c) => c.dest.endsWith('docker-compose.graphiti.yml')));
 });
 
+test('initCommand skip mode skips docker and copies docs', async () => {
+  const services = makeServices();
+  const cwd = '/tmp/project';
+  await initCommand({ cwd, endpoint: DEFAULT_ENDPOINT, group: DEFAULT_GROUP, force: true, mode: 'skip' }, services);
+
+  // Docker assets should not be included for skip mode
+  assert.ok(!services.templateCopier.calls.find((c) => c.dest.endsWith('docker-compose.graphiti.yml')));
+
+  // Storage setup docs should be copied
+  const docsCopy = services.templateCopier.calls.find((c) => c.dest.endsWith('STORAGE_SETUP.md'));
+  assert.ok(docsCopy, 'STORAGE_SETUP.md should be copied');
+});
+
 test('doctorCommand checks docker and MCP via services', async () => {
   const services = makeServices();
   await doctorCommand({ cwd: process.cwd(), compose: 'docker-compose.graphiti.yml', endpoint: 'http://mcp' }, services);
