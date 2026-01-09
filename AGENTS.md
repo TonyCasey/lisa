@@ -6,7 +6,7 @@
 
 ## Defaults
 - Endpoint: `GRAPHITI_ENDPOINT` env or `http://localhost:8010/mcp/`
-- Group: `GRAPHITI_GROUP_ID` env or `agent-memories`
+- Group: `GRAPHITI_GROUP_ID` env or `lisa`
 
 ## Cross-model intent
 - Instructions and scripts are model-neutral (Codex, Claude, Gemini); logic lives in scripts; prompts avoid role tokens.

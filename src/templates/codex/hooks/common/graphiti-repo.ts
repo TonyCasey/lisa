@@ -148,7 +148,7 @@ function deriveRepo(factObj: MemoryFact = {}) {
   // e.g., "survey-ingestion-engine repository work is on the main branch."
   const leading = fact.match(new RegExp(`\\b(${slug.source})\\s+repository\\b`, 'i'));
   if (leading && !stop.has(leading[1].toLowerCase())) return leading[1];
-  const hardcoded = ['survey-ingestion-engine', 'agent-memories', 'survey'];
+  const hardcoded = ['survey-ingestion-engine', 'lisa', 'survey'];
   const found = hardcoded.find((r) => fact.toLowerCase().includes(r));
   if (found) return found;
   return null;

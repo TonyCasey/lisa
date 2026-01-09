@@ -32,9 +32,9 @@ function ensureLisa(projectRoot: string) {
   if (fs.existsSync(codexDir)) return;
   if (hasLisaInstalled(projectRoot)) return;
 
-  const localTarballPath = '/Users/tony.casey/Repos/agent-memories/dist';
+  const localTarballPath = '/Users/tony.casey/Repos/lisa/dist';
   if (!fs.existsSync(localTarballPath)) {
-    console.warn('lisa auto-install skipped: local dist not found at /Users/tony.casey/Repos/agent-memories/dist');
+    console.warn('lisa auto-install skipped: local dist not found at /Users/tony.casey/Repos/lisa/dist');
     return;
   }
 
