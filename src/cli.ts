@@ -124,16 +124,16 @@ function generateEnvContent(config: IGraphitiConfig): string {
 # See .agents/docs/STORAGE_SETUP.md for setup instructions
 
 GRAPHITI_GROUP_ID=${config.groupId}
-GRAPHITI_MODE=skip
+STORAGE_MODE=skip
 
 # Uncomment ONE of the following configurations:
 
 # === Option 1: Local Docker ===
-# GRAPHITI_MODE=local
+# STORAGE_MODE=local
 # GRAPHITI_ENDPOINT=http://localhost:8010/mcp/
 
 # === Option 2: Remote Neo4j ===
-# GRAPHITI_MODE=remote-neo4j
+# STORAGE_MODE=remote-neo4j
 # GRAPHITI_ENDPOINT=http://localhost:8010/mcp/
 # NEO4J_URI=neo4j+s://xxxxx.databases.neo4j.io
 # NEO4J_USER=neo4j
@@ -141,7 +141,7 @@ GRAPHITI_MODE=skip
 # OPENAI_API_KEY=sk-xxxxx
 
 # === Option 3: Zep Cloud ===
-# GRAPHITI_MODE=zep-cloud
+# STORAGE_MODE=zep-cloud
 # GRAPHITI_ENDPOINT=https://api.getzep.com/mcp/
 # ZEP_API_KEY=zep_xxxxx
 # ZEP_PROJECT_ID=your-project-id
@@ -151,7 +151,7 @@ GRAPHITI_MODE=skip
   const lines: string[] = [
     `GRAPHITI_ENDPOINT=${config.endpoint}`,
     `GRAPHITI_GROUP_ID=${config.groupId}`,
-    `GRAPHITI_MODE=${config.mode}`,
+    `STORAGE_MODE=${config.mode}`,
   ];
 
   if (config.mode === 'remote-neo4j') {
@@ -339,7 +339,7 @@ async function loadConfig(cwd: string): Promise<{ endpoint?: string; group?: str
   return {
     endpoint: map.GRAPHITI_ENDPOINT || DEFAULT_ENDPOINT,
     group: map.GRAPHITI_GROUP_ID || DEFAULT_GROUP,
-    mode: (map.GRAPHITI_MODE as DeploymentMode) || 'local',
+    mode: (map.STORAGE_MODE as DeploymentMode) || 'local',
   };
 }
 

@@ -25,9 +25,9 @@ const DEV_DIR = path.join(PROJECT_ROOT, '.dev');
 const MCP_ENDPOINT = env.GRAPHITI_ENDPOINT || process.env.GRAPHITI_ENDPOINT || 'http://localhost:8010/mcp/';
 const DEFAULT_GROUP_ID = env.GRAPHITI_GROUP_ID || process.env.GRAPHITI_GROUP_ID || 'lisa';
 const ZEP_API_KEY = env.ZEP_API_KEY || process.env.ZEP_API_KEY || '';
-const GRAPHITI_MODE = env.GRAPHITI_MODE || process.env.GRAPHITI_MODE || 'local';
+const STORAGE_MODE = env.STORAGE_MODE || process.env.STORAGE_MODE || 'local';
 // Helper to check if using Zep Cloud native API (not MCP)
-const isZepCloudMode = () => GRAPHITI_MODE === 'zep-cloud';
+const isZepCloudMode = () => STORAGE_MODE === 'zep-cloud';
 module.exports = {
     PROJECT_ROOT,
     PROMPT_SKILL_PATH,
@@ -35,6 +35,6 @@ module.exports = {
     MCP_ENDPOINT,
     DEFAULT_GROUP_ID,
     ZEP_API_KEY,
-    GRAPHITI_MODE,
+    STORAGE_MODE,
     isZepCloudMode,
 };

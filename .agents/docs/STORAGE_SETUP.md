@@ -138,14 +138,14 @@ If you chose "Set up later" during initialization, follow these steps:
 
    **For Local Docker:**
    ```env
-   GRAPHITI_MODE=local
+   STORAGE_MODE=local
    GRAPHITI_ENDPOINT=http://localhost:8010/mcp/
    GRAPHITI_GROUP_ID=your-project-name
    ```
 
    **For Remote Neo4j:**
    ```env
-   GRAPHITI_MODE=remote-neo4j
+   STORAGE_MODE=remote-neo4j
    GRAPHITI_ENDPOINT=http://localhost:8010/mcp/
    GRAPHITI_GROUP_ID=your-project-name
    NEO4J_URI=neo4j+s://xxxxx.databases.neo4j.io
@@ -156,7 +156,7 @@ If you chose "Set up later" during initialization, follow these steps:
 
    **For Zep Cloud:**
    ```env
-   GRAPHITI_MODE=zep-cloud
+   STORAGE_MODE=zep-cloud
    GRAPHITI_GROUP_ID=your-project-name
    ZEP_API_KEY=z_xxxxx
    ```
@@ -172,7 +172,7 @@ If you chose "Set up later" during initialization, follow these steps:
 
 | Variable | Mode | Description |
 |----------|------|-------------|
-| `GRAPHITI_MODE` | all | Storage mode: `local`, `remote-neo4j`, `zep-cloud`, or `skip` |
+| `STORAGE_MODE` | all | Storage mode: `local`, `remote-neo4j`, `zep-cloud`, or `skip` |
 | `GRAPHITI_ENDPOINT` | local, remote-neo4j | MCP server endpoint URL (not needed for zep-cloud) |
 | `GRAPHITI_GROUP_ID` | all | Memory group identifier (usually project name) |
 | `NEO4J_URI` | remote-neo4j | Neo4j connection URI |

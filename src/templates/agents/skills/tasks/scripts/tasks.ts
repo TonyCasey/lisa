@@ -232,7 +232,7 @@ const payload = args.join(' ').trim();
 const cacheFile = path.join(__dirname, '..', 'cache', 'tasks.log');
 
 // Mode detection
-const graphitiMode = env.GRAPHITI_MODE || process.env.GRAPHITI_MODE || 'local';
+const graphitiMode = env.STORAGE_MODE || process.env.STORAGE_MODE || 'local';
 const zepApiKey = env.ZEP_API_KEY || process.env.ZEP_API_KEY || '';
 const isZepCloud = graphitiMode === 'zep-cloud';
 
