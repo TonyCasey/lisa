@@ -24,6 +24,7 @@ const LOGS_DIR = '.logs';
 const WORK_SESSIONS_FILE = 'work-sessions.jsonl';
 const ERROR_LOG_FILE = 'stop-hook-errors.log';
 const MAX_LOG_SIZE = 10 * 1024 * 1024; // 10 MB
+const MEMORY_SKILL_TIMEOUT_MS = 10000; // 10 seconds
 /**
  * Main worker entry point
  */
@@ -121,6 +122,20 @@ async function saveToGraphiti(work, rating, input) {
     }
     // Call memory skill to save
     return new Promise((resolve) => {
+        let resolved = false; // Guard against multiple resolves
+        const safeResolve = () => {
+            if (resolved)
+                return;
+            resolved = true;
+            resolve();
+        };
+        const fallbackAndResolve = async () => {
+            if (resolved)
+                return;
+            resolved = true;
+            await saveToLocalLogs(work, rating, input);
+            resolve();
+        };
         const args = [
             memoryScript,
             'add',
@@ -145,7 +160,6 @@ async function saveToGraphiti(work, rating, input) {
             args.push('--tag', `branch:${branch}`);
         const child = spawn('node', args, {
             stdio: ['ignore', 'pipe', 'pipe'],
-            timeout: 10000, // 10 second timeout
             cwd: process.cwd(),
         });
         let stderr = '';
@@ -156,19 +170,21 @@ async function saveToGraphiti(work, rating, input) {
             if (code !== 0 && stderr) {
                 logError('Memory skill failed', stderr);
                 // Fall back to local logs on Graphiti failure
-                saveToLocalLogs(work, rating, input).then(resolve);
+                fallbackAndResolve();
             }
             else {
-                resolve();
+                safeResolve();
             }
         });
         child.on('error', (err) => {
             logError('Memory skill spawn error', err.message);
             // Fall back to local logs
-            saveToLocalLogs(work, rating, input).then(resolve);
+            fallbackAndResolve();
         });
         // Timeout handling
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
+            if (resolved)
+                return;
             try {
                 child.kill();
             }
@@ -176,8 +192,12 @@ async function saveToGraphiti(work, rating, input) {
                 // Ignore kill errors
             }
             logError('Memory skill timeout');
-            saveToLocalLogs(work, rating, input).then(resolve);
-        }, 10000);
+            fallbackAndResolve();
+        }, MEMORY_SKILL_TIMEOUT_MS);
+        // Clear timeout if resolved normally
+        child.on('close', () => {
+            clearTimeout(timeoutId);
+        });
     });
 }
 /**

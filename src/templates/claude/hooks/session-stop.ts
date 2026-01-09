@@ -21,7 +21,9 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
-interface StopHookInput {
+const STDIN_TIMEOUT_MS = 100; // Max time to wait for stdin
+
+interface IStopHookInput {
   session_id?: string;
   transcript_path?: string;
   cwd?: string;
@@ -31,14 +33,14 @@ interface StopHookInput {
 /**
  * Read JSON input from stdin
  */
-async function readStdin(): Promise<StopHookInput> {
+async function readStdin(): Promise<IStopHookInput> {
   return new Promise((resolve) => {
     let input = '';
 
     // Set a short timeout for reading stdin
     const timeout = setTimeout(() => {
       resolve({});
-    }, 100);
+    }, STDIN_TIMEOUT_MS);
 
     process.stdin.setEncoding('utf8');
     process.stdin.on('data', (chunk: string) => {

@@ -19,6 +19,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const STDIN_TIMEOUT_MS = 100; // Max time to wait for stdin
 /**
  * Read JSON input from stdin
  */
@@ -28,7 +29,7 @@ async function readStdin() {
         // Set a short timeout for reading stdin
         const timeout = setTimeout(() => {
             resolve({});
-        }, 100);
+        }, STDIN_TIMEOUT_MS);
         process.stdin.setEncoding('utf8');
         process.stdin.on('data', (chunk) => {
             input += chunk;
