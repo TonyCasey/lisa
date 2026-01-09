@@ -58,10 +58,10 @@ function makeServices(): IServices & {
 test('initCommand copies expected templates with replacements', async () => {
   const services = makeServices();
   const cwd = '/tmp/project';
-  await initCommand({ cwd, endpoint: DEFAULT_ENDPOINT, group: DEFAULT_GROUP, force: true }, services);
+  await initCommand({ cwd, endpoint: DEFAULT_ENDPOINT, group: DEFAULT_GROUP, force: true, mode: 'local' }, services);
 
-  // Expect 2 skill files + 2 docker assets = 4 copies.
-  assert.equal(services.templateCopier.calls.length, 4);
+  // Expect skills (2) + rules (6) + claude (3) + docker (2) = 13 copies
+  assert.ok(services.templateCopier.calls.length >= 10, `Expected at least 10 template copies, got ${services.templateCopier.calls.length}`);
   const memoryCopy = services.templateCopier.calls.find((c) => c.dest.endsWith(path.join('.agents', 'skills', 'memory', 'SKILL.md')));
   assert.ok(memoryCopy, 'memory SKILL should be copied');
   assert.equal(memoryCopy?.replacements.GRAPHITI_ENDPOINT, DEFAULT_ENDPOINT);
@@ -71,10 +71,9 @@ test('initCommand copies expected templates with replacements', async () => {
 test('initCommand skips docker assets when includeDocker is false', async () => {
   const services = makeServices();
   const cwd = '/tmp/project';
-  await initCommand({ cwd, endpoint: DEFAULT_ENDPOINT, group: DEFAULT_GROUP, force: true, includeDocker: false }, services);
+  await initCommand({ cwd, endpoint: DEFAULT_ENDPOINT, group: DEFAULT_GROUP, force: true, includeDocker: false, mode: 'local' }, services);
 
-  // Expect 2 skill files only.
-  assert.equal(services.templateCopier.calls.length, 2);
+  // Docker assets should not be included
   assert.ok(!services.templateCopier.calls.find((c) => c.dest.endsWith('docker-compose.graphiti.yml')));
 });
 

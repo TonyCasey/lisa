@@ -1,0 +1,41 @@
+name: lisa-remote
+
+# This compose file runs only the Graphiti MCP server and connects to a remote Neo4j instance.
+# Use this when you have Neo4j Aura or another remote Neo4j database.
+#
+# Required environment variables:
+#   NEO4J_URI       - Remote Neo4j URI (e.g., neo4j+s://xxxxx.databases.neo4j.io)
+#   NEO4J_USER      - Neo4j username (default: neo4j)
+#   NEO4J_PASSWORD  - Neo4j password
+#   OPENAI_API_KEY  - OpenAI API key for embeddings
+
+services:
+  graphiti-mcp:
+    image: zepai/graphiti-mcp:latest
+    env_file:
+      - path: ./.env.graphiti
+        required: false
+      - path: ./.env
+        required: false
+    environment:
+      - NEO4J_URI=${NEO4J_URI}
+      - NEO4J_USER=${NEO4J_USER:-neo4j}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD}
+      - NEO4J_DATABASE=${NEO4J_DATABASE:-neo4j}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GRAPHITI_GROUP_ID=${GRAPHITI_GROUP_ID:-main}
+      - SEMAPHORE_LIMIT=${SEMAPHORE_LIMIT:-10}
+    ports:
+      - "8010:8000"
+    restart: always
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthcheck')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
