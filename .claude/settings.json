@@ -1,0 +1,46 @@
+{
+  "workflowsDirectory": ".claude/workflows",
+  "autoLoadRules": true,
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/session-start.js"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/session-stop.js"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/user-prompt-submit.js"
+          }
+        ]
+      }
+    ]
+  },
+  "excludePatterns": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/lib/**",
+    "**/.git/**",
+    "**/coverage/**",
+    "**/.next/**",
+    "**/.nuxt/**"
+  ]
+}

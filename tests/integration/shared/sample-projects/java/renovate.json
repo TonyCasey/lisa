@@ -1,0 +1,24 @@
+{
+  "extends": [
+    "config:base",
+    ":automergeMinor",
+    ":label(dependencies)"
+  ],
+  "gradle": {
+    "enabled": true
+  },
+  "packageRules": [
+    {
+      "groupName": "Mockito",
+      "packagePatterns": [
+        "^org.mockito:"
+      ]
+    },
+    {
+      "groupName": "slf4j",
+      "packagePatterns": [
+        "^org.slf4j:"
+      ]
+    }
+  ]
+}

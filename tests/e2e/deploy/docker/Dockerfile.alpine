@@ -1,0 +1,14 @@
+FROM alpine:3.20
+
+# Alpine 3.20 has Node.js 20.15+ with npm 10.8+
+RUN apk add --no-cache nodejs npm git bash
+
+RUN adduser -D -s /bin/bash testuser
+USER testuser
+WORKDIR /home/testuser
+
+COPY --chown=testuser:testuser dist/packages/tonycasey-lisa-*.tgz /home/testuser/
+
+# Projects will be mounted from shared sample-projects folder
+
+CMD ["/bin/bash"]

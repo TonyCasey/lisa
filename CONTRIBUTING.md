@@ -1,0 +1,237 @@
+# Contributing to Lisa
+
+Thank you for your interest in contributing to Lisa! This guide covers everything you need to set up a development environment and contribute effectively.
+
+## Prerequisites
+
+- **Node.js** 18+
+- **npm** or **pnpm**
+- **Docker** (for testing the full stack locally)
+- **Git**
+
+## Development Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/tonycasey/lisa.git
+cd lisa
+
+# Install dependencies
+npm install
+
+# Build the project
+npm run build
+
+# Verify installation
+lisa doctor
+```
+
+After building, you should see `.agents/`, `.claude/`, and `.codex/` folders populated with compiled templates.
+
+## Project Structure
+
+```
+lisa/
+├── src/                      # TypeScript source (edit here!)
+│   ├── cli.ts               # Main CLI application
+│   ├── lib/                 # Core utilities and services
+│   └── templates/           # Source templates
+│       ├── agents/          # Skills (memory, tasks, prompt)
+│       ├── claude/          # Claude Code hooks
+│       ├── codex/           # Codex hooks
+│       ├── docker/          # Docker compose templates
+│       └── rules/           # Coding standards
+│
+├── dist/                    # Compiled output (generated)
+│
+├── .agents/                 # Deployed skills & rules (generated)
+├── .claude/                 # Deployed Claude hooks (generated)
+├── .codex/                  # Deployed Codex hooks (generated)
+│
+├── scripts/                 # Build scripts
+│   ├── postbuild-copy-templates.js
+│   ├── prepare-dist-package.js
+│   └── deploy-agents.js
+│
+├── tests/                   # Test files
+└── docs/                    # Consumer documentation
+```
+
+### Key Principle
+
+**Always edit files in `src/templates/`** - never edit `.agents/`, `.claude/`, or `.codex/` directly. These are regenerated on every build.
+
+## Build Pipeline
+
+When you run `npm run build`, four stages execute:
+
+1. **TypeScript Compilation** (`tsc`)
+   - Compiles `src/**/*.ts` to `dist/**/*.js`
+
+2. **Template Copying** (`postbuild-copy-templates.js`)
+   - Copies non-TS assets from `src/templates/` to `dist/templates/`
+
+3. **Package Preparation** (`prepare-dist-package.js`)
+   - Creates optimized `dist/package.json` for npm publishing
+
+4. **Local Deployment** (`deploy-agents.js`)
+   - Deploys `dist/templates/` to `.agents/`, `.claude/`, `.codex/`
+   - Creates necessary symlinks
+
+## Common Tasks
+
+### Running Tests
+
+```bash
+npm test                    # Run all tests
+npm run test:watch          # Watch mode
+```
+
+### Linting
+
+```bash
+npm run lint               # Check for issues
+npm run lint:fix           # Auto-fix issues
+```
+
+### Type Checking
+
+```bash
+npm run type-check         # TypeScript type check only
+```
+
+### Full Validation
+
+```bash
+npm run build && npm test && npm run lint
+```
+
+## Adding New Features
+
+### Adding a Skill
+
+1. Create directory: `src/templates/agents/skills/<skill-name>/`
+2. Add `SKILL.md` with trigger definitions and instructions
+3. Add `scripts/<skill-name>.ts` with implementation
+4. Run `npm run build` to compile and deploy
+5. Test the skill with Claude Code or Codex
+
+Example skill structure:
+```
+src/templates/agents/skills/my-skill/
+├── SKILL.md           # Skill definition
+└── scripts/
+    └── my-skill.ts    # Implementation
+```
+
+### Adding a Hook
+
+**For Claude Code:**
+```
+src/templates/claude/hooks/<hook-name>.ts
+```
+
+**For Codex:**
+```
+src/templates/codex/hooks/<hook-name>.ts
+```
+
+Shared utilities go in `common/` subdirectories.
+
+### Adding Rules
+
+**Language-agnostic:**
+```
+src/templates/rules/shared/<rule-name>.md
+```
+
+**Language-specific:**
+```
+src/templates/rules/typescript/<rule-name>.md
+```
+
+## Testing Changes Locally
+
+### Test as Global Install
+
+```bash
+# Create tarball
+npm pack
+
+# Install globally from tarball
+npm install -g ./lisa-0.5.x.tgz
+
+# Test in a fresh directory
+mkdir test-project && cd test-project
+lisa init
+lisa doctor
+```
+
+### Test Specific Commands
+
+```bash
+# Run CLI directly from source
+npx tsx src/cli.ts doctor
+npx tsx src/cli.ts init --help
+```
+
+## Pull Request Guidelines
+
+### Before Submitting
+
+- [ ] Run `npm run build` successfully
+- [ ] Run `npm test` with all tests passing
+- [ ] Run `npm run lint` with no errors
+- [ ] Test changes manually
+
+### PR Format
+
+**Title:** Use conventional commit format
+- `feat: add new skill for X`
+- `fix: resolve issue with Y`
+- `docs: update README`
+- `refactor: simplify Z`
+
+**Description:**
+- What changes were made
+- Why they were made
+- How to test them
+
+### Code Style
+
+- Follow existing patterns in the codebase
+- Use TypeScript strict mode
+- No `any` types in production code
+- Add tests for new functionality
+
+## Troubleshooting
+
+### Build Fails
+
+```bash
+# Clean and rebuild
+rm -rf dist .agents .claude .codex
+npm run build
+```
+
+### Templates Not Updating
+
+The deploy script only runs during build. Run `npm run build` after changing templates.
+
+### TypeScript Errors
+
+```bash
+npm run type-check
+```
+
+Fix errors in `src/` before committing.
+
+## Publishing (Maintainers)
+
+See [PUBLISHING.md](./PUBLISHING.md) for npm publishing instructions.
+
+## Questions?
+
+- Open an issue for bugs or feature requests
+- Check existing issues before creating new ones
+- Join discussions in open PRs

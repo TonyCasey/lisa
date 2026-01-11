@@ -1,0 +1,19 @@
+FROM ubuntu:22.04
+
+# Install Node.js 20.x
+RUN apt-get update && apt-get install -y curl git \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && apt-get clean
+
+# Create test user (non-root)
+RUN useradd -m -s /bin/bash testuser
+USER testuser
+WORKDIR /home/testuser
+
+# Copy package
+COPY --chown=testuser:testuser dist/packages/tonycasey-lisa-*.tgz /home/testuser/
+
+# Projects will be mounted from shared sample-projects folder
+
+CMD ["/bin/bash"]

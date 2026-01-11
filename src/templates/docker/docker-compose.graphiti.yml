@@ -1,0 +1,45 @@
+name: lisa
+
+services:
+  neo4j:
+    image: neo4j:5.26.2
+    hostname: neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - NEO4J_AUTH=${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-demodemo}
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  graphiti-mcp:
+    image: zepai/knowledge-graph-mcp:latest
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      # NEO4J_URI must point to container hostname, not localhost
+      - NEO4J_URI=bolt://neo4j:7687
+    ports:
+      - "8010:8000"
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  neo4j_data:
+  neo4j_logs:
