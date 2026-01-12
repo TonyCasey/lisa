@@ -188,3 +188,5 @@ next-env.d.ts
 
 # Work session logs (local only, not for Graphiti)
 .logs/**
+# Local npm registry config
+.npmrc
