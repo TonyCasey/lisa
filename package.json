@@ -1,6 +1,6 @@
 {
   "name": "@tonycasey/lisa",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Long-term memory for Claude Code. Automatic context persistence, task tracking, and knowledge capture across coding sessions.",
   "bin": {
     "lisa": "dist/cli.js",
