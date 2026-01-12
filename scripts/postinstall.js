@@ -12,6 +12,7 @@ const fs = require('fs-extra');
 const { execSync, spawn } = require('child_process');
 const readline = require('readline');
 const net = require('net');
+const { glob } = require('glob');
 
 // When installed as a dependency, the project root is four levels up from node_modules/@tonycasey/lisa/scripts
 // When running locally (development), use the current working directory
@@ -324,6 +325,67 @@ async function copyTemplates(src, dest, force = false) {
   await fs.ensureDir(path.dirname(dest));
   await fs.copy(src, dest, { overwrite: force });
   return true;
+}
+
+/**
+ * Preserve local extensions (.local.md files and .local/ directories) before deployment.
+ * These are user-created files that should survive package updates.
+ */
+async function preserveLocalExtensions(targetDir) {
+  const preserved = { files: [], dirs: [] };
+
+  if (!(await fs.pathExists(targetDir))) {
+    return preserved;
+  }
+
+  // Find all .local.md files (rules extensions)
+  const localFiles = await glob('**/*.local.md', { cwd: targetDir, nodir: true });
+  for (const file of localFiles) {
+    const fullPath = path.join(targetDir, file);
+    const content = await fs.readFile(fullPath, 'utf8');
+    preserved.files.push({ path: file, content });
+  }
+
+  // Find all .local directories (skill extensions)
+  const localDirs = await glob('**/*.local', { cwd: targetDir, onlyDirectories: true });
+  for (const dir of localDirs) {
+    const fullPath = path.join(targetDir, dir);
+    const files = [];
+    const dirFiles = await glob('**/*', { cwd: fullPath, nodir: true });
+    for (const file of dirFiles) {
+      const filePath = path.join(fullPath, file);
+      const content = await fs.readFile(filePath, 'utf8');
+      files.push({ path: file, content });
+    }
+    preserved.dirs.push({ path: dir, files });
+  }
+
+  if (preserved.files.length > 0 || preserved.dirs.length > 0) {
+    console.log(`  Preserving ${preserved.files.length} local file(s) and ${preserved.dirs.length} local dir(s)`);
+  }
+
+  return preserved;
+}
+
+/**
+ * Restore preserved local extensions after deployment.
+ */
+async function restoreLocalExtensions(targetDir, preserved) {
+  for (const { path: filePath, content } of preserved.files) {
+    const fullPath = path.join(targetDir, filePath);
+    await fs.ensureDir(path.dirname(fullPath));
+    await fs.writeFile(fullPath, content, 'utf8');
+    console.log(`  ✓ Restored: ${filePath}`);
+  }
+
+  for (const { path: dirPath, files } of preserved.dirs) {
+    for (const { path: filePath, content } of files) {
+      const fullPath = path.join(targetDir, dirPath, filePath);
+      await fs.ensureDir(path.dirname(fullPath));
+      await fs.writeFile(fullPath, content, 'utf8');
+    }
+    console.log(`  ✓ Restored: ${dirPath}/`);
+  }
 }
 
 async function createSymlink(target, linkPath) {
@@ -641,6 +703,9 @@ async function main() {
   const agentsDir = path.join(projectRoot, '.agents');
   const claudeDir = path.join(projectRoot, '.claude');
 
+  // Preserve local extensions before copying (user-created .local.md files and .local/ directories)
+  const preservedExtensions = await preserveLocalExtensions(agentsDir);
+
   // Copy .agents templates
   const agentsSrc = path.join(templateRoot, 'agents');
   const rulesSrc = path.join(templateRoot, 'rules');
@@ -657,6 +722,9 @@ async function main() {
     await copyTemplates(rulesSrc, path.join(agentsDir, 'rules'));
     console.log('  ✓ Copied .agents/rules/');
   }
+
+  // Restore local extensions after copying
+  await restoreLocalExtensions(agentsDir, preservedExtensions);
 
   // Copy .claude templates
   const claudeSrc = path.join(templateRoot, 'claude');

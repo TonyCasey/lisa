@@ -2,13 +2,22 @@
 
 ## Commit Memory Rule
 
-**IMPORTANT:** After every successful git commit, you MUST create a milestone memory summarizing what was committed.
+**IMPORTANT:** After every successful git commit, you MUST do TWO things:
+1. Create a milestone memory summarizing what was committed
+2. Update the task status if completing a Jira ticket
 
-### How to Create Commit Memory
+### Step 1: Create Commit Memory
 
 After a commit succeeds, run:
 ```bash
 node .agents/skills/memory/scripts/memory.js add "<summary>" --cache --type milestone
+```
+
+### Step 2: Update Task Status (for tickets)
+
+If the commit completes ticket (JIRA-1234), also run:
+```bash
+node .agents/skills/tasks/scripts/tasks.js add "JIRA-1234: COMPLETED - <description>" --cache --status done
 ```
 
 ### Summary Format
@@ -20,9 +29,13 @@ The summary should be concise and describe:
 
 ### Examples
 
-**Feature commit:**
+**Feature commit (with Jira ticket):**
 ```bash
-node .agents/skills/memory/scripts/memory.js add "FEATURE: Added user authentication with JWT tokens and session management" --cache --type milestone
+# Step 1: Save milestone
+node .agents/skills/memory/scripts/memory.js add "FEATURE: [JIRA-1234] Added Excel brandlist parser with unit tests" --cache --type milestone
+
+# Step 2: Update task status
+node .agents/skills/tasks/scripts/tasks.js add "JIRA-1234: COMPLETED - Excel brandlist parser utility created, PR #XXXX" --cache --status done
 ```
 
 **Bug fix:**
@@ -38,7 +51,8 @@ node .agents/skills/memory/scripts/memory.js add "REFACTOR: Migrated API handler
 ### Why This Matters
 
 - Creates a searchable history of development progress
-- Helps future sessions understand what was accomplished
+- Keeps task status accurate across sessions
+- Helps future sessions understand what was achieved
 - Builds project context for AI assistants
 - Tracks milestones and features over time
 
@@ -62,3 +76,8 @@ node .agents/skills/memory/scripts/memory.js add "REFACTOR: Migrated API handler
 - Keep commits focused and atomic
 - Don't mix unrelated changes in one commit
 - Write meaningful commit messages
+
+
+## Pull Requests
+
+Follow generic guidelines for pull requests, ensuring all required information is provided in the description.
