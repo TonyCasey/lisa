@@ -347,7 +347,9 @@ async function preserveLocalExtensions(targetDir) {
   }
 
   // Find all .local directories (skill extensions)
-  const localDirs = await glob('**/*.local', { cwd: targetDir, onlyDirectories: true });
+  // Use trailing slash to match only directories (glob doesn't support onlyDirectories option)
+  const localDirMatches = await glob('**/*.local/', { cwd: targetDir });
+  const localDirs = localDirMatches.map(d => d.replace(/\/$/, '')); // Remove trailing slash
   for (const dir of localDirs) {
     const fullPath = path.join(targetDir, dir);
     const files = [];
@@ -429,17 +431,17 @@ async function copyDockerFiles(agentsDir) {
     await fs.copy(composeSrc, composeDest, { overwrite: false });
   }
 
-  // Copy .env.lisa.example to project root (if no .env exists)
-  const envSrc = path.join(dockerSrc, '.env.lisa.example');
+  // Copy .env to project root (if no .env exists)
+  const envSrc = path.join(dockerSrc, '.env');
   const rootEnv = path.join(path.dirname(agentsDir), '.env');
-  const envExampleDest = path.join(path.dirname(agentsDir), '.env.lisa.example');
+  const envExampleDest = path.join(path.dirname(agentsDir), '.env');
   if (await fs.pathExists(envSrc)) {
     // Always copy the example file for reference
     await fs.copy(envSrc, envExampleDest, { overwrite: false });
     // If no .env exists, create one from the example
     if (!(await fs.pathExists(rootEnv))) {
       await fs.copy(envSrc, rootEnv);
-      console.log('  Created .env from .env.lisa.example');
+      console.log('  Created .env from .env');
     }
   }
 
@@ -561,10 +563,10 @@ async function setupDocker(agentsDir) {
   // Check if .env exists in project root, if not copy from example
   const projectRoot = path.dirname(agentsDir);
   const envFile = path.join(projectRoot, '.env');
-  const envExample = path.join(projectRoot, '.env.lisa.example');
+  const envExample = path.join(projectRoot, '.env');
   if (!(await fs.pathExists(envFile)) && (await fs.pathExists(envExample))) {
     await fs.copy(envExample, envFile);
-    console.log('  Created .env from .env.lisa.example');
+    console.log('  Created .env from .env');
     console.log('  IMPORTANT: Edit .env and add your OPENAI_API_KEY');
   }
 
