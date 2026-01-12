@@ -1,7 +1,7 @@
 {
   "name": "@tonycasey/lisa",
   "version": "1.0.0",
-  "description": "Claude NEEDS Lisa. Plug-and-play memory for Claude Code and AI coding assistants.",
+  "description": "Long-term memory for Claude Code. Automatic context persistence, task tracking, and knowledge capture across coding sessions.",
   "bin": {
     "lisa": "dist/cli.js",
     "remember": "dist/cli.js"
@@ -32,11 +32,18 @@
     "e2e:docker:full": "cd tests/integration/deploy/docker && docker compose --env-file ../../../../.env -f docker-compose.test.yml up --build"
   },
   "keywords": [
+    "claude",
+    "claude-code",
+    "anthropic",
+    "ai-memory",
+    "ai-assistant",
+    "coding-assistant",
+    "context",
+    "knowledge-graph",
     "graphiti",
     "mcp",
-    "memory",
-    "hooks",
-    "cli"
+    "neo4j",
+    "developer-tools"
   ],
   "author": "Tony Casey",
   "license": "MIT",
