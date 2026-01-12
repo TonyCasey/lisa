@@ -8,7 +8,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 
 // Import the module (CommonJS style)
-const { rateComplexity, getRatingLabel, THRESHOLDS } = require('../complexity-rater');
+const { rateComplexity, getRatingLabel, THRESHOLDS } = require('../../../../../../../src/templates/claude/hooks/common/complexity-rater');
 
 interface IWorkSummary {
   filesModified: Set<string>;

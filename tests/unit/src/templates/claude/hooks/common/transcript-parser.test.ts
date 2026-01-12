@@ -10,7 +10,7 @@ import path from 'node:path';
 import os from 'node:os';
 
 // Import the module (CommonJS style)
-const { parseTranscript, formatDuration } = require('../transcript-parser');
+const { parseTranscript, formatDuration } = require('../../../../../../../src/templates/claude/hooks/common/transcript-parser');
 
 describe('parseTranscript', () => {
   let tempDir: string;
