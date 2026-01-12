@@ -21,6 +21,7 @@
     "postbuild": "node scripts/postbuild-copy-templates.js && node scripts/prepare-dist-package.js && node scripts/deploy-agents.js",
     "postinstall": "node scripts/postinstall.js",
     "clean": "rimraf dist",
+    "package": "rm -f *.tgz releases/*.tgz && npm run build && mkdir -p releases && npm pack && mv *.tgz releases/",
     "lint": "eslint 'src/**/*.{ts,js}'",
     "test": "tsx --test src/**/*.test.ts tests/**/*.test.ts",
     "test:unit": "tsx --test tests/unit/**/*.test.ts",
