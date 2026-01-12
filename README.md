@@ -3,17 +3,27 @@
 ![Lisa for Claude](https://raw.githubusercontent.com/TonyCasey/lisa/main/assets/claude-i-remember.png)
 ![Lisa What I can do](https://raw.githubusercontent.com/TonyCasey/lisa/main/assets/lisa-what-i-can-do.png)
 
-### **#ClaudeNeedsLisa**
 
-> *Named after Lisa Simpson - the overachiever who never forgets a fact, a slight, or a saxophone lesson.*
+> *Lisa Simpson - the overachiever who never forgets a fact, a detail, or a saxophone lesson.*
+
+---
+
+## Why Lisa?
+
+Unlike simple vector databases or file-based memory, Lisa uses **[Graphiti](https://github.com/getzep/graphiti)** - a knowledge graph that captures *relationships* between concepts, not just text.
+
+- **Graph-native storage** (Neo4j) - Connections matter as much as content
+- **LLM-powered extraction** - Automatically identifies entities and relationships
+- **Temporal awareness** - Knows *when* you learned something
+- **Semantic retrieval** - Finds relevant context by meaning, not keywords
 
 ---
 
 ## To Install
 
-### From your, console 
+### From your console
 ```bash
-install -g @tonycasey/lisa
+npm install -g @tonycasey/lisa
 ```
 ### then in any folder you want to work with, open your console and type 
 ```bash
