@@ -1,6 +1,6 @@
 {
   "name": "@tonycasey/lisa",
-  "version": "0.5.13",
+  "version": "1.0.0",
   "description": "Claude NEEDS Lisa. Plug-and-play memory for Claude Code and AI coding assistants.",
   "bin": {
     "lisa": "dist/cli.js",
