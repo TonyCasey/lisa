@@ -1,7 +1,7 @@
 # Lisa – Long Term Memory for Claude 
 
-![Lisa for Claude](assets/claude-i-remember.png)
-![Lisa What I can do](assets/lisa-what-i-can-do.png)
+![Lisa for Claude](https://raw.githubusercontent.com/TonyCasey/lisa/main/assets/claude-i-remember.png)
+![Lisa What I can do](https://raw.githubusercontent.com/TonyCasey/lisa/main/assets/lisa-what-i-can-do.png)
 
 ### **#ClaudeNeedsLisa**
 
