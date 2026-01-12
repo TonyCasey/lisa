@@ -621,6 +621,13 @@ async function setupDocker(agentsDir) {
 }
 
 async function main() {
+  // Skip postinstall in development mode (when running npm ci/install in the source repo)
+  // Only run when installed as a dependency in another project
+  if (!isInstalledAsDependency) {
+    // Silent exit in dev mode - this is expected behavior
+    return;
+  }
+
   console.log('');
   console.log('lisa: Setting up Claude Code memory and rules...');
   console.log('');
