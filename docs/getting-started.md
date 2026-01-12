@@ -18,8 +18,16 @@ This runs Neo4j and Graphiti locally via Docker.
 # Install Lisa globally
 npm install -g @tonycasey/lisa
 
-# In your project
+# change directory to your project directory
 cd your-project
+
+# IMPORTANT: LISA's Storage requires an OpenAI API key to run.
+# Set your OPEN_AI_API_KEY in /your-project/.env file (if you one have one just rename the .env.sample file to .env)
+  OPENAI_API_KEY=sk-proj-2F_zZ8...  
+# (or export it, just run this command in your terminal)
+  export OPEN_AI_API_KEY=sk-proj-2F_zZ8...    
+
+# Initialize and start Docker Image for Storage
 lisa init
 lisa up
 ```
