@@ -95,6 +95,9 @@ async function main(): Promise<void> {
     if (rating.rating >= 3) {
       // Significant work -> Graphiti
       await saveToGraphiti(work, rating, input);
+
+      // 7b. Save retrospective learnings for significant work
+      await saveRetrospective(work, input);
     } else {
       // Minor work -> Local logs
       await saveToLocalLogs(work, rating, input);
@@ -316,6 +319,160 @@ function buildGraphitiSummary(
   }
 
   return lines.join('\n');
+}
+
+/**
+ * Analyze work and save retrospective learnings
+ * Extracts patterns from files created/modified
+ */
+async function saveRetrospective(work: IWorkSummary, input: IStopHookInput): Promise<void> {
+  const allFiles = [...work.filesCreated, ...work.filesModified];
+  if (allFiles.length === 0) return;
+
+  const patterns = analyzePatterns(allFiles);
+  if (!patterns) return;
+
+  const repo = detectRepo();
+  const memoryScript = path.join(process.cwd(), '.agents/skills/memory/scripts/memory.js');
+
+  if (!fs.existsSync(memoryScript)) {
+    return;
+  }
+
+  const retrospective = `RETROSPECTIVE: ${patterns}`;
+
+  return new Promise((resolve) => {
+    const args = [
+      memoryScript,
+      'add',
+      retrospective,
+      '--group',
+      repo || 'agent-memories',
+      '--tag',
+      'retrospective',
+      '--tag',
+      'automated',
+      '--tag',
+      `session:${input.session_id}`,
+      '--source',
+      'session-stop-retrospective',
+      '--cache',
+    ];
+
+    if (repo) args.push('--tag', `repo:${repo}`);
+
+    const child = spawn('node', args, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      cwd: process.cwd(),
+    });
+
+    child.on('close', () => resolve());
+    child.on('error', () => resolve());
+
+    // Timeout after 5 seconds
+    setTimeout(() => {
+      try {
+        child.kill();
+      } catch {
+        // Ignore
+      }
+      resolve();
+    }, 5000);
+  });
+}
+
+/**
+ * Analyze file patterns to extract learnings
+ */
+function analyzePatterns(files: string[]): string | null {
+  const learnings: string[] = [];
+
+  // Analyze directory structure
+  const directories = new Set<string>();
+  const extensions = new Map<string, number>();
+  const hasTests = files.some((f) => f.includes('test') || f.includes('spec') || f.includes('__tests__'));
+  const hasTypes = files.some((f) => f.endsWith('.d.ts') || f.includes('types'));
+
+  for (const file of files) {
+    // Track directories
+    const dir = path.dirname(file);
+    if (dir && dir !== '.') {
+      directories.add(dir.split('/')[0] || dir);
+    }
+
+    // Track extensions
+    const ext = path.extname(file);
+    if (ext) {
+      extensions.set(ext, (extensions.get(ext) || 0) + 1);
+    }
+  }
+
+  // Structure patterns
+  if (directories.size > 0) {
+    const topDirs = Array.from(directories).slice(0, 5);
+    learnings.push(`STRUCTURE: Files organized in ${topDirs.join(', ')}`);
+  }
+
+  // Technology patterns
+  const extList = Array.from(extensions.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([ext]) => ext);
+  if (extList.length > 0) {
+    learnings.push(`TECH: Primary file types ${extList.join(', ')}`);
+  }
+
+  // Test patterns
+  if (hasTests) {
+    const testFiles = files.filter((f) => f.includes('test') || f.includes('spec'));
+    const testDir = testFiles.length > 0 ? path.dirname(testFiles[0]) : null;
+    if (testDir) {
+      learnings.push(`TESTING: Tests located in ${testDir}`);
+    }
+  }
+
+  // Type patterns
+  if (hasTypes) {
+    learnings.push('STYLE: Project uses TypeScript type definitions');
+  }
+
+  // Naming patterns
+  const namingPatterns = detectNamingPatterns(files);
+  if (namingPatterns) {
+    learnings.push(`NAMING: ${namingPatterns}`);
+  }
+
+  return learnings.length > 0 ? learnings.join('; ') : null;
+}
+
+/**
+ * Detect naming conventions from file names
+ */
+function detectNamingPatterns(files: string[]): string | null {
+  const fileNames = files.map((f) => path.basename(f, path.extname(f)));
+
+  let kebabCount = 0;
+  let camelCount = 0;
+  let pascalCount = 0;
+  let snakeCount = 0;
+
+  for (const name of fileNames) {
+    if (name.includes('-')) kebabCount++;
+    else if (name.includes('_')) snakeCount++;
+    else if (name[0] === name[0].toUpperCase() && name.includes(name.toLowerCase())) pascalCount++;
+    else if (/[a-z][A-Z]/.test(name)) camelCount++;
+  }
+
+  const total = fileNames.length;
+  if (total === 0) return null;
+
+  const patterns: string[] = [];
+  if (kebabCount / total > 0.5) patterns.push('kebab-case for files');
+  if (camelCount / total > 0.5) patterns.push('camelCase for files');
+  if (pascalCount / total > 0.5) patterns.push('PascalCase for files');
+  if (snakeCount / total > 0.5) patterns.push('snake_case for files');
+
+  return patterns.length > 0 ? patterns.join(', ') : null;
 }
 
 /**

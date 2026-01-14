@@ -248,6 +248,151 @@ function formatMemorySummary(memories: MemoryNode[], limit: number = MAX_RECENT_
   });
 }
 
+// Overall timeout for memory loading to avoid blocking session start
+const MEMORY_LOAD_TIMEOUT_MS = 5000; // 5 seconds max
+
+interface MemoryLoadResult {
+  facts: MemoryNode[];
+  nodes: MemoryNode[];
+  tasks: MemoryNode[];
+  initReview: string | null;
+  timedOut: boolean;
+}
+
+/**
+ * Load all memory with an overall timeout
+ * Returns partial results if timeout occurs
+ */
+async function loadMemoryWithTimeout(
+  aliases: string[],
+  hierarchicalGroups: string[],
+  branch: string | null
+): Promise<MemoryLoadResult> {
+  const result: MemoryLoadResult = {
+    facts: [],
+    nodes: [],
+    tasks: [],
+    initReview: null,
+    timedOut: false,
+  };
+
+  let sessionId: string | null = null;
+
+  const loadPromise = async (): Promise<void> => {
+    // Load init-review memory first (codebase summary)
+    try {
+      const initParams = {
+        query: 'init-review',
+        max_facts: 1,
+        order: 'desc',
+        group_ids: hierarchicalGroups,
+        tags: ['type:init-review'],
+      };
+      const [initResp, sid] = (await rpcCall('search_memory_facts', initParams, sessionId)) as [MemoryResult, string];
+      sessionId = sid;
+
+      const initFacts = initResp?.result?.facts || initResp?.facts || [];
+      if (initFacts.length > 0) {
+        const fact = initFacts[0];
+        result.initReview = fact.fact || fact.name || null;
+      }
+    } catch {
+      // Continue if init-review load fails
+    }
+
+    // Load recent facts/nodes from memory using hierarchical groups
+    try {
+      const seenUuids = new Set<string>();
+
+      // Query with hierarchical groups (current folder + all parents)
+      const recentParams = { query: '*', max_facts: 100, order: 'desc', group_ids: hierarchicalGroups };
+      const [recentResp, sid] = (await rpcCall('search_memory_facts', recentParams, sessionId)) as [MemoryResult, string];
+      sessionId = sid;
+
+      const recentFacts = recentResp?.result?.facts || recentResp?.facts || [];
+      for (const fact of recentFacts) {
+        const uuid = fact.uuid || `${fact.name}-${fact.fact}`;
+        if (!seenUuids.has(uuid)) {
+          seenUuids.add(uuid);
+          result.facts.push(fact);
+        }
+      }
+
+      // Also query by repo aliases to catch any repo-specific memories
+      for (const alias of aliases) {
+        const baseParams = { query: alias, tags: repoTags({ repo: alias, branch }) };
+        const factParams = { ...baseParams, max_facts: 50, order: 'desc', group_ids: hierarchicalGroups };
+        const [factResp] = (await rpcCall('search_memory_facts', factParams, sessionId)) as [MemoryResult, string];
+
+        const aliasedFacts = factResp?.result?.facts || factResp?.facts || [];
+        for (const fact of aliasedFacts) {
+          const uuid = fact.uuid || `${fact.name}-${fact.fact}`;
+          if (!seenUuids.has(uuid)) {
+            seenUuids.add(uuid);
+            result.facts.push(fact);
+          }
+        }
+      }
+
+      // Fall back to nodes if no facts found
+      if (!result.facts.length) {
+        for (const alias of aliases) {
+          const baseParams = { query: alias, tags: repoTags({ repo: alias, branch }) };
+          const nodeParams = { ...baseParams, max_nodes: 20, group_ids: hierarchicalGroups };
+          const [nodeResp] = (await rpcCall('search_nodes', nodeParams, sessionId)) as [MemoryResult, string];
+          const aliasedNodes = nodeResp?.result?.nodes || nodeResp?.nodes || [];
+          for (const node of aliasedNodes) {
+            const uuid = node.uuid || `${node.name}-${node.fact}`;
+            if (!seenUuids.has(uuid)) {
+              seenUuids.add(uuid);
+              result.nodes.push(node);
+            }
+          }
+        }
+      }
+    } catch {
+      // Continue if memory load fails
+    }
+
+    // Load tasks for this repo
+    try {
+      const seenTaskUuids = new Set<string>();
+
+      for (const alias of aliases) {
+        const taskParams = {
+          query: 'task',
+          tags: ['type:task', ...repoTags({ repo: alias, branch })],
+          max_nodes: 200,
+          group_ids: hierarchicalGroups,
+        };
+        const [taskResp] = (await rpcCall('search_nodes', taskParams, sessionId)) as [MemoryResult, string];
+        const aliasedTasks = taskResp?.result?.nodes || taskResp?.nodes || [];
+        for (const task of aliasedTasks) {
+          const uuid = task.uuid || `${task.name}-${task.fact}`;
+          if (!seenTaskUuids.has(uuid)) {
+            seenTaskUuids.add(uuid);
+            result.tasks.push(task);
+          }
+        }
+      }
+    } catch {
+      // Continue if task load fails
+    }
+  };
+
+  // Race between loading and timeout
+  const timeoutPromise = new Promise<void>((resolve) => {
+    setTimeout(() => {
+      result.timedOut = true;
+      resolve();
+    }, MEMORY_LOAD_TIMEOUT_MS);
+  });
+
+  await Promise.race([loadPromise(), timeoutPromise]);
+
+  return result;
+}
+
 async function main(): Promise<void> {
   const repo = detectRepo();
   const branch = detectBranch();
@@ -255,130 +400,23 @@ async function main(): Promise<void> {
   const user = getUserName();
 
   // Folder-based group hierarchy
-  const currentGroupId = getCurrentGroupId();
   const hierarchicalGroups = getHierarchicalGroupIds();
   const folderMetadata = detectFolderMetadata();
   const folderType = formatFolderMetadata(folderMetadata);
   const cwd = process.cwd();
 
-  let sessionId: string | null = null;
-  let facts: MemoryNode[] = [];
-  const nodes: MemoryNode[] = [];
-  let initReview: string | null = null;
+  // Load memory with timeout to avoid blocking session start
+  const memoryResult = await loadMemoryWithTimeout(aliases, hierarchicalGroups, branch);
 
-  // Load init-review memory first (codebase summary)
-  try {
-    const initParams = {
-      query: 'init-review',
-      max_facts: 1,
-      order: 'desc',
-      group_ids: hierarchicalGroups,
-      tags: ['type:init-review'],
-    };
-    const [initResp, sid] = await rpcCall('search_memory_facts', initParams, sessionId) as [MemoryResult, string];
-    sessionId = sid;
+  const facts = memoryResult.facts;
+  const nodes = memoryResult.nodes;
+  const taskNodes = memoryResult.tasks;
+  const initReview = memoryResult.initReview;
 
-    const initFacts = initResp?.result?.facts || initResp?.facts || [];
-    if (initFacts.length > 0) {
-      // Get the most recent init-review
-      const fact = initFacts[0];
-      initReview = fact.fact || fact.name || null;
-    }
-  } catch (_err) {
-    // Silently continue if init-review load fails
-  }
+  // Process items (rest of the function continues as before)
+  // Note: We removed the inline loading code and now use memoryResult
 
-  // Load recent facts/nodes from memory using hierarchical groups
-  try {
-    const allFacts: MemoryNode[] = [];
-    const seenUuids = new Set<string>();
-
-    // Query with hierarchical groups (current folder + all parents)
-    const recentParams = { query: '*', max_facts: 100, order: 'desc', group_ids: hierarchicalGroups };
-    const [recentResp, sid] = await rpcCall('search_memory_facts', recentParams, sessionId) as [MemoryResult, string];
-    sessionId = sid;
-
-    const recentFacts = recentResp?.result?.facts || recentResp?.facts || [];
-    for (const fact of recentFacts) {
-      const uuid = fact.uuid || `${fact.name}-${fact.fact}`;
-      if (!seenUuids.has(uuid)) {
-        seenUuids.add(uuid);
-        allFacts.push(fact);
-      }
-    }
-
-    // Also query by repo aliases to catch any repo-specific memories
-    for (const alias of aliases) {
-      const baseParams = { query: alias, tags: repoTags({ repo: alias, branch }) };
-      const factParams = { ...baseParams, max_facts: 50, order: 'desc', group_ids: hierarchicalGroups };
-      const [factResp] = await rpcCall('search_memory_facts', factParams, sessionId) as [MemoryResult, string];
-
-      const aliasedFacts = factResp?.result?.facts || factResp?.facts || [];
-      for (const fact of aliasedFacts) {
-        const uuid = fact.uuid || `${fact.name}-${fact.fact}`;
-        if (!seenUuids.has(uuid)) {
-          seenUuids.add(uuid);
-          allFacts.push(fact);
-        }
-      }
-    }
-    facts = allFacts;
-
-    // Fall back to nodes if no facts found
-    if (!facts.length) {
-      for (const alias of aliases) {
-        const baseParams = { query: alias, tags: repoTags({ repo: alias, branch }) };
-        const nodeParams = { ...baseParams, max_nodes: 20, group_ids: hierarchicalGroups };
-        const [nodeResp] = await rpcCall('search_nodes', nodeParams, sessionId) as [MemoryResult, string];
-        const aliasedNodes = nodeResp?.result?.nodes || nodeResp?.nodes || [];
-        for (const node of aliasedNodes) {
-          const uuid = node.uuid || `${node.name}-${node.fact}`;
-          if (!seenUuids.has(uuid)) {
-            seenUuids.add(uuid);
-            nodes.push(node);
-          }
-        }
-      }
-    }
-  } catch (_err) {
-    // Silently continue if memory load fails - don't block session start
-  }
-
-  // Load tasks for this repo (query all aliases with hierarchical groups)
-  const taskNodes: MemoryNode[] = [];
-  try {
-    const seenTaskUuids = new Set<string>();
-
-    for (const alias of aliases) {
-      const taskParams = {
-        query: 'task',
-        tags: ['type:task', ...repoTags({ repo: alias, branch })],
-        max_nodes: 200,
-        group_ids: hierarchicalGroups,
-      };
-      const [taskResp] = await rpcCall('search_nodes', taskParams, sessionId) as [MemoryResult, string];
-      const aliasedTasks = taskResp?.result?.nodes || taskResp?.nodes || [];
-      for (const task of aliasedTasks) {
-        const uuid = task.uuid || `${task.name}-${task.fact}`;
-        if (!seenTaskUuids.has(uuid)) {
-          seenTaskUuids.add(uuid);
-          taskNodes.push(task);
-        }
-      }
-    }
-  } catch (_err) {
-    // Silently continue if task load fails
-  }
-
-  // Process items
-  const repoLabel = `${repo}${branch ? ' (' + branch + ')' : ''}`;
-  const items = facts.length ? facts : nodes;
-
-  // Filter to last 24 hours and format for display
-  const recentItems = filterRecentMemories(items, RECENT_HOURS);
-  const recentFormatted = formatMemorySummary(recentItems, MAX_RECENT_MEMORIES);
-
-  // Deduplicate tasks by key (task_num or task_id)
+  // Build task list from loaded task nodes
   const tasksByKey = new Map<string, MemoryNode>();
   taskNodes.forEach((n) => {
     const key = getTaskNum(n.tags) || getTaskId(n.tags);
@@ -419,8 +457,22 @@ async function main(): Promise<void> {
   const ready = tasks.filter((t) => t.status === 'ready');
 
   // Build output - show folder context with type
+  const repoLabel = `${repo}${branch ? ' (' + branch + ')' : ''}`;
+  const items = facts.length ? facts : nodes;
+
+  // Filter to last 24 hours and format for display
+  const recentItems = filterRecentMemories(items, RECENT_HOURS);
+  const recentFormatted = formatMemorySummary(recentItems, MAX_RECENT_MEMORIES);
+
   const lines: string[] = [];
-  lines.push(`Memory loaded for session start.`);
+
+  // Show timeout warning if applicable
+  if (memoryResult.timedOut) {
+    lines.push(`Memory loaded (partial - timed out after ${MEMORY_LOAD_TIMEOUT_MS / 1000}s).`);
+  } else {
+    lines.push(`Memory loaded for session start.`);
+  }
+
   // Show folder path with detected type (e.g., "TypeScript/React project")
   const folderDisplay = cwd.replace(process.env.HOME || '', '~');
   lines.push(`User: ${user} | Folder: ${folderDisplay} (${folderType})`);
@@ -455,7 +507,10 @@ async function main(): Promise<void> {
       lines.push(`Active: ${active[0].key} - ${active[0].title}`);
     }
     if (ready.length) {
-      const readyList = ready.slice(0, 2).map((t) => `${t.key} - ${t.title}`).join(' | ');
+      const readyList = ready
+        .slice(0, 2)
+        .map((t) => `${t.key} - ${t.title}`)
+        .join(' | ');
       lines.push(`Ready: ${readyList}`);
     }
   } else {
@@ -468,9 +523,10 @@ async function main(): Promise<void> {
   // Visible confirmation to user (stderr) - brief summary
   const itemCount = items.length;
   const taskCount = tasks.length;
-  const summary = itemCount || taskCount
-    ? `${itemCount} memories, ${taskCount} tasks`
-    : 'no prior context';
+  let summary = itemCount || taskCount ? `${itemCount} memories, ${taskCount} tasks` : 'no prior context';
+  if (memoryResult.timedOut) {
+    summary += ' (partial)';
+  }
   console.error(`[Memory loaded: ${summary}]`);
 }
 
