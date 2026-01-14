@@ -5,6 +5,7 @@ import path from 'path';
 import chalk from 'chalk';
 import { select, input, password } from '@inquirer/prompts';
 import { createDefaultServices, IServices } from './lib/services';
+import { runScan, IScanOptions, IScanResult } from './lib/scanner';
 
 // Templates are copied into dist/templates by postbuild; resolve relative to compiled file.
 const TEMPLATE_ROOT = path.join(__dirname, 'templates');
@@ -434,6 +435,29 @@ program
     await doctorCommand({ cwd: process.cwd(), compose: cmd.compose, endpoint: cmd.endpoint }, services);
   });
 
+program
+  .command('scan [path]')
+  .description('Scan a directory for projects and create solution-level knowledge')
+  .option('--dry-run', 'Preview what would be discovered without storing facts')
+  .option('--clean', 'Remove previous scan facts before adding new ones')
+  .option('-v, --verbose', 'Show detailed output for each project')
+  .action(async (targetPath: string | undefined, cmd) => {
+    const scanPath = targetPath || process.cwd();
+    const options: IScanOptions = {
+      dryRun: cmd.dryRun,
+      clean: cmd.clean,
+      verbose: cmd.verbose,
+    };
+
+    try {
+      const result = await runScan(scanPath, options);
+      process.exit(result.success ? 0 : 1);
+    } catch (err) {
+      console.error(chalk.red(`Scan failed: ${err instanceof Error ? err.message : err}`));
+      process.exit(1);
+    }
+  });
+
 if (require.main === module) {
   program.parseAsync(process.argv).catch((err) => {
     console.error(chalk.red(err.message));
@@ -450,4 +474,5 @@ export {
   DEFAULT_ENDPOINT,
   DEFAULT_GROUP,
   TEMPLATE_ROOT,
+  runScan,
 };
