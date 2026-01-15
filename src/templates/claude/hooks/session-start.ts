@@ -7,12 +7,85 @@ export {}; // keep scope local
  * Loads memory context from Graphiti MCP at the start of a new Claude session.
  * This ensures Claude has access to prior work, tasks, and project context.
  *
+ * Handles all SessionStart trigger types:
+ * - startup: Initial session start
+ * - resume: Resuming an existing session
+ * - compact: After auto-compact operation (context was summarized)
+ * - clear: After /clear command
+ *
  * Configuration: .claude/settings.json -> hooks.SessionStart
  */
 
 const { rpcCall, withGroup, getCurrentGroupId, getHierarchicalGroupIds } = require('./common/mcp-client');
 const { detectRepo, detectBranch, repoTags, getUserName, getProjectAliases } = require('./common/context');
 const { detectFolderMetadata, formatFolderMetadata } = require('./common/group-id');
+
+// Session start trigger types
+type SessionTrigger = 'startup' | 'resume' | 'compact' | 'clear';
+
+interface HookInput {
+  trigger?: SessionTrigger;
+  session_type?: SessionTrigger;
+}
+
+/**
+ * Read hook input from stdin (JSON with trigger type and session info)
+ */
+async function readStdin(): Promise<HookInput> {
+  return new Promise((resolve) => {
+    let data = '';
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('readable', () => {
+      let chunk;
+      while ((chunk = process.stdin.read()) !== null) {
+        data += chunk;
+      }
+    });
+    process.stdin.on('end', () => {
+      try {
+        resolve(JSON.parse(data) as HookInput);
+      } catch {
+        resolve({});
+      }
+    });
+    // Timeout if no stdin after 100ms (for manual testing)
+    setTimeout(() => {
+      if (!data) resolve({});
+    }, 100);
+  });
+}
+
+/**
+ * Get trigger-specific messaging
+ */
+function getTriggerMessage(trigger: SessionTrigger): string {
+  switch (trigger) {
+    case 'startup':
+      return 'Memory loaded for session start.';
+    case 'resume':
+      return 'Memory loaded for session resume.';
+    case 'compact':
+      return 'Memory reloaded after context compaction.';
+    case 'clear':
+      return 'Memory loaded after context clear.';
+    default:
+      return 'Memory loaded for session start.';
+  }
+}
+
+/**
+ * Get trigger-specific reminders (shown after compact/clear)
+ */
+function getTriggerReminders(trigger: SessionTrigger): string[] {
+  const reminders: string[] = [];
+  if (trigger === 'compact') {
+    reminders.push('Note: Context was compacted. Previously loaded skills may need to be re-invoked if needed.');
+  }
+  if (trigger === 'clear') {
+    reminders.push('Note: Context was cleared. Start fresh or use /memory to recall prior work.');
+  }
+  return reminders;
+}
 
 // Configuration for recent memories display
 const RECENT_HOURS = 24;
@@ -394,6 +467,10 @@ async function loadMemoryWithTimeout(
 }
 
 async function main(): Promise<void> {
+  // Read hook input to get trigger type (startup, resume, compact, clear)
+  const hookInput = await readStdin();
+  const trigger: SessionTrigger = hookInput.trigger || hookInput.session_type || 'startup';
+
   const repo = detectRepo();
   const branch = detectBranch();
   const aliases = getProjectAliases(); // Get all aliases including folder name
@@ -466,11 +543,18 @@ async function main(): Promise<void> {
 
   const lines: string[] = [];
 
-  // Show timeout warning if applicable
+  // Show trigger-specific message with timeout warning if applicable
+  const baseMessage = getTriggerMessage(trigger);
   if (memoryResult.timedOut) {
-    lines.push(`Memory loaded (partial - timed out after ${MEMORY_LOAD_TIMEOUT_MS / 1000}s).`);
+    lines.push(`${baseMessage.replace('.', '')} (partial - timed out after ${MEMORY_LOAD_TIMEOUT_MS / 1000}s).`);
   } else {
-    lines.push(`Memory loaded for session start.`);
+    lines.push(baseMessage);
+  }
+
+  // Add trigger-specific reminders (for compact/clear)
+  const reminders = getTriggerReminders(trigger);
+  if (reminders.length) {
+    reminders.forEach((r) => lines.push(r));
   }
 
   // Show folder path with detected type (e.g., "TypeScript/React project")
@@ -527,7 +611,9 @@ async function main(): Promise<void> {
   if (memoryResult.timedOut) {
     summary += ' (partial)';
   }
-  console.error(`[Memory loaded: ${summary}]`);
+  // Show trigger type for transparency
+  const triggerLabel = trigger === 'startup' ? '' : ` (${trigger})`;
+  console.error(`[Memory loaded${triggerLabel}: ${summary}]`);
 }
 
 main().catch((err: Error) => {
