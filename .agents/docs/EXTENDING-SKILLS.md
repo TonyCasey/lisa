@@ -40,13 +40,23 @@ extends: git
 \`\`\`
 ```
 
-### 3. Rebuild to Apply
+### 3. Compile to Apply
 
+Ask Lisa to compile the skills:
+```
+lisa, compile skills
+```
+
+Or run the script directly:
 ```bash
-npm run build
+node .agents/skills/lisa/scripts/compile-skills.js
 ```
 
 The `SKILL.local.md` content will be merged into `SKILL.md`.
+
+**Note:** Skill extensions are also automatically merged when:
+- The Lisa package is installed or updated (`npm install`)
+- You explicitly ask Lisa to compile skills
 
 ## File Structure
 
@@ -149,9 +159,9 @@ Custom scripts are preserved during Lisa updates if placed in:
 
 ## How Merging Works
 
-When you run `npm run build`:
+When Lisa is installed/updated or you run "lisa, compile skills":
 
-1. **Preserve**: `SKILL.local.md` files are saved
+1. **Preserve**: `SKILL.local.md` files are saved during package update
 2. **Deploy**: Base templates are copied to `.agents/`
 3. **Restore**: `SKILL.local.md` files are restored
 4. **Merge**: Local content is appended to base `SKILL.md`
@@ -228,7 +238,7 @@ The same pattern works for any skill:
 ### Extension not appearing
 
 1. Ensure file is named exactly `SKILL.local.md` (case-sensitive)
-2. Run `npm run build` to trigger the merge
+2. Ask "lisa, compile skills" to trigger the merge
 3. Check the merged `SKILL.md` for your content
 
 ### Extension overwritten
@@ -269,7 +279,7 @@ If you've modified base `SKILL.md` files directly:
 
 1. Copy your custom sections to a new `SKILL.local.md`
 2. Remove the `---` frontmatter (or use `extends:`)
-3. Run `npm run build` to reset base and merge local
+3. Ask "lisa, compile skills" to merge local extensions
 4. Verify the merged result
 
 ```bash
@@ -277,5 +287,5 @@ If you've modified base `SKILL.md` files directly:
 cp .agents/skills/git/SKILL.md .agents/skills/git/SKILL.local.md.bak
 # Edit SKILL.local.md to keep only your custom sections
 # Add extends: git frontmatter
-npm run build
+# Then ask: "lisa, compile skills"
 ```
