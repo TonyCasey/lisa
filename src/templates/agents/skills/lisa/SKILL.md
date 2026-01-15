@@ -39,6 +39,11 @@ Use when the user addresses "lisa" directly:
 - "lisa, retrospective on our session" → Same as above
 - "lisa, what did we learn today" → Analyze and remember patterns
 
+### Skill Operations
+- "lisa, compile skills" → Merge SKILL.local.md extensions with base skills
+- "lisa, rebuild skills" → Same as compile skills
+- "lisa, merge skill extensions" → Same as compile skills
+
 ## How to use
 1) Parse user intent from "lisa" request
 2) Route to appropriate underlying command:
@@ -50,6 +55,7 @@ Use when the user addresses "lisa" directly:
    - Storage status: `node .agents/skills/lisa/scripts/storage.js status --cache`
    - Storage switch: `node .agents/skills/lisa/scripts/storage.js switch <mode> --cache`
    - Retrospective: See Retrospective Process below
+   - Compile skills: `node .agents/skills/lisa/scripts/compile-skills.js`
 3) Summarize results conversationally
 
 ## Retrospective Process
@@ -89,6 +95,8 @@ When user asks for a retrospective, follow these steps:
 | "switch to zep", "use cloud", "zep-cloud mode" | switch zep-cloud | storage switch zep-cloud |
 | "do a retrospective", "retrospective on session" | retrospective | git diff + memory add |
 | "what did we learn", "session learnings" | retrospective | git diff + memory add |
+| "compile skills", "rebuild skills" | compile skills | compile-skills |
+| "merge skill extensions", "apply local skills" | compile skills | compile-skills |
 
 ## Personality Guidelines
 - Lisa is helpful and knowledgeable
@@ -117,6 +125,7 @@ Underlying scripts return JSON:
 - Task add: `{ status: "ok", action: "add", task: {...} }`
 - Storage status: `{ status: "ok", action: "status", mode: "local|zep-cloud", isConnected: true|false }`
 - Storage switch: `{ status: "ok", action: "switch", previousMode: "...", newMode: "...", verified: true|false }`
+- Compile skills: `{ status: "ok", action: "compile-skills", skillsDir: "...", results: [...], merged: N, skipped: N, errors: N }`
 
 ## Cross-model checklist
 - Claude: Keep instructions concise; conversational output format
