@@ -76,6 +76,104 @@ async function restoreLocalExtensions(targetDir, preserved) {
   }
 }
 
+/**
+ * Parse YAML frontmatter from a markdown file.
+ * Returns { frontmatter: object, body: string }
+ */
+function parseMarkdownWithFrontmatter(content) {
+  const match = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+  if (!match) {
+    return { frontmatter: {}, body: content };
+  }
+
+  // Simple YAML parsing for frontmatter (handles basic key: value pairs)
+  const frontmatter = {};
+  const yamlLines = match[1].split('\n');
+  for (const line of yamlLines) {
+    const kvMatch = line.match(/^(\w+):\s*"?([^"]*)"?$/);
+    if (kvMatch) {
+      frontmatter[kvMatch[1]] = kvMatch[2];
+    }
+  }
+
+  return { frontmatter, body: match[2] };
+}
+
+/**
+ * Merge a base SKILL.md with a SKILL.local.md extension.
+ * The local file's content is appended after the base content.
+ * Frontmatter from base is preserved, with local overrides merged.
+ */
+function mergeSkillFiles(baseContent, localContent) {
+  const base = parseMarkdownWithFrontmatter(baseContent);
+  const local = parseMarkdownWithFrontmatter(localContent);
+
+  // Merge frontmatter (local overrides base, except for 'extends')
+  const mergedFrontmatter = { ...base.frontmatter };
+  for (const [key, value] of Object.entries(local.frontmatter)) {
+    if (key !== 'extends') {
+      // Append to description if both have it
+      if (key === 'description' && mergedFrontmatter.description) {
+        mergedFrontmatter.description = `${mergedFrontmatter.description} ${value}`;
+      } else {
+        mergedFrontmatter[key] = value;
+      }
+    }
+  }
+
+  // Build merged content
+  let merged = '---\n';
+  for (const [key, value] of Object.entries(mergedFrontmatter)) {
+    merged += `${key}: "${value}"\n`;
+  }
+  merged += '---\n';
+
+  // Add base body
+  merged += base.body;
+
+  // Add separator and local body
+  if (local.body.trim()) {
+    merged += '\n\n<!-- Local Extensions (from SKILL.local.md) -->\n\n';
+    merged += local.body;
+  }
+
+  return merged;
+}
+
+/**
+ * Merge SKILL.local.md files with their base SKILL.md files.
+ * This allows companies to extend skills without modifying the base.
+ */
+async function mergeSkillExtensions(targetDir) {
+  const skillsDir = path.join(targetDir, 'skills');
+
+  if (!(await fs.pathExists(skillsDir))) {
+    return;
+  }
+
+  // Find all SKILL.local.md files
+  const localSkillFiles = await glob('*/SKILL.local.md', { cwd: skillsDir, nodir: true });
+
+  for (const localFile of localSkillFiles) {
+    const skillName = path.dirname(localFile);
+    const baseFile = path.join(skillsDir, skillName, 'SKILL.md');
+    const localPath = path.join(skillsDir, localFile);
+
+    if (!(await fs.pathExists(baseFile))) {
+      console.log(`  ⚠ No base SKILL.md for ${skillName}, skipping merge`);
+      continue;
+    }
+
+    const baseContent = await fs.readFile(baseFile, 'utf8');
+    const localContent = await fs.readFile(localPath, 'utf8');
+
+    const merged = mergeSkillFiles(baseContent, localContent);
+
+    await fs.writeFile(baseFile, merged, 'utf8');
+    console.log(`  ✓ Merged: skills/${skillName}/SKILL.md + SKILL.local.md`);
+  }
+}
+
 async function createSymlink(target, linkPath) {
   try {
     // Remove existing symlink if present
@@ -125,6 +223,9 @@ async function main() {
 
   // Restore local extensions after deployment
   await restoreLocalExtensions(targetAgents, preservedAgents);
+
+  // Merge SKILL.local.md extensions with base SKILL.md files
+  await mergeSkillExtensions(targetAgents);
 
   // Deploy Claude Code templates (hooks)
   if (await fs.pathExists(distClaude)) {
