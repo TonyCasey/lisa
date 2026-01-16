@@ -1,7 +1,6 @@
 # Lisa – Long Term Memory for Claude
 
 ![Lisa for Claude](assets/claude-i-remember.png)
-![Lisa What I can do](assets/lisa-what-i-can-do.png)
 
 
 > *Lisa Simpson - the overachiever who never forgets a fact, a detail, or a saxophone lesson.*
@@ -21,14 +20,11 @@ Unlike simple vector databases or file-based memory, Lisa uses **[Graphiti](http
 
 ## To Install
 
-### From your console
+### From your console, in your project folder
 ```bash
-npm install -g @tonycasey/lisa
+npm install @tonycasey/lisa
 ```
-### then in any folder you want to work with, open your console and type 
-```bash
-lisa setup
-```
+
 ## Using Lisa
 
 Once installed, Lisa works automatically. Your AI assistant will:
