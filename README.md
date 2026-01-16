@@ -3,7 +3,7 @@
 ![Lisa for Claude](assets/claude-i-remember.png)
 
 
-> *Lisa Simpson - the overachiever who never forgets a fact, a detail, or a saxophone lesson.*
+> *Lisa, who never forgets a fact, a detail, or a saxophone lesson.*
 
 ---
 
