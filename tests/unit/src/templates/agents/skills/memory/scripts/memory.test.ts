@@ -17,7 +17,7 @@ import {
   getHierarchicalGroupIds,
   detectPrefixTag,
   TYPE_MAP,
-} from '../../../../../../../../src/templates/agents/skills/common/group-id';
+} from '../../../../../../../../src/project/.lisa/skills/common/group-id';
 
 describe('Memory Skill - Group ID Functions', () => {
   test('should normalize project paths correctly', () => {

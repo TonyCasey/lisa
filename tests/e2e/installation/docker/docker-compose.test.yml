@@ -1,0 +1,152 @@
+# Full Mode - Installation + Memory Persistence tests (requires Neo4j + Graphiti MCP)
+#
+# Usage:
+#   docker compose --env-file ../../../../.env -f docker-compose.test.yml up --build
+#
+# CLI Mode variants:
+#   CLI_MODE=both docker compose --env-file ../../../../.env -f docker-compose.test.yml up --build
+#   CLI_MODE=claude-only docker compose --env-file ../../../../.env -f docker-compose.test.yml up --build
+#   CLI_MODE=opencode-only docker compose --env-file ../../../../.env -f docker-compose.test.yml up --build
+#
+# Test all distros:
+#   docker compose --env-file ../../../../.env -f docker-compose.test.yml --profile all up --build
+
+name: lisa-install-full
+
+services:
+  neo4j:
+    image: neo4j:5.26.2
+    ports:
+      - "17474:7474"  # Different ports to avoid conflicts with dev environment
+      - "17687:7687"
+    environment:
+      - NEO4J_AUTH=${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-demodemo}
+    volumes:
+      - neo4j_test_data:/data
+      - neo4j_test_logs:/logs
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  neo4j-init:
+    image: neo4j:5.26.2
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    environment:
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=${NEO4J_USER:-neo4j}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-demodemo}
+    volumes:
+      - ./init-neo4j.cypher:/init.cypher:ro
+    entrypoint: >
+      bash -c "
+        echo 'Waiting for Neo4j to be fully ready...' &&
+        sleep 5 &&
+        echo 'Creating indices synchronously (one at a time)...' &&
+        while IFS= read -r line || [ -n \"$$line\" ]; do
+          line=$$(echo \"$$line\" | sed 's/^[[:space:]]*//;s/[[:space:]]*$$//')
+          if [ -n \"$$line\" ] && [[ ! \"$$line\" =~ ^// ]]; then
+            echo \"Running: $$line\" &&
+            echo \"$$line\" | cypher-shell -a bolt://neo4j:7687 -u $${NEO4J_USER} -p $${NEO4J_PASSWORD} --non-interactive 2>&1 || true
+          fi
+        done < /init.cypher &&
+        echo 'All indices created' &&
+        sleep 2
+      "
+
+  graphiti-mcp:
+    image: zepai/knowledge-graph-mcp:standalone
+    restart: on-failure:3
+    ports:
+      - "18010:8000"  # Different port to avoid conflicts with dev environment
+    depends_on:
+      neo4j:
+        condition: service_healthy
+      neo4j-init:
+        condition: service_completed_successfully
+    environment:
+      # Neo4j connection (internal Docker network)
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=${NEO4J_USER:-neo4j}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-demodemo}
+      - NEO4J_DATABASE=${NEO4J_DATABASE:-neo4j}
+      - USE_PARALLEL_RUNTIME=${USE_PARALLEL_RUNTIME:-false}
+      # Graphiti MCP
+      - GRAPHITI_GROUP_ID=${GRAPHITI_GROUP_ID:-docker-test}
+      - SEMAPHORE_LIMIT=${SEMAPHORE_LIMIT:-1}
+      - CONFIG_PATH=/app/mcp/config/config.yaml
+      - PATH=/root/.local/bin:${PATH}
+      # LLM (from root .env)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_API_URL=${OPENAI_API_URL:-https://api.openai.com/v1}
+    volumes:
+      - mcp_test_logs:/var/log/graphiti
+      - ./config-docker-neo4j.yaml:/app/mcp/config/config.yaml:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/ || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 120s
+
+  test-ubuntu:
+    build:
+      context: ../../../..
+      dockerfile: tests/e2e/installation/docker/Dockerfile.ubuntu
+    depends_on:
+      graphiti-mcp:
+        condition: service_healthy
+    environment:
+      # Override endpoint for internal Docker network
+      - GRAPHITI_ENDPOINT=http://graphiti-mcp:8000/mcp/
+      - GRAPHITI_GROUP_ID=docker-test-ubuntu
+      - CLI_MODE=${CLI_MODE:-both}
+    volumes:
+      - ./scripts:/home/testuser/test-scripts:ro
+      - ../../../integration/shared/sample-projects:/home/testuser/sample-projects:ro
+    command: bash -c "/home/testuser/test-scripts/run-full-tests.sh ubuntu"
+
+  test-debian:
+    build:
+      context: ../../../..
+      dockerfile: tests/e2e/installation/docker/Dockerfile.debian
+    depends_on:
+      graphiti-mcp:
+        condition: service_healthy
+    environment:
+      - GRAPHITI_ENDPOINT=http://graphiti-mcp:8000/mcp/
+      - GRAPHITI_GROUP_ID=docker-test-debian
+      - CLI_MODE=${CLI_MODE:-both}
+    volumes:
+      - ./scripts:/home/testuser/test-scripts:ro
+      - ../../../integration/shared/sample-projects:/home/testuser/sample-projects:ro
+    command: bash -c "/home/testuser/test-scripts/run-full-tests.sh debian"
+    profiles:
+      - all
+
+  test-fedora:
+    build:
+      context: ../../../..
+      dockerfile: tests/e2e/installation/docker/Dockerfile.fedora
+    depends_on:
+      graphiti-mcp:
+        condition: service_healthy
+    environment:
+      - GRAPHITI_ENDPOINT=http://graphiti-mcp:8000/mcp/
+      - GRAPHITI_GROUP_ID=docker-test-fedora
+      - CLI_MODE=${CLI_MODE:-both}
+    volumes:
+      - ./scripts:/home/testuser/test-scripts:ro
+      - ../../../integration/shared/sample-projects:/home/testuser/sample-projects:ro
+    command: bash -c "/home/testuser/test-scripts/run-full-tests.sh fedora"
+    profiles:
+      - all
+
+volumes:
+  neo4j_test_data:
+  neo4j_test_logs:
+  mcp_test_logs:

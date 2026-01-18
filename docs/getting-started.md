@@ -74,7 +74,7 @@ After running `lisa init` or `lisa setup`:
 
 ```
 your-project/
-├── .agents/
+├── .lisa/
 │   ├── skills/           # Memory and task skills
 │   ├── rules/            # Coding standards
 │   └── .env              # Configuration

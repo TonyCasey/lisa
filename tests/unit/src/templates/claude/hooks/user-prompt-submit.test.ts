@@ -12,7 +12,7 @@ import * as os from 'os';
 // Create a temp directory for tests
 const TEST_DIR = path.join(os.tmpdir(), `lisa-test-${Date.now()}`);
 const DEV_DIR = path.join(TEST_DIR, '.dev');
-const RULES_DIR = path.join(TEST_DIR, '.agents', 'rules');
+const RULES_DIR = path.join(TEST_DIR, '.lisa', 'rules');
 
 // Mock the config module
 const originalCwd = process.cwd();

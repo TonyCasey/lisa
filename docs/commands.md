@@ -42,7 +42,7 @@ lisa init --isolated
 
 ### What It Creates
 
-- `.agents/` - Skills and rules
+- `.lisa/` - Skills and rules
 - `.claude/` - Hooks and settings
 - `.codex/` - Codex integration (in progress)
 - `docker-compose.graphiti.yml` - Docker stack

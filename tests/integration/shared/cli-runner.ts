@@ -41,8 +41,8 @@ if (process.env.GRAPHITI_ENDPOINT) {
  */
 export function findSkillScript(skillName: string): string | null {
   const basePaths = [
-    path.join(projectRoot, '.agents', 'skills', skillName, 'scripts', `${skillName}.js`),
-    path.join(projectRoot, '.agents', 'skills', skillName, 'scripts', `${skillName}.cjs`),
+    path.join(projectRoot, '.lisa', 'skills', skillName, 'scripts', `${skillName}.js`),
+    path.join(projectRoot, '.lisa', 'skills', skillName, 'scripts', `${skillName}.cjs`),
   ];
 
   for (const scriptPath of basePaths) {

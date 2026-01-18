@@ -8,7 +8,7 @@ import {
   downCommand,
   DEFAULT_ENDPOINT,
   DEFAULT_GROUP,
-} from '../../../src/cli';
+} from '../../../src/lib/cli';
 import { IServices } from '../../../src/lib/services';
 
 class MockTemplateCopier {
@@ -62,7 +62,7 @@ test('initCommand copies expected templates with replacements', async () => {
 
   // Expect skills (2) + rules (6) + claude (3) + docker (2) = 13 copies
   assert.ok(services.templateCopier.calls.length >= 10, `Expected at least 10 template copies, got ${services.templateCopier.calls.length}`);
-  const memoryCopy = services.templateCopier.calls.find((c) => c.dest.endsWith(path.join('.agents', 'skills', 'memory', 'SKILL.md')));
+  const memoryCopy = services.templateCopier.calls.find((c) => c.dest.endsWith(path.join('.lisa', 'skills', 'memory', 'SKILL.md')));
   assert.ok(memoryCopy, 'memory SKILL should be copied');
   assert.equal(memoryCopy?.replacements.GRAPHITI_ENDPOINT, DEFAULT_ENDPOINT);
   assert.equal(memoryCopy?.replacements.GRAPHITI_GROUP, DEFAULT_GROUP);

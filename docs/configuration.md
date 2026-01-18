@@ -31,7 +31,7 @@ These are used by the Graphiti MCP server:
 
 ## Configuration Files
 
-### .agents/.env
+### .lisa/.env
 
 Main configuration file created by `lisa init` or `lisa setup`:
 
@@ -159,4 +159,4 @@ lisa init -g ${USER}-personal
 
 - Scaffolds project structure
 - No storage configured
-- Configure manually later via `.agents/.env`
+- Configure manually later via `.lisa/.env`

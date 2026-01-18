@@ -9,7 +9,9 @@ tests/
 ├── unit/                           # Unit tests (pure functions, no I/O)
 │   └── src/
 │       ├── cli.test.ts
-│       └── templates/agents/skills/
+│       └── project/                # Tests for src/project/
+│           ├── claude/hooks/
+│           └── lisa/skills/
 ├── integration/                    # Integration tests (real backends)
 │   ├── shared/                     # Shared test utilities
 │   │   ├── cli-runner.ts           # CLI execution helper
@@ -76,7 +78,7 @@ Integration tests verify SKILL.md I/O contracts and database persistence. They s
 
 3. **For Local MCP mode**: Start Graphiti stack:
    ```bash
-   docker compose -f .agents/docker-compose.graphiti.yml up -d
+   docker compose -f .lisa/docker-compose.graphiti.yml up -d
    ```
 
 ### Memory Integration Tests

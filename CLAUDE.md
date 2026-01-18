@@ -6,7 +6,7 @@ Long-term memory for Claude Code. Automatic context persistence, task tracking, 
 
 | Command | Description |
 |---------|-------------|
-| `npm run build` | Compile TypeScript and deploy templates |
+| `npm run build` | Compile TypeScript and deploy to .claude/, .lisa/ |
 | `npm test` | Run all unit tests |
 | `npm run lint` | Run ESLint |
 
@@ -14,19 +14,37 @@ Long-term memory for Claude Code. Automatic context persistence, task tracking, 
 
 ```
 lisa/
-├── src/                          # TypeScript source (edit here!)
-│   ├── templates/                # Templates deployed to .claude/ and .agents/
-│   │   ├── claude/
-│   │   │   └── hooks/            # Hook source files (*.ts)
-│   │   ├── agents/
-│   │   │   └── skills/           # Skill source files
-│   │   └── rules/                # Coding standards and rules
-│   └── ...                       # Core library code
+├── src/
+│   ├── lib/                      # Core library code
+│   │   ├── cli.ts                # Main CLI entry point
+│   │   ├── services.ts           # Service factory
+│   │   ├── domain/               # Domain types and contracts
+│   │   ├── infrastructure/       # DAL, adapters
+│   │   └── application/          # Use cases
+│   └── project/                  # Templates (mirrors deployment)
+│       ├── .lisa/
+│       │   ├── skills/           # Memory, tasks, lisa, jira, git
+│       │   │   ├── common/       # Shared group-id, type maps
+│       │   │   └── shared/utils/ # DI-based utilities
+│       │   ├── rules/            # Coding standards
+│       │   └── docker/           # docker-compose.graphiti.yml
+│       ├── .claude/
+│       │   ├── hooks/            # session-start, session-stop, etc.
+│       │   │   └── utils/        # Hook utilities (common, core, io, session)
+│       │   └── config.ts
+│       └── .opencode/
+│           └── plugin/           # OpenCode plugin source
 ├── .claude/                      # Deployed hooks (compiled output)
-│   └── hooks/                    # Compiled JS hooks (auto-generated)
-├── .agents/                      # Deployed skills and rules
-│   ├── skills/                   # Available skills
-│   └── rules/                    # Coding standards
+│   ├── hooks/                    # Compiled JS hooks
+│   ├── skills -> ../.lisa/skills
+│   └── rules -> ../.lisa/rules
+├── .lisa/                        # Deployed skills and rules (shared)
+│   ├── skills/
+│   ├── rules/
+│   └── docker/
+├── .opencode/                    # Deployed OpenCode plugin
+│   ├── plugin/
+│   └── skill -> ../.lisa/skills
 ├── tests/
 │   └── unit/                     # Unit tests (mirror src/ structure)
 └── dist/                         # Compiled library output
@@ -38,7 +56,7 @@ When developing hooks or skills, follow this workflow:
 
 ### 1. Prototype in Compiled Output
 
-Edit the compiled JS files directly in `.claude/hooks/` or `.agents/skills/` to quickly iterate:
+Edit the compiled JS files directly in `.claude/hooks/` or `.lisa/skills/` to quickly iterate:
 
 ```bash
 # Edit directly for fast iteration
@@ -53,8 +71,8 @@ echo '{"trigger":"compact"}' | node .claude/hooks/session-start.js
 Once working, reverse engineer your changes into the TypeScript source:
 
 ```
-.claude/hooks/session-start.js  →  src/templates/claude/hooks/session-start.ts
-.agents/skills/memory/          →  src/templates/agents/skills/memory/
+.claude/hooks/session-start.js  ->  src/project/.claude/hooks/session-start.ts
+.lisa/skills/memory/            ->  src/project/.lisa/skills/memory/
 ```
 
 ### 3. Build and Verify
@@ -75,15 +93,15 @@ npm test
 Create tests in `tests/unit/` mirroring the source structure:
 
 ```
-src/templates/claude/hooks/session-start.ts
-tests/unit/src/templates/claude/hooks/session-start.test.ts
+src/project/.claude/hooks/session-start.ts
+tests/unit/src/project/claude/hooks/session-start.test.ts
 ```
 
 ### Why This Workflow?
 
 - **Fast iteration**: JS edits take effect immediately without compilation
 - **Type safety**: TypeScript source ensures correctness and maintainability
-- **Deployability**: `npm run build` deploys templates to target directories
+- **Deployability**: `npm run build` deploys to target directories
 - **Testability**: TypeScript source can be properly unit tested
 
 ## Available Skills
@@ -99,12 +117,12 @@ Skills are invoked with `/skill-name` in Claude Code:
 | `/git` | GitHub and Git workflow helpers | "create pr", "pr checks" |
 | `/init-review` | Initial codebase review and summary | First session in a repo |
 
-Skills source: `src/templates/agents/skills/`
-Skills deployed to: `.agents/skills/`
+Skills source: `src/project/.lisa/skills/`
+Skills deployed to: `.lisa/skills/`
 
 ## Coding Rules
 
-Rules are automatically loaded as context. See `.agents/rules/`:
+Rules are automatically loaded as context. See `.lisa/rules/`:
 
 ### Shared Rules (All Languages)
 - `clean-architecture.md` - Layer structure, dependency rules, SOLID principles
@@ -127,7 +145,7 @@ Hooks run at specific Claude Code lifecycle events:
 | `session-stop.js` | Claude stops responding | Capture work to memory |
 | `user-prompt-submit.js` | User submits prompt | Validate and enhance prompts |
 
-Hooks source: `src/templates/claude/hooks/`
+Hooks source: `src/project/.claude/hooks/`
 Hooks deployed to: `.claude/hooks/`
 
 ### SessionStart Trigger Types
@@ -153,13 +171,13 @@ code .claude/hooks/session-start.js
 echo '{"trigger":"compact"}' | node .claude/hooks/session-start.js
 
 # 3. Port to TypeScript
-code src/templates/claude/hooks/session-start.ts
+code src/project/.claude/hooks/session-start.ts
 
 # 4. Build and verify
 npm run build
 
 # 5. Add tests
-code tests/unit/src/templates/claude/hooks/session-start.test.ts
+code tests/unit/src/project/claude/hooks/session-start.test.ts
 
 # 6. Run tests
 npm test
@@ -169,11 +187,11 @@ npm test
 
 ```bash
 # 1. Create skill directory
-mkdir -p src/templates/agents/skills/my-skill/scripts
+mkdir -p src/project/.lisa/skills/my-skill/scripts
 
 # 2. Add skill manifest (skill.yaml) and scripts
-code src/templates/agents/skills/my-skill/skill.yaml
-code src/templates/agents/skills/my-skill/scripts/my-skill.ts
+code src/project/.lisa/skills/my-skill/skill.yaml
+code src/project/.lisa/skills/my-skill/scripts/my-skill.ts
 
 # 3. Build to deploy
 npm run build
@@ -189,7 +207,7 @@ npm run build
 npm test
 
 # Specific test file
-npx tsx --test tests/unit/src/templates/claude/hooks/session-start.test.ts
+npx tsx --test tests/unit/src/project/claude/hooks/session-start.test.ts
 
 # Integration tests (requires Docker)
 npm run test:integration
@@ -200,9 +218,9 @@ npm run test:integration
 `npm run build` does:
 
 1. **Compile**: `tsc -p tsconfig.json` - Compiles TypeScript to `dist/`
-2. **Copy Templates**: `postbuild-copy-templates.js` - Copies templates to `dist/`
-3. **Prepare Package**: `prepare-dist-package.js` - Prepares for npm publish
-4. **Deploy Locally**: `deploy-agents.js` - Deploys to `.claude/` and `.agents/`
+2. **Prepare Package**: `prepare-dist-package.js` - Prepares for npm publish
+3. **Bundle Hooks**: `bundle-hooks.js` - Bundles hooks with dependencies
+4. **Deploy Locally**: `deploy-agents.js` - Deploys to `.claude/`, `.lisa/`, `.opencode/`
 
 ## Memory System
 
@@ -219,7 +237,7 @@ Memory is stored per-repo and accessed via MCP (Model Context Protocol).
 After committing, save a milestone memory:
 
 ```bash
-node .agents/skills/memory/scripts/memory.js add "FEATURE: Description of what was done" --cache --type milestone
+node .lisa/skills/memory/scripts/memory.js add "FEATURE: Description of what was done" --cache --type milestone
 ```
 
 This ensures work is captured for future sessions.
@@ -230,11 +248,11 @@ This ensures work is captured for future sessions.
 # Install dependencies
 npm install
 
-# Build and deploy templates
+# Build and deploy
 npm run build
 
 # Start Graphiti (for memory persistence)
-docker compose -f .agents/docker-compose.graphiti.yml up -d
+docker compose -f .lisa/docker-compose.graphiti.yml up -d
 ```
 
 ## Troubleshooting

@@ -2,15 +2,29 @@ const path = require('path');
 const fs = require('fs-extra');
 const { glob } = require('glob');
 
-// Agents templates (skill scripts, etc.)
-const distAgents = path.resolve(__dirname, '..', 'dist', 'templates', 'agents');
-const distRules = path.resolve(__dirname, '..', 'dist', 'templates', 'rules');
-const targetAgents = path.resolve(__dirname, '..', '.agents');
-const distBuiltAgents = path.resolve(__dirname, '..', 'dist', 'agents'); // fully built agents (only for local dev)
+// New structure: dist/project/.lisa/, dist/project/.claude/, dist/project/.opencode/
+const distProject = path.resolve(__dirname, '..', 'dist', 'project');
+
+// Lisa templates (skills, rules)
+const distLisa = path.join(distProject, '.lisa');
+const distLisaSkills = path.join(distLisa, 'skills');
+const distLisaRules = path.join(distLisa, 'rules');
+const targetLisa = path.resolve(__dirname, '..', '.lisa');
+
+// Legacy paths (for backward compatibility)
+const distLegacyAgents = path.resolve(__dirname, '..', 'dist', 'templates', 'agents');
+const distLegacyRules = path.resolve(__dirname, '..', 'dist', 'templates', 'rules');
 
 // Claude Code templates (hooks)
-const distClaude = path.resolve(__dirname, '..', 'dist', 'templates', 'claude');
+const distClaude = path.join(distProject, '.claude');
+const distLegacyClaude = path.resolve(__dirname, '..', 'dist', 'templates', 'claude');
+const distBundledHooks = path.resolve(__dirname, '..', 'dist', 'hooks');
 const targetClaude = path.resolve(__dirname, '..', '.claude');
+
+// OpenCode templates (plugin)
+const distOpenCode = path.join(distProject, '.opencode');
+const distOpenCodePlugin = path.resolve(__dirname, '..', 'dist', 'opencode');
+const targetOpenCode = path.resolve(__dirname, '..', '.opencode');
 
 /**
  * Preserve local extensions (.local.md files and .local/ directories) before deployment.
@@ -174,58 +188,169 @@ async function mergeSkillExtensions(targetDir) {
   }
 }
 
-async function createSymlink(target, linkPath) {
+/**
+ * Track directories that were copied instead of linked.
+ * Used by `lisa sync` to keep copies up to date.
+ */
+async function recordCopyFallback(projectRoot, link, target) {
+  const fallbackFile = path.join(projectRoot, '.lisa', '.copy-fallbacks.json');
+  let existing = { copies: [] };
+  
   try {
-    // Remove existing symlink if present
+    if (await fs.pathExists(fallbackFile)) {
+      existing = await fs.readJson(fallbackFile);
+    }
+  } catch {
+    // Start fresh if file is corrupted
+  }
+  
+  // Check if already recorded
+  const alreadyRecorded = existing.copies.some(c => c.link === link);
+  if (!alreadyRecorded) {
+    existing.copies.push({ link, target, createdAt: new Date().toISOString() });
+    await fs.writeJson(fallbackFile, existing, { spaces: 2 });
+  }
+}
+
+/**
+ * Create symlink with Windows fallback.
+ * On Windows, tries junction first, then falls back to directory copy.
+ */
+async function createSymlink(target, linkPath, projectRoot) {
+  const isWindows = process.platform === 'win32';
+  
+  try {
+    // Remove existing symlink/junction/directory if present
     if (await fs.pathExists(linkPath)) {
       const stat = await fs.lstat(linkPath);
       if (stat.isSymbolicLink()) {
         await fs.remove(linkPath);
-      } else {
-        // Not a symlink, skip
-        return false;
+      } else if (stat.isDirectory()) {
+        // Check if it's a junction on Windows
+        if (isWindows) {
+          try {
+            await fs.remove(linkPath);
+          } catch {
+            // Directory might be in use, skip
+            return { success: false, method: 'skip' };
+          }
+        } else {
+          // On Unix, a real directory shouldn't be overwritten
+          return { success: false, method: 'skip' };
+        }
       }
     }
+    
     await fs.ensureDir(path.dirname(linkPath));
-    await fs.symlink(target, linkPath, 'dir');
-    return true;
+    
+    if (isWindows) {
+      // Try junction first (doesn't require admin on Windows)
+      try {
+        await fs.symlink(target, linkPath, 'junction');
+        return { success: true, method: 'junction' };
+      } catch (junctionErr) {
+        // Junction failed, try symlink
+        try {
+          await fs.symlink(target, linkPath, 'dir');
+          return { success: true, method: 'symlink' };
+        } catch (symlinkErr) {
+          // Both failed, fall back to copy
+          const absoluteTarget = path.resolve(path.dirname(linkPath), target);
+          if (await fs.pathExists(absoluteTarget)) {
+            await fs.copy(absoluteTarget, linkPath);
+            // Record for future sync
+            if (projectRoot) {
+              const relativeLinkPath = path.relative(projectRoot, linkPath);
+              await recordCopyFallback(projectRoot, relativeLinkPath, target);
+            }
+            console.log(`  (copy fallback: ${linkPath})`);
+            return { success: true, method: 'copy' };
+          }
+          return { success: false, method: 'failed' };
+        }
+      }
+    } else {
+      // Unix: standard symlink
+      await fs.symlink(target, linkPath, 'dir');
+      return { success: true, method: 'symlink' };
+    }
   } catch (err) {
-    console.error(`Failed to create symlink ${linkPath}: ${err.message}`);
-    return false;
+    console.error(`Failed to create link ${linkPath}: ${err.message}`);
+    return { success: false, method: 'error' };
   }
 }
 
 async function main() {
-  // Deploy agents templates (skills)
-  if (!(await fs.pathExists(distAgents))) {
-    throw new Error(`dist agents templates not found at ${distAgents}; run build first.`);
+  // Determine which source to use: new structure (dist/project/.lisa) or legacy (dist/templates/agents)
+  const useNewStructure = await fs.pathExists(distLisa);
+  const useLegacy = !useNewStructure && await fs.pathExists(distLegacyAgents);
+
+  if (!useNewStructure && !useLegacy) {
+    throw new Error(`No templates found. Checked:\n  - ${distLisa}\n  - ${distLegacyAgents}\nRun build first.`);
   }
+
+  const sourceLisa = useNewStructure ? distLisa : distLegacyAgents;
+  const sourceRules = useNewStructure ? distLisaRules : distLegacyRules;
+  const sourceClaude = useNewStructure ? distClaude : distLegacyClaude;
 
   // Preserve local extensions before overwriting
-  const preservedAgents = await preserveLocalExtensions(targetAgents);
+  const preservedAgents = await preserveLocalExtensions(targetLisa);
 
-  await fs.ensureDir(targetAgents);
-  await fs.copy(distAgents, targetAgents, { overwrite: true, errorOnExist: false });
-  console.log(`Deployed agents templates to ${targetAgents}`);
+  // Preserve .env file before cleaning
+  const envPath = path.join(targetLisa, '.env');
+  let preservedEnv = null;
+  if (await fs.pathExists(envPath)) {
+    preservedEnv = await fs.readFile(envPath, 'utf8');
+  }
+
+  // Clean target directories for fresh deploy (development mode)
+  console.log('Cleaning target directories...');
+  await fs.remove(targetLisa);
+  await fs.remove(targetClaude);
+  await fs.remove(targetOpenCode);
+
+  // Restore .env file after cleaning
+  if (preservedEnv) {
+    await fs.ensureDir(targetLisa);
+    await fs.writeFile(envPath, preservedEnv, 'utf8');
+    console.log('  ✓ Restored: .lisa/.env');
+  }
+
+  // Filter to exclude sourcemaps and declaration maps from deployment
+  const deployFilter = (src) => {
+    const basename = path.basename(src);
+    // Exclude .map, .d.ts.map, and .d.ts files (keep only .js and other assets)
+    if (basename.endsWith('.js.map') || basename.endsWith('.d.ts.map') || basename.endsWith('.d.ts')) {
+      return false;
+    }
+    return true;
+  };
+
+  // Deploy .lisa templates (skills)
+  await fs.ensureDir(targetLisa);
+  if (useNewStructure && await fs.pathExists(distLisaSkills)) {
+    await fs.copy(distLisaSkills, path.join(targetLisa, 'skills'), { overwrite: true, errorOnExist: false, filter: deployFilter });
+    console.log(`Deployed skills to ${path.join(targetLisa, 'skills')}`);
+  } else {
+    await fs.copy(sourceLisa, targetLisa, { overwrite: true, errorOnExist: false, filter: deployFilter });
+    console.log(`Deployed lisa templates to ${targetLisa}`);
+  }
 
   // Deploy rules templates
-  if (await fs.pathExists(distRules)) {
-    await fs.copy(distRules, path.join(targetAgents, 'rules'), { overwrite: true, errorOnExist: false });
-    console.log(`Deployed rules templates to ${path.join(targetAgents, 'rules')}`);
+  if (await fs.pathExists(sourceRules)) {
+    await fs.copy(sourceRules, path.join(targetLisa, 'rules'), { overwrite: true, errorOnExist: false, filter: deployFilter });
+    console.log(`Deployed rules templates to ${path.join(targetLisa, 'rules')}`);
   }
 
-  // When running a local build (`npm run build:local`), also copy the already-built
-  // agents bundle (if present) into .agents for immediate use.
-  if (process.env.DEPLOY_AGENTS_LOCAL === '1' && (await fs.pathExists(distBuiltAgents))) {
-    await fs.copy(distBuiltAgents, targetAgents, { overwrite: true, errorOnExist: false });
-    console.log(`Copied built agents from ${distBuiltAgents} to ${targetAgents} (local build).`);
-  }
+  // Note: The DEPLOY_AGENTS_LOCAL block was removed as it referenced an undefined
+  // variable (distBuiltLisa) and the local build workflow now uses the standard
+  // dist/project/.lisa path which is already handled above.
 
   // Restore local extensions after deployment
-  await restoreLocalExtensions(targetAgents, preservedAgents);
+  await restoreLocalExtensions(targetLisa, preservedAgents);
 
   // Merge SKILL.local.md extensions with base SKILL.md files
-  await mergeSkillExtensions(targetAgents);
+  await mergeSkillExtensions(targetLisa);
 
   // Deploy Claude Code templates (hooks)
   if (await fs.pathExists(distClaude)) {
@@ -236,16 +361,43 @@ async function main() {
     console.log(`No Claude templates found at ${distClaude}; skipping.`);
   }
 
-  // Create symlinks: .claude/rules -> ../.agents/rules, .claude/skills -> ../.agents/skills
+  // Deploy bundled hooks (new architecture) if available
+  // These override the template hooks with the clean architecture version
+  if (await fs.pathExists(distBundledHooks)) {
+    const targetHooks = path.join(targetClaude, 'hooks');
+    await fs.ensureDir(targetHooks);
+    await fs.copy(distBundledHooks, targetHooks, { overwrite: true, errorOnExist: false });
+    console.log(`Deployed bundled hooks to ${targetHooks}`);
+  }
+
+  // Create symlinks: .claude/rules -> ../.lisa/rules, .claude/skills -> ../.lisa/skills
+  const projectRoot = path.resolve(__dirname, '..');
   const rulesSymlink = path.join(targetClaude, 'rules');
   const skillsSymlink = path.join(targetClaude, 'skills');
 
-  if (await createSymlink('../.agents/rules', rulesSymlink)) {
-    console.log(`Created symlink .claude/rules -> ../.agents/rules`);
+  const rulesResult = await createSymlink('../.lisa/rules', rulesSymlink, projectRoot);
+  if (rulesResult.success) {
+    console.log(`Created ${rulesResult.method}: .claude/rules -> ../.lisa/rules`);
   }
 
-  if (await createSymlink('../.agents/skills', skillsSymlink)) {
-    console.log(`Created symlink .claude/skills -> ../.agents/skills`);
+  const skillsResult = await createSymlink('../.lisa/skills', skillsSymlink, projectRoot);
+  if (skillsResult.success) {
+    console.log(`Created ${skillsResult.method}: .claude/skills -> ../.lisa/skills`);
+  }
+
+  // Deploy OpenCode plugin if bundled
+  if (await fs.pathExists(distOpenCodePlugin)) {
+    const targetPlugin = path.join(targetOpenCode, 'plugin');
+    await fs.ensureDir(targetPlugin);
+    await fs.copy(distOpenCodePlugin, targetPlugin, { overwrite: true, errorOnExist: false });
+    console.log(`Deployed OpenCode plugin to ${targetPlugin}`);
+
+    // Create symlinks for OpenCode: .opencode/skill -> ../.lisa/skills
+    const opencodeSkillSymlink = path.join(targetOpenCode, 'skill');
+    const opencodeSkillResult = await createSymlink('../.lisa/skills', opencodeSkillSymlink, projectRoot);
+    if (opencodeSkillResult.success) {
+      console.log(`Created ${opencodeSkillResult.method}: .opencode/skill -> ../.lisa/skills`);
+    }
   }
 }
 

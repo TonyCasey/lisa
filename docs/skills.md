@@ -9,13 +9,13 @@ Skills are model-neutral capabilities that AI assistants can invoke. Lisa includ
 3. **Scripts** execute the actual logic (JavaScript)
 4. **Output** is returned to the AI assistant
 
-Skills are stored in `.agents/skills/` and work with Claude Code, Codex, and other compatible assistants.
+Skills are stored in `.lisa/skills/` and work with Claude Code, Codex, and other compatible assistants.
 
 ## Built-in Skills
 
 ### Lisa (Router)
 
-**Location:** `.agents/skills/lisa/`
+**Location:** `.lisa/skills/lisa/`
 
 The main entry point that routes natural language to appropriate skills.
 
@@ -33,7 +33,7 @@ The main entry point that routes natural language to appropriate skills.
 
 ### Memory
 
-**Location:** `.agents/skills/memory/`
+**Location:** `.lisa/skills/memory/`
 
 Stores and retrieves project context via Graphiti MCP.
 
@@ -59,7 +59,7 @@ Stores and retrieves project context via Graphiti MCP.
 
 ### Tasks
 
-**Location:** `.agents/skills/tasks/`
+**Location:** `.lisa/skills/tasks/`
 
 Manages tasks and to-dos via Graphiti MCP.
 
@@ -78,7 +78,7 @@ Manages tasks and to-dos via Graphiti MCP.
 
 ### Prompt
 
-**Location:** `.agents/skills/prompt/`
+**Location:** `.lisa/skills/prompt/`
 
 Captures prompts to memory for context building.
 
@@ -89,7 +89,7 @@ This skill runs automatically via hooks - you don't typically invoke it directly
 Each skill has this structure:
 
 ```
-.agents/skills/<skill-name>/
+.lisa/skills/<skill-name>/
 ├── SKILL.md           # Definition and instructions
 └── scripts/
     └── <skill-name>.js  # Implementation
@@ -134,7 +134,7 @@ If the MCP server is unavailable, skills return cached data from the last succes
 
 ## Environment Variables
 
-Skills read configuration from `.agents/.env`:
+Skills read configuration from `.lisa/.env`:
 
 ```env
 GRAPHITI_ENDPOINT=http://localhost:8010/mcp/
@@ -147,7 +147,7 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md#adding-a-skill) for instructions on cre
 
 ### Quick Overview
 
-1. Create directory: `src/templates/agents/skills/<name>/`
+1. Create directory: `src/project/.lisa/skills/<name>/`
 2. Add `SKILL.md` with triggers and instructions
 3. Add `scripts/<name>.ts` with implementation
 4. Run `npm run build` to compile and deploy

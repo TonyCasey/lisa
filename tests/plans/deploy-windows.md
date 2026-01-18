@@ -42,7 +42,7 @@ Populate each folder with a sample boilerplate project related to the language t
    2. Verification Checklist
 
       - lisa CLI is accessible (lisa --help)
-        - .agents/ folder created with skills
+        - .lisa/ folder created with skills
         - .claude/ folder created with hooks
         - Docker containers start (or show a setup message)
         - Port checking works
