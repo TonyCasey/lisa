@@ -13,7 +13,7 @@ import * as path from 'path';
 import {
   normalizePathToGroupId,
   getHierarchicalGroupIds,
-} from '../../../../../../../../src/templates/agents/skills/common/group-id';
+} from '../../../../../../../../src/project/.lisa/skills/common/group-id';
 
 describe('Tasks Skill - Group ID Functions', () => {
   test('should normalize project paths correctly', () => {

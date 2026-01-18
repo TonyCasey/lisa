@@ -1,5 +1,5 @@
 {
-  "dependencies": {
-    "@tonycasey/lisa": "file:../../lisa/tonycasey-lisa-0.5.13.tgz"
-  }
+  "name": "python-test-project",
+  "version": "1.0.0",
+  "description": "Sample Python project for Lisa testing"
 }

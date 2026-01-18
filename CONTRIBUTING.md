@@ -26,57 +26,59 @@ npm run build
 lisa doctor
 ```
 
-After building, you should see `.agents/`, `.claude/`, and `.codex/` folders populated with compiled templates.
+After building, you should see `.lisa/`, `.claude/`, and `.opencode/` folders populated with deployed files.
 
 ## Project Structure
 
 ```
 lisa/
-├── src/                      # TypeScript source (edit here!)
-│   ├── cli.ts               # Main CLI application
-│   ├── lib/                 # Core utilities and services
-│   └── templates/           # Source templates
-│       ├── agents/          # Skills (memory, tasks, prompt)
-│       ├── claude/          # Claude Code hooks
-│       ├── codex/           # Codex hooks
-│       ├── docker/          # Docker compose templates
-│       └── rules/           # Coding standards
+├── src/
+│   ├── lib/                  # Core library code
+│   │   ├── cli.ts            # Main CLI entry point
+│   │   ├── services.ts       # Service factory with DI
+│   │   └── scanner/          # Multi-project scanner
+│   └── project/              # Source for deployed assets
+│       ├── .lisa/            # Skills, rules, docker config
+│       ├── .claude/          # Claude Code hooks
+│       └── .opencode/        # OpenCode plugin
 │
-├── dist/                    # Compiled output (generated)
+├── dist/                     # Compiled output (generated)
+│   ├── lib/                  # Compiled library
+│   └── project/              # Compiled deployables
 │
-├── .agents/                 # Deployed skills & rules (generated)
-├── .claude/                 # Deployed Claude hooks (generated)
-├── .codex/                  # Deployed Codex hooks (generated)
+├── .lisa/                    # Deployed skills & rules (generated)
+├── .claude/                  # Deployed Claude hooks (generated)
+├── .opencode/                # Deployed OpenCode plugin (generated)
 │
-├── scripts/                 # Build scripts
-│   ├── postbuild-copy-templates.js
-│   ├── prepare-dist-package.js
-│   └── deploy-agents.js
+├── scripts/                  # Build scripts
+│   ├── bundle-hooks.js       # Bundle hooks with dependencies
+│   ├── deploy-agents.js      # Deploy to .lisa/, .claude/, .opencode/
+│   └── prepare-dist-package.js
 │
-├── tests/                   # Test files
-└── docs/                    # Consumer documentation
+├── tests/                    # Test files
+└── docs/                     # Documentation
 ```
 
 ### Key Principle
 
-**Always edit files in `src/templates/`** - never edit `.agents/`, `.claude/`, or `.codex/` directly. These are regenerated on every build.
+**Always edit files in `src/project/`** - never edit `.lisa/`, `.claude/`, or `.opencode/` directly. These are regenerated on every build.
 
 ## Build Pipeline
 
-When you run `npm run build`, four stages execute:
+When you run `npm run build`, these stages execute:
 
 1. **TypeScript Compilation** (`tsc`)
    - Compiles `src/**/*.ts` to `dist/**/*.js`
 
-2. **Template Copying** (`postbuild-copy-templates.js`)
-   - Copies non-TS assets from `src/templates/` to `dist/templates/`
+2. **Hook Bundling** (`bundle-hooks.js`)
+   - Bundles hooks with their dependencies into standalone scripts
 
 3. **Package Preparation** (`prepare-dist-package.js`)
    - Creates optimized `dist/package.json` for npm publishing
 
 4. **Local Deployment** (`deploy-agents.js`)
-   - Deploys `dist/templates/` to `.agents/`, `.claude/`, `.codex/`
-   - Creates necessary symlinks
+   - Deploys `dist/project/` to `.lisa/`, `.claude/`, `.opencode/`
+   - Creates symlinks from `.claude/` to `.lisa/`
 
 ## Common Tasks
 
@@ -110,15 +112,15 @@ npm run build && npm test && npm run lint
 
 ### Adding a Skill
 
-1. Create directory: `src/templates/agents/skills/<skill-name>/`
+1. Create directory: `src/project/.lisa/skills/<skill-name>/`
 2. Add `SKILL.md` with trigger definitions and instructions
 3. Add `scripts/<skill-name>.ts` with implementation
 4. Run `npm run build` to compile and deploy
-5. Test the skill with Claude Code or Codex
+5. Test the skill with Claude Code or OpenCode
 
 Example skill structure:
 ```
-src/templates/agents/skills/my-skill/
+src/project/.lisa/skills/my-skill/
 ├── SKILL.md           # Skill definition
 └── scripts/
     └── my-skill.ts    # Implementation
@@ -128,26 +130,21 @@ src/templates/agents/skills/my-skill/
 
 **For Claude Code:**
 ```
-src/templates/claude/hooks/<hook-name>.ts
+src/project/.claude/hooks/<hook-name>.ts
 ```
 
-**For Codex:**
-```
-src/templates/codex/hooks/<hook-name>.ts
-```
-
-Shared utilities go in `common/` subdirectories.
+Shared utilities go in `src/project/.claude/hooks/utils/`.
 
 ### Adding Rules
 
 **Language-agnostic:**
 ```
-src/templates/rules/shared/<rule-name>.md
+src/project/.lisa/rules/shared/<rule-name>.md
 ```
 
 **Language-specific:**
 ```
-src/templates/rules/typescript/<rule-name>.md
+src/project/.lisa/rules/typescript/<rule-name>.md
 ```
 
 ## Testing Changes Locally
@@ -210,13 +207,13 @@ npx tsx src/cli.ts init --help
 
 ```bash
 # Clean and rebuild
-rm -rf dist .agents .claude .codex
+rm -rf dist .lisa .claude .opencode
 npm run build
 ```
 
-### Templates Not Updating
+### Deployed Files Not Updating
 
-The deploy script only runs during build. Run `npm run build` after changing templates.
+The deploy script only runs during build. Run `npm run build` after changing source files.
 
 ### TypeScript Errors
 

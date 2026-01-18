@@ -9,7 +9,7 @@ import {
   TYPE_MAP,
   PREFIX_MAP,
   detectPrefixTag,
-} from '../../../../../../../src/templates/agents/skills/common/group-id';
+} from '../../../../../../../src/project/.lisa/skills/common/group-id';
 
 describe('normalizePathToGroupId', () => {
   test('should convert Unix path to group ID', () => {

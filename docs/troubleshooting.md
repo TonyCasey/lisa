@@ -105,7 +105,7 @@ Common issues and solutions when using Lisa.
    docker logs graphiti-mcp
    ```
 
-4. Verify endpoint in `.agents/.env`:
+4. Verify endpoint in `.lisa/.env`:
    ```env
    GRAPHITI_ENDPOINT=http://localhost:8010/mcp/
    ```
@@ -126,7 +126,7 @@ Common issues and solutions when using Lisa.
 
 **Solutions:**
 
-1. Verify API key in `.agents/.env`:
+1. Verify API key in `.lisa/.env`:
    ```env
    ZEP_API_KEY=your-actual-key
    ```
@@ -150,7 +150,7 @@ Common issues and solutions when using Lisa.
 
 2. Verify group ID matches:
    ```bash
-   cat .agents/.env | grep GROUP
+   cat .lisa/.env | grep GROUP
    ```
 
 3. Check MCP connectivity:
@@ -178,7 +178,7 @@ Common issues and solutions when using Lisa.
 
 1. Verify skills exist:
    ```bash
-   ls -la .agents/skills/
+   ls -la .lisa/skills/
    ```
 
 2. If using development install, rebuild:
@@ -199,12 +199,12 @@ Common issues and solutions when using Lisa.
 
 1. Run script directly to see error:
    ```bash
-   node .agents/skills/memory/scripts/memory.js load
+   node .lisa/skills/memory/scripts/memory.js load
    ```
 
 2. Check Node.js version (18+ required)
 
-3. Verify `.agents/.env` configuration
+3. Verify `.lisa/.env` configuration
 
 ## Reset Everything
 
@@ -212,7 +212,7 @@ If all else fails, start fresh:
 
 ```bash
 # Remove Lisa artifacts
-rm -rf .agents .claude .codex
+rm -rf .lisa .claude .codex
 rm -f docker-compose.graphiti.yml .env.lisa.example
 
 # Stop Docker containers

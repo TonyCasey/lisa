@@ -2,10 +2,15 @@
 /**
  * postinstall.js
  *
- * Automatically scaffolds .agents/ and .claude/ folders when the package is installed.
- * This enables plug-and-play memory and rules for Claude Code.
+ * Automatically scaffolds .lisa/, .claude/, and .opencode/ folders when the package is installed.
+ * This enables plug-and-play memory and rules for Claude Code and OpenCode.
  *
  * Interactive prompts default to "yes" for seamless installation.
+ *
+ * Directory structure:
+ *   .lisa/           - Lisa's home (skills, rules, config)
+ *   .claude/         - Claude Code hooks + symlinks to .lisa/
+ *   .opencode/       - OpenCode plugin + symlinks to .lisa/
  */
 const path = require('path');
 const fs = require('fs-extra');
@@ -21,6 +26,11 @@ const projectRoot = isInstalledAsDependency
   ? path.resolve(__dirname, '..', '..', '..', '..')
   : process.cwd();
 
+// New structure: templates are in dist/project/
+const distRoot = path.resolve(__dirname, '..', 'dist');
+const projectRoot_dist = path.join(distRoot, 'project');
+
+// Legacy fallback for older builds
 const templateRoot = path.resolve(__dirname, '..', 'dist', 'templates');
 
 const DEFAULT_ENDPOINT = 'http://localhost:8010/mcp/';
@@ -521,23 +531,23 @@ async function writeEnvFile(dest, endpoint, group) {
   return true;
 }
 
-async function copyDockerFiles(agentsDir) {
+async function copyDockerFiles(lisaDir) {
   const dockerSrc = path.join(templateRoot, 'docker');
   if (!(await fs.pathExists(dockerSrc))) {
     return false;
   }
 
-  // Copy docker-compose file to .agents/
+  // Copy docker-compose file to .lisa/
   const composeSrc = path.join(dockerSrc, 'docker-compose.graphiti.yml');
-  const composeDest = path.join(agentsDir, 'docker-compose.graphiti.yml');
+  const composeDest = path.join(lisaDir, 'docker-compose.graphiti.yml');
   if (await fs.pathExists(composeSrc)) {
     await fs.copy(composeSrc, composeDest, { overwrite: false });
   }
 
   // Copy .env to project root (if no .env exists)
   const envSrc = path.join(dockerSrc, '.env');
-  const rootEnv = path.join(path.dirname(agentsDir), '.env');
-  const envExampleDest = path.join(path.dirname(agentsDir), '.env');
+  const rootEnv = path.join(path.dirname(lisaDir), '.env');
+  const envExampleDest = path.join(path.dirname(lisaDir), '.env');
   if (await fs.pathExists(envSrc)) {
     // Always copy the example file for reference
     await fs.copy(envSrc, envExampleDest, { overwrite: false });
@@ -580,13 +590,13 @@ async function isCodebase() {
 /**
  * Run init-review in the background (doesn't block postinstall)
  */
-async function runInitReview(agentsDir) {
+async function runInitReview(lisaDir) {
   // Skip if user explicitly disabled init-review (useful for CI or large repos)
   if (process.env.LISA_SKIP_INIT_REVIEW === '1' || process.env.LISA_SKIP_INIT_REVIEW === 'true') {
     return;
   }
 
-  const markerPath = path.join(agentsDir, '.init-review-done');
+  const markerPath = path.join(lisaDir, '.init-review-done');
 
   // Skip if already done
   if (await fs.pathExists(markerPath)) {
@@ -598,7 +608,7 @@ async function runInitReview(agentsDir) {
     return;
   }
 
-  const initReviewScript = path.join(agentsDir, 'skills', 'init-review', 'scripts', 'init-review.js');
+  const initReviewScript = path.join(lisaDir, 'skills', 'init-review', 'scripts', 'init-review.js');
 
   // Skip if script doesn't exist (first install, templates not yet copied)
   if (!(await fs.pathExists(initReviewScript))) {
@@ -610,7 +620,7 @@ async function runInitReview(agentsDir) {
 
   try {
     // Run init-review in detached background process
-    const logFile = path.join(agentsDir, '.init-review.log');
+    const logFile = path.join(lisaDir, '.init-review.log');
     const logStream = require('fs').createWriteStream(logFile);
 
     const child = spawn('node', [initReviewScript, 'run'], {
@@ -621,20 +631,20 @@ async function runInitReview(agentsDir) {
 
     child.unref();
 
-    console.log('  ✓ Init review queued (logs: .agents/.init-review.log)');
+    console.log('  ✓ Init review queued (logs: .lisa/.init-review.log)');
   } catch (err) {
     console.log(`  Init review failed: ${err.message}`);
   }
 }
 
-async function setupDocker(agentsDir) {
+async function setupDocker(lisaDir) {
   console.log('');
 
   // Check if Docker is available
   if (!isDockerAvailable()) {
     console.log('  Docker is not running or not installed.');
     console.log('  To enable memory persistence, install Docker and run:');
-    console.log('    docker compose -f .agents/docker-compose.graphiti.yml up -d');
+    console.log('    docker compose -f .lisa/docker-compose.graphiti.yml up -d');
     return;
   }
 
@@ -655,16 +665,16 @@ async function setupDocker(agentsDir) {
 
   if (!shouldStart) {
     console.log('  Skipping Docker setup. Run later with:');
-    console.log('    docker compose -f .agents/docker-compose.graphiti.yml up -d');
+    console.log('    docker compose -f .lisa/docker-compose.graphiti.yml up -d');
     return;
   }
 
-  // Copy Docker files to .agents/
+  // Copy Docker files to .lisa/
   console.log('  Copying Docker configuration...');
-  await copyDockerFiles(agentsDir);
+  await copyDockerFiles(lisaDir);
 
   // Check if .env exists in project root, if not copy from example
-  const projectRoot = path.dirname(agentsDir);
+  const projectRoot = path.dirname(lisaDir);
   const envFile = path.join(projectRoot, '.env');
   const envExample = path.join(projectRoot, '.env');
   if (!(await fs.pathExists(envFile)) && (await fs.pathExists(envExample))) {
@@ -680,12 +690,12 @@ async function setupDocker(agentsDir) {
     console.log('  OPENAI_API_KEY not configured in .env');
     console.log('  Graphiti requires an OpenAI API key for LLM-powered entity extraction.');
     console.log('  Please edit .env and add your key, then run:');
-    console.log('    docker compose -f .agents/docker-compose.graphiti.yml up -d');
+    console.log('    docker compose -f .lisa/docker-compose.graphiti.yml up -d');
     return;
   }
 
   // Check for available ports and update compose file if needed
-  const composeFile = path.join(agentsDir, 'docker-compose.graphiti.yml');
+  const composeFile = path.join(lisaDir, 'docker-compose.graphiti.yml');
 
   console.log('  Checking port availability...');
 
@@ -749,20 +759,20 @@ async function setupDocker(agentsDir) {
       await fs.writeFile(envFilePath, envContent);
     }
 
-    // Also update .agents/skills/.env (where skills actually read config from)
-    const skillsEnvPath = path.join(projectRoot, '.agents', 'skills', '.env');
-    if (await fs.pathExists(skillsEnvPath)) {
-      let skillsEnv = await fs.readFile(skillsEnvPath, 'utf8');
-      skillsEnv = skillsEnv.replace(
+    // Also update .lisa/.env (where skills read config from via shared/utils/env.ts)
+    const lisaEnvPath = path.join(projectRoot, '.lisa', '.env');
+    if (await fs.pathExists(lisaEnvPath)) {
+      let lisaEnv = await fs.readFile(lisaEnvPath, 'utf8');
+      lisaEnv = lisaEnv.replace(
         /GRAPHITI_ENDPOINT=http:\/\/localhost:\d+\/mcp\//,
         `GRAPHITI_ENDPOINT=http://localhost:${mcpPort}/mcp/`
       );
       // If no endpoint exists, add it
-      if (!skillsEnv.includes('GRAPHITI_ENDPOINT=')) {
-        skillsEnv += `\nGRAPHITI_ENDPOINT=http://localhost:${mcpPort}/mcp/\n`;
+      if (!lisaEnv.includes('GRAPHITI_ENDPOINT=')) {
+        lisaEnv += `\nGRAPHITI_ENDPOINT=http://localhost:${mcpPort}/mcp/\n`;
       }
-      await fs.writeFile(skillsEnvPath, skillsEnv);
-      console.log(`  Updated .agents/skills/.env with port ${mcpPort}`);
+      await fs.writeFile(lisaEnvPath, lisaEnv);
+      console.log(`  Updated .lisa/.env with port ${mcpPort}`);
     }
   }
 
@@ -774,7 +784,7 @@ async function setupDocker(agentsDir) {
     console.log('  (First run may take a few minutes to download images)');
     console.log('');
     console.log('  Check status:  docker ps --filter "name=lisa"');
-    console.log('  View logs:     cat .agents/.docker-setup.log');
+    console.log('  View logs:     cat .lisa/.docker-setup.log');
     console.log('');
     console.log('  Once running:');
     console.log(`    Neo4j Browser: http://localhost:${neo4jBrowserPort}`);
@@ -783,7 +793,7 @@ async function setupDocker(agentsDir) {
   } catch (err) {
     console.log(`  Docker startup failed: ${err.message}`);
     console.log('  You can try manually with:');
-    console.log('    docker compose -f .agents/docker-compose.graphiti.yml up -d');
+    console.log('    docker compose -f .lisa/docker-compose.graphiti.yml up -d');
   }
 }
 
@@ -799,43 +809,55 @@ async function main() {
   console.log('lisa: Setting up Claude Code memory and rules...');
   console.log('');
 
-  // Check if templates exist
-  if (!(await fs.pathExists(templateRoot))) {
+  // Determine source paths - try new structure first, fall back to legacy
+  const useNewStructure = await fs.pathExists(projectRoot_dist);
+  const lisaSrc = useNewStructure 
+    ? path.join(projectRoot_dist, '.lisa')
+    : path.join(templateRoot, 'agents');
+  const claudeSrc = useNewStructure
+    ? path.join(projectRoot_dist, '.claude')
+    : path.join(templateRoot, 'claude');
+  const opencodeSrc = useNewStructure
+    ? path.join(projectRoot_dist, '.opencode')
+    : null;
+
+  // Check if sources exist
+  if (!(await fs.pathExists(lisaSrc))) {
     console.error('  Templates not found. Package may not be built correctly.');
     process.exit(1);
   }
 
-  const agentsDir = path.join(projectRoot, '.agents');
+  // Target directories (renamed from .agents to .lisa)
+  const lisaDir = path.join(projectRoot, '.lisa');
   const claudeDir = path.join(projectRoot, '.claude');
+  const opencodeDir = path.join(projectRoot, '.opencode');
 
   // Preserve local extensions before copying (user-created .local.md files and .local/ directories)
-  const preservedExtensions = await preserveLocalExtensions(agentsDir);
+  const preservedExtensions = await preserveLocalExtensions(lisaDir);
 
-  // Copy .agents templates
-  const agentsSrc = path.join(templateRoot, 'agents');
-  const rulesSrc = path.join(templateRoot, 'rules');
+  // Copy .lisa (skills and rules)
+  const skillsSrc = path.join(lisaSrc, 'skills');
+  const rulesSrc = useNewStructure 
+    ? path.join(lisaSrc, 'rules')
+    : path.join(templateRoot, 'rules');
 
-  if (await fs.pathExists(agentsSrc)) {
-    const skillsSrc = path.join(agentsSrc, 'skills');
-    if (await fs.pathExists(skillsSrc)) {
-      await copyTemplates(skillsSrc, path.join(agentsDir, 'skills'));
-      console.log('  ✓ Copied .agents/skills/');
-    }
+  if (await fs.pathExists(skillsSrc)) {
+    await copyTemplates(skillsSrc, path.join(lisaDir, 'skills'));
+    console.log('  ✓ Copied .lisa/skills/');
   }
 
   if (await fs.pathExists(rulesSrc)) {
-    await copyTemplates(rulesSrc, path.join(agentsDir, 'rules'));
-    console.log('  ✓ Copied .agents/rules/');
+    await copyTemplates(rulesSrc, path.join(lisaDir, 'rules'));
+    console.log('  ✓ Copied .lisa/rules/');
   }
 
   // Restore local extensions after copying
-  await restoreLocalExtensions(agentsDir, preservedExtensions);
+  await restoreLocalExtensions(lisaDir, preservedExtensions);
 
   // Merge SKILL.local.md extensions with base SKILL.md files
-  await mergeSkillExtensions(agentsDir);
+  await mergeSkillExtensions(lisaDir);
 
-  // Copy .claude templates
-  const claudeSrc = path.join(templateRoot, 'claude');
+  // Copy .claude (hooks and settings)
   if (await fs.pathExists(claudeSrc)) {
     await copyTemplates(path.join(claudeSrc, 'settings.json'), path.join(claudeDir, 'settings.json'));
     await copyTemplates(path.join(claudeSrc, 'config.js'), path.join(claudeDir, 'config.js'));
@@ -843,16 +865,27 @@ async function main() {
     console.log('  ✓ Copied .claude/ hooks and settings');
   }
 
-  // Create symlinks
-  if (await createSymlink('../.agents/rules', path.join(claudeDir, 'rules'))) {
-    console.log('  ✓ Created symlink .claude/rules');
-  }
-  if (await createSymlink('../.agents/skills', path.join(claudeDir, 'skills'))) {
-    console.log('  ✓ Created symlink .claude/skills');
+  // Copy .opencode (plugin)
+  if (opencodeSrc && await fs.pathExists(opencodeSrc)) {
+    await copyTemplates(path.join(opencodeSrc, 'plugin'), path.join(opencodeDir, 'plugin'));
+    console.log('  ✓ Copied .opencode/ plugin');
   }
 
-  // Create .env with defaults
-  const envPath = path.join(agentsDir, 'skills', '.env');
+  // Create symlinks from .claude to .lisa
+  if (await createSymlink('../.lisa/rules', path.join(claudeDir, 'rules'))) {
+    console.log('  ✓ Created symlink .claude/rules -> .lisa/rules');
+  }
+  if (await createSymlink('../.lisa/skills', path.join(claudeDir, 'skills'))) {
+    console.log('  ✓ Created symlink .claude/skills -> .lisa/skills');
+  }
+
+  // Create symlink from .opencode to .lisa/skills
+  if (await createSymlink('../.lisa/skills', path.join(opencodeDir, 'skills'))) {
+    console.log('  ✓ Created symlink .opencode/skills -> .lisa/skills');
+  }
+
+  // Create .env with defaults in .lisa/
+  const envPath = path.join(lisaDir, '.env');
   const endpoint = process.env.GRAPHITI_ENDPOINT || DEFAULT_ENDPOINT;
   const group = process.env.GRAPHITI_GROUP_ID || DEFAULT_GROUP;
   await writeEnvFile(envPath, endpoint, group);
@@ -867,15 +900,15 @@ async function main() {
   }
 
   // Init review - automatic codebase analysis (runs in background)
-  await runInitReview(agentsDir);
+  await runInitReview(lisaDir);
 
   // Docker setup with interactive prompt
-  await setupDocker(agentsDir);
+  await setupDocker(lisaDir);
 
   console.log('');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('  lisa: Setup complete!');
-  console.log('  Claude Code now has automatic memory and coding rules.');
+  console.log('  Claude Code and OpenCode now have automatic memory.');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('');
 }

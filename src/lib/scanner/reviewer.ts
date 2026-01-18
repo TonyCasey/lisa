@@ -64,7 +64,7 @@ async function readCachedAnalysis(projectPath: string): Promise<{
   analysis: IProjectReview['analysis'];
   summary: string;
 } | null> {
-  const staticFile = path.join(projectPath, '.agents', '.init-review-static.json');
+  const staticFile = path.join(projectPath, '.lisa', '.init-review-static.json');
 
   if (await fs.pathExists(staticFile)) {
     try {
@@ -90,11 +90,11 @@ async function runInitReview(projectPath: string): Promise<{
   analysis: IProjectReview['analysis'];
   summary: string;
 } | null> {
-  // Look for init-review script in the project's .agents folder
-  // or in our templates location
+  // Look for init-review script in the project's .lisa folder
+  // or in our dist/project location
   const possiblePaths = [
-    path.join(projectPath, '.agents', 'skills', 'init-review', 'scripts', 'init-review.js'),
-    path.join(__dirname, '..', '..', 'templates', 'agents', 'skills', 'init-review', 'scripts', 'init-review.js'),
+    path.join(projectPath, '.lisa', 'skills', 'init-review', 'scripts', 'init-review.js'),
+    path.join(__dirname, '..', '..', 'project', '.lisa', 'skills', 'init-review', 'scripts', 'init-review.js'),
   ];
 
   let scriptPath: string | null = null;
@@ -118,14 +118,14 @@ async function runInitReview(projectPath: string): Promise<{
     });
 
     let stdout = '';
-    let stderr = '';
+    let _stderr = '';
 
     child.stdout.on('data', (data: Buffer) => {
       stdout += data.toString();
     });
 
     child.stderr.on('data', (data: Buffer) => {
-      stderr += data.toString();
+      _stderr += data.toString();
     });
 
     child.on('close', (code) => {

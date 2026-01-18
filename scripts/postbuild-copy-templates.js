@@ -1,13 +1,28 @@
 const path = require('path');
 const fs = require('fs-extra');
 
-// Copy template *assets* (non-TS) into dist/templates without clobbering the
-// compiled JS that tsc already emitted. Also strip any stray .ts/.tsx files
-// that might have been left by older builds.
-const srcDir = path.join(__dirname, '..', 'src', 'templates');
-const outDir = path.join(__dirname, '..', 'dist', 'templates');
+/**
+ * Post-build script to:
+ * 1. Copy non-TypeScript assets from src/project/ to dist/project/
+ * 2. Remove any stray .ts files that shouldn't be in dist
+ * 
+ * TypeScript compiles .ts -> .js, but we need to copy:
+ * - Markdown files (rules, SKILL.md)
+ * - JSON files (settings.json)
+ * - Shell scripts
+ * - Other non-TS assets
+ */
+
+const srcDir = path.join(__dirname, '..', 'src', 'project');
+const outDir = path.join(__dirname, '..', 'dist', 'project');
+
+// Also handle legacy templates for backward compatibility
+const legacySrcDir = path.join(__dirname, '..', 'src', 'templates');
+const legacyOutDir = path.join(__dirname, '..', 'dist', 'templates');
 
 async function removeTypeScriptFiles(dir) {
+  if (!(await fs.pathExists(dir))) return;
+  
   const entries = await fs.readdir(dir, { withFileTypes: true });
   await Promise.all(entries.map(async (entry) => {
     const full = path.join(dir, entry.name);
@@ -21,20 +36,35 @@ async function removeTypeScriptFiles(dir) {
   }));
 }
 
-// NOTE: Previously attempted to rename .js files to .cjs for ES module compatibility,
-// but this caused issues:
-// 1. Windows path check failed (forward slash vs backslash)
-// 2. Hooks hardcode .js paths and would break after rename
-// Skills use CommonJS require() syntax and work correctly as .js files.
-
-async function main() {
-  await fs.ensureDir(outDir);
-  await removeTypeScriptFiles(outDir);
-  await fs.copy(srcDir, outDir, {
+async function copyNonTsFiles(src, dest) {
+  if (!(await fs.pathExists(src))) return;
+  
+  await fs.ensureDir(dest);
+  await fs.copy(src, dest, {
     recursive: true,
-    filter: (src) => !src.endsWith('.ts') && !src.endsWith('.tsx'),
+    filter: (srcPath) => !srcPath.endsWith('.ts') && !srcPath.endsWith('.tsx'),
     overwrite: true,
   });
+}
+
+async function main() {
+  // Handle new structure: src/project/ -> dist/project/
+  if (await fs.pathExists(srcDir)) {
+    console.log('Copying non-TS assets from src/project/ to dist/project/...');
+    await fs.ensureDir(outDir);
+    await removeTypeScriptFiles(outDir);
+    await copyNonTsFiles(srcDir, outDir);
+    console.log('  Done.');
+  }
+  
+  // Handle legacy structure: src/templates/ -> dist/templates/
+  if (await fs.pathExists(legacySrcDir)) {
+    console.log('Copying non-TS assets from src/templates/ to dist/templates/...');
+    await fs.ensureDir(legacyOutDir);
+    await removeTypeScriptFiles(legacyOutDir);
+    await copyNonTsFiles(legacySrcDir, legacyOutDir);
+    console.log('  Done.');
+  }
 }
 
 main().catch((err) => {

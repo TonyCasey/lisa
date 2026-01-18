@@ -247,25 +247,25 @@ echo "Running verification checklist..."
 # 1. CLI accessible
 check "lisa CLI accessible" "npx lisa --help"
 
-# 2. .agents/ folder created with skills
-check ".agents/ folder exists" "[ -d .agents ]"
-check ".agents/skills/ exists" "[ -d .agents/skills ]"
+# 2. .lisa/ folder created with skills
+check ".lisa/ folder exists" "[ -d .lisa ]"
+check ".lisa/skills/ exists" "[ -d .lisa/skills ]"
 
 # 3. .claude/ folder created with hooks
 check ".claude/ folder exists" "[ -d .claude ]"
 check ".claude/hooks/ exists" "[ -d .claude/hooks ]"
 
 # 4. Skills files present
-check "memory skill exists" "[ -f .agents/skills/memory/SKILL.md ]"
-check "tasks skill exists" "[ -f .agents/skills/tasks/SKILL.md ]"
-check "lisa skill exists" "[ -f .agents/skills/lisa/SKILL.md ]"
+check "memory skill exists" "[ -f .lisa/skills/memory/SKILL.md ]"
+check "tasks skill exists" "[ -f .lisa/skills/tasks/SKILL.md ]"
+check "lisa skill exists" "[ -f .lisa/skills/lisa/SKILL.md ]"
 
 # 5. Hooks files present
 check "session-start hook exists" "[ -f .claude/hooks/session-start.js ] || [ -f .claude/hooks/session-start.cjs ]"
 check "user-prompt-submit hook exists" "[ -f .claude/hooks/user-prompt-submit.js ] || [ -f .claude/hooks/user-prompt-submit.cjs ]"
 
 # 6. Port checking (basic test)
-check "Port utility exists" "[ -f .agents/skills/memory/scripts/memory.js ] || [ -f .agents/skills/memory/scripts/memory.cjs ]"
+check "Port utility exists" "[ -f .lisa/skills/memory/scripts/memory.js ] || [ -f .lisa/skills/memory/scripts/memory.cjs ]"
 
 # Summary
 echo ""
@@ -448,7 +448,7 @@ docker run -it --rm \
 cd ~/projects/typescript
 npm install /home/testuser/tonycasey-lisa-*.tgz
 npx lisa --help
-ls -la .agents/
+ls -la .lisa/
 ls -la .claude/
 ```
 
@@ -461,11 +461,11 @@ For each operating system, verify:
 | Check | Command | Expected |
 |-------|---------|----------|
 | CLI accessible | `npx lisa --help` | Shows help text |
-| .agents/ created | `ls -la .agents/` | Folder exists with skills |
+| .lisa/ created | `ls -la .lisa/` | Folder exists with skills |
 | .claude/ created | `ls -la .claude/` | Folder exists with hooks |
-| Memory skill | `ls .agents/skills/memory/` | SKILL.md and scripts/ |
-| Tasks skill | `ls .agents/skills/tasks/` | SKILL.md and scripts/ |
-| Lisa skill | `ls .agents/skills/lisa/` | SKILL.md |
+| Memory skill | `ls .lisa/skills/memory/` | SKILL.md and scripts/ |
+| Tasks skill | `ls .lisa/skills/tasks/` | SKILL.md and scripts/ |
+| Lisa skill | `ls .lisa/skills/lisa/` | SKILL.md |
 | Session hook | `ls .claude/hooks/` | session-start.js or .cjs |
 | Prompt hook | `ls .claude/hooks/` | user-prompt-submit.js or .cjs |
 
@@ -477,10 +477,10 @@ Test that memory works correctly in each container:
 
 ```bash
 # Add a test memory
-node .agents/skills/memory/scripts/memory.js add "Docker test memory for $(hostname)" --cache
+node .lisa/skills/memory/scripts/memory.js add "Docker test memory for $(hostname)" --cache
 
 # In a new shell (or new container run), load memories
-node .agents/skills/memory/scripts/memory.js load --cache
+node .lisa/skills/memory/scripts/memory.js load --cache
 
 # Verify the test memory exists in output
 ```
@@ -514,7 +514,7 @@ jobs:
           npm init -y
           npm install ${{ github.workspace }}/tonycasey-lisa-*.tgz
           npx lisa --help
-          ls -la .agents/
+          ls -la .lisa/
           ls -la .claude/
 ```
 
@@ -609,7 +609,7 @@ The full integration tests include:
 
 **Phase 1: Installation (11 checks)**
 - CLI accessible
-- .agents/ folder created
+- .lisa/ folder created
 - .claude/ folder created
 - All skills present (memory, tasks, lisa)
 - All hooks present (session-start, user-prompt-submit)

@@ -32,7 +32,7 @@ const SKIP_DIRS = new Set([
   'venv',
   'target',
   '.next',
-  '.agents',
+  '.lisa',
   '.claude',
   '.dev',
   'coverage',

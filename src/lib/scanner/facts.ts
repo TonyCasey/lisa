@@ -8,8 +8,7 @@
 import { spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs-extra';
-import { IAnalysisResult, IRelationship } from './analyzer';
-import { IProjectReview } from './reviewer';
+import { IAnalysisResult } from './analyzer';
 
 export interface IFact {
   text: string;
@@ -47,7 +46,7 @@ function normalizePathToGroupId(absolutePath: string): string {
 /**
  * Generate facts from analysis result
  */
-export function generateFacts(analysis: IAnalysisResult, rootPath: string): IFact[] {
+export function generateFacts(analysis: IAnalysisResult, _rootPath: string): IFact[] {
   const facts: IFact[] = [];
   const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
@@ -123,9 +122,9 @@ export function generateFacts(analysis: IAnalysisResult, rootPath: string): IFac
  */
 async function findMemoryScript(rootPath: string): Promise<string | null> {
   const possiblePaths = [
-    path.join(rootPath, '.agents', 'skills', 'memory', 'scripts', 'memory.js'),
+    path.join(rootPath, '.lisa', 'skills', 'memory', 'scripts', 'memory.js'),
     path.join(rootPath, '.claude', 'skills', 'memory', 'scripts', 'memory.js'),
-    path.join(__dirname, '..', '..', 'templates', 'agents', 'skills', 'memory', 'scripts', 'memory.js'),
+    path.join(__dirname, '..', '..', 'project', '.lisa', 'skills', 'memory', 'scripts', 'memory.js'),
   ];
 
   for (const p of possiblePaths) {
@@ -255,7 +254,7 @@ export async function storeFacts(
  * Note: This is a simple implementation - in production you might want
  * to query and delete specific facts
  */
-export async function cleanScanFacts(rootPath: string): Promise<boolean> {
+export async function cleanScanFacts(_rootPath: string): Promise<boolean> {
   // For now, we'll just return true - cleaning would require
   // querying existing facts with scope:scan tag and deleting them
   // This can be implemented when Graphiti supports deletion

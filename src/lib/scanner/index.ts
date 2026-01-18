@@ -7,10 +7,10 @@
 
 import path from 'path';
 import chalk from 'chalk';
-import { discoverProjects, IDiscoveredProject } from './discovery';
+import { discoverProjects } from './discovery';
 import { reviewProjects, IProjectReview } from './reviewer';
 import { analyzeRelationships, IAnalysisResult } from './analyzer';
-import { generateFacts, storeFacts, cleanScanFacts, IFact, IStorageResult } from './facts';
+import { generateFacts, storeFacts, cleanScanFacts } from './facts';
 
 export interface IScanOptions {
   dryRun?: boolean;
@@ -27,13 +27,6 @@ export interface IScanResult {
   factsStored: number;
   errors: string[];
   analysis?: IAnalysisResult;
-}
-
-/**
- * Format a project for display
- */
-function formatProject(project: IDiscoveredProject): string {
-  return `${project.name} (${project.type})`;
 }
 
 /**

@@ -1,0 +1,67 @@
+# Quick Mode - Installation tests only (no MCP required)
+#
+# Usage:
+#   docker compose up --build              # Test ubuntu only
+#   docker compose --profile all up --build # Test all distros
+#
+# CLI Mode variants:
+#   CLI_MODE=both docker compose up --build           # Both CLIs (default)
+#   CLI_MODE=claude-only docker compose up --build    # Claude Code only
+#   CLI_MODE=opencode-only docker compose up --build  # OpenCode only
+
+name: lisa-install-quick
+
+services:
+  ubuntu:
+    build:
+      context: ../../../..
+      dockerfile: tests/e2e/installation/docker/Dockerfile.ubuntu
+    container_name: lisa-test-ubuntu
+    environment:
+      - CLI_MODE=${CLI_MODE:-both}
+    volumes:
+      - ./scripts:/home/testuser/test-scripts:ro
+      - ../../../integration/shared/sample-projects:/home/testuser/sample-projects:ro
+    command: bash -c "/home/testuser/test-scripts/run-tests.sh ubuntu"
+
+  debian:
+    build:
+      context: ../../../..
+      dockerfile: tests/e2e/installation/docker/Dockerfile.debian
+    container_name: lisa-test-debian
+    environment:
+      - CLI_MODE=${CLI_MODE:-both}
+    volumes:
+      - ./scripts:/home/testuser/test-scripts:ro
+      - ../../../integration/shared/sample-projects:/home/testuser/sample-projects:ro
+    command: bash -c "/home/testuser/test-scripts/run-tests.sh debian"
+    profiles:
+      - all
+
+  alpine:
+    build:
+      context: ../../../..
+      dockerfile: tests/e2e/installation/docker/Dockerfile.alpine
+    container_name: lisa-test-alpine
+    environment:
+      - CLI_MODE=${CLI_MODE:-both}
+    volumes:
+      - ./scripts:/home/testuser/test-scripts:ro
+      - ../../../integration/shared/sample-projects:/home/testuser/sample-projects:ro
+    command: bash -c "/home/testuser/test-scripts/run-tests.sh alpine"
+    profiles:
+      - all
+
+  fedora:
+    build:
+      context: ../../../..
+      dockerfile: tests/e2e/installation/docker/Dockerfile.fedora
+    container_name: lisa-test-fedora
+    environment:
+      - CLI_MODE=${CLI_MODE:-both}
+    volumes:
+      - ./scripts:/home/testuser/test-scripts:ro
+      - ../../../integration/shared/sample-projects:/home/testuser/sample-projects:ro
+    command: bash -c "/home/testuser/test-scripts/run-tests.sh fedora"
+    profiles:
+      - all
