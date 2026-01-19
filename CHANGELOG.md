@@ -7,6 +7,91 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.0] - 2026-01-19
+
+### Added
+
+#### Multi-CLI Architecture
+- **OpenCode support** - Lisa now supports OpenCode alongside Claude Code
+  - Unified event-driven architecture with shared resources
+  - OpenCode plugin adapter with lifecycle event mapping
+  - CLI-specific directories: `.claude/` (hooks), `.opencode/` (plugin)
+  - Symlinks from CLI dirs to shared `.lisa/` resources
+
+- **CLI selection during init** - Choose which CLIs to support
+  - Interactive mode prompts for selection
+  - `--claude-only` and `--opencode-only` flags for non-interactive setup
+  - Configuration saved to `.lisa/lisa.config.json`
+
+#### Data Access Layer (DAL)
+- **Multi-backend support** - MCP, Neo4j direct, and Zep Cloud backends
+  - Repository router for optimal backend selection per operation type
+  - Connection managers with health checks
+  - Search operations route to MCP (semantic search)
+  - List/aggregate operations route to Neo4j (efficient ordering)
+
+#### Clean Architecture Refactoring
+- **Domain layer** - Core interfaces and types
+  - `IMemoryRepository`, `ITaskRepository` contracts
+  - `IMemoryItem`, `ITask` domain types
+  - Event interfaces for session lifecycle
+
+- **Infrastructure layer** - Implementation details
+  - MCP, Neo4j, and Zep repository implementations
+  - `RepositoryFactory` and `RepositoryRouter` for backend selection
+  - `ServiceFactory` for dependency injection
+
+- **Application layer** - Use case handlers
+  - `SessionStartHandler`, `SessionStopHandler`, `PromptSubmitHandler`
+
+#### Hooks Refactoring
+- **Modular hook architecture** - Extract monolithic hooks into focused modules
+  - `utils/common/` - mcp-client, context, group-id, transcript-parser
+  - `utils/core/` - task-loader, memory-loader, rules-loader
+  - `utils/io/` - output-formatter, stdin-reader, graphiti-writer
+  - `utils/session/` - trigger-handler, plan-mode
+  - `utils/capture/` - retrospective-builder, summary-builder, transcript-finder
+  - 56% reduction in hook code size
+
+#### Skills Enhancement
+- **Service-based architecture** - Extract skills to DI-based services
+  - Shared clients: `McpClient`, `Neo4jClient`, `ZepClient`
+  - Service interfaces: `IMemoryService`, `ITaskService`
+  - DI-based utilities for testability
+
+- **Configurable logging** - pino-based logging with `LOG_LEVEL` support
+  - `.env` file creation on first `lisa init`
+  - Log levels: debug, info, warn, error
+
+#### Testing Improvements
+- **143 unit tests** for extracted hook modules
+- **Docker-based e2e tests** for multiple OS and project types
+- **Integration tests** for DAL and CLI operations
+
+### Changed
+
+#### Project Structure
+- **Source reorganization** - Move from `src/templates/` to `src/project/`
+- **Deployed directory rename** - From `.agents/` to `.lisa/`
+- **Shared resources** - Skills and rules in `.lisa/` shared by all CLIs
+
+#### Build Process
+- **Bundle hooks** - New `bundle-hooks.js` script for hook bundling
+- **Deploy agents** - Enhanced `deploy-agents.js` with multi-CLI support
+- **Symlink creation** - Automatic symlinks from CLI dirs to shared resources
+
+### Fixed
+- **CI workflow** - Run build before tests in workflow
+- **Cross-platform support** - Improved robustness for Windows paths
+- **Code review fixes** - Various improvements for robustness
+
+### Documentation
+- Updated README with multi-CLI architecture
+- Updated AGENTS.md with comprehensive development guide
+- Updated all docs for new directory structure
+
+---
+
 ## [1.2.0] - 2026-01-15
 
 ### Added
