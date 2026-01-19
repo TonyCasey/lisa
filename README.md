@@ -25,11 +25,15 @@ Unlike simple vector databases or file-based memory, Lisa uses **[Graphiti](http
 ### Quick Start
 
 ```bash
-# Install Lisa
-npm install @tonycasey/lisa
+# Install Lisa globally - IMPORTANT
+npm install -g @tonycasey/lisa
 
-# Initialize with interactive prompts
-npx lisa init
+# change to any project directory
+cd your-project-directory
+
+# initialize - copies in relevant files
+lisa init
+
 ```
 
 
