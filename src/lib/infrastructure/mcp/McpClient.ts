@@ -1,7 +1,15 @@
 import type { IMcpClient } from '../../domain/interfaces';
 import { McpError } from '../../domain/errors';
+import fs from 'fs-extra';
+import path from 'path';
 
-const CLIENT_INFO = { name: 'lisa', version: '0.1.0' };
+// Read version from package.json
+const PACKAGE_JSON_PATH = path.join(__dirname, '..', '..', '..', '..', 'package.json');
+const VERSION = fs.existsSync(PACKAGE_JSON_PATH) 
+  ? (fs.readJsonSync(PACKAGE_JSON_PATH) as { version: string }).version 
+  : '0.0.0';
+
+const CLIENT_INFO = { name: 'lisa', version: VERSION };
 const PROTOCOL_VERSION = '2024-11-05';
 const DEFAULT_TIMEOUT_MS = 8000;
 

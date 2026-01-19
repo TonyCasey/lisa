@@ -81,7 +81,7 @@ Common issues and solutions when using Lisa.
    docker logs <container_id>
    ```
 
-2. Verify `.env` file exists with required API keys
+2. Verify `.env` file exists in project root with required API keys (especially `OPENAI_API_KEY`)
 
 3. Increase Docker memory allocation (Docker Desktop > Settings > Resources)
 
@@ -186,9 +186,9 @@ Common issues and solutions when using Lisa.
    npm run build
    ```
 
-3. Re-run setup:
+3. Re-run init with force:
    ```bash
-   lisa setup -f
+   lisa init -f
    ```
 
 ### "Script error" from skills
@@ -206,14 +206,40 @@ Common issues and solutions when using Lisa.
 
 3. Verify `.lisa/.env` configuration
 
+## Debugging
+
+### Enable Debug Logging
+
+Edit `.lisa/.env`:
+
+```env
+LOG_LEVEL=debug
+```
+
+This enables verbose logging for hooks and skills.
+
+### Check Hook Output
+
+For Claude Code, hook output appears in the conversation. For OpenCode, check the plugin logs.
+
+### Test MCP Directly
+
+```bash
+# Test memory skill
+node .lisa/skills/memory/scripts/memory.js load --limit 5
+
+# Test with debug output
+LOG_LEVEL=debug node .lisa/skills/memory/scripts/memory.js load
+```
+
 ## Reset Everything
 
 If all else fails, start fresh:
 
 ```bash
 # Remove Lisa artifacts
-rm -rf .lisa .claude .codex
-rm -f docker-compose.graphiti.yml .env.lisa.example
+rm -rf .lisa .claude .opencode
+rm -f docker-compose.graphiti.yml
 
 # Stop Docker containers
 docker compose -f docker-compose.graphiti.yml down -v
@@ -223,6 +249,8 @@ lisa init -f
 lisa up
 ```
 
+**Note:** This removes all local configuration. Your memories in Neo4j/Zep are preserved.
+
 ## Getting Help
 
 - Check [existing issues](https://github.com/tonycasey/lisa/issues)
@@ -231,3 +259,4 @@ lisa up
   - Your OS and Node.js version
   - Steps to reproduce
   - Error messages
+  - Contents of `.lisa/.env` (redact secrets)

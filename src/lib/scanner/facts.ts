@@ -144,6 +144,9 @@ async function storeFact(
   groupId: string
 ): Promise<{ success: boolean; error?: string }> {
   return new Promise((resolve) => {
+    const TIMEOUT_MS = 15000;
+    let resolved = false;
+    
     const args = [
       memoryScript,
       'add',
@@ -162,8 +165,16 @@ async function storeFact(
 
     const child = spawn('node', args, {
       stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: 15000,
     });
+
+    // Manual timeout since spawn's timeout option is ignored by Node
+    const timeoutId = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        child.kill('SIGTERM');
+        resolve({ success: false, error: `Timeout after ${TIMEOUT_MS}ms` });
+      }
+    }, TIMEOUT_MS);
 
     let stdout = '';
     let stderr = '';
@@ -177,6 +188,10 @@ async function storeFact(
     });
 
     child.on('close', (code) => {
+      clearTimeout(timeoutId);
+      if (resolved) return;
+      resolved = true;
+      
       if (code === 0) {
         try {
           const result = JSON.parse(stdout);
@@ -197,6 +212,9 @@ async function storeFact(
     });
 
     child.on('error', (err) => {
+      clearTimeout(timeoutId);
+      if (resolved) return;
+      resolved = true;
       resolve({ success: false, error: err.message });
     });
   });

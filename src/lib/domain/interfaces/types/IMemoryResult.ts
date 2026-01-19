@@ -21,7 +21,31 @@ export interface IMemoryResult {
 }
 
 /**
- * Create an empty memory result.
+ * Mutable builder for IMemoryResult during construction.
+ */
+export interface IMemoryResultBuilder {
+  facts: IMemoryItem[];
+  nodes: IMemoryItem[];
+  tasks: IMemoryItem[];
+  initReview: string | null;
+  timedOut: boolean;
+}
+
+/**
+ * Create an empty mutable memory result builder.
+ */
+export function createMemoryResultBuilder(): IMemoryResultBuilder {
+  return {
+    facts: [],
+    nodes: [],
+    tasks: [],
+    initReview: null,
+    timedOut: false,
+  };
+}
+
+/**
+ * Create an empty immutable memory result.
  */
 export function emptyMemoryResult(): IMemoryResult {
   return {

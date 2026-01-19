@@ -148,13 +148,17 @@ export class McpMemoryRepository implements IMemoryRepository {
     facts: readonly string[],
     options?: IMemorySaveOptions
   ): Promise<readonly IMemoryItem[]> {
+    // MCP doesn't have batch add, so we parallelize with concurrency limit
+    // to avoid overwhelming the server while improving throughput
+    const CONCURRENCY_LIMIT = 5;
     const results: IMemoryItem[] = [];
-
-    // MCP doesn't have batch add, so we do them sequentially
-    // Could be parallelized with Promise.all if needed
-    for (const content of facts) {
-      const item = await this.save(groupId, content, options);
-      results.push(item);
+    
+    for (let i = 0; i < facts.length; i += CONCURRENCY_LIMIT) {
+      const batch = facts.slice(i, i + CONCURRENCY_LIMIT);
+      const batchResults = await Promise.all(
+        batch.map(content => this.save(groupId, content, options))
+      );
+      results.push(...batchResults);
     }
 
     return results;

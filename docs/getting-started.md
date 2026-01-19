@@ -1,6 +1,6 @@
 # Getting Started with Lisa
 
-Lisa gives your AI coding assistants persistent memory. Once installed, Claude Code (and other AI assistants) automatically remember your project context, decisions, and coding patterns across sessions.
+Lisa gives your AI coding assistants persistent memory. Once installed, Claude Code, OpenCode, and other AI assistants automatically remember your project context, decisions, and coding patterns across sessions.
 
 ## Prerequisites
 
@@ -18,33 +18,33 @@ This runs Neo4j and Graphiti locally via Docker.
 # Install Lisa globally
 npm install -g @tonycasey/lisa
 
-# change directory to your project directory
+# Change directory to your project
 cd your-project
 
-# IMPORTANT: LISA's Storage requires an OpenAI API key to run.
-# Set your OPEN_AI_API_KEY in /your-project/.env file (if you one have one just rename the .env.sample file to .env)
-  OPENAI_API_KEY=sk-proj-2F_zZ8...  
-# (or export it, just run this command in your terminal)
-  export OPEN_AI_API_KEY=sk-proj-2F_zZ8...    
+# IMPORTANT: Lisa's Storage requires an OpenAI API key.
+# Create a .env file in your project root with:
+#   OPENAI_API_KEY=sk-proj-...
+# Or export it in your terminal:
+#   export OPENAI_API_KEY=sk-proj-...
 
-# Initialize and start Docker Image for Storage
+# Initialize and start Docker containers
 lisa init
 lisa up
 ```
 
-Wait for Docker containers to start (~30 seconds), then start coding with Claude Code.
+Wait for Docker containers to start (~30 seconds), then start coding with your AI assistant.
 
-### Option 2: [Zep's](https://www.getzep.com/) Cloud (Managed)
+### Option 2: Zep Cloud (Managed)
 
 No Docker required - uses [Zep's](https://www.getzep.com/) hosted service.
 
 ```bash
 npm install -g @tonycasey/lisa
 cd your-project
-lisa setup --mode zep-cloud
+lisa init --mode zep-cloud
 ```
 
-You'll be prompted for your [Zep's](https://www.getzep.com/) API key and project ID.
+You'll be prompted for your Zep API key and project ID.
 
 ### Option 3: Configure Later
 
@@ -53,7 +53,22 @@ Scaffold the project structure now, configure storage later.
 ```bash
 npm install -g @tonycasey/lisa
 cd your-project
-lisa setup --mode skip
+lisa init --mode skip
+```
+
+## CLI Support Options
+
+Lisa supports multiple AI coding assistants. During `lisa init`, you can choose which to support:
+
+```bash
+# Support both Claude Code and OpenCode (default)
+lisa init
+
+# Claude Code only
+lisa init --claude-only
+
+# OpenCode only
+lisa init --opencode-only
 ```
 
 ## Verify Installation
@@ -70,25 +85,29 @@ You should see green checkmarks for:
 
 ## What Gets Created
 
-After running `lisa init` or `lisa setup`:
+After running `lisa init`:
 
 ```
 your-project/
 ├── .lisa/
 │   ├── skills/           # Memory and task skills
 │   ├── rules/            # Coding standards
-│   └── .env              # Configuration
+│   ├── .env              # Configuration (LOG_LEVEL, endpoints, etc.)
+│   └── lisa.config.json  # CLI preferences
 │
-├── .claude/
-│   ├── hooks/            # Session hooks
-│   ├── settings.json     # Claude Code settings
-│   └── config.js         # Configuration
+├── .claude/              # (if Claude Code selected)
+│   ├── hooks/            # Session lifecycle hooks
+│   ├── config.js         # Hook configuration
+│   ├── skills -> ../.lisa/skills
+│   └── rules -> ../.lisa/rules
+│
+├── .opencode/            # (if OpenCode selected)
+│   ├── plugin/
+│   │   └── lisa.js       # OpenCode plugin
+│   └── skills -> ../.lisa/skills
 │
 └── docker-compose.graphiti.yml  # (if using Docker)
 ```
-
-
-
 
 ## Next Steps
 

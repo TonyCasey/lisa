@@ -1,5 +1,5 @@
-import type { IMemoryService, IMcpClient, IMemoryResult, IMemoryItem, ILogger } from '../../domain';
-import { emptyMemoryResult } from '../../domain';
+import type { IMemoryService, IMcpClient, IMemoryResult, IMemoryItem, ILogger, IMemoryResultBuilder } from '../../domain';
+import { createMemoryResultBuilder } from '../../domain';
 import { ContextDetector } from '../context';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
 import { NullLogger } from '../logging';
@@ -48,14 +48,7 @@ export class MemoryService implements IMemoryService {
   ): Promise<IMemoryResult> {
     this.logger.debug('Loading memory', { groupIds, aliases, branch, timeoutMs });
     
-    const result = emptyMemoryResult();
-    const mutableResult = result as {
-      facts: IMemoryItem[];
-      nodes: IMemoryItem[];
-      tasks: IMemoryItem[];
-      initReview: string | null;
-      timedOut: boolean;
-    };
+    const result: IMemoryResultBuilder = createMemoryResultBuilder();
 
     let sessionId: string | null = null;
     let timedOut = false;
@@ -76,7 +69,7 @@ export class MemoryService implements IMemoryService {
         const initFacts = initResp?.result?.facts || initResp?.facts || [];
         if (initFacts.length > 0) {
           const fact = initFacts[0];
-          mutableResult.initReview = fact?.fact || fact?.name || null;
+          result.initReview = fact?.fact || fact?.name || null;
           this.logger.debug('Loaded init-review');
         }
       } catch (error) {
@@ -102,7 +95,7 @@ export class MemoryService implements IMemoryService {
           const uuid = fact.uuid || `${fact.name}-${fact.fact}`;
           if (!seenUuids.has(uuid)) {
             seenUuids.add(uuid);
-            mutableResult.facts.push(fact);
+            result.facts.push(fact);
           }
         }
 
@@ -125,13 +118,13 @@ export class MemoryService implements IMemoryService {
             const uuid = fact.uuid || `${fact.name}-${fact.fact}`;
             if (!seenUuids.has(uuid)) {
               seenUuids.add(uuid);
-              mutableResult.facts.push(fact);
+              result.facts.push(fact);
             }
           }
         }
 
         // Fall back to nodes if no facts found
-        if (!mutableResult.facts.length) {
+        if (!result.facts.length) {
           for (const alias of aliases) {
             const baseParams = {
               query: alias,
@@ -148,7 +141,7 @@ export class MemoryService implements IMemoryService {
               const uuid = node.uuid || `${node.name}-${node.fact}`;
               if (!seenUuids.has(uuid)) {
                 seenUuids.add(uuid);
-                mutableResult.nodes.push(node);
+                result.nodes.push(node);
               }
             }
           }
@@ -174,7 +167,7 @@ export class MemoryService implements IMemoryService {
             const uuid = task.uuid || `${task.name}-${task.fact}`;
             if (!seenTaskUuids.has(uuid)) {
               seenTaskUuids.add(uuid);
-              mutableResult.tasks.push(task);
+              result.tasks.push(task);
             }
           }
         }
@@ -184,26 +177,33 @@ export class MemoryService implements IMemoryService {
     };
 
     // Race between loading and timeout
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
     const timeoutPromise = new Promise<void>((resolve) => {
-      setTimeout(() => {
+      timeoutId = setTimeout(() => {
         timedOut = true;
         resolve();
       }, timeoutMs);
     });
 
-    await Promise.race([loadPromise(), timeoutPromise]);
+    try {
+      await Promise.race([loadPromise(), timeoutPromise]);
+    } finally {
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
+    }
 
-    mutableResult.timedOut = timedOut;
+    result.timedOut = timedOut;
     
     this.logger.info('Memory loaded', {
-      factsCount: mutableResult.facts.length,
-      nodesCount: mutableResult.nodes.length,
-      tasksCount: mutableResult.tasks.length,
-      hasInitReview: !!mutableResult.initReview,
+      factsCount: result.facts.length,
+      nodesCount: result.nodes.length,
+      tasksCount: result.tasks.length,
+      hasInitReview: !!result.initReview,
       timedOut,
     });
     
-    return mutableResult;
+    return result;
   }
 
   /**
@@ -231,7 +231,8 @@ export class MemoryService implements IMemoryService {
           return;
         }
       } catch (error) {
-        this.logger.debug('DAL router write failed, falling back to MCP', { 
+        // Log at info level so users can see when fallback is used
+        this.logger.info('DAL router write failed, using MCP fallback', { 
           error: (error as Error).message 
         });
       }

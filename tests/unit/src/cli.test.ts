@@ -85,9 +85,9 @@ test('initCommand skip mode skips docker and copies docs', async () => {
   // Docker assets should not be included for skip mode
   assert.ok(!services.templateCopier.calls.find((c) => c.dest.endsWith('docker-compose.graphiti.yml')));
 
-  // Storage setup docs should be copied
-  const docsCopy = services.templateCopier.calls.find((c) => c.dest.endsWith('STORAGE_SETUP.md'));
-  assert.ok(docsCopy, 'STORAGE_SETUP.md should be copied');
+  // Skip mode should still copy skill and rule templates
+  const skillsCopy = services.templateCopier.calls.find((c) => c.dest.includes('skills'));
+  assert.ok(skillsCopy, 'Skills should be copied even in skip mode');
 });
 
 test('doctorCommand checks docker and MCP via services', async () => {

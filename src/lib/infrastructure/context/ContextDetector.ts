@@ -147,7 +147,7 @@ export class ContextDetector {
         return ContextDetector.parseEnvFile(content);
       }
     } catch {
-      // File doesn't exist or is invalid
+      // .env file missing or unreadable - use defaults
     }
     return {};
   }
@@ -165,7 +165,7 @@ export class ContextDetector {
         }
       }
     } catch {
-      // Ignore parse errors
+      // package.json missing or invalid JSON - try other detection methods
     }
     return null;
   }
@@ -184,7 +184,7 @@ export class ContextDetector {
         }
       }
     } catch {
-      // Ignore errors
+      // pyproject.toml missing or unparseable - try other detection methods
     }
     return null;
   }

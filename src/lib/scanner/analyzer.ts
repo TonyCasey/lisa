@@ -8,6 +8,7 @@
  * - Architecture patterns
  */
 
+import path from 'path';
 import { IProjectReview } from './reviewer';
 
 export interface IRelationship {
@@ -242,7 +243,7 @@ function generateSolutionOverview(reviews: IProjectReview[], rootPath: string): 
     .sort((a, b) => b[1] - a[1])[0]?.[0] || 'Unknown';
 
   const projectNames = successfulReviews.map(r => r.project.name);
-  const folderName = rootPath.split('/').pop() || rootPath;
+  const folderName = path.basename(rootPath) || rootPath;
 
   return `Solution in ${folderName}: ${successfulReviews.length} ${primaryLanguage} projects (${projectNames.join(', ')})`;
 }

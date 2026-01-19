@@ -9,7 +9,7 @@ Skills are model-neutral capabilities that AI assistants can invoke. Lisa includ
 3. **Scripts** execute the actual logic (JavaScript)
 4. **Output** is returned to the AI assistant
 
-Skills are stored in `.lisa/skills/` and work with Claude Code, Codex, and other compatible assistants.
+Skills are stored in `.lisa/skills/` and work with Claude Code, OpenCode, and other compatible assistants.
 
 ## Built-in Skills
 
@@ -80,9 +80,30 @@ Manages tasks and to-dos via Graphiti MCP.
 
 **Location:** `.lisa/skills/prompt/`
 
-Captures prompts to memory for context building.
+Captures prompts to memory for context building. This skill runs automatically via hooks - you don't typically invoke it directly.
 
-This skill runs automatically via hooks - you don't typically invoke it directly.
+### Git
+
+**Location:** `.lisa/skills/git/`
+
+GitHub and Git workflow helpers.
+
+**Trigger phrases:**
+- "create pr"
+- "pr checks"
+- "retrigger tests"
+- "bump version"
+
+### Jira
+
+**Location:** `.lisa/skills/jira/`
+
+Create and manage Jira issues.
+
+**Trigger phrases:**
+- "jira"
+- "create ticket"
+- "list issues"
 
 ## Skill Structure
 
@@ -97,7 +118,7 @@ Each skill has this structure:
 
 ### SKILL.md Format
 
-```yaml
+```markdown
 ---
 name: my-skill
 description: "Short description for trigger matching"
@@ -139,11 +160,10 @@ Skills read configuration from `.lisa/.env`:
 ```env
 GRAPHITI_ENDPOINT=http://localhost:8010/mcp/
 GRAPHITI_GROUP_ID=my-project
+LOG_LEVEL=debug
 ```
 
 ## Creating Custom Skills
-
-See [CONTRIBUTING.md](../CONTRIBUTING.md#adding-a-skill) for instructions on creating custom skills.
 
 ### Quick Overview
 
@@ -152,6 +172,18 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md#adding-a-skill) for instructions on cre
 3. Add `scripts/<name>.ts` with implementation
 4. Run `npm run build` to compile and deploy
 5. Test with your AI assistant
+
+See [CONTRIBUTING.md](../CONTRIBUTING.md#adding-a-skill) for detailed instructions.
+
+## Plan Mode Recursion
+
+When in **plan mode**, Lisa automatically searches memory for relevant context before you start planning. This surfaces:
+
+- **Previous decisions** - What was decided and why
+- **Learnings** - Insights from retrospectives
+- **Related tasks** - What's been done or is in progress
+
+This helps ensure your plans are informed by historical context.
 
 ## Entity Classification
 

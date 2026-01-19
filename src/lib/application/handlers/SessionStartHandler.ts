@@ -186,14 +186,21 @@ export class SessionStartHandler {
     };
 
     // Race between loading and timeout
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
     const timeoutPromise = new Promise<void>((resolve) => {
-      setTimeout(() => {
+      timeoutId = setTimeout(() => {
         timedOut = true;
         resolve();
       }, TIMEOUT_MS);
     });
 
-    await Promise.race([loadPromise(), timeoutPromise]);
+    try {
+      await Promise.race([loadPromise(), timeoutPromise]);
+    } finally {
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
+    }
     result.timedOut = timedOut;
 
     return result;

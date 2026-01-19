@@ -23,17 +23,10 @@ import {
   createDefaultServices,
   DEFAULT_ENDPOINT,
   DEFAULT_GROUP,
-} from '../../../src/cli';
+} from '../../../src/lib/cli';
 
 // Use dist/project for integration tests (after build)
 const TEMPLATE_ROOT = path.resolve(__dirname, '..', '..', '..', 'dist', 'project');
-
-// =============================================================================
-// Test Configuration
-// =============================================================================
-
-const runMode = process.env.RUN_CLI_INTEGRATION_TESTS;
-const cliTestsEnabled = runMode === '1';
 
 // =============================================================================
 // Test Utilities
@@ -89,13 +82,7 @@ async function isSymlink(linkPath: string): Promise<boolean> {
 // Test Suite
 // =============================================================================
 
-if (!cliTestsEnabled) {
-  test.skip(
-    'CLI integration tests disabled. Set RUN_CLI_INTEGRATION_TESTS=1 to enable.',
-    () => {}
-  );
-} else {
-  describe('CLI init command integration', () => {
+describe('CLI init command integration', () => {
     let services: ReturnType<typeof createDefaultServices>;
 
     before(() => {
@@ -154,9 +141,9 @@ if (!cliTestsEnabled) {
         assert.ok(await dirExists(skillsDir), '.lisa/skills directory should exist');
       });
 
-      test('creates Claude settings.json', { timeout: 10_000 }, async () => {
-        const settingsPath = path.join(tempDir, '.claude', 'settings.json');
-        assert.ok(await fs.pathExists(settingsPath), '.claude/settings.json should exist');
+      test('creates Claude config.js', { timeout: 10_000 }, async () => {
+        const configPath = path.join(tempDir, '.claude', 'config.js');
+        assert.ok(await fs.pathExists(configPath), '.claude/config.js should exist');
       });
     });
 
@@ -516,5 +503,74 @@ if (!cliTestsEnabled) {
         }
       });
     });
+
+    // =========================================================================
+    // .env File Tests
+    // =========================================================================
+
+    describe('.env file behavior', () => {
+      test('first init creates .env from template with replacements', { timeout: 30_000 }, async () => {
+        const tempDir = await createTempDir('env-first-init');
+
+        try {
+          await initCommand({
+            cwd: tempDir,
+            endpoint: 'http://custom:9000/mcp/',
+            group: 'my-project',
+            force: true,
+            mode: 'local',
+            cliSupport: ['claude-code'],
+          }, services);
+
+          const envPath = path.join(tempDir, '.lisa', '.env');
+          assert.ok(await fs.pathExists(envPath), '.env should be created on first init');
+
+          const content = await fs.readFile(envPath, 'utf8');
+          assert.ok(content.includes('GRAPHITI_ENDPOINT=http://custom:9000/mcp/'), 'Endpoint should be replaced');
+          assert.ok(content.includes('LOG_LEVEL=debug'), '.env should include LOG_LEVEL');
+          assert.ok(content.includes('STORAGE_MODE=local'), '.env should include STORAGE_MODE');
+        } finally {
+          await cleanupTempDir(tempDir);
+        }
+      });
+
+      test('subsequent init does NOT overwrite existing .env', { timeout: 30_000 }, async () => {
+        const tempDir = await createTempDir('env-no-overwrite');
+
+        try {
+          // First init
+          await initCommand({
+            cwd: tempDir,
+            endpoint: 'http://first:8000/mcp/',
+            group: 'first-group',
+            force: true,
+            mode: 'local',
+            cliSupport: ['claude-code'],
+          }, services);
+
+          // Modify .env to simulate user customization
+          const envPath = path.join(tempDir, '.lisa', '.env');
+          await fs.writeFile(envPath, 'CUSTOM_VALUE=user-modified\nLOG_LEVEL=error\n');
+
+          // Second init with force (should still preserve .env)
+          await initCommand({
+            cwd: tempDir,
+            endpoint: 'http://second:9000/mcp/',
+            group: 'second-group',
+            force: true,
+            mode: 'local',
+            cliSupport: ['claude-code'],
+          }, services);
+
+          // Verify .env was NOT overwritten
+          const content = await fs.readFile(envPath, 'utf8');
+          assert.ok(content.includes('CUSTOM_VALUE=user-modified'), '.env should preserve user customizations');
+          assert.ok(content.includes('LOG_LEVEL=error'), '.env should keep user LOG_LEVEL');
+          assert.ok(!content.includes('http://second:9000'), '.env should NOT have new endpoint');
+        } finally {
+          await cleanupTempDir(tempDir);
+        }
+      });
+    });
   });
-}
+
