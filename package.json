@@ -18,6 +18,9 @@
   },
   "files": [
     "dist",
+    "dist/project/.claude",
+    "dist/project/.lisa",
+    "dist/project/.opencode",
     "scripts/postinstall.js"
   ],
   "scripts": {
