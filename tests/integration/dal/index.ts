@@ -20,14 +20,14 @@ import {
   createRepositoryRouter,
   closeConnections,
   type IRepositoryFactoryResult,
-} from '../../../src/infrastructure/dal';
+} from '../../../src/lib/infrastructure/dal';
 
 // =============================================================================
 // Test Configuration
 // =============================================================================
 
-const runMode = process.env.RUN_DAL_INTEGRATION_TESTS;
-const dalTestsEnabled = runMode === '1';
+// DAL tests always run - requires Docker backends (Neo4j + MCP)
+// Start with: docker compose -f .lisa/docker-compose.graphiti.yml up -d
 
 const GROUP_ID = process.env.DAL_TEST_GROUP_ID || 'lisa';
 const NEO4J_URI = process.env.NEO4J_URI || 'bolt://localhost:7687';
@@ -39,13 +39,7 @@ const MCP_ENDPOINT = process.env.GRAPHITI_ENDPOINT || 'http://localhost:8010/mcp
 // Test Suite
 // =============================================================================
 
-if (!dalTestsEnabled) {
-  test.skip(
-    'DAL integration tests disabled. Set RUN_DAL_INTEGRATION_TESTS=1 to enable.',
-    () => {}
-  );
-} else {
-  describe('DAL integration', () => {
+describe('DAL integration', () => {
     let routerResult: IRepositoryFactoryResult;
 
     before(async () => {
@@ -296,4 +290,4 @@ if (!dalTestsEnabled) {
       });
     });
   });
-}
+

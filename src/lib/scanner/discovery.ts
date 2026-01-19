@@ -109,7 +109,7 @@ function getProjectName(projectPath: string, marker: string): string {
       }
     }
   } catch {
-    // Fall back to directory name
+    // File read/parse error - fall back to directory name (non-critical)
   }
 
   return path.basename(projectPath);
@@ -173,7 +173,7 @@ export async function discoverProjects(
         await traverse(subPath, depth + 1);
       }
     } catch {
-      // Ignore permission errors or other issues
+      // Permission errors or unreadable directories - skip silently during scan
     }
   }
 

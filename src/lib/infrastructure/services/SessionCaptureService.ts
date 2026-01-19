@@ -4,24 +4,32 @@ import { emptyCapturedWork } from '../../domain';
 /**
  * Service for capturing session work.
  * 
- * NOTE: This is a placeholder implementation.
- * The actual session capture logic (transcript parsing, fact extraction)
- * should be extracted from session-stop-worker.ts.
+ * NOTE: This is a STUB implementation. The actual session capture logic
+ * lives in session-stop-worker.ts and is invoked via hooks (session-stop.ts).
+ * 
+ * This stub exists to satisfy the ISessionCaptureService interface for
+ * library consumers who may want to integrate session capture differently.
+ * 
+ * For the full implementation, see:
+ * - src/project/.claude/hooks/session-stop.ts (hook that spawns worker)
+ * - src/project/.claude/hooks/session-stop-worker.ts (actual capture logic)
+ * 
+ * @see https://github.com/your-repo/issues/XXX for implementation tracking
  */
 export class SessionCaptureService implements ISessionCaptureService {
   /**
    * Capture work from the current session.
    * 
-   * TODO: Implement actual transcript analysis and fact extraction.
-   * This may involve spawning a background worker process.
+   * STUB: Returns empty result. The actual implementation is in session-stop-worker.ts.
+   * 
+   * A full implementation would:
+   * 1. Read session transcript from Claude's session files
+   * 2. Parse transcript for meaningful work (file changes, decisions)
+   * 3. Extract facts worth remembering using complexity rating
+   * 4. Save to Graphiti via MCP
    */
   async captureSessionWork(_sessionId?: string): Promise<ICapturedWork> {
-    // Placeholder - returns empty result
-    // Real implementation would:
-    // 1. Read session transcript
-    // 2. Analyze for meaningful work
-    // 3. Extract facts worth remembering
-    // 4. Rate complexity
+    // Return empty result - actual logic is in session-stop-worker.ts
     return emptyCapturedWork();
   }
 }

@@ -192,7 +192,7 @@ export class TaskService implements ITaskService {
       try {
         const repo = this.router.getTaskRepository('aggregate');
         if ('getCounts' in repo) {
-          const counts = repo.getCounts(groupIds);
+          const counts = await repo.getCounts(groupIds);
           this.logger.debug('Task counts from DAL router', { counts });
           return counts;
         }

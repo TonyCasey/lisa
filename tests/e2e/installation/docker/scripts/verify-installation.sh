@@ -104,7 +104,7 @@ if [ "$CLI_MODE" = "both" ] || [ "$CLI_MODE" = "opencode-only" ]; then
     check "OpenCode plugin exists" "[ -f .opencode/plugin/lisa.js ]"
     
     # Symlinks to shared resources
-    check ".opencode/skill symlink exists" "[ -L .opencode/skill ] || [ -d .opencode/skill ]"
+    check ".opencode/skills symlink exists" "[ -L .opencode/skills ] || [ -d .opencode/skills ]"
 fi
 
 # =============================================================================

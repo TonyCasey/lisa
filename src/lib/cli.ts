@@ -14,6 +14,12 @@ const TEMPLATE_ROOT = path.join(__dirname, '..', 'project');
 const BUNDLED_HOOKS_ROOT = path.join(__dirname, '..', 'hooks');
 const BUNDLED_OPENCODE_ROOT = path.join(__dirname, '..', 'opencode');
 
+// Read version from package.json (works in both dev and dist)
+const PACKAGE_JSON_PATH = path.join(__dirname, '..', '..', 'package.json');
+const VERSION = fs.existsSync(PACKAGE_JSON_PATH) 
+  ? (fs.readJsonSync(PACKAGE_JSON_PATH) as { version: string }).version 
+  : '0.0.0';
+
 const DEFAULT_ENDPOINT = 'http://localhost:8010/mcp/';
 const ZEP_CLOUD_ENDPOINT = 'https://api.getzep.com/mcp/';
 
@@ -80,21 +86,23 @@ async function createSymlink(target: string, link: string, cwd?: string): Promis
     return;
   }
   
-  // Calculate relative path from link to target
+  // Calculate relative path from link to target (for Unix symlinks)
   const linkDir = path.dirname(link);
   const relativeTarget = path.relative(linkDir, target);
   
   try {
     if (isWindows) {
+      // Windows junctions require absolute paths
+      const absoluteTarget = path.resolve(target);
       // Try junction first (doesn't require admin rights)
-      await fs.symlink(relativeTarget, link, 'junction');
+      await fs.symlink(absoluteTarget, link, 'junction');
     } else {
-      // Unix: standard symlink
+      // Unix: standard symlink with relative path
       await fs.symlink(relativeTarget, link, 'dir');
     }
   } catch (err: unknown) {
     const error = err as NodeJS.ErrnoException;
-    if (isWindows && (error.code === 'EPERM' || error.code === 'ENOENT')) {
+    if (isWindows && (error.code === 'EPERM' || error.code === 'ENOENT' || error.code === 'EINVAL')) {
       // Junction failed, fall back to copy
       console.warn(chalk.yellow(`  Symlink failed, copying directory instead: ${path.basename(link)}`));
       await fs.copy(target, link);
@@ -271,6 +279,7 @@ async function initCommand(opts: {
   const replacements = {
     GRAPHITI_ENDPOINT: config.endpoint,
     GRAPHITI_GROUP: config.groupId,
+    GRAPHITI_GROUP_ID: config.groupId,
     PROJECT_NAME: config.groupId,
   };
 
@@ -279,10 +288,22 @@ async function initCommand(opts: {
   const rulesDir = path.join(lisaDir, 'rules');
   const claudeDir = path.join(cwd, '.claude');
   const composeDest = path.join(cwd, 'docker-compose.graphiti.yml');
-  const envDest = path.join(cwd, '.env.lisa.example');
-  const lisaEnvDest = path.join(lisaDir, '.env');
 
-  const copies: Array<Promise<any>> = [];
+  const copies: Array<Promise<{ skipped: boolean } | void>> = [];
+
+  // Create .env from template on first install only (preserve user customizations)
+  const envDest = path.join(lisaDir, '.env');
+  if (!await fs.pathExists(envDest)) {
+    await fs.ensureDir(lisaDir);
+    copies.push(
+      services.templateCopier.copy(
+        '.lisa/.env.template',
+        envDest,
+        replacements,
+        false  // Never force overwrite - preserves user customizations
+      )
+    );
+  }
 
   // Skill scaffolding (model-neutral)
   copies.push(services.templateCopier.copy('.lisa/skills/memory/SKILL.md', path.join(skillsDir, 'memory', 'SKILL.md'), replacements, force));
@@ -332,8 +353,8 @@ async function initCommand(opts: {
       copies.push(fs.copy(pluginSrc, pluginDest, { overwrite: force }));
     }
     
-    // Create symlink for .opencode/skill
-    await createSymlink(skillsDir, path.join(opencodeDir, 'skill'), cwd);
+    // Create symlink for .opencode/skills
+    await createSymlink(skillsDir, path.join(opencodeDir, 'skills'), cwd);
   }
 
   if (includeDocker) {
@@ -462,23 +483,26 @@ async function doctorCommand(opts: { cwd: string; compose?: string; endpoint?: s
     try {
       await services.mcp.ping(endpoint, { apiKey: zepApiKey });
       results.push(chalk.green(`Zep MCP reachable at ${endpoint}`));
-    } catch (err: any) {
-      results.push(chalk.red(`Zep MCP check failed at ${endpoint}: ${err.message}`));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      results.push(chalk.red(`Zep MCP check failed at ${endpoint}: ${message}`));
     }
   } else {
     // Local mode - Docker is needed
     try {
       const stdout = await services.docker.version();
       results.push(chalk.green(`Docker OK: ${stdout}`));
-    } catch (err: any) {
-      results.push(chalk.red(`Docker missing or not running: ${err.message}`));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      results.push(chalk.red(`Docker missing or not running: ${message}`));
     }
 
     try {
       const stdout = await services.docker.composeVersion();
       results.push(chalk.green(`Docker Compose OK: ${stdout}`));
-    } catch (err: any) {
-      results.push(chalk.red(`Docker Compose missing: ${err.message}`));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      results.push(chalk.red(`Docker Compose missing: ${message}`));
     }
 
     if (await fs.pathExists(composeFile)) {
@@ -490,8 +514,9 @@ async function doctorCommand(opts: { cwd: string; compose?: string; endpoint?: s
     try {
       await services.mcp.ping(endpoint);
       results.push(chalk.green(`MCP reachable at ${endpoint}`));
-    } catch (err: any) {
-      results.push(chalk.red(`MCP check failed at ${endpoint}: ${err.message}`));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      results.push(chalk.red(`MCP check failed at ${endpoint}: ${message}`));
     }
 
   }
@@ -511,7 +536,7 @@ const program = new Command();
 program
   .name('lisa')
   .description('Lisa remembers everything. Memory for Claude Code and AI assistants.')
-  .version('0.5.0');
+  .version(VERSION);
 
 program
   .command('init')

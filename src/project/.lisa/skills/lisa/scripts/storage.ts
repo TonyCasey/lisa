@@ -11,6 +11,32 @@ export {};
 
 import path from 'path';
 
+/**
+ * Get the .lisa directory path by traversing up from current file.
+ * Matches the shared/utils/env.ts logic.
+ */
+function getLisaDir(): string {
+  let dir = __dirname;
+
+  for (let i = 0; i < 6; i++) {
+    const parent = path.dirname(dir);
+    const baseName = path.basename(dir);
+
+    if (baseName === '.lisa') {
+      return dir;
+    }
+
+    if (path.basename(parent) === '.lisa') {
+      return parent;
+    }
+
+    dir = parent;
+  }
+
+  // Fallback: assume .lisa is at project root
+  return path.join(process.cwd(), '.lisa');
+}
+
 async function main(): Promise<void> {
   const { createStorageService } = await import('../../shared/services');
   const { createLogger } = await import('../../shared/logger');
@@ -25,7 +51,7 @@ async function main(): Promise<void> {
   const targetMode = args.shift() ?? '';
 
   const cache = useCache ? createCache(createCacheConfig(__dirname, 'storage.log')) : nullCache;
-  const envPath = path.join(__dirname, '..', '..', '.env');
+  const envPath = path.join(getLisaDir(), '.env');
   const service = createStorageService({ envPath });
 
   try {

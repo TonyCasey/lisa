@@ -190,8 +190,53 @@ async function main(): Promise<void> {
   await flushAndExit(0);
 }
 
+/**
+ * Error types for distinguishing between expected and unexpected failures.
+ */
+class ConnectionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ConnectionError';
+  }
+}
+
+class ConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ConfigurationError';
+  }
+}
+
 main().catch(async (err: Error) => {
-  // Don't block session start on errors - just log and exit cleanly
-  await writeToStream(process.stdout, `Memory load skipped: ${err.message}\n`);
+  const log = createHookLogger('session-start');
+  
+  // Distinguish between error types
+  const isConnectionError = err.name === 'ConnectionError' || 
+    err.message.includes('ECONNREFUSED') ||
+    err.message.includes('ETIMEDOUT') ||
+    err.message.includes('fetch failed');
+    
+  const isConfigError = err.name === 'ConfigurationError' ||
+    err.message.includes('API key') ||
+    err.message.includes('not configured');
+
+  if (isConnectionError) {
+    // Connection errors should be visible - MCP server may not be running
+    log.warn('Connection error during memory load', { error: err.message });
+    await writeToStream(process.stderr, `Memory load failed (connection): ${err.message}\n`);
+    await writeToStream(process.stdout, `Memory unavailable - MCP connection failed. Run 'lisa doctor' to check.\n`);
+  } else if (isConfigError) {
+    // Configuration errors should be visible
+    log.warn('Configuration error during memory load', { error: err.message });
+    await writeToStream(process.stderr, `Memory load failed (config): ${err.message}\n`);
+    await writeToStream(process.stdout, `Memory unavailable - check .lisa/.env configuration.\n`);
+  } else {
+    // Unexpected errors - log but don't block session
+    log.error('Unexpected error during memory load', { error: err.message });
+    await writeToStream(process.stdout, `Memory load skipped: ${err.message}\n`);
+  }
+  
+  // Always exit 0 to not block Claude session start
+  // But the messages above make issues visible to the user
   await flushAndExit(0);
 });

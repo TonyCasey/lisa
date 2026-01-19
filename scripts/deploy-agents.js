@@ -392,11 +392,11 @@ async function main() {
     await fs.copy(distOpenCodePlugin, targetPlugin, { overwrite: true, errorOnExist: false });
     console.log(`Deployed OpenCode plugin to ${targetPlugin}`);
 
-    // Create symlinks for OpenCode: .opencode/skill -> ../.lisa/skills
-    const opencodeSkillSymlink = path.join(targetOpenCode, 'skill');
+    // Create symlinks for OpenCode: .opencode/skills -> ../.lisa/skills
+    const opencodeSkillSymlink = path.join(targetOpenCode, 'skills');
     const opencodeSkillResult = await createSymlink('../.lisa/skills', opencodeSkillSymlink, projectRoot);
     if (opencodeSkillResult.success) {
-      console.log(`Created ${opencodeSkillResult.method}: .opencode/skill -> ../.lisa/skills`);
+      console.log(`Created ${opencodeSkillResult.method}: .opencode/skills -> ../.lisa/skills`);
     }
   }
 }
