@@ -81,9 +81,12 @@ async function createSymlink(target: string, link: string, cwd?: string): Promis
   const isWindows = process.platform === 'win32';
   const projectRoot = cwd || process.cwd();
   
-  // Skip if link already exists
-  if (await fs.pathExists(link)) {
-    return;
+  // Skip if link already exists (use lstat to detect symlinks even if target doesn't exist)
+  try {
+    await fs.lstat(link);
+    return; // Link exists (symlink, junction, or regular file/dir)
+  } catch {
+    // Link doesn't exist, proceed with creation
   }
   
   // Calculate relative path from link to target (for Unix symlinks)
