@@ -47,15 +47,15 @@ Use when the user addresses "lisa" directly:
 ## How to use
 1) Parse user intent from "lisa" request
 2) Route to appropriate underlying command:
-   - Memory recall: `node .lisa/skills/memory/scripts/memory.js load --cache`
-   - Memory search: `node .lisa/skills/memory/scripts/memory.js load --cache --query "<topic>"`
-   - Memory add: `node .lisa/skills/memory/scripts/memory.js add "<text>" --cache`
-   - Task list: `node .lisa/skills/tasks/scripts/tasks.js list --cache`
-   - Task add: `node .lisa/skills/tasks/scripts/tasks.js add "<text>" --cache`
-   - Storage status: `node .lisa/skills/lisa/scripts/storage.js status --cache`
-   - Storage switch: `node .lisa/skills/lisa/scripts/storage.js switch <mode> --cache`
+   - Memory recall: `lisa memory load --cache`
+   - Memory search: `lisa memory load --cache --query "<topic>"`
+   - Memory add: `lisa memory add "<text>" --cache`
+   - Task list: `lisa tasks list --cache`
+   - Task add: `lisa tasks add "<text>" --cache`
+   - Storage status: `lisa storage status --cache`
+   - Storage switch: `lisa storage switch <mode> --cache`
    - Retrospective: See Retrospective Process below
-   - Compile skills: `node .lisa/skills/lisa/scripts/compile-skills.js`
+   - Compile skills: `lisa compile-skills`
 3) Summarize results conversationally
 
 ## Retrospective Process
@@ -77,7 +77,7 @@ When user asks for a retrospective, follow these steps:
    - GOTCHAS: Things to avoid or watch out for
 4) **Save to Memory**: Use memory add command to save findings:
    ```
-   node .lisa/skills/memory/scripts/memory.js add "RETROSPECTIVE: <findings>" --cache
+   lisa memory add "RETROSPECTIVE: <findings>" --cache
    ```
 5) **Report**: Summarize what was learned and saved
 

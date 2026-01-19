@@ -152,6 +152,7 @@ node scripts/memory.js load --cache
 ```
 
 If the MCP server is unavailable, skills return cached data from the last successful operation.
+You can override the cache location with `LISA_SKILL_CACHE_DIR` (or `LISA_CACHE_DIR`) to ensure a writable path, e.g. `.lisa/skills/<skill>/cache` in the current repo.
 
 ## Environment Variables
 

@@ -66,13 +66,13 @@ Bump the semantic version in package.json before pushing:
 
 ```bash
 # Bump minor version (default): 1.2.3 → 1.3.0
-node .lisa/skills/git/scripts/bump-version.js
+lisa bump-version
 
 # Bump patch version: 1.2.3 → 1.2.4
-node .lisa/skills/git/scripts/bump-version.js patch
+lisa bump-version patch
 
 # Bump major version: 1.2.3 → 2.0.0
-node .lisa/skills/git/scripts/bump-version.js major
+lisa bump-version major
 ```
 
 Output (JSON to stdout):
@@ -92,7 +92,7 @@ Output (JSON to stdout):
 
 1. **Bump version** (default: minor):
    ```bash
-   node .lisa/skills/git/scripts/bump-version.js
+   lisa bump-version
    ```
 
 2. **Commit the version bump**:
@@ -108,7 +108,7 @@ Output (JSON to stdout):
 
 **One-liner for bump + commit + push**:
 ```bash
-node .lisa/skills/git/scripts/bump-version.js && \
+lisa bump-version && \
 git add package.json && \
 git commit -m "chore: bump version to $(node -p \"require('./package.json').version\")" && \
 git push

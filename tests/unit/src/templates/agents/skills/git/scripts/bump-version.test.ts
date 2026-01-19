@@ -13,8 +13,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
-// Path to the compiled script
-const SCRIPT_PATH = path.join(process.cwd(), '.lisa', 'skills', 'git', 'scripts', 'bump-version.js');
+// Path to the compiled script (now in dist/lib/skills/)
+const SCRIPT_PATH = path.join(process.cwd(), 'dist', 'lib', 'skills', 'git', 'bump-version.js');
 
 // Create a temp directory for tests
 const TEST_DIR = path.join(os.tmpdir(), `lisa-bump-test-${Date.now()}`);

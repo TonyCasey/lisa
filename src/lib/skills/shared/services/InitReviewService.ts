@@ -82,7 +82,8 @@ const ARCHITECTURE_INDICATORS: Record<string, string[]> = {
 };
 
 const TEST_DIRS = ['tests', 'test', '__tests__', 'spec', 'specs'];
-const ENTRY_PATTERNS = ['index.ts', 'index.js', 'main.ts', 'main.js', 'app.ts', 'app.js', 'cli.ts', 'cli.js', 'main.py', 'app.py'];
+const _ENTRY_PATTERNS = ['index.ts', 'index.js', 'main.ts', 'main.js', 'app.ts', 'app.js', 'cli.ts', 'cli.js', 'main.py', 'app.py'];
+void _ENTRY_PATTERNS; // Reserved for future use
 
 /**
  * Creates an init review service instance.

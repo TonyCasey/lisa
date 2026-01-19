@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.0] - 2026-01-19
+
+### Added
+
+#### CLI Subcommands
+- **Skill subcommands** - Direct CLI access to skill functionality
+  - `lisa memory load|add` - Memory operations via CLI
+  - `lisa tasks list|add|update` - Task management via CLI
+  - `lisa storage status|switch` - Storage mode management
+  - `lisa jira` - Jira operations passthrough
+  - `lisa prompt` - Prompt operations passthrough
+  - `lisa bump-version` - Version bump utility
+  - `lisa init-review` - Initial codebase review
+  - `lisa compile-skills` - Skill extension compilation
+
+#### Package Exports
+- **Skill module exports** - Skills available as npm package exports
+  - `@tonycasey/lisa/skills/memory`
+  - `@tonycasey/lisa/skills/tasks`
+  - `@tonycasey/lisa/skills/jira`
+  - And more for programmatic usage
+
+#### Configuration
+  - JSON config takes precedence over `.env` file
+  - Cleaner configuration format for projects
+
+### Changed
+
+#### Architecture Refactoring
+- **Skills as library code** - Skills moved from `src/project/.lisa/skills/` to `src/lib/skills/`
+  - Skill scripts are now part of the compiled library
+  - Only SKILL.md files deployed to project directories
+  - Better bundling and tree-shaking support
+
+- **Init command** - Skills deployment simplified
+  - Uses `fs.copy` for skill SKILL.md files
+  - Scripts accessed via `lisa` subcommands instead of direct paths
+  - Filters out shared/common/scripts from deployment
+
+#### Doctor Command
+- **Skip mode support** - Handles unconfigured storage gracefully
+  - Shows helpful message when storage not configured
+  - Guides user to run `lisa init` to configure
+
+### Fixed
+- ESLint errors in jira.ts (switch case block scoping)
+- TypeScript type safety in Neo4jClient.ts (removed `any` types)
+- Unused variable warnings across codebase
+- Test assertions updated for new skill deployment model
+
+---
+
 ## [2.0.0] - 2026-01-19
 
 ### Added
@@ -21,7 +73,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CLI selection during init** - Choose which CLIs to support
   - Interactive mode prompts for selection
   - `--claude-only` and `--opencode-only` flags for non-interactive setup
-  - Configuration saved to `.lisa/lisa.config.json`
 
 #### Data Access Layer (DAL)
 - **Multi-backend support** - MCP, Neo4j direct, and Zep Cloud backends

@@ -69,21 +69,6 @@ NEO4J_DATABASE=neo4j
 # ZEP_API_KEY=your-api-key
 ```
 
-### .lisa/lisa.config.json
-
-Stores CLI preferences and configuration:
-
-```json
-{
-  "graphiti": {
-    "mode": "local",
-    "endpoint": "http://localhost:8010/mcp/",
-    "groupId": "my-project"
-  },
-  "cliSupport": ["claude-code", "opencode"]
-}
-```
-
 ### .claude/config.js
 
 Claude Code hook configuration (auto-generated):

@@ -78,6 +78,13 @@ export function createCache(config: ICacheConfig): ICache {
  * @returns Cache configuration
  */
 export function createCacheConfig(scriptDir: string, filename: string): ICacheConfig {
+  const envCacheDir = process.env.LISA_SKILL_CACHE_DIR || process.env.LISA_CACHE_DIR;
+  if (envCacheDir) {
+    return {
+      cacheDir: path.resolve(envCacheDir),
+      filename,
+    };
+  }
   return {
     cacheDir: path.join(scriptDir, '..', 'cache'),
     filename,

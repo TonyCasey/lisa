@@ -38,10 +38,10 @@ function getLisaDir(): string {
 }
 
 async function main(): Promise<void> {
-  const { createStorageService } = await import('../../shared/services');
-  const { createLogger } = await import('../../shared/logger');
-  const { createCache, createCacheConfig, nullCache } = await import('../../shared/utils/cache');
-  const { hasFlag } = await import('../../shared/utils/cli');
+  const { createStorageService } = await import('../shared/services');
+  const { createLogger } = await import('../shared/logger');
+  const { createCache, createCacheConfig, nullCache } = await import('../shared/utils/cache');
+  const { hasFlag } = await import('../shared/utils/cli');
 
   const log = createLogger('storage');
   const args = process.argv.slice(2);

@@ -93,7 +93,6 @@ your-project/
 │   ├── skills/           # Memory and task skills
 │   ├── rules/            # Coding standards
 │   ├── .env              # Configuration (LOG_LEVEL, endpoints, etc.)
-│   └── lisa.config.json  # CLI preferences
 │
 ├── .claude/              # (if Claude Code selected)
 │   ├── hooks/            # Session lifecycle hooks

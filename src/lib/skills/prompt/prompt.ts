@@ -10,11 +10,11 @@
 export {};
 
 async function main(): Promise<void> {
-  const { loadEnv } = await import('../../shared/utils/env');
-  const { getCurrentGroupId } = await import('../../shared/group-id');
-  const { popFlag, hasFlag } = await import('../../shared/utils/cli');
-  const { createMcpClient, createMcpConfigFromEnv } = await import('../../shared/clients');
-  const { createPromptService } = await import('../../shared/services');
+  const { loadEnv } = await import('../shared/utils/env');
+  const { getCurrentGroupId } = await import('../shared/group-id');
+  const { popFlag, hasFlag } = await import('../shared/utils/cli');
+  const { createMcpClient, createMcpConfigFromEnv } = await import('../shared/clients');
+  const { createPromptService } = await import('../shared/services');
 
   const env = loadEnv();
   const args = process.argv.slice(2);

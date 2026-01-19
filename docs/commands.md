@@ -52,7 +52,6 @@ lisa init --isolated
 
 - `.lisa/` - Skills, rules, and configuration
 - `.lisa/.env` - Environment configuration (created on first init only)
-- `.lisa/lisa.config.json` - CLI preferences
 - `.claude/` - Claude Code hooks (if selected)
 - `.opencode/` - OpenCode plugin (if selected)
 - `docker-compose.graphiti.yml` - Docker stack (if local mode)

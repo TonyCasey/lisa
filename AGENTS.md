@@ -20,7 +20,6 @@ Both CLIs share resources from `.lisa/`:
 ├── skills/                   # Memory, tasks, lisa, jira, git
 ├── rules/                    # Coding standards
 ├── .env                      # Storage configuration
-└── lisa.config.json          # CLI preferences
 
 .claude/                      # Claude Code specific
 ├── hooks/                    # session-start, session-stop, user-prompt-submit
@@ -60,7 +59,6 @@ lisa init --opencode-only    # Only OpenCode
 lisa init -y                 # Both (default)
 ```
 
-Configuration is saved to `.lisa/lisa.config.json`.
 
 ---
 
@@ -275,7 +273,6 @@ lisa/
 │   ├── skills/
 │   ├── rules/
 │   ├── docker/
-│   └── lisa.config.json
 ├── tests/
 │   ├── unit/                         # Unit tests (mirror src/ structure)
 │   ├── integration/                  # Integration tests

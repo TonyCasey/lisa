@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
+import { spawn } from 'child_process';
 import fs from 'fs-extra';
 import path from 'path';
 import chalk from 'chalk';
@@ -65,11 +66,6 @@ interface IGraphitiConfig {
   // Zep Cloud specific
   zepApiKey?: string;
   zepProjectId?: string;
-}
-
-interface ILisaConfig {
-  graphiti: IGraphitiConfig;
-  cliSupport: CliSupport[];
 }
 
 /**
@@ -308,9 +304,34 @@ async function initCommand(opts: {
     );
   }
 
-  // Skill scaffolding (model-neutral)
-  copies.push(services.templateCopier.copy('.lisa/skills/memory/SKILL.md', path.join(skillsDir, 'memory', 'SKILL.md'), replacements, force));
-  copies.push(services.templateCopier.copy('.lisa/skills/tasks/SKILL.md', path.join(skillsDir, 'tasks', 'SKILL.md'), replacements, force));
+  // Skill scaffolding (model-neutral) - copy only SKILL.md files and cache dirs
+  // Scripts are accessed via subcommands (lisa memory, lisa tasks, etc.)
+  const skillsSrc = path.join(TEMPLATE_ROOT, '.lisa', 'skills');
+  await fs.ensureDir(skillsDir);
+  copies.push(fs.copy(skillsSrc, skillsDir, { 
+    overwrite: force,
+    filter: (src: string) => {
+      const basename = path.basename(src);
+      const relativePath = path.relative(skillsSrc, src);
+      
+      // Always include the root skills directory
+      if (relativePath === '') return true;
+      
+      // Include skill directories (memory, tasks, jira, git, lisa, prompt, init-review)
+      // but exclude shared/, common/, scripts/
+      if (relativePath.includes('shared') || relativePath.includes('common')) return false;
+      if (relativePath.includes('scripts')) return false;
+      
+      // Include SKILL.md files and cache directories
+      if (basename === 'SKILL.md' || basename === 'SKILL.local.md') return true;
+      if (basename === 'cache' || basename === '.gitkeep') return true;
+      
+      // Include directories that might contain the above
+      if (fs.statSync(src).isDirectory()) return true;
+      
+      return false;
+    }
+  }));
 
   // Rules scaffolding (shared)
   copies.push(services.templateCopier.copy('.lisa/rules/shared/clean-architecture.md', path.join(rulesDir, 'shared', 'clean-architecture.md'), replacements, force));
@@ -380,16 +401,6 @@ async function initCommand(opts: {
   console.log(`Group ID: ${config.groupId}`);
   console.log(`CLI Support: ${cliSupport.join(', ')}`);
 
-  // Save config to .lisa/lisa.config.json
-  const lisaConfigPath = path.join(lisaDir, 'lisa.config.json');
-  const lisaConfig: ILisaConfig = {
-    graphiti: config,
-    cliSupport,
-  };
-  await fs.ensureDir(lisaDir);
-  await fs.writeJson(lisaConfigPath, lisaConfig, { spaces: 2 });
-  console.log(chalk.green(`Saved configuration to ${lisaConfigPath}`));
-
   // Show skip mode instructions
   if (config.mode === 'skip') {
     console.log('');
@@ -437,18 +448,26 @@ async function initCommand(opts: {
 }
 
 async function loadConfig(cwd: string): Promise<{ endpoint?: string; group?: string; mode?: DeploymentMode; zepApiKey?: string } | null> {
+  // Read from .env file (legacy/runtime config)
   const lisaEnv = path.join(cwd, '.lisa', '.env');
-  if (!(await fs.pathExists(lisaEnv))) return null;
-  const raw = await fs.readFile(lisaEnv, 'utf8');
   const map: Record<string, string> = {};
-  raw.split(/\r?\n/).forEach((line) => {
-    if (!line || line.startsWith('#')) return;
-    const idx = line.indexOf('=');
-    if (idx === -1) return;
-    const key = line.slice(0, idx).trim();
-    const val = line.slice(idx + 1).trim();
-    map[key] = val;
-  });
+  if (await fs.pathExists(lisaEnv)) {
+    const raw = await fs.readFile(lisaEnv, 'utf8');
+    raw.split(/\r?\n/).forEach((line) => {
+      if (!line || line.startsWith('#')) return;
+      const idx = line.indexOf('=');
+      if (idx === -1) return;
+      const key = line.slice(0, idx).trim();
+      const val = line.slice(idx + 1).trim();
+      map[key] = val;
+    });
+  }
+
+  // If no .env exists, return null
+  if (Object.keys(map).length === 0) {
+    return null;
+  }
+
   return {
     endpoint: map.GRAPHITI_ENDPOINT || DEFAULT_ENDPOINT,
     group: map.GRAPHITI_GROUP_ID || DEFAULT_GROUP,
@@ -459,6 +478,7 @@ async function loadConfig(cwd: string): Promise<{ endpoint?: string; group?: str
 
 async function doctorCommand(opts: { cwd: string; compose?: string; endpoint?: string }, services: IServices) {
   const cwd = opts.cwd;
+  // Default compose file location is at project root (deployed by init command)
   const composeFile = opts.compose || path.join(cwd, 'docker-compose.graphiti.yml');
   const config = (await loadConfig(cwd)) ?? { endpoint: undefined, group: undefined, mode: 'local' as DeploymentMode };
   const endpoint = opts.endpoint || config.endpoint || DEFAULT_ENDPOINT;
@@ -490,6 +510,10 @@ async function doctorCommand(opts: { cwd: string; compose?: string; endpoint?: s
       const message = err instanceof Error ? err.message : String(err);
       results.push(chalk.red(`Zep MCP check failed at ${endpoint}: ${message}`));
     }
+  } else if (mode === 'skip') {
+    // Skip mode - memory/tasks not configured
+    results.push(chalk.yellow('Skip mode - memory/tasks not configured'));
+    results.push(chalk.yellow('Run "lisa init" again to configure storage backend'));
   } else {
     // Local mode - Docker is needed
     try {
@@ -746,6 +770,223 @@ program
       console.error(chalk.red(`Sync failed: ${err instanceof Error ? err.message : err}`));
       process.exit(1);
     }
+  });
+
+function getSkillCacheEnv(skillName: string): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  if (!env.LISA_SKILL_CACHE_DIR && !env.LISA_CACHE_DIR) {
+    env.LISA_SKILL_CACHE_DIR = path.join(process.cwd(), '.lisa', 'skills', skillName, 'cache');
+  }
+  return env;
+}
+
+/**
+ * Spawn a child process and wait for it to complete.
+ * Returns a promise that resolves when the process exits successfully,
+ * or rejects on error or non-zero exit code.
+ */
+function spawnAndWait(
+  scriptPath: string,
+  args: string[],
+  env?: NodeJS.ProcessEnv
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [scriptPath, ...args], {
+      stdio: 'inherit',
+      env: env || process.env,
+    });
+
+    child.on('error', (err) => {
+      reject(new Error(`Failed to start skill: ${err.message}`));
+    });
+
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        // Exit with the same code as the child process
+        process.exit(code ?? 1);
+      }
+    });
+  });
+}
+
+// Subcommand: lisa memory
+const memoryCmd = program
+  .command('memory')
+  .description('Memory operations (load, add)');
+
+memoryCmd
+  .command('load')
+  .description('Load memories from storage')
+  .option('-g, --group <id>', 'Group ID')
+  .option('-q, --query <query>', 'Search query')
+  .option('-l, --limit <n>', 'Max results', '10')
+  .option('--cache', 'Use cache fallback')
+  .action(async (opts) => {
+    const args = ['load'];
+    if (opts.group) args.push('--group', opts.group);
+    if (opts.query) args.push('--query', opts.query);
+    if (opts.limit) args.push('--limit', opts.limit);
+    if (opts.cache) args.push('--cache');
+    const scriptPath = path.join(__dirname, 'skills', 'memory', 'memory.js');
+    await spawnAndWait(scriptPath, args, getSkillCacheEnv('memory'));
+  });
+
+memoryCmd
+  .command('add <text>')
+  .description('Add a memory')
+  .option('-g, --group <id>', 'Group ID')
+  .option('-t, --tag <tag>', 'Tag for the memory')
+  .option('--type <type>', 'Memory type')
+  .option('--source <source>', 'Source identifier')
+  .option('--cache', 'Use cache fallback')
+  .action(async (text, opts) => {
+    const args = ['add', text];
+    if (opts.group) args.push('--group', opts.group);
+    if (opts.tag) args.push('--tag', opts.tag);
+    if (opts.type) args.push('--type', opts.type);
+    if (opts.source) args.push('--source', opts.source);
+    if (opts.cache) args.push('--cache');
+    const scriptPath = path.join(__dirname, 'skills', 'memory', 'memory.js');
+    await spawnAndWait(scriptPath, args, getSkillCacheEnv('memory'));
+  });
+
+// Subcommand: lisa tasks
+const tasksCmd = program
+  .command('tasks')
+  .description('Task operations (list, add, update)');
+
+tasksCmd
+  .command('list')
+  .description('List tasks')
+  .option('-g, --group <id>', 'Group ID')
+  .option('-l, --limit <n>', 'Max results', '20')
+  .option('--cache', 'Use cache fallback')
+  .action(async (opts) => {
+    const args = ['list'];
+    if (opts.group) args.push('--group', opts.group);
+    if (opts.limit) args.push('--limit', opts.limit);
+    if (opts.cache) args.push('--cache');
+    const scriptPath = path.join(__dirname, 'skills', 'tasks', 'tasks.js');
+    await spawnAndWait(scriptPath, args, getSkillCacheEnv('tasks'));
+  });
+
+tasksCmd
+  .command('add <text>')
+  .description('Add a task')
+  .option('-g, --group <id>', 'Group ID')
+  .option('-s, --status <status>', 'Task status (todo, doing, done)', 'todo')
+  .option('-t, --tag <tag>', 'Tag for the task')
+  .option('--cache', 'Use cache fallback')
+  .action(async (text, opts) => {
+    const args = ['add', text];
+    if (opts.group) args.push('--group', opts.group);
+    if (opts.status) args.push('--status', opts.status);
+    if (opts.tag) args.push('--tag', opts.tag);
+    if (opts.cache) args.push('--cache');
+    const scriptPath = path.join(__dirname, 'skills', 'tasks', 'tasks.js');
+    await spawnAndWait(scriptPath, args, getSkillCacheEnv('tasks'));
+  });
+
+tasksCmd
+  .command('update <text>')
+  .description('Update a task')
+  .option('-g, --group <id>', 'Group ID')
+  .option('-s, --status <status>', 'Task status (todo, doing, done)')
+  .option('-t, --tag <tag>', 'Tag for the task')
+  .option('--cache', 'Use cache fallback')
+  .action(async (text, opts) => {
+    const args = ['update', text];
+    if (opts.group) args.push('--group', opts.group);
+    if (opts.status) args.push('--status', opts.status);
+    if (opts.tag) args.push('--tag', opts.tag);
+    if (opts.cache) args.push('--cache');
+    const scriptPath = path.join(__dirname, 'skills', 'tasks', 'tasks.js');
+    await spawnAndWait(scriptPath, args, getSkillCacheEnv('tasks'));
+  });
+
+// Subcommand: lisa storage
+const storageCmd = program
+  .command('storage')
+  .description('Storage operations (status, switch)');
+
+storageCmd
+  .command('status')
+  .description('Show current storage mode and connection status')
+  .option('--cache', 'Use cache fallback')
+  .action(async (opts) => {
+    const args = ['status'];
+    if (opts.cache) args.push('--cache');
+    const scriptPath = path.join(__dirname, 'skills', 'lisa', 'storage.js');
+    await spawnAndWait(scriptPath, args, getSkillCacheEnv('lisa'));
+  });
+
+storageCmd
+  .command('switch <mode>')
+  .description('Switch storage mode (local, zep-cloud)')
+  .option('--cache', 'Use cache fallback')
+  .action(async (mode, opts) => {
+    const args = ['switch', mode];
+    if (opts.cache) args.push('--cache');
+    const scriptPath = path.join(__dirname, 'skills', 'lisa', 'storage.js');
+    await spawnAndWait(scriptPath, args, getSkillCacheEnv('lisa'));
+  });
+
+// Subcommand: lisa jira
+program
+  .command('jira')
+  .description('Jira operations')
+  .allowUnknownOption()
+  .action(async (_opts, cmd) => {
+    // Pass all arguments after the command to the script
+    const args = cmd.args || [];
+    const scriptPath = path.join(__dirname, 'skills', 'jira', 'jira.js');
+    await spawnAndWait(scriptPath, args);
+  });
+
+// Subcommand: lisa prompt
+program
+  .command('prompt')
+  .description('Prompt operations')
+  .allowUnknownOption()
+  .action(async (_opts, cmd) => {
+    const args = cmd.args || [];
+    const scriptPath = path.join(__dirname, 'skills', 'prompt', 'prompt.js');
+    await spawnAndWait(scriptPath, args);
+  });
+
+// Subcommand: lisa bump-version
+program
+  .command('bump-version')
+  .description('Bump package version')
+  .allowUnknownOption()
+  .action(async (_opts, cmd) => {
+    const args = cmd.args || [];
+    const scriptPath = path.join(__dirname, 'skills', 'git', 'bump-version.js');
+    await spawnAndWait(scriptPath, args);
+  });
+
+// Subcommand: lisa init-review
+program
+  .command('init-review')
+  .description('Run initial codebase review')
+  .allowUnknownOption()
+  .action(async (_opts, cmd) => {
+    const args = cmd.args || [];
+    const scriptPath = path.join(__dirname, 'skills', 'init-review', 'init-review.js');
+    await spawnAndWait(scriptPath, args);
+  });
+
+// Subcommand: lisa compile-skills
+program
+  .command('compile-skills')
+  .description('Compile skill extensions')
+  .allowUnknownOption()
+  .action(async (_opts, cmd) => {
+    const args = cmd.args || [];
+    const scriptPath = path.join(__dirname, 'skills', 'lisa', 'compile-skills.js');
+    await spawnAndWait(scriptPath, args);
   });
 
 if (require.main === module) {

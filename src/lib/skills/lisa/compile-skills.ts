@@ -12,7 +12,7 @@ export {};
 import path from 'path';
 
 async function main(): Promise<void> {
-  const { createSkillCompilerService } = await import('../../shared/services');
+  const { createSkillCompilerService } = await import('../shared/services');
 
   const service = createSkillCompilerService();
 

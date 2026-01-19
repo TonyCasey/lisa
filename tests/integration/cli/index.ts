@@ -25,8 +25,12 @@ import {
   DEFAULT_GROUP,
 } from '../../../src/lib/cli';
 
-// Use dist/project for integration tests (after build)
-const TEMPLATE_ROOT = path.resolve(__dirname, '..', '..', '..', 'dist', 'project');
+// Prefer dist/project if built; fall back to src/project for dev runs
+const DIST_TEMPLATE_ROOT = path.resolve(__dirname, '..', '..', '..', 'dist', 'project');
+const SRC_TEMPLATE_ROOT = path.resolve(__dirname, '..', '..', '..', 'src', 'project');
+const TEMPLATE_ROOT = fs.pathExistsSync(path.join(DIST_TEMPLATE_ROOT, '.claude', 'config.js'))
+  ? DIST_TEMPLATE_ROOT
+  : SRC_TEMPLATE_ROOT;
 
 // =============================================================================
 // Test Utilities
@@ -128,14 +132,6 @@ describe('CLI init command integration', () => {
         assert.ok(!(await dirExists(opencodeDir)), '.opencode directory should NOT exist');
       });
 
-      test('creates lisa.config.json with correct cliSupport', { timeout: 10_000 }, async () => {
-        const configPath = path.join(tempDir, '.lisa', 'lisa.config.json');
-        assert.ok(await fs.pathExists(configPath), 'lisa.config.json should exist');
-
-        const config = await fs.readJson(configPath);
-        assert.deepEqual(config.cliSupport, ['claude-code'], 'cliSupport should be claude-code only');
-      });
-
       test('creates skills directory in .lisa', { timeout: 10_000 }, async () => {
         const skillsDir = path.join(tempDir, '.lisa', 'skills');
         assert.ok(await dirExists(skillsDir), '.lisa/skills directory should exist');
@@ -186,14 +182,6 @@ describe('CLI init command integration', () => {
         assert.ok(!(await dirExists(claudeDir)), '.claude directory should NOT exist');
       });
 
-      test('creates lisa.config.json with correct cliSupport', { timeout: 10_000 }, async () => {
-        const configPath = path.join(tempDir, '.lisa', 'lisa.config.json');
-        assert.ok(await fs.pathExists(configPath), 'lisa.config.json should exist');
-
-        const config = await fs.readJson(configPath);
-        assert.deepEqual(config.cliSupport, ['opencode'], 'cliSupport should be opencode only');
-      });
-
       test('creates skills directory in .lisa', { timeout: 10_000 }, async () => {
         const skillsDir = path.join(tempDir, '.lisa', 'skills');
         assert.ok(await dirExists(skillsDir), '.lisa/skills directory should exist');
@@ -239,18 +227,6 @@ describe('CLI init command integration', () => {
         assert.ok(await dirExists(opencodeDir), '.opencode directory should exist');
       });
 
-      test('creates lisa.config.json with both CLIs', { timeout: 10_000 }, async () => {
-        const configPath = path.join(tempDir, '.lisa', 'lisa.config.json');
-        assert.ok(await fs.pathExists(configPath), 'lisa.config.json should exist');
-
-        const config = await fs.readJson(configPath);
-        assert.deepEqual(
-          config.cliSupport.sort(),
-          ['claude-code', 'opencode'].sort(),
-          'cliSupport should include both CLIs'
-        );
-      });
-
       test('creates shared skills directory', { timeout: 10_000 }, async () => {
         const skillsDir = path.join(tempDir, '.lisa', 'skills');
         assert.ok(await dirExists(skillsDir), '.lisa/skills directory should exist');
@@ -263,48 +239,6 @@ describe('CLI init command integration', () => {
       test('creates shared rules directory', { timeout: 10_000 }, async () => {
         const rulesDir = path.join(tempDir, '.lisa', 'rules');
         assert.ok(await dirExists(rulesDir), '.lisa/rules directory should exist');
-      });
-    });
-
-    // =========================================================================
-    // Config File Tests
-    // =========================================================================
-
-    describe('lisa.config.json structure', () => {
-      let tempDir: string;
-
-      before(async () => {
-        tempDir = await createTempDir('config-test');
-        await initCommand({
-          cwd: tempDir,
-          endpoint: 'http://custom:8080/mcp/',
-          group: 'test-group',
-          force: true,
-          mode: 'local',
-          cliSupport: ['claude-code', 'opencode'],
-        }, services);
-      });
-
-      after(async () => {
-        await cleanupTempDir(tempDir);
-      });
-
-      test('saves graphiti configuration', { timeout: 10_000 }, async () => {
-        const configPath = path.join(tempDir, '.lisa', 'lisa.config.json');
-        const config = await fs.readJson(configPath);
-
-        assert.ok(config.graphiti, 'Config should have graphiti section');
-        assert.equal(config.graphiti.endpoint, 'http://custom:8080/mcp/', 'Endpoint should match');
-        assert.equal(config.graphiti.groupId, 'test-group', 'GroupId should match');
-        assert.equal(config.graphiti.mode, 'local', 'Mode should match');
-      });
-
-      test('saves cliSupport array', { timeout: 10_000 }, async () => {
-        const configPath = path.join(tempDir, '.lisa', 'lisa.config.json');
-        const config = await fs.readJson(configPath);
-
-        assert.ok(Array.isArray(config.cliSupport), 'cliSupport should be an array');
-        assert.ok(config.cliSupport.length > 0, 'cliSupport should not be empty');
       });
     });
 
@@ -323,7 +257,7 @@ describe('CLI init command integration', () => {
         await cleanupTempDir(tempDir);
       });
 
-      test('first init creates files', { timeout: 30_000 }, async () => {
+      test('first init writes .env', { timeout: 30_000 }, async () => {
         await initCommand({
           cwd: tempDir,
           endpoint: DEFAULT_ENDPOINT,
@@ -333,12 +267,12 @@ describe('CLI init command integration', () => {
           cliSupport: ['claude-code'],
         }, services);
 
-        const configPath = path.join(tempDir, '.lisa', 'lisa.config.json');
-        const config = await fs.readJson(configPath);
-        assert.equal(config.graphiti.groupId, 'first-group', 'First group should be set');
+        const envPath = path.join(tempDir, '.lisa', '.env');
+        const envContents = await fs.readFile(envPath, 'utf8');
+        assert.ok(envContents.includes('GRAPHITI_GROUP_ID=first-group'), 'First group should be written to .env');
       });
 
-      test('second init with force=true overwrites', { timeout: 30_000 }, async () => {
+      test('second init does not overwrite existing .env', { timeout: 30_000 }, async () => {
         await initCommand({
           cwd: tempDir,
           endpoint: DEFAULT_ENDPOINT,
@@ -348,9 +282,9 @@ describe('CLI init command integration', () => {
           cliSupport: ['claude-code'],
         }, services);
 
-        const configPath = path.join(tempDir, '.lisa', 'lisa.config.json');
-        const config = await fs.readJson(configPath);
-        assert.equal(config.graphiti.groupId, 'second-group', 'Group should be overwritten with force=true');
+        const envPath = path.join(tempDir, '.lisa', '.env');
+        const envContents = await fs.readFile(envPath, 'utf8');
+        assert.ok(envContents.includes('GRAPHITI_GROUP_ID=first-group'), 'Existing .env should be preserved');
       });
     });
 
