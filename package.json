@@ -1,6 +1,6 @@
 {
   "name": "@tonycasey/lisa",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Long-term memory for AI coding assistants. Automatic context persistence, task tracking, and knowledge capture across coding sessions. Supports Claude Code and OpenCode.",
   "bin": {
     "lisa": "dist/lib/cli.js",
@@ -11,7 +11,16 @@
   "exports": {
     ".": "./dist/lib/cli.js",
     "./opencode": "./dist/opencode/lisa.js",
-    "./opencode-plugin": "./dist/opencode/lisa.js"
+    "./opencode-plugin": "./dist/opencode/lisa.js",
+    "./skills/memory": "./dist/lib/skills/memory/memory.js",
+    "./skills/tasks": "./dist/lib/skills/tasks/tasks.js",
+    "./skills/jira": "./dist/lib/skills/jira/jira.js",
+    "./skills/git/bump-version": "./dist/lib/skills/git/bump-version.js",
+    "./skills/lisa/storage": "./dist/lib/skills/lisa/storage.js",
+    "./skills/lisa/compile-skills": "./dist/lib/skills/lisa/compile-skills.js",
+    "./skills/prompt": "./dist/lib/skills/prompt/prompt.js",
+    "./skills/init-review": "./dist/lib/skills/init-review/init-review.js",
+    "./skills/init-review/ai-enrich": "./dist/lib/skills/init-review/ai-enrich.js"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -31,8 +40,8 @@
     "clean": "rimraf dist",
     "package": "rm -f *.tgz releases/*.tgz dist/packages/*.tgz && npm run build && mkdir -p releases dist/packages && npm pack && mv *.tgz releases/ && cp releases/*.tgz dist/packages/",
     "lint": "eslint 'src/**/*.{ts,js}'",
-    "test": "node --import tsx --test $(find tests/unit -name '*.test.ts' -type f)",
-    "test:unit": "node --import tsx --test $(find tests/unit -name '*.test.ts' -type f)",
+    "test": "node --import tsx --test --test-name-pattern=. tests/unit/**/*.test.ts",
+    "test:unit": "node --import tsx --test --test-name-pattern=. tests/unit/**/*.test.ts",
     "test:integration": "tsx --test tests/integration/**/index.ts",
     "test:integration:memory": "tsx --test tests/integration/memory/index.ts",
     "test:integration:tasks": "tsx --test tests/integration/tasks/index.ts",
@@ -67,24 +76,17 @@
   "author": "Tony Casey",
   "license": "MIT",
   "dependencies": {
-    "@anthropic-ai/claude-code": "^2.1.3",
     "@inquirer/prompts": "^7.0.0",
     "chalk": "^5.3.0",
-    "cli-table3": "^0.6.5",
     "commander": "^11.1.0",
     "execa": "^8.0.1",
     "fs-extra": "^11.2.0",
     "glob": "^10.3.10",
-    "neo4j-driver": "^6.0.1",
-    "pino": "^10.2.0",
-    "pino-pretty": "^13.1.3",
-    "pino-roll": "^4.0.0",
-    "yaml": "^2.4.2"
+    "neo4j-driver": "^6.0.1"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^20.12.7",
-    "@types/pino": "^7.0.4",
     "@typescript-eslint/eslint-plugin": "^8.52.0",
     "@typescript-eslint/parser": "^8.52.0",
     "dotenv": "^16.4.5",

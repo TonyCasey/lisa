@@ -9,7 +9,7 @@
 export {};
 
 async function main(): Promise<void> {
-  const { createVersionService } = await import('../../shared/services');
+  const { createVersionService } = await import('../shared/services');
 
   const service = createVersionService();
 

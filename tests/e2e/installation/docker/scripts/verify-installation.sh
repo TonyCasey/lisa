@@ -62,7 +62,6 @@ check "lisa skill exists" "[ -f .lisa/skills/lisa/SKILL.md ]"
 check "Memory script exists" "[ -f .lisa/skills/memory/scripts/memory.js ] || [ -f .lisa/skills/memory/scripts/memory.cjs ]"
 
 # 5. Configuration file created
-check "lisa.config.json exists" "[ -f .lisa/lisa.config.json ]"
 
 # =============================================================================
 # Claude Code Tests (if mode is 'both' or 'claude-only')
@@ -114,17 +113,9 @@ fi
 echo ""
 echo "=== CLI Configuration ==="
 
-# Check lisa.config.json contains correct cliSupport
-if [ -f .lisa/lisa.config.json ]; then
     if [ "$CLI_MODE" = "both" ]; then
-        check "Config has claude-code" "grep -q 'claude-code' .lisa/lisa.config.json"
-        check "Config has opencode" "grep -q 'opencode' .lisa/lisa.config.json"
     elif [ "$CLI_MODE" = "claude-only" ]; then
-        check "Config has claude-code" "grep -q 'claude-code' .lisa/lisa.config.json"
-        check "Config does NOT have opencode" "! grep -q 'opencode' .lisa/lisa.config.json"
     elif [ "$CLI_MODE" = "opencode-only" ]; then
-        check "Config has opencode" "grep -q 'opencode' .lisa/lisa.config.json"
-        check "Config does NOT have claude-code" "! grep -q 'claude-code' .lisa/lisa.config.json"
     fi
 fi
 

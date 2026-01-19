@@ -15,7 +15,7 @@ import path from 'path';
 import { spawn } from 'child_process';
 
 async function main(): Promise<void> {
-  const { createInitReviewService } = await import('../../shared/services');
+  const { createInitReviewService } = await import('../shared/services');
 
   const service = createInitReviewService();
   const args = process.argv.slice(2);
@@ -111,10 +111,10 @@ async function main(): Promise<void> {
 
 // Export for postinstall
 module.exports = {
-  isCodebase: (p: string) => import('../../shared/services').then(m => m.createInitReviewService().isCodebase(p)),
-  runAnalysis: (p: string) => import('../../shared/services').then(m => m.createInitReviewService().runAnalysis(p)),
-  generateSummary: (r: unknown) => import('../../shared/services').then(m => m.createInitReviewService().generateSummary(r as Parameters<ReturnType<typeof import('../../shared/services').createInitReviewService>['generateSummary']>[0])),
-  writeMarker: (p: string, e?: boolean) => import('../../shared/services').then(m => m.createInitReviewService().writeMarker(p, e)),
+  isCodebase: (p: string) => import('../shared/services').then(m => m.createInitReviewService().isCodebase(p)),
+  runAnalysis: (p: string) => import('../shared/services').then(m => m.createInitReviewService().runAnalysis(p)),
+  generateSummary: (r: unknown) => import('../shared/services').then(m => m.createInitReviewService().generateSummary(r as Parameters<ReturnType<typeof import('../shared/services').createInitReviewService>['generateSummary']>[0])),
+  writeMarker: (p: string, e?: boolean) => import('../shared/services').then(m => m.createInitReviewService().writeMarker(p, e)),
 };
 
 main();

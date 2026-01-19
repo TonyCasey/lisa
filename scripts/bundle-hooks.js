@@ -28,6 +28,10 @@ const hooks = [
 const opencodeSrcDir = path.resolve(__dirname, '..', 'src', 'lib', 'infrastructure', 'adapters', 'opencode');
 const opencodeOutDir = path.resolve(__dirname, '..', 'dist', 'opencode');
 
+// Skill scripts (src/project/.lisa/skills/*/scripts/*.ts)
+const skillsSrcDir = path.resolve(__dirname, '..', 'src', 'project', '.lisa', 'skills');
+const skillsOutDir = path.resolve(__dirname, '..', 'dist', 'project', '.lisa', 'skills');
+
 /**
  * Bundle a TypeScript file using esbuild.
  */

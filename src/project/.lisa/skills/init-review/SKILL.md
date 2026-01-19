@@ -23,13 +23,13 @@ The init review runs automatically when Lisa is installed via `npm install @tony
 ### Manual commands
 ```bash
 # Run init review (or re-run with --force)
-node scripts/init-review.js run [--force]
+lisa init-review run [--force]
 
 # Show current init review
-node scripts/init-review.js show
+lisa init-review show
 
 # Check status (done, enriched, etc.)
-node scripts/init-review.js status
+lisa init-review status
 ```
 
 ## I/O contract

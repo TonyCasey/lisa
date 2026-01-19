@@ -1,18 +1,20 @@
 /**
  * Logging infrastructure module.
- * 
- * Provides pino-based logging with:
- * - File rotation (daily, configurable retention)
- * - Console pretty printing
+ *
+ * Provides simple file-based logging with:
+ * - Daily log files
+ * - Colorized console output
  * - Correlation ID tracing via AsyncLocalStorage
  * - Environment-based configuration
- * 
+ *
+ * Log format: YYYY-MM-DD HH:mm:ss.SSS LEVEL message {context}
+ *
  * @example
  * ```typescript
  * import { createLogger, withCorrelation } from './infrastructure/logging';
- * 
+ *
  * const logger = createLogger();
- * 
+ *
  * await withCorrelation(async () => {
  *   logger.info('Starting operation'); // includes correlationId
  *   await processData();

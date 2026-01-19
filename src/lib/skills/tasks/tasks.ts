@@ -13,17 +13,17 @@ export {};
 import path from 'path';
 
 async function main(): Promise<void> {
-  const { loadEnv, isZepCloudConfigured } = await import('../../shared/utils/env');
-  const { getCurrentGroupId, getGroupIds } = await import('../../shared/group-id');
-  const { createLogger } = await import('../../shared/logger');
-  const { popFlag, hasFlag } = await import('../../shared/utils/cli');
-  const { createCache, createCacheConfig, nullCache } = await import('../../shared/utils/cache');
+  const { loadEnv, isZepCloudConfigured } = await import('../shared/utils/env');
+  const { getCurrentGroupId, getGroupIds } = await import('../shared/group-id');
+  const { createLogger } = await import('../shared/logger');
+  const { popFlag, hasFlag } = await import('../shared/utils/cli');
+  const { createCache, createCacheConfig, nullCache } = await import('../shared/utils/cache');
   const {
     createNeo4jClient, createNeo4jConfigFromEnv,
     createMcpClient, createMcpConfigFromEnv,
     createZepClient, createZepConfigFromEnv,
-  } = await import('../../shared/clients');
-  const { createTaskService, createTaskCliService } = await import('../../shared/services');
+  } = await import('../shared/clients');
+  const { createTaskService, createTaskCliService } = await import('../shared/services');
 
   const env = loadEnv();
   const logger = createLogger('tasks');

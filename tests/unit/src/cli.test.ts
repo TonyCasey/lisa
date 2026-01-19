@@ -60,12 +60,15 @@ test('initCommand copies expected templates with replacements', async () => {
   const cwd = '/tmp/project';
   await initCommand({ cwd, endpoint: DEFAULT_ENDPOINT, group: DEFAULT_GROUP, force: true, mode: 'local' }, services);
 
-  // Expect skills (2) + rules (6) + claude (3) + docker (2) = 13 copies
-  assert.ok(services.templateCopier.calls.length >= 10, `Expected at least 10 template copies, got ${services.templateCopier.calls.length}`);
-  const memoryCopy = services.templateCopier.calls.find((c) => c.dest.endsWith(path.join('.lisa', 'skills', 'memory', 'SKILL.md')));
-  assert.ok(memoryCopy, 'memory SKILL should be copied');
-  assert.equal(memoryCopy?.replacements.GRAPHITI_ENDPOINT, DEFAULT_ENDPOINT);
-  assert.equal(memoryCopy?.replacements.GRAPHITI_GROUP, DEFAULT_GROUP);
+  // Skills are now copied via fs.copy (not templateCopier)
+  // Expect rules (6) + claude hooks/config (several) + docker (2) = 9+ copies
+  assert.ok(services.templateCopier.calls.length >= 9, `Expected at least 9 template copies, got ${services.templateCopier.calls.length}`);
+
+  // Verify rules are copied with replacements
+  const rulesCopy = services.templateCopier.calls.find((c) => c.dest.includes('rules') && c.dest.includes('clean-architecture'));
+  assert.ok(rulesCopy, 'rules should be copied');
+  assert.equal(rulesCopy?.replacements.GRAPHITI_ENDPOINT, DEFAULT_ENDPOINT);
+  assert.equal(rulesCopy?.replacements.GRAPHITI_GROUP, DEFAULT_GROUP);
 });
 
 test('initCommand skips docker assets when includeDocker is false', async () => {
@@ -85,9 +88,9 @@ test('initCommand skip mode skips docker and copies docs', async () => {
   // Docker assets should not be included for skip mode
   assert.ok(!services.templateCopier.calls.find((c) => c.dest.endsWith('docker-compose.graphiti.yml')));
 
-  // Skip mode should still copy skill and rule templates
-  const skillsCopy = services.templateCopier.calls.find((c) => c.dest.includes('skills'));
-  assert.ok(skillsCopy, 'Skills should be copied even in skip mode');
+  // Skip mode should still copy rule templates (skills are now copied via fs.copy)
+  const rulesCopy = services.templateCopier.calls.find((c) => c.dest.includes('rules'));
+  assert.ok(rulesCopy, 'Rules should be copied even in skip mode');
 });
 
 test('doctorCommand checks docker and MCP via services', async () => {

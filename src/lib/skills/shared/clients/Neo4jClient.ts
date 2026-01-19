@@ -5,12 +5,40 @@
 import type { INeo4jClient, INeo4jClientConfig } from './interfaces';
 
 /**
+ * Neo4j driver instance type (dynamic import prevents static typing).
+ */
+interface INeo4jDriver {
+  session(options: { database: string; defaultAccessMode: unknown }): INeo4jSession;
+  verifyConnectivity(): Promise<void>;
+  close(): Promise<void>;
+}
+
+interface INeo4jSession {
+  run(cypher: string, params: Record<string, unknown>): Promise<{ records: INeo4jRecord[] }>;
+  close(): Promise<void>;
+}
+
+interface INeo4jRecord {
+  keys: string[];
+  get(key: string): unknown;
+}
+
+interface INeo4jModule {
+  driver(uri: string, auth: unknown, options: Record<string, unknown>): INeo4jDriver;
+  auth: { basic(username: string, password: string): unknown };
+  session: { READ: unknown };
+  isInt(value: unknown): boolean;
+  isDateTime(value: unknown): boolean;
+  isDate(value: unknown): boolean;
+}
+
+/**
  * Creates a Neo4j client instance.
  * Uses dynamic import to avoid bundling neo4j-driver when not needed.
  */
 export function createNeo4jClient(config: INeo4jClientConfig): INeo4jClient {
-  let driver: any = null;
-  let neo4j: any = null;
+  let driver: INeo4jDriver | null = null;
+  let neo4j: INeo4jModule | null = null;
   const database = config.database ?? 'neo4j';
 
   return {
@@ -18,10 +46,12 @@ export function createNeo4jClient(config: INeo4jClientConfig): INeo4jClient {
       if (driver) return; // Already connected
 
       // Dynamic import to avoid bundling neo4j-driver when not needed
-      neo4j = require('neo4j-driver');
-      driver = neo4j.driver(
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const neo4jModule: INeo4jModule = require('neo4j-driver');
+      neo4j = neo4jModule;
+      driver = neo4jModule.driver(
         config.uri,
-        neo4j.auth.basic(config.username, config.password),
+        neo4jModule.auth.basic(config.username, config.password),
         {
           maxConnectionPoolSize: config.maxConnectionPoolSize ?? 5,
           connectionTimeout: config.connectionTimeout ?? 10000,
@@ -45,23 +75,23 @@ export function createNeo4jClient(config: INeo4jClientConfig): INeo4jClient {
 
       try {
         const result = await session.run(cypher, params);
-        return result.records.map((record: any) => {
+        return result.records.map((record: INeo4jRecord) => {
           const obj: Record<string, unknown> = {};
           for (const key of record.keys) {
             let value = record.get(key);
 
             // Convert Neo4j Integer to number
-            if (neo4j.isInt(value)) {
-              value = value.toNumber();
+            if (neo4j!.isInt(value)) {
+              value = (value as { toNumber(): number }).toNumber();
             }
 
             // Convert Neo4j DateTime/Date to string
             if (
               value &&
-              typeof value.toString === 'function' &&
-              (neo4j.isDateTime(value) || neo4j.isDate(value))
+              typeof (value as { toString?: () => string }).toString === 'function' &&
+              (neo4j!.isDateTime(value) || neo4j!.isDate(value))
             ) {
-              value = value.toString();
+              value = (value as { toString(): string }).toString();
             }
 
             obj[key] = value;

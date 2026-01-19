@@ -26,63 +26,63 @@ authentication-method: api-token
 ### Create Issue
 ```bash
 # Create Epic
-node scripts/jira.js create --type epic --project PROJ --summary "Feature title" --description "Description text"
+lisa jira create --type epic --project PROJ --summary "Feature title" --description "Description text"
 
 # Create Story
-node scripts/jira.js create --type story --project PROJ --summary "Story title" --parent PROJ-123
+lisa jira create --type story --project PROJ --summary "Story title" --parent PROJ-123
 
 # Create Sub-task
-node scripts/jira.js create --type subtask --project PROJ --summary "Sub-task title" --parent PROJ-123
+lisa jira create --type subtask --project PROJ --summary "Sub-task title" --parent PROJ-123
 
 # Create with assignment
-node scripts/jira.js create --type task --project PROJ --summary "Task" --assign me
+lisa jira create --type task --project PROJ --summary "Task" --assign me
 ```
 
 ### List Issues
 ```bash
 # List by project
-node scripts/jira.js list --project PROJ --limit 10
+lisa jira list --project PROJ --limit 10
 
 # List with JQL
-node scripts/jira.js list --jql "assignee = currentUser() ORDER BY created DESC" --limit 5
+lisa jira list --jql "assignee = currentUser() ORDER BY created DESC" --limit 5
 
 # List my issues
-node scripts/jira.js list --mine --limit 10
+lisa jira list --mine --limit 10
 ```
 
 ### View Issue
 ```bash
-node scripts/jira.js view PROJ-123
+lisa jira view PROJ-123
 ```
 
 ### Assign Issue
 ```bash
 # Assign to self
-node scripts/jira.js assign PROJ-123 --to me
+lisa jira assign PROJ-123 --to me
 
 # Assign to user
-node scripts/jira.js assign PROJ-123 --to "user@company.com"
+lisa jira assign PROJ-123 --to "user@company.com"
 ```
 
 ### Transition Issue
 ```bash
 # Move to In Progress
-node scripts/jira.js transition PROJ-123 --to "In Progress"
+lisa jira transition PROJ-123 --to "In Progress"
 
 # Move to Done
-node scripts/jira.js transition PROJ-123 --to "Done"
+lisa jira transition PROJ-123 --to "Done"
 
 # Move to Code Review
-node scripts/jira.js transition PROJ-123 --to "Code Review"
+lisa jira transition PROJ-123 --to "Code Review"
 ```
 
 ### Change Issue Type
 ```bash
 # Change Epic to Story
-node scripts/jira.js change-type PROJ-123 --to story
+lisa jira change-type PROJ-123 --to story
 
 # Change to Task
-node scripts/jira.js change-type PROJ-123 --to task
+lisa jira change-type PROJ-123 --to task
 ```
 
 Valid types: `epic`, `story`, `task`, `subtask`, `bug`
@@ -97,18 +97,18 @@ Valid types: `epic`, `story`, `task`, `subtask`, `bug`
 
 ```bash
 # Example: Transition epic and all subtasks to Code Review
-node scripts/jira.js transition PROJ-123 --to "Code Review"
+lisa jira transition PROJ-123 --to "Code Review"
 
 # For subtasks (if in "To Do", first move to "In Progress")
 for ticket in PROJ-124 PROJ-125 PROJ-126; do
-  node scripts/jira.js transition "$ticket" --to "Code Review"
+  lisa jira transition "$ticket" --to "Code Review"
 done
 ```
 
 **Note:** If a ticket is in "To Do", you may need to transition through "In Progress" first:
 ```bash
-node scripts/jira.js transition PROJ-123 --to "In Progress"
-node scripts/jira.js transition PROJ-123 --to "Code Review"
+lisa jira transition PROJ-123 --to "In Progress"
+lisa jira transition PROJ-123 --to "Code Review"
 ```
 
 **See also:** `git` skill for PR creation, CI triggers, and test retriggers.

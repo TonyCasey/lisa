@@ -46,7 +46,7 @@ function parseArgs(argv: string[]): IParsedArgs {
 }
 
 async function main(): Promise<void> {
-  const { createJiraClient, loadJiraConfig } = await import('../../shared/services');
+  const { createJiraClient, loadJiraConfig } = await import('../shared/services');
 
   try {
     const { command, args, positional } = parseArgs(process.argv);
@@ -66,7 +66,7 @@ async function main(): Promise<void> {
     let result: Record<string, unknown>;
 
     switch (command) {
-      case 'create':
+      case 'create': {
         if (!args.type || !args.project || !args.summary) {
           throw new Error('create requires --type, --project, --summary');
         }
@@ -80,8 +80,9 @@ async function main(): Promise<void> {
         });
         result = { status: 'ok', action: 'create', issue };
         break;
+      }
 
-      case 'list':
+      case 'list': {
         const listResult = await client.listIssues({
           project: args.project as string | undefined,
           jql: args.jql as string | undefined,
@@ -90,34 +91,39 @@ async function main(): Promise<void> {
         });
         result = { status: 'ok', action: 'list', ...listResult };
         break;
+      }
 
-      case 'view':
+      case 'view': {
         const issueKey = positional[0] || (args.issue as string);
         if (!issueKey) throw new Error('Issue key required');
         const viewResult = await client.viewIssue(issueKey);
         result = { status: 'ok', action: 'view', issue: viewResult };
         break;
+      }
 
-      case 'assign':
+      case 'assign': {
         const assignKey = positional[0] || (args.issue as string);
         if (!assignKey || !args.to) throw new Error('assign requires issue key and --to');
         const assignResult = await client.assignIssue(assignKey, { to: args.to as string });
         result = { status: 'ok', action: 'assign', ...assignResult };
         break;
+      }
 
-      case 'transition':
+      case 'transition': {
         const transKey = positional[0] || (args.issue as string);
         if (!transKey || !args.to) throw new Error('transition requires issue key and --to');
         const transResult = await client.transitionIssue(transKey, { to: args.to as string });
         result = { status: 'ok', action: 'transition', ...transResult };
         break;
+      }
 
-      case 'change-type':
+      case 'change-type': {
         const changeKey = positional[0] || (args.issue as string);
         if (!changeKey || !args.to) throw new Error('change-type requires issue key and --to');
         const changeResult = await client.changeIssueType(changeKey, { to: args.to as string });
         result = { status: 'ok', action: 'change-type', issue: changeResult };
         break;
+      }
 
       default:
         result = {

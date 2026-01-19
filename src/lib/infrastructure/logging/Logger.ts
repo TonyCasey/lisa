@@ -1,4 +1,3 @@
-import pino, { Logger as PinoLogger, LoggerOptions as PinoLoggerOptions } from 'pino';
 import path from 'path';
 import fs from 'fs';
 import type { ILogger, ILoggerOptions, LogLevel } from '../../domain/interfaces';
@@ -14,10 +13,31 @@ export const DEFAULT_LOGGER_OPTIONS: ILoggerOptions = {
   retentionDays: 7,
 };
 
+// ANSI color codes for console output
+const COLORS = {
+  reset: '\x1b[0m',
+  dim: '\x1b[2m',
+  red: '\x1b[31m',
+  yellow: '\x1b[33m',
+  blue: '\x1b[34m',
+  cyan: '\x1b[36m',
+  magenta: '\x1b[35m',
+  gray: '\x1b[90m',
+};
+
+const LEVEL_COLORS: Record<string, string> = {
+  TRACE: COLORS.gray,
+  DEBUG: COLORS.gray,
+  INFO: COLORS.blue,
+  WARN: COLORS.yellow,
+  ERROR: COLORS.red,
+  FATAL: COLORS.magenta,
+};
+
 /**
- * Map our log levels to pino levels.
+ * Map our log levels to numeric priorities.
  */
-const LEVEL_MAP: Record<LogLevel, number> = {
+const LEVEL_PRIORITY: Record<LogLevel, number> = {
   trace: 10,
   debug: 20,
   info: 30,
@@ -27,76 +47,54 @@ const LEVEL_MAP: Record<LogLevel, number> = {
 };
 
 /**
- * Pino-based logger implementation.
- * Wraps pino to implement ILogger interface with correlation ID support.
+ * Format timestamp as YYYY-MM-DD HH:mm:ss.SSS
+ */
+function formatTimestamp(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  const ms = String(date.getMilliseconds()).padStart(3, '0');
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${ms}`;
+}
+
+/**
+ * Get today's date as YYYY-MM-DD.
+ */
+function getDateString(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Simple file-based logger implementation.
+ * Writes single-line formatted logs with optional colorized console output.
  */
 export class Logger implements ILogger {
-  private readonly pino: PinoLogger;
   private readonly options: ILoggerOptions;
   private readonly getCorrelationId: () => string | undefined;
+  private readonly logFile: string;
+  private readonly bindings: Record<string, unknown>;
 
   constructor(
     options: ILoggerOptions,
-    pinoInstance?: PinoLogger,
-    getCorrelationId?: () => string | undefined
+    _pinoInstance?: unknown, // Kept for API compatibility
+    getCorrelationId?: () => string | undefined,
+    bindings?: Record<string, unknown>
   ) {
     this.options = options;
     this.getCorrelationId = getCorrelationId ?? (() => undefined);
-    this.pino = pinoInstance ?? this.createPinoInstance(options);
-  }
+    this.bindings = bindings ?? {};
 
-  /**
-   * Create a pino instance with configured transports.
-   */
-  private createPinoInstance(options: ILoggerOptions): PinoLogger {
-    const pinoOptions: PinoLoggerOptions = {
-      level: options.level,
-      timestamp: pino.stdTimeFunctions.isoTime,
-    };
-
-    // In production or when file logging is enabled, use transports
-    if (options.enableFile || options.enableConsole) {
-      const targets: pino.TransportTargetOptions[] = [];
-
-      // Console transport with pretty printing
-      if (options.enableConsole) {
-        targets.push({
-          target: 'pino-pretty',
-          options: {
-            colorize: true,
-            translateTime: 'SYS:standard',
-            ignore: 'pid,hostname',
-          },
-          level: options.level,
-        });
-      }
-
-      // File transport with rotation
-      if (options.enableFile) {
-        const logDir = path.resolve(options.logDir);
-        this.ensureLogDir(logDir);
-
-        targets.push({
-          target: 'pino-roll',
-          options: {
-            file: path.join(logDir, 'lisa'),
-            frequency: 'daily',
-            limit: { count: options.retentionDays },
-            extension: '.log',
-            mkdir: true,
-          },
-          level: options.level,
-        });
-      }
-
-      if (targets.length > 0) {
-        const transport = pino.transport({ targets });
-        return pino(pinoOptions, transport);
-      }
-    }
-
-    // Fallback to basic pino
-    return pino(pinoOptions);
+    // Ensure log directory exists
+    const logDir = path.resolve(options.logDir);
+    this.ensureLogDir(logDir);
+    this.logFile = path.join(logDir, `lisa-${getDateString()}.log`);
   }
 
   /**
@@ -113,50 +111,92 @@ export class Logger implements ILogger {
   }
 
   /**
-   * Add correlation ID to context if available.
+   * Check if a log level should be output.
    */
-  private withCorrelation(context?: Record<string, unknown>): Record<string, unknown> {
+  private shouldLog(level: LogLevel): boolean {
+    return LEVEL_PRIORITY[level] >= LEVEL_PRIORITY[this.options.level];
+  }
+
+  /**
+   * Format context object as compact JSON string.
+   */
+  private formatContext(context?: Record<string, unknown>): string {
+    const merged = { ...this.bindings, ...context };
     const correlationId = this.getCorrelationId();
     if (correlationId) {
-      return { correlationId, ...context };
+      merged.correlationId = correlationId;
     }
-    return context ?? {};
+    if (Object.keys(merged).length === 0) return '';
+    return ` ${JSON.stringify(merged)}`;
+  }
+
+  /**
+   * Write a log entry.
+   */
+  private writeLog(
+    level: LogLevel,
+    levelStr: string,
+    message: string,
+    context?: Record<string, unknown>
+  ): void {
+    if (!this.shouldLog(level)) return;
+
+    const timestamp = formatTimestamp(new Date());
+    const contextStr = this.formatContext(context);
+
+    // File output: plain single-line format
+    if (this.options.enableFile) {
+      const fileLine = `${timestamp} ${levelStr.padEnd(5)} ${message}${contextStr}\n`;
+      try {
+        fs.appendFileSync(this.logFile, fileLine);
+      } catch {
+        // Silently fail if we can't write to the file
+      }
+    }
+
+    // Console output: colorized
+    if (this.options.enableConsole) {
+      const color = LEVEL_COLORS[levelStr] || COLORS.reset;
+      const consoleLine = `${COLORS.dim}${timestamp}${COLORS.reset} ${color}${levelStr.padEnd(5)}${COLORS.reset} ${message}${COLORS.gray}${contextStr}${COLORS.reset}`;
+      console.error(consoleLine);
+    }
   }
 
   trace(message: string, context?: Record<string, unknown>): void {
-    this.pino.trace(this.withCorrelation(context), message);
+    this.writeLog('trace', 'TRACE', message, context);
   }
 
   debug(message: string, context?: Record<string, unknown>): void {
-    this.pino.debug(this.withCorrelation(context), message);
+    this.writeLog('debug', 'DEBUG', message, context);
   }
 
   info(message: string, context?: Record<string, unknown>): void {
-    this.pino.info(this.withCorrelation(context), message);
+    this.writeLog('info', 'INFO', message, context);
   }
 
   warn(message: string, context?: Record<string, unknown>): void {
-    this.pino.warn(this.withCorrelation(context), message);
+    this.writeLog('warn', 'WARN', message, context);
   }
 
   error(message: string, context?: Record<string, unknown>): void {
-    this.pino.error(this.withCorrelation(context), message);
+    this.writeLog('error', 'ERROR', message, context);
   }
 
   fatal(message: string, context?: Record<string, unknown>): void {
-    this.pino.fatal(this.withCorrelation(context), message);
+    this.writeLog('fatal', 'FATAL', message, context);
   }
 
   child(bindings: Record<string, unknown>): ILogger {
     return new Logger(
       this.options,
-      this.pino.child(bindings),
-      this.getCorrelationId
+      undefined,
+      this.getCorrelationId,
+      { ...this.bindings, ...bindings }
     );
   }
 
   isLevelEnabled(level: LogLevel): boolean {
-    return LEVEL_MAP[level] >= LEVEL_MAP[this.options.level];
+    return LEVEL_PRIORITY[level] >= LEVEL_PRIORITY[this.options.level];
   }
 }
 
