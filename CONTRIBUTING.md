@@ -52,7 +52,7 @@ lisa/
 │
 ├── scripts/                  # Build scripts
 │   ├── bundle-hooks.js       # Bundle hooks with dependencies
-│   ├── deploy-agents.js      # Deploy to .lisa/, .claude/, .opencode/
+│   ├── deploy-lisa.js        # Deploy to .lisa/, .claude/, .opencode/
 │   └── prepare-dist-package.js
 │
 ├── tests/                    # Test files
@@ -76,7 +76,7 @@ When you run `npm run build`, these stages execute:
 3. **Package Preparation** (`prepare-dist-package.js`)
    - Creates optimized `dist/package.json` for npm publishing
 
-4. **Local Deployment** (`deploy-agents.js`)
+4. **Local Deployment** (`deploy-lisa.js`)
    - Deploys `dist/project/` to `.lisa/`, `.claude/`, `.opencode/`
    - Creates symlinks from `.claude/` to `.lisa/`
 

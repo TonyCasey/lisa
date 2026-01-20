@@ -35,7 +35,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "build:local": "DEPLOY_AGENTS_LOCAL=1 npm run build",
-    "postbuild": "node scripts/postbuild-copy-templates.js && node scripts/prepare-dist-package.js && node scripts/bundle-hooks.js && node scripts/deploy-agents.js",
+    "postbuild": "node scripts/postbuild-copy-templates.js && node scripts/prepare-dist-package.js && node scripts/bundle-hooks.js && node scripts/deploy-lisa.js",
     "postinstall": "node scripts/postinstall.js",
     "clean": "rimraf dist",
     "package": "rm -f *.tgz releases/*.tgz dist/packages/*.tgz && npm run build && mkdir -p releases dist/packages && npm pack && mv *.tgz releases/ && cp releases/*.tgz dist/packages/",
@@ -81,7 +81,7 @@
     "commander": "^11.1.0",
     "execa": "^8.0.1",
     "fs-extra": "^11.2.0",
-    "glob": "^10.3.10",
+    "glob": "11.1.0",
     "neo4j-driver": "^6.0.1"
   },
   "devDependencies": {

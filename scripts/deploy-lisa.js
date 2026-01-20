@@ -22,7 +22,7 @@ const distBundledHooks = path.resolve(__dirname, '..', 'dist', 'hooks');
 const targetClaude = path.resolve(__dirname, '..', '.claude');
 
 // OpenCode templates (plugin)
-const distOpenCode = path.join(distProject, '.opencode');
+path.join(distProject, '.opencode');
 const distOpenCodePlugin = path.resolve(__dirname, '..', 'dist', 'opencode');
 const targetOpenCode = path.resolve(__dirname, '..', '.opencode');
 
@@ -291,9 +291,7 @@ async function main() {
 
   const sourceLisa = useNewStructure ? distLisa : distLegacyAgents;
   const sourceRules = useNewStructure ? distLisaRules : distLegacyRules;
-  const sourceClaude = useNewStructure ? distClaude : distLegacyClaude;
-
-  // Preserve local extensions before overwriting
+// Preserve local extensions before overwriting
   const preservedAgents = await preserveLocalExtensions(targetLisa);
 
   // Preserve .env file before cleaning
@@ -320,10 +318,8 @@ async function main() {
   const deployFilter = (src) => {
     const basename = path.basename(src);
     // Exclude .map, .d.ts.map, and .d.ts files (keep only .js and other assets)
-    if (basename.endsWith('.js.map') || basename.endsWith('.d.ts.map') || basename.endsWith('.d.ts')) {
-      return false;
-    }
-    return true;
+    return !(basename.endsWith('.js.map') || basename.endsWith('.d.ts.map') || basename.endsWith('.d.ts'));
+
   };
 
   // Deploy .lisa templates (skills)

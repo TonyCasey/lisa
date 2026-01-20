@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-import { Command } from 'commander';
-import { spawn } from 'child_process';
+import {Command} from 'commander';
+import {spawn} from 'child_process';
 import fs from 'fs-extra';
 import path from 'path';
 import chalk from 'chalk';
-import { select, input, password, checkbox } from '@inquirer/prompts';
-import { createDefaultServices, IServices } from './services';
-import { runScan, IScanOptions } from './scanner';
-import { createLogger, withCorrelation } from './infrastructure/logging';
+import {checkbox, input, password, select} from '@inquirer/prompts';
+import {createDefaultServices, IServices} from './services';
+import {IScanOptions, runScan} from './scanner';
+import {createLogger, withCorrelation} from './infrastructure';
 
 // Templates are copied into dist/project by postbuild; resolve relative to compiled file.
 const TEMPLATE_ROOT = path.join(__dirname, '..', 'project');
@@ -140,11 +140,101 @@ async function recordCopyFallback(projectRoot: string, link: string, target: str
   }
 }
 
+/**
+ * Clean up previous Lisa installation before upgrade.
+ * - Removes scripts/** JS files from skill directories (old format)
+ * - Backs up existing SKILL.md files to SKILL.md.backup
+ * - Removes common/ and shared/ directories (now bundled)
+ * 
+ * @param skillsDir - Path to skills directory
+ * @param verbose - If true, logs detailed information about each operation
+ */
+async function cleanupPreviousInstall(skillsDir: string, verbose = false): Promise<{ backedUp: string[]; removed: string[] }> {
+  const backedUp: string[] = [];
+  const removed: string[] = [];
+
+  if (!await fs.pathExists(skillsDir)) {
+    if (verbose) {
+      console.log(chalk.gray(`  [cleanup] Skills directory does not exist: ${skillsDir}`));
+    }
+    return { backedUp, removed };
+  }
+
+  if (verbose) {
+    console.log(chalk.cyan(`  [cleanup] Scanning skills directory: ${skillsDir}`));
+  }
+
+  const skillDirs = await fs.readdir(skillsDir);
+
+  for (const skillName of skillDirs) {
+    const skillPath = path.join(skillsDir, skillName);
+    const stat = await fs.stat(skillPath);
+    
+    if (!stat.isDirectory()) continue;
+
+    // Remove common/ and shared/ directories (now bundled into CLI)
+    if (skillName === 'common' || skillName === 'shared') {
+      if (verbose) {
+        console.log(chalk.yellow(`  [cleanup] Removing bundled directory: ${skillName}/`));
+      }
+      await fs.remove(skillPath);
+      removed.push(skillPath);
+      continue;
+    }
+
+    // Backup existing SKILL.md files
+    const skillMdPath = path.join(skillPath, 'SKILL.md');
+    if (await fs.pathExists(skillMdPath)) {
+      const backupPath = path.join(skillPath, 'SKILL.md.backup');
+      if (verbose) {
+        console.log(chalk.gray(`  [cleanup] Backing up: ${skillName}/SKILL.md -> SKILL.md.backup`));
+      }
+      await fs.copy(skillMdPath, backupPath, { overwrite: true });
+      backedUp.push(skillMdPath);
+    }
+
+    // Remove scripts/ directory with all JS files
+    const scriptsDir = path.join(skillPath, 'scripts');
+    if (await fs.pathExists(scriptsDir)) {
+      // Find and remove all .js files in scripts/
+      const scriptFiles = await fs.readdir(scriptsDir);
+      for (const file of scriptFiles) {
+        if (file.endsWith('.js')) {
+          const filePath = path.join(scriptsDir, file);
+          if (verbose) {
+            console.log(chalk.yellow(`  [cleanup] Removing old script: ${skillName}/scripts/${file}`));
+          }
+          await fs.remove(filePath);
+          removed.push(filePath);
+        }
+      }
+      
+      // Remove scripts/ directory if empty
+      const remainingFiles = await fs.readdir(scriptsDir);
+      if (remainingFiles.length === 0) {
+        if (verbose) {
+          console.log(chalk.gray(`  [cleanup] Removing empty directory: ${skillName}/scripts/`));
+        }
+        await fs.remove(scriptsDir);
+        removed.push(scriptsDir);
+      } else if (verbose) {
+        console.log(chalk.gray(`  [cleanup] Keeping ${skillName}/scripts/ (contains ${remainingFiles.length} non-JS files)`));
+      }
+    }
+  }
+
+  return { backedUp, removed };
+}
+
 // Interactive prompt functions
 async function promptDeploymentMode(): Promise<DeploymentMode> {
   return await select({
     message: 'How would you like to configure storage?',
     choices: [
+      {
+        name: 'Set up later (scaffold project, configure storage later)',
+        value: 'skip' as DeploymentMode,
+      },
       {
         name: 'Local Docker (runs Neo4j + MCP server locally)',
         value: 'local' as DeploymentMode,
@@ -152,10 +242,6 @@ async function promptDeploymentMode(): Promise<DeploymentMode> {
       {
         name: 'Zep Cloud (managed storage service)',
         value: 'zep-cloud' as DeploymentMode,
-      },
-      {
-        name: 'Set up later (scaffold project, configure storage later)',
-        value: 'skip' as DeploymentMode,
       },
     ],
   });
@@ -225,8 +311,10 @@ async function initCommand(opts: {
   yes?: boolean; // Skip prompts, use defaults
   isolated?: boolean; // Install to .claude/lib for non-npm projects
   cliSupport?: CliSupport[]; // Which CLIs to support
+  verbose?: boolean; // Show detailed logging (default: true)
 }, services: IServices) {
   const force = Boolean(opts.force);
+  const verbose = opts.verbose !== false; // Default to true
   const cwd = opts.cwd;
   let config: IGraphitiConfig;
   let cliSupport: CliSupport[];
@@ -250,7 +338,7 @@ async function initCommand(opts: {
   } else {
     // Interactive mode - prompt user
     const mode = await promptDeploymentMode();
-    let modeConfig: Partial<IGraphitiConfig> = {};
+    let modeConfig: Partial<IGraphitiConfig>;
 
     if (mode === 'zep-cloud') {
       modeConfig = await promptZepCloudConfig();
@@ -304,12 +392,31 @@ async function initCommand(opts: {
     );
   }
 
+  // Clean up previous installation if upgrading
+  // This removes old scripts/** JS files and backs up existing SKILL.md files
+  if (await fs.pathExists(skillsDir)) {
+    if (verbose) {
+      console.log(chalk.cyan('\nUpgrade cleanup:'));
+    }
+    const cleanup = await cleanupPreviousInstall(skillsDir, verbose);
+    if (cleanup.backedUp.length > 0) {
+      console.log(chalk.cyan(`  Backed up ${cleanup.backedUp.length} existing SKILL.md file(s)`));
+    }
+    if (cleanup.removed.length > 0) {
+      console.log(chalk.cyan(`  Removed ${cleanup.removed.length} old script file(s)/director(ies)`));
+    }
+    if (verbose && cleanup.backedUp.length === 0 && cleanup.removed.length === 0) {
+      console.log(chalk.gray('  No cleanup needed (fresh install or already upgraded)'));
+    }
+  }
+
   // Skill scaffolding (model-neutral) - copy only SKILL.md files and cache dirs
   // Scripts are accessed via subcommands (lisa memory, lisa tasks, etc.)
+  // SKILL.md files are always overwritten (we back them up above), other files respect force flag
   const skillsSrc = path.join(TEMPLATE_ROOT, '.lisa', 'skills');
   await fs.ensureDir(skillsDir);
   copies.push(fs.copy(skillsSrc, skillsDir, { 
-    overwrite: force,
+    overwrite: true,  // Always overwrite SKILL.md files (they're backed up above)
     filter: (src: string) => {
       const basename = path.basename(src);
       const relativePath = path.relative(skillsSrc, src);
@@ -327,9 +434,9 @@ async function initCommand(opts: {
       if (basename === 'cache' || basename === '.gitkeep') return true;
       
       // Include directories that might contain the above
-      if (fs.statSync(src).isDirectory()) return true;
+      return fs.statSync(src).isDirectory();
       
-      return false;
+
     }
   }));
 
@@ -360,8 +467,38 @@ async function initCommand(opts: {
     }
     
     // Create symlinks for .claude/skills and .claude/rules
-    await createSymlink(skillsDir, path.join(claudeDir, 'skills'), cwd);
-    await createSymlink(rulesDir, path.join(claudeDir, 'rules'), cwd);
+    // If these are real directories (not symlinks), clean them up first
+    const claudeSkillsLink = path.join(claudeDir, 'skills');
+    const claudeRulesLink = path.join(claudeDir, 'rules');
+    
+    // Check if .claude/skills exists as a real directory (not symlink)
+    try {
+      const skillsStat = await fs.lstat(claudeSkillsLink);
+      if (skillsStat.isDirectory() && !skillsStat.isSymbolicLink()) {
+        // Clean up old scripts in .claude/skills before removing
+        if (verbose) {
+          console.log(chalk.cyan('\nConverting .claude/skills from directory to symlink:'));
+        }
+        await cleanupPreviousInstall(claudeSkillsLink, verbose);
+        await fs.remove(claudeSkillsLink);
+        console.log(chalk.cyan('  Converted .claude/skills to symlink -> .lisa/skills'));
+      }
+    } catch {
+      // Doesn't exist, will be created as symlink
+    }
+    
+    try {
+      const rulesStat = await fs.lstat(claudeRulesLink);
+      if (rulesStat.isDirectory() && !rulesStat.isSymbolicLink()) {
+        await fs.remove(claudeRulesLink);
+        console.log(chalk.cyan('  Converted .claude/rules to symlink -> .lisa/rules'));
+      }
+    } catch {
+      // Doesn't exist, will be created as symlink
+    }
+    
+    await createSymlink(skillsDir, claudeSkillsLink, cwd);
+    await createSymlink(rulesDir, claudeRulesLink, cwd);
   }
 
   // OpenCode scaffolding - only if OpenCode is selected
@@ -458,8 +595,7 @@ async function loadConfig(cwd: string): Promise<{ endpoint?: string; group?: str
       const idx = line.indexOf('=');
       if (idx === -1) return;
       const key = line.slice(0, idx).trim();
-      const val = line.slice(idx + 1).trim();
-      map[key] = val;
+      map[key] = line.slice(idx + 1).trim();
     });
   }
 
@@ -578,13 +714,17 @@ program
   .option('--isolated', 'Install to .claude/lib for non-npm projects (Python, Go, etc.)')
   .option('--claude-only', 'Only scaffold for Claude Code')
   .option('--opencode-only', 'Only scaffold for OpenCode')
+  .option('-v, --verbose', 'Show detailed logging (default: true)', true)
+  .option('-q, --quiet', 'Suppress detailed logging')
   .action(async (cmd) => {
     await withCorrelation(async () => {
       const log = cliLogger.child({ command: 'init' });
+      const verbose = cmd.verbose && !cmd.quiet;
       log.info('Starting init command', { 
         mode: cmd.mode, 
         claudeOnly: cmd.claudeOnly, 
-        opencodeOnly: cmd.opencodeOnly 
+        opencodeOnly: cmd.opencodeOnly,
+        verbose,
       });
       
       const services = createDefaultServices(TEMPLATE_ROOT);
@@ -612,6 +752,7 @@ program
         yes: cmd.yes,
         isolated: cmd.isolated,
         cliSupport,
+        verbose,
       }, services);
       
       log.info('Init command completed');
@@ -631,8 +772,11 @@ program
   .option('--isolated', 'Install to .claude/lib for non-npm projects (Python, Go, etc.)')
   .option('--claude-only', 'Only scaffold for Claude Code')
   .option('--opencode-only', 'Only scaffold for OpenCode')
+  .option('-v, --verbose', 'Show detailed logging (default: true)', true)
+  .option('-q, --quiet', 'Suppress detailed logging')
   .action(async (cmd) => {
     const services = createDefaultServices(TEMPLATE_ROOT);
+    const verbose = cmd.verbose && !cmd.quiet;
     
     // Determine CLI support from flags
     let cliSupport: CliSupport[] | undefined;
@@ -656,6 +800,7 @@ program
       yes: cmd.yes,
       isolated: cmd.isolated,
       cliSupport,
+      verbose,
     }, services);
   });
 
@@ -1002,6 +1147,7 @@ export {
   upCommand,
   downCommand,
   createDefaultServices,
+  cleanupPreviousInstall,
   DEFAULT_ENDPOINT,
   DEFAULT_GROUP,
   TEMPLATE_ROOT,
