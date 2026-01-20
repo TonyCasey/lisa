@@ -194,7 +194,7 @@ test('cleanupPreviousInstall preserves non-JS files in scripts/', async () => {
     await fs.writeFile(path.join(scriptsDir, 'old-script.js'), '// old');
     await fs.writeFile(path.join(scriptsDir, 'poll-ci.sh'), '#!/bin/bash');
     
-    const result = await cleanupPreviousInstall(skillsDir);
+    await cleanupPreviousInstall(skillsDir);
     
     // JS file should be removed
     assert.equal(await fs.pathExists(path.join(scriptsDir, 'old-script.js')), false);

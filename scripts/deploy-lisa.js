@@ -17,7 +17,7 @@ const distLegacyRules = path.resolve(__dirname, '..', 'dist', 'templates', 'rule
 
 // Claude Code templates (hooks)
 const distClaude = path.join(distProject, '.claude');
-const distLegacyClaude = path.resolve(__dirname, '..', 'dist', 'templates', 'claude');
+path.resolve(__dirname, '..', 'dist', 'templates', 'claude');
 const distBundledHooks = path.resolve(__dirname, '..', 'dist', 'hooks');
 const targetClaude = path.resolve(__dirname, '..', '.claude');
 
