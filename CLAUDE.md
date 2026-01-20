@@ -220,7 +220,7 @@ npm run test:integration
 1. **Compile**: `tsc -p tsconfig.json` - Compiles TypeScript to `dist/`
 2. **Prepare Package**: `prepare-dist-package.js` - Prepares for npm publish
 3. **Bundle Hooks**: `bundle-hooks.js` - Bundles hooks with dependencies
-4. **Deploy Locally**: `deploy-agents.js` - Deploys to `.claude/`, `.lisa/`, `.opencode/`
+4. **Deploy Locally**: `deploy-lisa.js` - Deploys to `.claude/`, `.lisa/`, `.opencode/`
 
 ## Memory System
 

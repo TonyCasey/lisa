@@ -128,7 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Build Process
 - **Bundle hooks** - New `bundle-hooks.js` script for hook bundling
-- **Deploy agents** - Enhanced `deploy-agents.js` with multi-CLI support
+- **Deploy lisa** - Enhanced `deploy-lisa.js` with multi-CLI support
 - **Symlink creation** - Automatic symlinks from CLI dirs to shared resources
 
 ### Fixed
