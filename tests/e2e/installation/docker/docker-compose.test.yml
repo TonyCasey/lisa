@@ -87,7 +87,7 @@ services:
       - mcp_test_logs:/var/log/graphiti
       - ./config-docker-neo4j.yaml:/app/mcp/config/config.yaml:ro
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8000/ || exit 1"]
+      test: ["CMD-SHELL", "/usr/local/bin/python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1"]
       interval: 10s
       timeout: 10s
       retries: 20
