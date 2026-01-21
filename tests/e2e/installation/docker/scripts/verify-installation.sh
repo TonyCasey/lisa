@@ -58,8 +58,8 @@ check "memory skill exists" "[ -f .lisa/skills/memory/SKILL.md ]"
 check "tasks skill exists" "[ -f .lisa/skills/tasks/SKILL.md ]"
 check "lisa skill exists" "[ -f .lisa/skills/lisa/SKILL.md ]"
 
-# 4. Lisa CLI is available
-check "Lisa CLI available" "command -v lisa >/dev/null 2>&1"
+# 4. Lisa CLI is available (already checked above with $LISA_BIN)
+# No separate check needed - covered by "lisa CLI accessible"
 
 # 5. Configuration file created
 
@@ -107,17 +107,8 @@ if [ "$CLI_MODE" = "both" ] || [ "$CLI_MODE" = "opencode-only" ]; then
 fi
 
 # =============================================================================
-# CLI Selection Verification
+# CLI Selection Verification (already tested above per-CLI)
 # =============================================================================
-
-echo ""
-echo "=== CLI Configuration ==="
-
-    if [ "$CLI_MODE" = "both" ]; then
-    elif [ "$CLI_MODE" = "claude-only" ]; then
-    elif [ "$CLI_MODE" = "opencode-only" ]; then
-    fi
-fi
 
 # =============================================================================
 # Summary
