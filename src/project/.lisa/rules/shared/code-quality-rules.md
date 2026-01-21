@@ -1,3 +1,5 @@
+<!-- markdownlint-disable -->
+<!-- noinspection ALL -->
 # Code Quality Rules & Error Prevention Guide
 
 This document outlines the rules and configurations that prevent common errors from creeping into the codebase during development.
