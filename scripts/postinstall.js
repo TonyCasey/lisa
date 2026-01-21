@@ -30,6 +30,9 @@ const projectRoot = isInstalledAsDependency
 const distRoot = path.resolve(__dirname, '..', 'dist');
 const projectRoot_dist = path.join(distRoot, 'project');
 
+// Bundled hooks location (hooks are bundled separately from templates)
+const bundledHooksDir = path.join(distRoot, 'hooks');
+
 // Legacy fallback for older builds
 const templateRoot = path.resolve(__dirname, '..', 'dist', 'templates');
 
@@ -861,8 +864,13 @@ async function main() {
   if (await fs.pathExists(claudeSrc)) {
     await copyTemplates(path.join(claudeSrc, 'settings.json'), path.join(claudeDir, 'settings.json'));
     await copyTemplates(path.join(claudeSrc, 'config.js'), path.join(claudeDir, 'config.js'));
-    await copyTemplates(path.join(claudeSrc, 'hooks'), path.join(claudeDir, 'hooks'));
-    console.log('  ✓ Copied .claude/ hooks and settings');
+    console.log('  ✓ Copied .claude/ settings');
+  }
+  
+  // Copy bundled hooks (hooks are bundled separately and don't include utils folder)
+  if (await fs.pathExists(bundledHooksDir)) {
+    await copyTemplates(bundledHooksDir, path.join(claudeDir, 'hooks'));
+    console.log('  ✓ Copied .claude/hooks/ (bundled)');
   }
 
   // Copy .opencode (plugin)
