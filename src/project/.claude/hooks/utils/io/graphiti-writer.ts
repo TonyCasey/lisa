@@ -1,7 +1,7 @@
 /**
  * Graphiti Writer - Write memories to Graphiti MCP
  *
- * Provides sync and async methods for storing memories via the memory skill.
+ * Provides sync and async methods for storing memories via the lisa CLI.
  * Handles availability checking, timeouts, and error handling.
  */
 
@@ -9,7 +9,7 @@ import type { IGraphitiResult } from '../core/types';
 
 const fs = require('fs');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 
 // =============================================================================
 // Configuration
@@ -29,7 +29,7 @@ export const DEFAULT_ENDPOINT = 'http://localhost:8010/mcp/';
 // =============================================================================
 
 /**
- * Options for writing to Graphiti via memory skill
+ * Options for writing to Graphiti via lisa CLI
  */
 export interface IMemoryWriteOptions {
   /** The fact/memory text to store */
@@ -65,28 +65,19 @@ export interface IPromptWriteOptions {
 }
 
 // =============================================================================
-// Path Helpers
+// CLI Helpers
 // =============================================================================
 
 /**
- * Get the path to the memory skill script
+ * Check if lisa CLI is available
  */
-export function getMemorySkillPath(cwd: string = process.cwd()): string {
-  return path.join(cwd, '.lisa/skills/memory/scripts/memory.js');
-}
-
-/**
- * Get the path to the prompt skill script
- */
-export function getPromptSkillPath(cwd: string = process.cwd()): string {
-  return path.join(cwd, '.lisa/skills/prompt/scripts/prompt.js');
-}
-
-/**
- * Check if a skill script exists
- */
-export function skillExists(skillPath: string): boolean {
-  return fs.existsSync(skillPath);
+export function isLisaAvailable(): boolean {
+  try {
+    execSync('lisa --version', { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // =============================================================================
@@ -137,8 +128,8 @@ export function getGraphitiEndpoint(cwd: string = process.cwd()): string {
     return process.env.GRAPHITI_ENDPOINT;
   }
 
-  // Try to read from .env file
-  const envPath = path.join(cwd, '.lisa', 'skills', '.env');
+  // Try to read from .lisa/.env file
+  const envPath = path.join(cwd, '.lisa', '.env');
   try {
     if (fs.existsSync(envPath)) {
       const raw = fs.readFileSync(envPath, 'utf8');
@@ -157,11 +148,11 @@ export function getGraphitiEndpoint(cwd: string = process.cwd()): string {
 }
 
 // =============================================================================
-// Memory Writing (via memory skill)
+// Memory Writing (via lisa CLI)
 // =============================================================================
 
 /**
- * Write a memory to Graphiti via the memory skill (blocking)
+ * Write a memory to Graphiti via the lisa CLI (blocking)
  *
  * @param options - Write options
  * @returns Result of the write operation
@@ -177,10 +168,8 @@ export async function writeMemory(options: IMemoryWriteOptions): Promise<IGraphi
     cache = true,
   } = options;
 
-  const memoryScript = getMemorySkillPath(cwd);
-
-  if (!skillExists(memoryScript)) {
-    return { status: 'error', error: 'Memory skill not found' };
+  if (!isLisaAvailable()) {
+    return { status: 'error', error: 'Lisa CLI not found' };
   }
 
   return new Promise((resolve) => {
@@ -192,8 +181,8 @@ export async function writeMemory(options: IMemoryWriteOptions): Promise<IGraphi
       resolve(result);
     };
 
-    // Build arguments
-    const args = [memoryScript, 'add', fact, '--group', group];
+    // Build arguments for lisa memory add
+    const args = ['memory', 'add', fact, '--group', group];
 
     for (const tag of tags) {
       args.push('--tag', tag);
@@ -207,9 +196,10 @@ export async function writeMemory(options: IMemoryWriteOptions): Promise<IGraphi
       args.push('--cache');
     }
 
-    const child = spawn('node', args, {
+    const child = spawn('lisa', args, {
       stdio: ['ignore', 'pipe', 'pipe'],
       cwd,
+      shell: true,
     });
 
     let stdout = '';
@@ -284,15 +274,13 @@ export function writeMemoryAsync(options: IMemoryWriteOptions): void {
     cache = true,
   } = options;
 
-  const memoryScript = getMemorySkillPath(cwd);
-
-  if (!skillExists(memoryScript)) {
+  if (!isLisaAvailable()) {
     return; // Silently skip
   }
 
   try {
-    // Build arguments
-    const args = [memoryScript, 'add', fact, '--group', group];
+    // Build arguments for lisa memory add
+    const args = ['memory', 'add', fact, '--group', group];
 
     for (const tag of tags) {
       args.push('--tag', tag);
@@ -306,10 +294,11 @@ export function writeMemoryAsync(options: IMemoryWriteOptions): void {
       args.push('--cache');
     }
 
-    const child = spawn('node', args, {
+    const child = spawn('lisa', args, {
       cwd,
       detached: true,
       stdio: 'ignore',
+      shell: true,
     });
 
     child.unref();
@@ -319,11 +308,11 @@ export function writeMemoryAsync(options: IMemoryWriteOptions): void {
 }
 
 // =============================================================================
-// Prompt Writing (via prompt skill)
+// Prompt Writing (via lisa CLI)
 // =============================================================================
 
 /**
- * Write a prompt to Graphiti via the prompt skill (blocking)
+ * Write a prompt to Graphiti via the lisa CLI (blocking)
  *
  * @param options - Write options
  * @returns Result of the write operation
@@ -337,10 +326,8 @@ export async function writePrompt(options: IPromptWriteOptions): Promise<IGraphi
     timeoutMs = DEFAULT_TIMEOUT_MS,
   } = options;
 
-  const promptScript = getPromptSkillPath(cwd);
-
-  if (!skillExists(promptScript)) {
-    return { status: 'error', error: 'Prompt skill not found' };
+  if (!isLisaAvailable()) {
+    return { status: 'error', error: 'Lisa CLI not found' };
   }
 
   // Check availability first
@@ -359,14 +346,14 @@ export async function writePrompt(options: IPromptWriteOptions): Promise<IGraphi
       resolve(result);
     };
 
-    const child = spawn(
-      'node',
-      [promptScript, '--text', text, '--role', role, '--source', source],
-      {
-        cwd,
-        stdio: ['ignore', 'pipe', 'pipe'],
-      }
-    );
+    // Build arguments for lisa prompt add
+    const args = ['prompt', 'add', '--text', text, '--role', role, '--source', source];
+
+    const child = spawn('lisa', args, {
+      cwd,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: true,
+    });
 
     let stdout = '';
     let stderr = '';
@@ -431,22 +418,20 @@ export function writePromptAsync(options: IPromptWriteOptions): void {
     cwd = process.cwd(),
   } = options;
 
-  const promptScript = getPromptSkillPath(cwd);
-
-  if (!skillExists(promptScript)) {
+  if (!isLisaAvailable()) {
     return; // Silently skip
   }
 
   try {
-    const child = spawn(
-      'node',
-      [promptScript, '--text', text, '--role', role, '--source', source],
-      {
-        cwd,
-        detached: true,
-        stdio: 'ignore',
-      }
-    );
+    // Build arguments for lisa prompt add
+    const args = ['prompt', 'add', '--text', text, '--role', role, '--source', source];
+
+    const child = spawn('lisa', args, {
+      cwd,
+      detached: true,
+      stdio: 'ignore',
+      shell: true,
+    });
 
     child.unref();
   } catch {

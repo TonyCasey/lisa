@@ -10,14 +10,14 @@
 
 After a commit succeeds, run:
 ```bash
-node .lisa/skills/memory/scripts/memory.js add "<summary>" --cache --type milestone
+lisa memory add "<summary>" --cache --type milestone
 ```
 
 ### Step 2: Update Task Status (for tickets)
 
 If the commit completes ticket (JIRA-1234), also run:
 ```bash
-node .lisa/skills/tasks/scripts/tasks.js add "JIRA-1234: COMPLETED - <description>" --cache --status done
+lisa tasks add "JIRA-1234: COMPLETED - <description>" --cache --status done
 ```
 
 ### Summary Format
@@ -32,20 +32,20 @@ The summary should be concise and describe:
 **Feature commit (with Jira ticket):**
 ```bash
 # Step 1: Save milestone
-node .lisa/skills/memory/scripts/memory.js add "FEATURE: [JIRA-1234] Added Excel brandlist parser with unit tests" --cache --type milestone
+lisa memory add "FEATURE: [JIRA-1234] Added Excel brandlist parser with unit tests" --cache --type milestone
 
 # Step 2: Update task status
-node .lisa/skills/tasks/scripts/tasks.js add "JIRA-1234: COMPLETED - Excel brandlist parser utility created, PR #XXXX" --cache --status done
+lisa tasks add "JIRA-1234: COMPLETED - Excel brandlist parser utility created, PR #XXXX" --cache --status done
 ```
 
 **Bug fix:**
 ```bash
-node .lisa/skills/memory/scripts/memory.js add "FIX: Resolved race condition in database connection pooling" --cache --type milestone
+lisa memory add "FIX: Resolved race condition in database connection pooling" --cache --type milestone
 ```
 
 **Refactor:**
 ```bash
-node .lisa/skills/memory/scripts/memory.js add "REFACTOR: Migrated API handlers to use clean architecture pattern" --cache --type milestone
+lisa memory add "REFACTOR: Migrated API handlers to use clean architecture pattern" --cache --type milestone
 ```
 
 ### Why This Matters

@@ -197,9 +197,9 @@ Common issues and solutions when using Lisa.
 
 **Solutions:**
 
-1. Run script directly to see error:
+1. Run CLI directly to see error:
    ```bash
-   node .lisa/skills/memory/scripts/memory.js load
+   lisa memory load
    ```
 
 2. Check Node.js version (18+ required)
@@ -226,10 +226,10 @@ For Claude Code, hook output appears in the conversation. For OpenCode, check th
 
 ```bash
 # Test memory skill
-node .lisa/skills/memory/scripts/memory.js load --limit 5
+lisa memory load --limit 5
 
 # Test with debug output
-LOG_LEVEL=debug node .lisa/skills/memory/scripts/memory.js load
+LOG_LEVEL=debug lisa memory load
 ```
 
 ## Reset Everything
