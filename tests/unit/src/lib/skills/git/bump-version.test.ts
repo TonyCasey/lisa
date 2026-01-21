@@ -225,16 +225,17 @@ describe('bump-version script', () => {
 
       assert.strictEqual(result.exitCode, 0);
 
-      let parsed;
+      let parsed: Record<string, unknown> | undefined;
       assert.doesNotThrow(() => {
-        parsed = JSON.parse(result.stdout);
+        parsed = JSON.parse(result.stdout) as Record<string, unknown>;
       }, 'stdout should be valid JSON');
 
-      assert.ok(parsed.status, 'Should have status field');
-      assert.ok(parsed.bumpType, 'Should have bumpType field');
-      assert.ok(parsed.oldVersion, 'Should have oldVersion field');
-      assert.ok(parsed.newVersion, 'Should have newVersion field');
-      assert.ok(parsed.file, 'Should have file field');
+      assert.ok(parsed, 'Should have parsed result');
+      assert.ok(parsed!.status, 'Should have status field');
+      assert.ok(parsed!.bumpType, 'Should have bumpType field');
+      assert.ok(parsed!.oldVersion, 'Should have oldVersion field');
+      assert.ok(parsed!.newVersion, 'Should have newVersion field');
+      assert.ok(parsed!.file, 'Should have file field');
     });
 
     it('should output human-readable message to stderr', async () => {
