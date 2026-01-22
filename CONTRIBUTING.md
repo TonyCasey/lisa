@@ -36,22 +36,29 @@ lisa/
 │   ├── lib/                  # Core library code
 │   │   ├── cli.ts            # Main CLI entry point
 │   │   ├── services.ts       # Service factory with DI
+│   │   ├── application/
+│   │   │   └── handlers/
+│   │   │       └── hooks/    # Hook handlers (SessionStart, SessionStop, etc.)
+│   │   ├── skills/           # Skill implementations (memory, tasks, etc.)
 │   │   └── scanner/          # Multi-project scanner
 │   └── project/              # Source for deployed assets
-│       ├── .lisa/            # Skills, rules, docker config
-│       ├── .claude/          # Claude Code hooks
-│       └── .opencode/        # OpenCode plugin
+│       ├── .lisa/            # Skills (SKILL.md files), rules, docker config
+│       └── .opencode/        # OpenCode plugin source
 │
 ├── dist/                     # Compiled output (generated)
-│   ├── lib/                  # Compiled library
-│   └── project/              # Compiled deployables
+│   ├── lib/                  # Compiled library (CLI, handlers, skills)
+│   ├── opencode/             # Bundled OpenCode plugin
+│   └── project/              # Compiled SKILL.md files and rules
 │
 ├── .lisa/                    # Deployed skills & rules (generated)
-├── .claude/                  # Deployed Claude hooks (generated)
+├── .claude/                  # Claude Code config (generated)
+│   ├── settings.json         # Hook commands registered here
+│   ├── skills/lisa/          # Symlink to .lisa/skills
+│   └── rules/lisa/           # Symlink to .lisa/rules
 ├── .opencode/                # Deployed OpenCode plugin (generated)
 │
 ├── scripts/                  # Build scripts
-│   ├── bundle-hooks.js       # Bundle hooks with dependencies
+│   ├── bundle-opencode.js    # Bundle OpenCode plugin
 │   ├── deploy-lisa.js        # Deploy to .lisa/, .claude/, .opencode/
 │   └── prepare-dist-package.js
 │
@@ -70,15 +77,21 @@ When you run `npm run build`, these stages execute:
 1. **TypeScript Compilation** (`tsc`)
    - Compiles `src/**/*.ts` to `dist/**/*.js`
 
-2. **Hook Bundling** (`bundle-hooks.js`)
-   - Bundles hooks with their dependencies into standalone scripts
+2. **Template Copy** (`postbuild-copy-templates.js`)
+   - Copies non-TypeScript files (SKILL.md, rules, docker config) to dist
 
 3. **Package Preparation** (`prepare-dist-package.js`)
    - Creates optimized `dist/package.json` for npm publishing
 
-4. **Local Deployment** (`deploy-lisa.js`)
+4. **OpenCode Bundling** (`bundle-opencode.js`)
+   - Bundles OpenCode plugin with dependencies via esbuild
+
+5. **Local Deployment** (`deploy-lisa.js`)
    - Deploys `dist/project/` to `.lisa/`, `.claude/`, `.opencode/`
-   - Creates symlinks from `.claude/` to `.lisa/`
+   - Creates subdirectory symlinks (e.g., `.claude/skills/lisa/` -> `../../.lisa/skills`)
+   - Merges hook configuration into `.claude/settings.json`
+
+**Note:** Claude Code hooks are now invoked via `lisa hook <event>` CLI commands, not bundled JS files. Hook logic lives in `src/lib/application/handlers/hooks/`.
 
 ## Common Tasks
 
@@ -128,12 +141,32 @@ src/project/.lisa/skills/my-skill/
 
 ### Adding a Hook
 
-**For Claude Code:**
+Claude Code hooks are now implemented as CLI command handlers:
+
 ```
-src/project/.claude/hooks/<hook-name>.ts
+src/lib/application/handlers/hooks/<HookName>Handler.ts
 ```
 
-Shared utilities go in `src/project/.claude/hooks/utils/`.
+1. Create a handler class implementing the hook logic
+2. Add the command to `src/lib/cli.ts` under the `hook` command group
+3. Register the hook in `.claude/settings.json` via `deploy-lisa.js`
+
+Example handler structure:
+```typescript
+export class MyHookHandler {
+  async execute(
+    stdin: Readable,
+    stdout: Writable,
+    stderr: Writable
+  ): Promise<void> {
+    const input = await readJsonStdin(stdin);
+    // Process input...
+    await writeJsonStdout(output, stdout);
+  }
+}
+```
+
+Shared utilities go in `src/lib/application/handlers/hooks/utils.ts`.
 
 ### Adding Rules
 

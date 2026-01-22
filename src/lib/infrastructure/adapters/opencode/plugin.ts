@@ -1,15 +1,20 @@
 /**
  * Lisa Plugin for OpenCode
  * 
- * This is a thin adapter that delegates to shared handlers.
- * It translates OpenCode's event system to Lisa's domain events.
+ * This is a thin adapter that delegates to shared handlers via mediator.
+ * It translates OpenCode's event system to Lisa's requests.
  */
 
-import { createServices } from '../../di';
-import { SessionStartHandler, SessionStopHandler, PromptSubmitHandler } from '../../../application/handlers';
-import { toISOTimestamp, createSessionStartEvent, createSessionStopEvent, createPromptSubmitEvent, PermissionMode } from '../../../domain';
+import { bootstrapContainer, TOKENS } from '../../di';
+import type { IMediator } from '../../../application/mediator';
+import {
+  SessionStartRequest,
+  SessionStopRequest,
+  PromptSubmitRequest,
+} from '../../../application/mediator/requests';
+import { toISOTimestamp, PermissionMode } from '../../../domain';
 import { OpenCodeEventNames, OpenCodeEventToTrigger } from './opencode-events';
-import type { SessionTrigger } from '../../../domain';
+import type { SessionTrigger, SessionStopReason } from '../../../domain';
 
 /**
  * OpenCode Session type (subset of fields we care about)
@@ -53,21 +58,16 @@ type EventHandler = (input?: unknown, output?: ICompactionOutput) => Promise<voi
  * Plugin factory function called by OpenCode on load.
  */
 export async function LisaPlugin(ctx: IOpenCodePluginContext): Promise<Record<string, EventHandler>> {
-  const { directory, worktree, client } = ctx;
+  const { directory, client } = ctx;
 
-  // Create services with OpenCode context
-  // Disable pino logging to avoid worker thread issues in bundled plugins
-  const services = await createServices({
+  // Bootstrap container with DI
+  const { container } = await bootstrapContainer({
     projectRoot: directory,
-    gitWorktree: worktree,
-    source: 'opencode',
     disableLogging: true,
   });
 
-  // Create handlers
-  const sessionStartHandler = new SessionStartHandler(services);
-  const sessionStopHandler = new SessionStopHandler(services);
-  const promptSubmitHandler = new PromptSubmitHandler(services);
+  // Resolve mediator (singleton - will be reused for all events)
+  const mediator = await container.resolve<IMediator>(TOKENS.Mediator);
 
   // Helper to log messages
   const log = async (level: 'info' | 'warn' | 'error', message: string): Promise<void> => {
@@ -77,8 +77,8 @@ export async function LisaPlugin(ctx: IOpenCodePluginContext): Promise<Record<st
   // Helper to handle session start events
   const handleSessionStart = async (trigger: SessionTrigger): Promise<void> => {
     try {
-      const event = createSessionStartEvent(trigger, toISOTimestamp());
-      const result = await sessionStartHandler.handle(event);
+      const request = new SessionStartRequest(trigger, toISOTimestamp());
+      const result = await mediator.send(request);
       await log('info', result.message);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -118,8 +118,8 @@ export async function LisaPlugin(ctx: IOpenCodePluginContext): Promise<Record<st
     [OpenCodeEventNames.SESSION_COMPACTING]: async (_input: unknown, output?: ICompactionOutput) => {
       try {
         const trigger = OpenCodeEventToTrigger[OpenCodeEventNames.SESSION_COMPACTING] as SessionTrigger;
-        const event = createSessionStartEvent(trigger, toISOTimestamp());
-        const result = await sessionStartHandler.handle(event);
+        const request = new SessionStartRequest(trigger, toISOTimestamp());
+        const result = await mediator.send(request);
 
         if (result.contextContent && output) {
           output.context.push(result.contextContent);
@@ -137,8 +137,8 @@ export async function LisaPlugin(ctx: IOpenCodePluginContext): Promise<Record<st
      */
     [OpenCodeEventNames.SESSION_IDLE]: async () => {
       try {
-        const event = createSessionStopEvent('idle', toISOTimestamp());
-        await sessionStopHandler.handle(event);
+        const request = new SessionStopRequest('idle' as SessionStopReason, toISOTimestamp());
+        await mediator.send(request);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         await log('error', `Session capture failed: ${message}`);
@@ -172,8 +172,8 @@ export async function LisaPlugin(ctx: IOpenCodePluginContext): Promise<Record<st
             }
           }
 
-          const event = createPromptSubmitEvent(msg.content, toISOTimestamp(), msg.sessionId, permissionMode);
-          const result = await promptSubmitHandler.handle(event);
+          const request = new PromptSubmitRequest(msg.content, toISOTimestamp(), msg.sessionId, permissionMode);
+          const result = await mediator.send(request);
 
           // Output recursion results (OpenCode captures stdout for context)
           if (result.recursion?.hasContext) {

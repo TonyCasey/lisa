@@ -52,9 +52,16 @@ lisa init --isolated
 
 - `.lisa/` - Skills, rules, and configuration
 - `.lisa/.env` - Environment configuration (created on first init only)
-- `.claude/` - Claude Code hooks (if selected)
+- `.claude/` - Claude Code configuration (if selected)
+  - `settings.json` - Hook commands registered here
+  - `skills/lisa/` - Symlink to `.lisa/skills`
+  - `rules/lisa/` - Symlink to `.lisa/rules`
 - `.opencode/` - OpenCode plugin (if selected)
+  - `plugin/lisa.js` - Bundled plugin
+  - `skills/` - Individual skill symlinks
 - `docker-compose.graphiti.yml` - Docker stack (if local mode)
+
+**Note:** Lisa uses subdirectory symlinks to preserve any existing user files in `.claude/` or `.opencode/`.
 
 ---
 
@@ -176,6 +183,62 @@ Show Lisa version.
 ```bash
 lisa --version
 lisa -V
+```
+
+---
+
+## lisa hook
+
+Hook commands invoked by Claude Code during session lifecycle events. These are registered in `.claude/settings.json` and called automatically.
+
+```bash
+lisa hook <event>
+```
+
+### Subcommands
+
+| Command | Description |
+|---------|-------------|
+| `lisa hook session-start` | Load memory context at session start |
+| `lisa hook session-stop` | Capture work when session stops |
+| `lisa hook user-prompt-submit` | Process user prompts |
+
+### How Hooks Work
+
+Hooks are registered in `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "SessionStart": [{
+      "hooks": [{ "type": "command", "command": "lisa hook session-start" }]
+    }],
+    "Stop": [{
+      "hooks": [{ "type": "command", "command": "lisa hook session-stop" }]
+    }],
+    "UserPromptSubmit": [{
+      "hooks": [{ "type": "command", "command": "lisa hook user-prompt-submit" }]
+    }]
+  }
+}
+```
+
+Claude Code invokes these commands at the appropriate lifecycle events. The hooks:
+- Read JSON from stdin (event context)
+- Output JSON to stdout (context for Claude)
+- Write status messages to stderr (visible to user)
+
+### Manual Testing
+
+```bash
+# Test session-start hook
+echo '{"source":"startup"}' | lisa hook session-start
+
+# Test with resume trigger
+echo '{"source":"resume"}' | lisa hook session-start
+
+# Test session-stop hook
+echo '{"session_id":"test"}' | lisa hook session-stop
 ```
 
 ---

@@ -1,39 +1,85 @@
-import type { IPromptSubmitEvent, ILisaServices, IRecursionResult } from '../../domain';
-
-/**
- * Result from handling a prompt submit event.
- */
-export interface IPromptSubmitResult {
-  /** Recursion result if in plan mode */
-  readonly recursion?: IRecursionResult;
-}
+import type {
+  ILisaServices,
+  ILisaContext,
+  IMemoryService,
+  IRecursionService,
+  IRecursionResult,
+  ILogger,
+} from '../../domain';
+import type { IRequestHandler } from '../mediator';
+import { PromptSubmitRequest } from '../mediator/requests';
+import type { IPromptSubmitResult } from '../mediator/requests';
 
 /**
  * Handler for prompt submit events.
  * Records user prompts to memory and runs recursion in plan mode.
+ *
+ * Implements IRequestHandler for use with the Mediator pattern.
  */
-export class PromptSubmitHandler {
-  constructor(private readonly services: ILisaServices) {}
+export class PromptSubmitHandler implements IRequestHandler<PromptSubmitRequest, IPromptSubmitResult> {
+  private readonly context: ILisaContext;
+  private readonly memory: IMemoryService;
+  private readonly recursion?: IRecursionService;
+  private readonly logger?: ILogger;
 
   /**
-   * Handle a prompt submit event.
+   * Create a new PromptSubmitHandler.
+   *
+   * @param services - Lisa services (legacy constructor for backward compatibility)
+   */
+  constructor(services: ILisaServices);
+
+  /**
+   * Create a new PromptSubmitHandler with individual service injection.
+   */
+  constructor(
+    context: ILisaContext,
+    memory: IMemoryService,
+    recursion?: IRecursionService,
+    logger?: ILogger
+  );
+
+  constructor(
+    contextOrServices: ILisaContext | ILisaServices,
+    memory?: IMemoryService,
+    recursion?: IRecursionService,
+    logger?: ILogger
+  ) {
+    if ('context' in contextOrServices && 'memory' in contextOrServices) {
+      const services = contextOrServices as ILisaServices;
+      this.context = services.context;
+      this.memory = services.memory;
+      this.recursion = services.recursion;
+      this.logger = services.logger;
+    } else {
+      this.context = contextOrServices as ILisaContext;
+      this.memory = memory!;
+      this.recursion = recursion;
+      this.logger = logger;
+    }
+  }
+
+  /**
+   * Handle a prompt submit request.
    * - Adds the prompt to memory for context
    * - Runs memory recursion if in plan mode
    */
-  async handle(event: IPromptSubmitEvent): Promise<IPromptSubmitResult> {
-    const { context, memory, recursion } = this.services;
-    const result: IPromptSubmitResult = {};
+  async handle(request: PromptSubmitRequest): Promise<IPromptSubmitResult> {
+    let planModeRecursion = false;
+    let additionalContext: string | undefined;
+    let recursionResult: IRecursionResult | undefined;
 
     // Run memory recursion in plan mode
-    if (recursion && event.permissionMode === 'plan') {
-      if (recursion.shouldRun(event.content, event.permissionMode)) {
+    if (this.recursion && request.permissionMode === 'plan') {
+      if (this.recursion.shouldRun(request.content, request.permissionMode)) {
         try {
-          const recursionResult = await recursion.run(
-            event.content,
-            context.hierarchicalGroupIds
+          recursionResult = await this.recursion.run(
+            request.content,
+            this.context.hierarchicalGroupIds
           );
           if (recursionResult.hasContext) {
-            (result as { recursion: IRecursionResult }).recursion = recursionResult;
+            planModeRecursion = true;
+            additionalContext = recursionResult.summary;
           }
         } catch {
           // Silently ignore recursion errors
@@ -42,20 +88,27 @@ export class PromptSubmitHandler {
     }
 
     // Truncate long prompts
-    const truncatedContent = this.truncate(event.content, 200);
+    const truncatedContent = this.truncate(request.content, 200);
 
     // Add to memory (fire-and-forget style - don't block on errors)
     try {
-      await memory.addFact(
-        context.groupId,
-        `User prompt at ${event.timestamp}: ${truncatedContent}`,
+      await this.memory.addFact(
+        this.context.groupId,
+        `User prompt at ${request.timestamp}: ${truncatedContent}`,
         ['type:prompt']
       );
     } catch {
       // Silently ignore errors - don't block user experience
     }
 
-    return result;
+    return {
+      content: request.content,
+      blocked: false,
+      planModeRecursion,
+      additionalContext,
+      // Deprecated: include for backward compatibility
+      recursion: recursionResult,
+    };
   }
 
   /**

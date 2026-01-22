@@ -10,7 +10,8 @@ export interface ISessionCaptureService {
    * May spawn a background worker for async processing.
    * 
    * @param sessionId - Optional session ID
+   * @param transcriptPath - Optional explicit transcript path
    * @returns Captured work including facts and complexity assessment
    */
-  captureSessionWork(sessionId?: string): Promise<ICapturedWork>;
+  captureSessionWork(sessionId?: string, transcriptPath?: string): Promise<ICapturedWork>;
 }

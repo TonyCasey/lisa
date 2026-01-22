@@ -58,10 +58,8 @@ check "memory skill exists" "[ -f .lisa/skills/memory/SKILL.md ]"
 check "tasks skill exists" "[ -f .lisa/skills/tasks/SKILL.md ]"
 check "lisa skill exists" "[ -f .lisa/skills/lisa/SKILL.md ]"
 
-# 4. Lisa CLI is available
-check "Lisa CLI available" "command -v lisa >/dev/null 2>&1"
-
-# 5. Configuration file created
+# 4. Lisa hook commands available
+check "lisa hook command available" "$LISA_BIN hook --help"
 
 # =============================================================================
 # Claude Code Tests (if mode is 'both' or 'claude-only')
@@ -73,19 +71,19 @@ if [ "$CLI_MODE" = "both" ] || [ "$CLI_MODE" = "claude-only" ]; then
     
     # .claude/ folder structure
     check ".claude/ folder exists" "[ -d .claude ]"
-    check ".claude/hooks/ exists" "[ -d .claude/hooks ]"
     
-    # Hooks files present
-    check "session-start hook exists" "[ -f .claude/hooks/session-start.js ] || [ -f .claude/hooks/session-start.cjs ]"
-    check "session-stop hook exists" "[ -f .claude/hooks/session-stop.js ] || [ -f .claude/hooks/session-stop.cjs ]"
-    check "user-prompt-submit hook exists" "[ -f .claude/hooks/user-prompt-submit.js ] || [ -f .claude/hooks/user-prompt-submit.cjs ]"
+    # settings.json with hook configuration (new architecture - CLI commands)
+    check ".claude/settings.json exists" "[ -f .claude/settings.json ]"
+    check "settings.json has SessionStart hook" "grep -q 'lisa hook session-start' .claude/settings.json"
+    check "settings.json has Stop hook" "grep -q 'lisa hook session-stop' .claude/settings.json"
+    check "settings.json has UserPromptSubmit hook" "grep -q 'lisa hook user-prompt-submit' .claude/settings.json"
     
-    # Symlinks to shared resources
-    check ".claude/skills symlink exists" "[ -L .claude/skills ] || [ -d .claude/skills ]"
-    check ".claude/rules symlink exists" "[ -L .claude/rules ] || [ -d .claude/rules ]"
+    # Subdirectory symlinks to shared resources (zero-impact structure)
+    check ".claude/skills/lisa exists" "[ -L .claude/skills/lisa ] || [ -d .claude/skills/lisa ]"
+    check ".claude/rules/lisa exists" "[ -L .claude/rules/lisa ] || [ -d .claude/rules/lisa ]"
     
-    # config.js (settings.json is no longer used with bundled hooks)
-    check "Claude config.js exists" "[ -f .claude/config.js ]"
+    # Verify symlinks resolve correctly
+    check ".claude/skills/lisa/memory accessible" "[ -f .claude/skills/lisa/memory/SKILL.md ]"
 fi
 
 # =============================================================================
@@ -102,21 +100,13 @@ if [ "$CLI_MODE" = "both" ] || [ "$CLI_MODE" = "opencode-only" ]; then
     # Plugin exists
     check "OpenCode plugin exists" "[ -f .opencode/plugin/lisa.js ]"
     
-    # Symlinks to shared resources
-    check ".opencode/skills symlink exists" "[ -L .opencode/skills ] || [ -d .opencode/skills ]"
-fi
-
-# =============================================================================
-# CLI Selection Verification
-# =============================================================================
-
-echo ""
-echo "=== CLI Configuration ==="
-
-    if [ "$CLI_MODE" = "both" ]; then
-    elif [ "$CLI_MODE" = "claude-only" ]; then
-    elif [ "$CLI_MODE" = "opencode-only" ]; then
-    fi
+    # Individual skill symlinks (OpenCode expects skills/<skill>/SKILL.md)
+    check ".opencode/skills/memory exists" "[ -L .opencode/skills/memory ] || [ -d .opencode/skills/memory ]"
+    check ".opencode/skills/lisa exists" "[ -L .opencode/skills/lisa ] || [ -d .opencode/skills/lisa ]"
+    check ".opencode/skills/tasks exists" "[ -L .opencode/skills/tasks ] || [ -d .opencode/skills/tasks ]"
+    
+    # Verify symlinks resolve correctly
+    check ".opencode/skills/lisa/SKILL.md accessible" "[ -f .opencode/skills/lisa/SKILL.md ]"
 fi
 
 # =============================================================================

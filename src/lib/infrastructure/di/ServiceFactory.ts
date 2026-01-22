@@ -67,6 +67,8 @@ function getDefaultApiKey(): string | undefined {
 
 /**
  * Create Lisa services with dependency injection.
+ *
+ * @deprecated Use bootstrapContainer() instead for proper DI with lifetime management.
  */
 export async function createServices(config: IServiceConfig = {}): Promise<ILisaServices> {
   const projectRoot = config.projectRoot || process.cwd();
@@ -135,6 +137,8 @@ export async function createServices(config: IServiceConfig = {}): Promise<ILisa
  * 
  * Use this when you need explicit control over connection lifecycle,
  * e.g., in scripts or CLI commands that should clean up on exit.
+ *
+ * @deprecated Use bootstrapContainer() instead for proper DI with lifetime management.
  */
 export async function createServicesWithCleanup(config: IServiceConfig = {}): Promise<IServicesWithCleanup> {
   const projectRoot = config.projectRoot || process.cwd();
