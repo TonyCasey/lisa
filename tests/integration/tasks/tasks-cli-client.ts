@@ -269,17 +269,21 @@ export async function runTasksSmokeSuite(options: {
   taskFound: boolean;
   isolationLeaked: boolean;
 }> {
-  const uniqueMarker = `task-smoke-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const uniqueMarker = `smoke-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
-  // Add task
-  const addResponse = await addTask(`Task smoke test: ${uniqueMarker}`, {
-    endpoint: options.endpoint,
-    groupId: options.groupId,
-    status: 'todo',
-  });
+  // Add task with meaningful content for LLM fact extraction
+  const addResponse = await addTask(
+    `Implement database migration for feature ${uniqueMarker}`,
+    {
+      endpoint: options.endpoint,
+      groupId: options.groupId,
+      status: 'todo',
+    }
+  );
 
-  // Wait for eventual consistency
-  await delay(2000);
+  // Wait for eventual consistency (Graphiti processes asynchronously)
+  // LLM fact extraction takes time
+  await delay(10000);
 
   // List from primary group
   const listResponse = await listTasks({
@@ -288,7 +292,7 @@ export async function runTasksSmokeSuite(options: {
     limit: 25,
   });
 
-  // Check if task was found
+  // Check if task was found (look for the unique marker in extracted facts)
   const taskFound = listResponse.tasks.some((task) =>
     task.title.includes(uniqueMarker)
   );
