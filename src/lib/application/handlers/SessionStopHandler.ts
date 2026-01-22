@@ -71,7 +71,10 @@ export class SessionStopHandler implements IRequestHandler<SessionStopRequest, I
    */
   async handle(request: SessionStopRequest): Promise<ISessionStopResult> {
     // Delegate fact capture to dedicated service
-    const captured = await this.sessionCapture.captureSessionWork(request.sessionId);
+    const captured = await this.sessionCapture.captureSessionWork(
+      request.sessionId,
+      request.transcriptPath
+    );
 
     if (captured.facts.length === 0) {
       return {

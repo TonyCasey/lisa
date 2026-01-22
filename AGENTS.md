@@ -295,6 +295,25 @@ export class Service implements IService {
 }
 ```
 
+### Architectural Constraints
+
+#### Single Source of Truth for Handlers
+- **All event handlers** live in `src/lib/application/handlers/`
+- **NEVER** create parallel implementations (e.g., `hooks/` folder with duplicate handlers)
+- CLI commands, plugins, and adapters MUST use canonical handlers via DI/Mediator
+- If a handler needs CLI-specific I/O, add utilities to `src/lib/infrastructure/cli/`
+
+#### Why This Matters
+We previously had duplicate handlers in a `hooks/` folder that bypassed Clean Architecture.
+This led to feature drift, double maintenance, and inconsistent behavior between CLI and plugins.
+See `docs/adr/ADR-001-single-handler-pattern.md` for the full decision record.
+
+#### Enforcement
+This constraint is enforced by:
+1. `tests/architecture/handler-locations.test.ts` - Fails if handlers exist outside canonical locations
+2. Pre-commit hook checking for forbidden patterns
+3. This documentation for AI coding assistants
+
 ### File Organization
 - **One interface per file** (except small related types)
 - **Index files** for clean imports in directories

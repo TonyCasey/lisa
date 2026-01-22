@@ -54,7 +54,8 @@
     "test:install:full": "cd tests/e2e/installation/docker && docker compose --env-file ../../../../.env -f docker-compose.test.yml up --build",
     "test:install:full:claude": "cd tests/e2e/installation/docker && CLI_MODE=claude-only docker compose --env-file ../../../../.env -f docker-compose.test.yml up --build",
     "test:install:full:opencode": "cd tests/e2e/installation/docker && CLI_MODE=opencode-only docker compose --env-file ../../../../.env -f docker-compose.test.yml up --build",
-    "test:install:clean": "cd tests/e2e/installation/docker && docker compose down -v && docker compose -f docker-compose.test.yml down -v"
+    "test:install:clean": "cd tests/e2e/installation/docker && docker compose down -v && docker compose -f docker-compose.test.yml down -v",
+    "test:architecture": "node --import tsx --test tests/architecture/**/*.test.ts"
   },
   "keywords": [
     "claude",

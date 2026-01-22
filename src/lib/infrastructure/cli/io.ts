@@ -120,7 +120,16 @@ export async function writeStatus(
  * @param source - The source field from hook input
  * @param sessionType - The session_type field from hook input
  */
-export function parseTrigger(source?: string, sessionType?: string): SessionTrigger {
+export function parseTrigger(
+  source?: string,
+  sessionType?: string,
+  trigger?: string
+): SessionTrigger {
+  // Prefer explicit trigger field when provided
+  if (trigger === 'startup' || trigger === 'resume' || trigger === 'compact' || trigger === 'clear') {
+    return trigger;
+  }
+
   // Direct source mapping
   if (source === 'startup' || source === 'resume' || source === 'compact' || source === 'clear') {
     return source;
@@ -143,6 +152,7 @@ export function parseTrigger(source?: string, sessionType?: string): SessionTrig
  */
 export interface ISessionStartInput {
   source?: string;
+  trigger?: string;
   session_type?: string;
   cwd?: string;
   session_id?: string;

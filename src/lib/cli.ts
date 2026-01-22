@@ -1338,7 +1338,7 @@ hookCmd
     try {
       // Read input from Claude Code
       const input = await readJsonFromStdin<ISessionStartInput>();
-      const trigger = parseTrigger(input.source, input.session_type);
+      const trigger = parseTrigger(input.source, input.session_type, input.trigger);
 
       // Bootstrap container and resolve mediator
       const bootstrap = await bootstrapContainer({
