@@ -264,8 +264,8 @@ check "lisa skill exists" "[ -f .lisa/skills/lisa/SKILL.md ]"
 check "session-start hook exists" "[ -f .claude/hooks/session-start.js ] || [ -f .claude/hooks/session-start.cjs ]"
 check "user-prompt-submit hook exists" "[ -f .claude/hooks/user-prompt-submit.js ] || [ -f .claude/hooks/user-prompt-submit.cjs ]"
 
-# 6. Port checking (basic test)
-check "Port utility exists" "[ -f .lisa/skills/memory/scripts/memory.js ] || [ -f .lisa/skills/memory/scripts/memory.cjs ]"
+# 6. Lisa CLI available
+check "Lisa CLI available" "command -v lisa >/dev/null 2>&1"
 
 # Summary
 echo ""
@@ -477,10 +477,10 @@ Test that memory works correctly in each container:
 
 ```bash
 # Add a test memory
-node .lisa/skills/memory/scripts/memory.js add "Docker test memory for $(hostname)" --cache
+lisa memory add "Docker test memory for $(hostname)" --cache
 
 # In a new shell (or new container run), load memories
-node .lisa/skills/memory/scripts/memory.js load --cache
+lisa memory load --cache
 
 # Verify the test memory exists in output
 ```

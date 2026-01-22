@@ -6,6 +6,7 @@
 #   - GRAPHITI_ENDPOINT environment variable set
 #   - GRAPHITI_GROUP_ID environment variable set
 #   - Graphiti MCP server running and healthy
+#   - lisa CLI installed globally
 
 PASS=0
 FAIL=0
@@ -34,22 +35,15 @@ echo "  Group ID: ${GRAPHITI_GROUP_ID:-not set}"
 echo ""
 
 # =============================================================================
-# Find memory script
+# Check lisa CLI is available
 # =============================================================================
 
-MEMORY_SCRIPT=""
-if [ -f .lisa/skills/memory/scripts/memory.js ]; then
-    MEMORY_SCRIPT=".lisa/skills/memory/scripts/memory.js"
-elif [ -f .lisa/skills/memory/scripts/memory.cjs ]; then
-    MEMORY_SCRIPT=".lisa/skills/memory/scripts/memory.cjs"
-fi
-
-if [ -z "$MEMORY_SCRIPT" ]; then
-    echo "ERROR: Memory script not found!"
+if ! command -v lisa &> /dev/null; then
+    echo "ERROR: lisa CLI not found!"
     exit 1
 fi
 
-echo "  Memory script: $MEMORY_SCRIPT"
+echo "  Lisa CLI: $(lisa --version 2>/dev/null || echo 'available')"
 echo ""
 
 # =============================================================================
@@ -59,7 +53,7 @@ echo ""
 echo "=== Test 1: Add Memory ==="
 echo "  Adding: '$TEST_MEMORY'"
 
-ADD_OUTPUT=$(node "$MEMORY_SCRIPT" add "$TEST_MEMORY" 2>&1)
+ADD_OUTPUT=$(lisa memory add "$TEST_MEMORY" 2>&1)
 ADD_EXIT=$?
 
 if [ $ADD_EXIT -eq 0 ]; then
@@ -82,7 +76,7 @@ sleep 3
 echo ""
 echo "=== Test 2: Load Memories ==="
 
-LOAD_OUTPUT=$(node "$MEMORY_SCRIPT" load --limit 50 2>&1)
+LOAD_OUTPUT=$(lisa memory load --limit 50 2>&1)
 LOAD_EXIT=$?
 
 if [ $LOAD_EXIT -eq 0 ]; then
@@ -119,7 +113,7 @@ fi
 echo ""
 echo "=== Test 4: Search Memory ==="
 
-SEARCH_OUTPUT=$(node "$MEMORY_SCRIPT" load --query "Installation test memory" --limit 10 2>&1)
+SEARCH_OUTPUT=$(lisa memory load --query "Installation test memory" --limit 10 2>&1)
 SEARCH_EXIT=$?
 
 if [ $SEARCH_EXIT -eq 0 ] && echo "$SEARCH_OUTPUT" | grep -q "Installation test memory"; then
@@ -143,7 +137,7 @@ ORIGINAL_GROUP="$GRAPHITI_GROUP_ID"
 # Create a temporary different group
 export GRAPHITI_GROUP_ID="isolated-test-group-$TIMESTAMP"
 
-ISOLATED_OUTPUT=$(node "$MEMORY_SCRIPT" load --limit 10 2>&1)
+ISOLATED_OUTPUT=$(lisa memory load --limit 10 2>&1)
 
 # The isolated group should NOT have our test memory
 if echo "$ISOLATED_OUTPUT" | grep -q "Installation test memory $TIMESTAMP"; then

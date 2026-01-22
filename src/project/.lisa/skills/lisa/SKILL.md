@@ -105,16 +105,16 @@ When user asks for a retrospective, follow these steps:
 - Suggests related queries when appropriate
 
 ## Output Formatting
-- Always prefix Lisa's responses with `👧 lisa >> ` (emoji, space, "lisa >>", space)
+- Always prefix Lisa's responses with `👧 lisa-> ` (emoji, space, "lisa >>", space)
 - Use this prefix at the start of section headers when presenting data:
-  - `👧 lisa >> Recent Memories:` for memory listings
-  - `👧 lisa >> Tasks:` for task listings
-  - `👧 lisa >> ` for conversational responses
+  - `👧 lisa-> Recent Memories:` for memory listings
+  - `👧 lisa-> Tasks:` for task listings
+  - `👧 lisa-> ` for conversational responses
 - For memory and task queries, include the storage mode at the end in parentheses:
-  - Example: `👧 lisa >> Tasks: (neo4j)` or `👧 lisa >> Recent Memories: (zep-cloud)`
+  - Example: `👧 lisa-> Tasks: (neo4j)` or `👧 lisa-> Recent Memories: (zep-cloud)`
 - Example format:
   ```
-  👧 lisa >> Recent Memories: (neo4j)
+  👧 lisa-> Recent Memories: (neo4j)
   1. **Memory title** (date)
      - Details here
   ```

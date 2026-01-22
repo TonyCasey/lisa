@@ -36,6 +36,40 @@ async function removeTypeScriptFiles(dir) {
   }));
 }
 
+/**
+ * Remove empty directories recursively (bottom-up)
+ */
+async function removeEmptyDirs(dir) {
+  if (!(await fs.pathExists(dir))) return;
+  
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  
+  // First, recurse into subdirectories
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      await removeEmptyDirs(path.join(dir, entry.name));
+    }
+  }
+  
+  // Re-read after potential subdirectory removal
+  const remaining = await fs.readdir(dir);
+  if (remaining.length === 0) {
+    await fs.remove(dir);
+  }
+}
+
+/**
+ * Remove the hooks/utils directory from dist/project/.claude/hooks/
+ * since hooks are bundled and don't need the utils folder
+ */
+async function removeHooksUtils(projectDir) {
+  const hooksUtilsDir = path.join(projectDir, '.claude', 'hooks', 'utils');
+  if (await fs.pathExists(hooksUtilsDir)) {
+    await fs.remove(hooksUtilsDir);
+    console.log('  Removed hooks/utils (bundled into hooks)');
+  }
+}
+
 async function copyNonTsFiles(src, dest) {
   if (!(await fs.pathExists(src))) return;
   
@@ -54,6 +88,10 @@ async function main() {
     await fs.ensureDir(outDir);
     await removeTypeScriptFiles(outDir);
     await copyNonTsFiles(srcDir, outDir);
+    // Remove hooks/utils since hooks are bundled
+    await removeHooksUtils(outDir);
+    // Clean up any empty directories left behind
+    await removeEmptyDirs(outDir);
     console.log('  Done.');
   }
   

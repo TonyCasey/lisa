@@ -326,35 +326,35 @@ export async function loadMemoryWithTimeout(
 // =============================================================================
 
 /**
- * Load recent facts via the memory skill script (simpler interface)
+ * Load recent facts via the lisa CLI (simpler interface)
  *
  * Used by user-prompt-submit for plan mode context loading.
- * This uses the memory.js script directly rather than RPC calls.
+ * This uses the lisa memory command rather than RPC calls.
  */
 export async function loadMemoryViaScript(
   cwd: string,
   limit: number = 15,
   query?: string
 ): Promise<string | null> {
-  const fs = require('fs');
-  const path = require('path');
-  const { spawn } = require('child_process');
+  const { spawn, execSync } = require('child_process');
 
-  const memoryScript = path.join(cwd, '.lisa/skills/memory/scripts/memory.js');
-
-  if (!fs.existsSync(memoryScript)) {
+  // Check if lisa CLI is available
+  try {
+    execSync('lisa --version', { stdio: 'ignore' });
+  } catch {
     return null;
   }
 
   return new Promise((resolve) => {
-    const args = ['load', '--cache', '--limit', String(limit)];
+    const args = ['memory', 'load', '--cache', '--limit', String(limit)];
     if (query) {
       args.push('--query', query);
     }
 
-    const child = spawn('node', [memoryScript, ...args], {
+    const child = spawn('lisa', args, {
       cwd,
       stdio: ['ignore', 'pipe', 'pipe'],
+      shell: true,
     });
 
     let stdout = '';

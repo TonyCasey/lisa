@@ -32,18 +32,31 @@ const opencodeOutDir = path.resolve(__dirname, '..', 'dist', 'opencode');
 const skillsSrcDir = path.resolve(__dirname, '..', 'src', 'project', '.lisa', 'skills');
 const skillsOutDir = path.resolve(__dirname, '..', 'dist', 'project', '.lisa', 'skills');
 
+// Packages to mark as external (not bundled, must be available at runtime)
+// neo4j-driver has private member access issues when bundled
+const EXTERNAL_PACKAGES = ['neo4j-driver'];
+
 /**
  * Bundle a TypeScript file using esbuild.
+ * 
+ * @param entryPoint - Source .ts file
+ * @param outFile - Output .js file
+ * @param addShebang - Add #!/usr/bin/env node at top
+ * @param external - Additional packages to mark as external
  */
-async function bundleFile(entryPoint, outFile, addShebang = false) {
+async function bundleFile(entryPoint, outFile, addShebang = false, external = []) {
   if (!await fs.pathExists(entryPoint)) {
     console.log(`  Skipping (not found): ${entryPoint}`);
     return false;
   }
 
   try {
+    // Build external flags
+    const allExternal = [...EXTERNAL_PACKAGES, ...external];
+    const externalFlags = allExternal.map(pkg => `--external:${pkg}`).join(' ');
+    
     execSync(
-      `npx esbuild "${entryPoint}" --bundle --platform=node --target=node18 --outfile="${outFile}" --format=cjs`,
+      `npx esbuild "${entryPoint}" --bundle --platform=node --target=node18 --outfile="${outFile}" --format=cjs ${externalFlags}`,
       { stdio: 'inherit' }
     );
 

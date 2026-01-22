@@ -19,7 +19,6 @@ try {
 }
 
 const PROJECT_ROOT = process.cwd();
-const PROMPT_SKILL_PATH = path.join(PROJECT_ROOT, '.lisa/skills/prompt/scripts/prompt.js');
 const DEV_DIR = path.join(PROJECT_ROOT, '.dev');
 
 const MCP_ENDPOINT = env.GRAPHITI_ENDPOINT || process.env.GRAPHITI_ENDPOINT || 'http://localhost:8010/mcp/';
@@ -32,7 +31,6 @@ const isZepCloudMode = () => STORAGE_MODE === 'zep-cloud';
 
 module.exports = {
   PROJECT_ROOT,
-  PROMPT_SKILL_PATH,
   DEV_DIR,
   MCP_ENDPOINT,
   DEFAULT_GROUP_ID,

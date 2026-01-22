@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.2.0] - 2026-01-21
+
+### Changed
+
+#### Build & Deployment
+- **Renamed deploy script** - `deploy-agents.js` renamed to `deploy-lisa.js` for clarity
+- **Hooks use CLI** - Hooks now invoke `lisa` CLI subcommands instead of deprecated script paths
+- **Bundle optimization** - Excluded `neo4j-driver` from bundled hooks/plugins to reduce size
+
+#### CLI Improvements
+- **Verbose flag** - Added `--verbose` flag support for detailed output
+- **Test coverage** - Enhanced CLI tests for new verbose flag behavior
+
+### Fixed
+- Lisa response prefix formatting in SKILL.md (spacing consistency)
+- Docker healthcheck in e2e tests (uses Python instead of curl for reliability)
+- Import paths in test-dal-manual.ts
+- Bump-version test moved to correct path with type error fixes
+- Removed duplicate OpenCode plugin source files
+- Removed empty hooks/utils folder from deployment
+
+### Documentation
+- Updated README to clarify global installation and usage steps
+- Disabled markdownlint in code-quality-rules.md to prevent IDE noise
+- Added tsconfig.json for tests to fix IDE warnings
+
+---
+
 ## [2.1.0] - 2026-01-19
 
 ### Added

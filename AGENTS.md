@@ -467,7 +467,7 @@ Memory is stored per-repo and accessed via MCP (Model Context Protocol).
 After committing, save a milestone memory:
 
 ```bash
-node .lisa/skills/memory/scripts/memory.js add "FEATURE: Description of what was done" --cache --type milestone
+lisa memory add "FEATURE: Description of what was done" --cache --type milestone
 ```
 
 This ensures work is captured for future sessions.
@@ -654,7 +654,7 @@ The DAL uses a **Strategy Pattern** to route operations:
 
 ### Environment
 - **Local Graphiti**: `docker compose -f .lisa/docker-compose.graphiti.yml up -d`
-- **Memory Milestone**: `node .lisa/skills/memory/scripts/memory.js add "FEATURE: Done" --type milestone`
+- **Memory Milestone**: `lisa memory add "FEATURE: Done" --type milestone`
 
 ---
 

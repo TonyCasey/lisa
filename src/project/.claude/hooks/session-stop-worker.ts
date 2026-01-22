@@ -16,7 +16,19 @@ export {}; // keep scope local
 
 const fs = require('fs');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
+
+/**
+ * Check if lisa CLI is available
+ */
+function isLisaAvailable(): boolean {
+  try {
+    execSync('lisa --version', { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 // Import common modules
 const { parseTranscript, formatDuration } = require('./utils/common/transcript-parser');
@@ -126,17 +138,15 @@ async function saveToGraphiti(
   // Build tags using the helper
   const tags = buildGraphitiTags(rating, input.session_id, repo, branch);
 
-  // Find memory skill script
-  const memoryScript = path.join(process.cwd(), '.lisa/skills/memory/scripts/memory.js');
-
-  if (!fs.existsSync(memoryScript)) {
-    // Memory skill not available - fall back to local logs
-    logError('Memory skill not found, saving locally');
+  // Check if lisa CLI is available
+  if (!isLisaAvailable()) {
+    // Lisa CLI not available - fall back to local logs
+    logError('Lisa CLI not found, saving locally');
     await saveToLocalLogs(work, rating, input);
     return;
   }
 
-  // Call memory skill to save
+  // Call lisa memory add to save
   return new Promise((resolve) => {
     let resolved = false; // Guard against multiple resolves
 
@@ -154,7 +164,7 @@ async function saveToGraphiti(
     };
 
     const args = [
-      memoryScript,
+      'memory',
       'add',
       summary,
       '--group',
@@ -169,9 +179,10 @@ async function saveToGraphiti(
       args.push('--tag', tag);
     }
 
-    const child = spawn('node', args, {
+    const child = spawn('lisa', args, {
       stdio: ['ignore', 'pipe', 'pipe'],
       cwd: process.cwd(),
+      shell: true,
     });
 
     let stderr = '';
@@ -228,10 +239,8 @@ async function saveRetrospective(work: IWorkSummary, input: IStopHookInput): Pro
 
   const repo = detectRepo();
   
-  // Find memory skill script
-  const memoryScript = path.join(process.cwd(), '.lisa/skills/memory/scripts/memory.js');
-
-  if (!fs.existsSync(memoryScript)) {
+  // Check if lisa CLI is available
+  if (!isLisaAvailable()) {
     return;
   }
 
@@ -243,7 +252,7 @@ async function saveRetrospective(work: IWorkSummary, input: IStopHookInput): Pro
 
   return new Promise((resolve) => {
     const args = [
-      memoryScript,
+      'memory',
       'add',
       retrospective,
       '--group',
@@ -258,9 +267,10 @@ async function saveRetrospective(work: IWorkSummary, input: IStopHookInput): Pro
       args.push('--tag', tag);
     }
 
-    const child = spawn('node', args, {
+    const child = spawn('lisa', args, {
       stdio: ['ignore', 'pipe', 'pipe'],
       cwd: process.cwd(),
+      shell: true,
     });
 
     child.on('close', () => resolve());

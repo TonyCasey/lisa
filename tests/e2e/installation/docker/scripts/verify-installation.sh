@@ -58,8 +58,8 @@ check "memory skill exists" "[ -f .lisa/skills/memory/SKILL.md ]"
 check "tasks skill exists" "[ -f .lisa/skills/tasks/SKILL.md ]"
 check "lisa skill exists" "[ -f .lisa/skills/lisa/SKILL.md ]"
 
-# 4. Memory script exists and is executable
-check "Memory script exists" "[ -f .lisa/skills/memory/scripts/memory.js ] || [ -f .lisa/skills/memory/scripts/memory.cjs ]"
+# 4. Lisa CLI is available
+check "Lisa CLI available" "command -v lisa >/dev/null 2>&1"
 
 # 5. Configuration file created
 
