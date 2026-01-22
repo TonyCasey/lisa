@@ -1,7 +1,7 @@
 /**
  * Shared CLI Runner for Skill Integration Tests
  *
- * Provides utilities for executing skill scripts and parsing JSON output.
+ * Provides utilities for executing skill commands via the Lisa CLI and parsing JSON output.
  * Automatically loads environment variables from root .env file.
  */
 import { exec } from 'node:child_process';
@@ -34,35 +34,52 @@ if (process.env.GRAPHITI_ENDPOINT) {
 }
 
 /**
- * Find skill script path (supports .js and .cjs extensions)
+ * Check if the Lisa CLI is available.
  *
  * @param skillName - Name of the skill (e.g., 'memory', 'tasks')
- * @returns Full path to script or null if not found
+ * @returns 'lisa' if CLI is available, null otherwise
  */
 export function findSkillScript(skillName: string): string | null {
-  const basePaths = [
-    path.join(projectRoot, '.lisa', 'skills', skillName, 'scripts', `${skillName}.js`),
-    path.join(projectRoot, '.lisa', 'skills', skillName, 'scripts', `${skillName}.cjs`),
-  ];
-
-  for (const scriptPath of basePaths) {
-    if (fs.existsSync(scriptPath)) {
-      return scriptPath;
-    }
+  // Skills are now accessed via the `lisa <skill>` CLI command
+  // Check if 'lisa' command exists and the skill is supported
+  const supportedSkills = ['memory', 'tasks'];
+  if (!supportedSkills.includes(skillName)) {
+    return null;
   }
-  return null;
+  
+  // Check if lisa CLI is available by looking for it in node_modules or globally
+  try {
+    // First check if we're in development (lisa is in node_modules/.bin)
+    const localLisa = path.join(projectRoot, 'node_modules', '.bin', 'lisa');
+    if (fs.existsSync(localLisa)) {
+      return skillName; // Return skill name as indicator that CLI is available
+    }
+    
+    // Check if dist/lib/cli.js exists (development mode)
+    const distCli = path.join(projectRoot, 'dist', 'lib', 'cli.js');
+    if (fs.existsSync(distCli)) {
+      return skillName; // Return skill name as indicator that CLI is available
+    }
+    
+    // Fall back to checking if 'lisa' is globally available
+    // We can't easily check this synchronously, so just return the skill name
+    // and let the actual execution fail if lisa isn't available
+    return skillName;
+  } catch {
+    return null;
+  }
 }
 
 /**
- * Execute a skill script and parse JSON output
+ * Execute a skill command via the Lisa CLI and parse JSON output
  *
- * @param scriptPath - Full path to the script
+ * @param skillName - Name of the skill (e.g., 'memory', 'tasks')
  * @param args - Command line arguments
  * @param options - Execution options
  * @returns Parsed result with success status and data
  */
 export async function runSkillScript<T>(
-  scriptPath: string,
+  skillName: string,
   args: string[],
   options: ICliRunnerOptions = {}
 ): Promise<ICliResult<T>> {
@@ -77,11 +94,12 @@ export async function runSkillScript<T>(
   const cmdArgs = [...args];
   if (endpoint) cmdArgs.push('--endpoint', endpoint);
   if (groupId) cmdArgs.push('--group', groupId);
-  cmdArgs.push('--cache'); // Always use cache for fallback behavior
+  // Note: --cache flag may not be supported by CLI commands
 
-  // Escape scriptPath for Windows compatibility
-  const escapedPath = scriptPath.includes(' ') ? `"${scriptPath}"` : scriptPath;
-  const cmd = `node ${escapedPath} ${cmdArgs.join(' ')}`;
+  // Use lisa CLI command (either local dist or global installation)
+  const distCli = path.join(projectRoot, 'dist', 'lib', 'cli.js');
+  const lisaCmd = fs.existsSync(distCli) ? `node ${distCli}` : 'lisa';
+  const cmd = `${lisaCmd} ${skillName} ${cmdArgs.join(' ')}`;
 
   try {
     const { stdout, stderr } = await execAsync(cmd, {

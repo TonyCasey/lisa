@@ -69,18 +69,27 @@ NEO4J_DATABASE=neo4j
 # ZEP_API_KEY=your-api-key
 ```
 
-### .claude/config.js
+### .claude/settings.json
 
-Claude Code hook configuration (auto-generated):
+Claude Code hook configuration (auto-generated). Lisa registers its hooks here:
 
-```javascript
-module.exports = {
-  PROJECT_ROOT: process.cwd(),
-  DEV_DIR: '.dev',
-  MCP_ENDPOINT: process.env.GRAPHITI_ENDPOINT || 'http://localhost:8010/mcp/',
-  // ... other settings
-};
+```json
+{
+  "hooks": {
+    "SessionStart": [{
+      "hooks": [{ "type": "command", "command": "lisa hook session-start" }]
+    }],
+    "Stop": [{
+      "hooks": [{ "type": "command", "command": "lisa hook session-stop" }]
+    }],
+    "UserPromptSubmit": [{
+      "hooks": [{ "type": "command", "command": "lisa hook user-prompt-submit" }]
+    }]
+  }
+}
 ```
+
+Hook commands read configuration from environment variables (set via `.lisa/.env`), not from a separate config file.
 
 ## Docker Configuration
 

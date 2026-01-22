@@ -1,6 +1,6 @@
 {
   "name": "@tonycasey/lisa",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Long-term memory for AI coding assistants. Automatic context persistence, task tracking, and knowledge capture across coding sessions. Supports Claude Code and OpenCode.",
   "bin": {
     "lisa": "dist/lib/cli.js",
@@ -35,13 +35,13 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "build:local": "DEPLOY_AGENTS_LOCAL=1 npm run build",
-    "postbuild": "node scripts/postbuild-copy-templates.js && node scripts/prepare-dist-package.js && node scripts/bundle-hooks.js && node scripts/deploy-lisa.js",
+    "postbuild": "node scripts/postbuild-copy-templates.js && node scripts/prepare-dist-package.js && node scripts/bundle-opencode.js && node scripts/deploy-lisa.js",
     "postinstall": "node scripts/postinstall.js",
     "clean": "rimraf dist",
     "package": "rm -f *.tgz releases/*.tgz dist/packages/*.tgz && npm run build && mkdir -p releases dist/packages && npm pack && mv *.tgz releases/ && cp releases/*.tgz dist/packages/",
     "lint": "eslint 'src/**/*.{ts,js}'",
-    "test": "node --import tsx --test --test-name-pattern=. tests/unit/**/*.test.ts",
-    "test:unit": "node --import tsx --test --test-name-pattern=. tests/unit/**/*.test.ts",
+    "test": "node --import tsx --test --test-name-pattern=. 'tests/unit/**/*.test.ts'",
+    "test:unit": "node --import tsx --test --test-name-pattern=. 'tests/unit/**/*.test.ts'",
     "test:integration": "tsx --test tests/integration/**/index.ts",
     "test:integration:memory": "tsx --test tests/integration/memory/index.ts",
     "test:integration:tasks": "tsx --test tests/integration/tasks/index.ts",

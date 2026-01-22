@@ -64,8 +64,9 @@ test('initCommand copies expected templates with replacements', async () => {
   await initCommand({ cwd, endpoint: DEFAULT_ENDPOINT, group: DEFAULT_GROUP, force: true, mode: 'local', verbose: false }, services);
 
   // Skills are now copied via fs.copy (not templateCopier)
-  // Expect rules (6) + claude hooks/config (several) + docker (2) = 9+ copies
-  assert.ok(services.templateCopier.calls.length >= 9, `Expected at least 9 template copies, got ${services.templateCopier.calls.length}`);
+  // Hooks are now invoked via CLI commands (no bundled JS files)
+  // Expect: .env.template (1) + rules (6) + docker (1) = 8 copies
+  assert.ok(services.templateCopier.calls.length >= 8, `Expected at least 8 template copies, got ${services.templateCopier.calls.length}`);
 
   // Verify rules are copied with replacements
   const rulesCopy = services.templateCopier.calls.find((c) => c.dest.includes('rules') && c.dest.includes('clean-architecture'));

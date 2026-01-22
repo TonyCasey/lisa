@@ -16,22 +16,28 @@ Lisa supports multiple AI coding assistants through a unified, event-driven arch
 Both CLIs share resources from `.lisa/`:
 
 ```
-.lisa/                      # Source of truth (shared)
+.lisa/                        # Source of truth (shared)
 ├── skills/                   # Memory, tasks, lisa, jira, git
 ├── rules/                    # Coding standards
 ├── .env                      # Storage configuration
 
 .claude/                      # Claude Code specific
-├── hooks/                    # session-start, session-stop, user-prompt-submit
-├── settings.json
-├── skills -> ../.lisa/skills
-└── rules -> ../.lisa/rules
+├── settings.json             # Hook commands registered here
+├── skills/
+│   └── lisa/ -> ../../.lisa/skills  # Subdirectory symlink
+└── rules/
+    └── lisa/ -> ../../.lisa/rules   # Subdirectory symlink
 
 .opencode/                    # OpenCode specific
 ├── plugin/
 │   └── lisa.js               # Bundled plugin
-└── skills -> ../.lisa/skills
+└── skills/
+    ├── memory/ -> ../../.lisa/skills/memory
+    ├── tasks/ -> ../../.lisa/skills/tasks
+    └── ...                   # Individual skill symlinks
 ```
+
+**Note:** Lisa uses subdirectory symlinks to preserve any existing user files in `.claude/` or `.opencode/`.
 
 ### Event Mapping
 
@@ -59,6 +65,115 @@ lisa init --opencode-only    # Only OpenCode
 lisa init -y                 # Both (default)
 ```
 
+---
+
+## Core Library Development
+
+### Where to Write Code
+
+**All core library code lives in `src/lib/`**. This is the source of truth for:
+- CLI commands (`cli.ts`)
+- Domain interfaces and types (`domain/`)
+- Infrastructure implementations (`infrastructure/`)
+- Application handlers (`application/`)
+- Service factories and DI (`services.ts`)
+
+The `src/project/` directory contains **templates only** - hooks and skills that get deployed to destination projects. These are not core library code.
+
+### Installation Model
+
+Lisa is installed as a **global npm package** in destination projects:
+
+```bash
+# Global installation
+npm install -g @tonycasey/lisa
+
+# Initialize in a project
+cd /path/to/your/project
+lisa init
+```
+
+When `lisa init` runs, it:
+1. Copies templates from the installed package to the project
+2. Creates `.lisa/`, `.claude/`, and/or `.opencode/` directories
+3. Sets up symlinks for shared resources
+4. Configures storage backend (Local Docker or Zep Cloud)
+
+The core library code (`dist/lib/`) remains in global `node_modules` and is invoked via the `lisa` CLI command.
+
+### Clean Architecture
+
+Lisa follows **Clean Architecture** principles with clear layer separation:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    CLI / Presentation                    │
+│                      (src/lib/cli.ts)                   │
+├─────────────────────────────────────────────────────────┤
+│                     Application Layer                    │
+│            (src/lib/application/handlers/)              │
+│   SessionStartHandler, SessionStopHandler, etc.         │
+├─────────────────────────────────────────────────────────┤
+│                      Domain Layer                        │
+│              (src/lib/domain/interfaces/)               │
+│   IMemoryRepository, ITaskRepository, IMemoryItem, etc. │
+├─────────────────────────────────────────────────────────┤
+│                   Infrastructure Layer                   │
+│              (src/lib/infrastructure/dal/)              │
+│   McpMemoryRepository, Neo4jTaskRepository, ZepClient   │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Key principles:**
+- **Domain layer has no dependencies** on infrastructure or application
+- **Application layer** depends only on domain interfaces
+- **Infrastructure layer** implements domain interfaces
+- **Dependency inversion** via constructor injection
+
+### Event-Driven Architecture
+
+Lisa uses an **event-driven architecture** where CLI lifecycle events trigger handlers:
+
+```
+┌──────────────┐     ┌─────────────────┐     ┌──────────────────┐
+│  CLI Event   │ ──> │  Event Handler  │ ──> │  Domain Services │
+│  (Hook)      │     │  (Application)  │     │  (Infrastructure)│
+└──────────────┘     └─────────────────┘     └──────────────────┘
+```
+
+**Event flow:**
+1. **Claude Code/OpenCode** triggers a lifecycle event (session start, stop, prompt submit)
+2. **Hooks** (in `.claude/hooks/` or `.opencode/plugin/`) receive the event
+3. **Handlers** in `src/lib/application/handlers/` process the event
+4. **Services** in `src/lib/infrastructure/services/` execute domain logic
+5. **Repositories** in `src/lib/infrastructure/dal/` persist/retrieve data
+
+**Lisa events:**
+| Event | Trigger | Handler |
+|-------|---------|---------|
+| `session:start` | New/resume/compact session | `SessionStartHandler` |
+| `session:stop` | Claude stops responding | `SessionStopHandler` |
+| `prompt:submit` | User submits prompt | `PromptSubmitHandler` |
+
+### Layer Responsibilities
+
+| Layer | Location | Responsibility |
+|-------|----------|----------------|
+| **Presentation** | `src/lib/cli.ts` | CLI commands, argument parsing |
+| **Application** | `src/lib/application/` | Use cases, event handlers, orchestration |
+| **Domain** | `src/lib/domain/` | Interfaces, types, domain errors |
+| **Infrastructure** | `src/lib/infrastructure/` | DAL, adapters, external services |
+
+### Adding New Features
+
+When adding a new feature to the core library:
+
+1. **Define domain interface** in `src/lib/domain/interfaces/`
+2. **Create application handler** in `src/lib/application/handlers/`
+3. **Implement infrastructure** in `src/lib/infrastructure/`
+4. **Wire up DI** in `src/lib/services.ts` or `infrastructure/di/`
+5. **Add CLI command** in `src/lib/cli.ts` if needed
+6. **Write tests** mirroring the source structure
 
 ---
 
@@ -289,60 +404,37 @@ lisa/
 
 ## Development Workflow
 
-### "Reverse Engineering" Development Process
-
-When developing hooks or skills, follow this workflow:
-
-1. **Prototype in Compiled Output** - Edit JS files directly for fast iteration:
-   ```bash
-   # Edit hooks directly
-   code .claude/hooks/session-start.js
-   
-   # Test manually
-   echo '{"trigger":"compact"}' | node .claude/hooks/session-start.js
-   ```
-
-2. **Port Back to TypeScript Source** - Once working, move to TypeScript:
-   ```
-   .claude/hooks/session-start.js  ->  src/project/.claude/hooks/session-start.ts
-   .lisa/skills/memory/            ->  src/project/.lisa/skills/memory/
-   ```
-
-3. **Build and Verify** - Compile and deploy changes:
-   ```bash
-   npm run build
-   grep "yourFunction" .claude/hooks/session-start.js
-   ```
-
-4. **Add Tests** - Create unit tests mirroring source structure:
-   ```
-   src/project/.claude/hooks/session-start.ts
-   tests/unit/src/project/claude/hooks/session-start.test.ts
-   ```
-
-5. **Run Full Test Suite** - Validate everything works:
-   ```bash
-   npm run lint
-   npm run test:unit
-   npm run build
-   ```
-
-### Why This Workflow?
-
-- **Fast iteration**: JS edits take effect immediately without compilation
-- **Type safety**: TypeScript source ensures correctness and maintainability
-- **Deployability**: `npm run build` deploys to target directories
-- **Testability**: TypeScript source can be properly unit tested
-
 ### Standard Development Steps
 
-For regular library code (not hooks/skills):
+For library code (CLI commands, handlers, skills):
 
-1. **Write code** following TypeScript strict mode
+1. **Write code** following TypeScript strict mode in `src/lib/`
 2. **Run lint**: `npm run lint` (fix auto-fixable issues)
 3. **Run tests**: `npm run test:unit`
 4. **Build**: `npm run build`
 5. **Integration tests**: Set up environment and run `npm run test:integration`
+
+### Testing Hook Handlers
+
+Hook handlers can be tested directly via CLI:
+
+```bash
+# Test session-start hook
+echo '{"source":"startup"}' | lisa hook session-start
+
+# Test session-stop hook  
+echo '{"session_id":"test"}' | lisa hook session-stop
+
+# Test user-prompt-submit hook
+echo '{"prompt":"test"}' | lisa hook user-prompt-submit
+```
+
+### Adding New Hook Logic
+
+1. **Edit handler** in `src/lib/application/handlers/hooks/<Handler>.ts`
+2. **Add tests** in `tests/unit/src/lib/application/handlers/hooks/<Handler>.test.ts`
+3. **Run tests**: `npm run test:unit`
+4. **Build**: `npm run build`
 
 ## Memory & Skills System
 
@@ -355,8 +447,8 @@ Address Lisa directly for memory and tasks:
 
 ### Local Skills (Model-Neutral)
 - `lisa` skill: Intelligent routing to memory/tasks
-- `memory` skill: Graphiti MCP integration via `scripts/memory.js`
-- `tasks` skill: Task management via `scripts/tasks.js`
+- `memory` skill: Graphiti MCP integration via `lisa memory` CLI
+- `tasks` skill: Task management via `lisa tasks` CLI
 
 ### Configuration
 - **Endpoint**: `GRAPHITI_ENDPOINT` env or `http://localhost:8010/mcp/`
@@ -370,39 +462,29 @@ Address Lisa directly for memory and tasks:
 
 ## Hooks
 
-Hooks run at specific Claude Code lifecycle events:
+Hooks run at specific Claude Code lifecycle events via CLI commands:
 
 | Hook | Trigger | Purpose |
 |------|---------|---------|
-| `session-start.js` | Session start/resume/compact/clear | Load memory context |
-| `session-stop.js` | Claude stops responding | Capture work to memory |
-| `user-prompt-submit.js` | User submits prompt | Validate and enhance prompts |
+| `lisa hook session-start` | Session start/resume/compact/clear | Load memory context |
+| `lisa hook session-stop` | Claude stops responding | Capture work to memory |
+| `lisa hook user-prompt-submit` | User submits prompt | Validate and enhance prompts |
 
-Hooks source: `src/project/.claude/hooks/`
-Hooks deployed to: `.claude/hooks/`
+Hooks are registered in `.claude/settings.json` and invoked as CLI commands.
+Hook handlers source: `src/lib/application/handlers/hooks/`
 
-### Hooks Module Architecture
+### Hooks Architecture
 
-The hooks are organized into focused modules for testability and maintainability:
+Hooks are implemented as CLI command handlers in the application layer:
 
 ```
-src/project/.claude/hooks/
-├── session-start.ts              # ~170 lines - orchestration only
-├── session-stop.ts               # ~150 lines - spawns worker
-├── session-stop-worker.ts        # ~320 lines - background processing
-├── user-prompt-submit.ts         # ~200 lines - orchestration only
-│
-└── utils/                        # Hook utilities
-    ├── common/                   # Shared utilities
-    │   ├── mcp-client.ts         # RPC calls to Graphiti
-    │   ├── context.ts            # Repo/branch/user detection
-    │   ├── group-id.ts           # Folder metadata, hierarchical groups
-    │   ├── transcript-parser.ts  # Parse Claude transcripts
-    │   └── complexity-rater.ts   # Rate work complexity (1-5)
-    │
-    ├── core/                     # Core domain logic
-    │   ├── types.ts              # Shared interfaces (IMemoryItem, ITask, etc.)
-    │   ├── task-loader.ts        # Task processing from memory nodes
+src/lib/application/handlers/hooks/
+├── SessionStartHookHandler.ts    # Load memory context
+├── SessionStopHookHandler.ts     # Capture work (spawns background worker)
+├── UserPromptSubmitHookHandler.ts # Validate and log prompts
+├── types.ts                      # Input/output type definitions
+├── utils.ts                      # Stdin/stdout helpers, env config
+└── index.ts                      # Exports
     │   ├── memory-loader.ts      # Load memories from MCP/Zep
     │   └── rules-loader.ts       # Load project rules
     │
@@ -449,7 +531,7 @@ Skills deployed to: `.lisa/skills/`
 
 1. **Compile**: `tsc -p tsconfig.json` - Compiles TypeScript to `dist/`
 2. **Prepare Package**: `prepare-dist-package.js` - Prepares for npm publish
-3. **Bundle Hooks**: `bundle-hooks.js` - Bundles hooks with dependencies
+3. **Bundle Hooks**: `bundle-opencode.js` - Bundles OpenCode plugin with dependencies
 4. **Deploy Locally**: `deploy-lisa.js` - Deploys to `.claude/`, `.lisa/`, `.opencode/`
 
 ## Memory System
@@ -479,6 +561,8 @@ This ensures work is captured for future sessions.
 ### What Lisa Does
 
 Lisa is a TypeScript CLI tool that provides **persistent memory and task management** for AI coding assistants. It uses Graphiti (a knowledge graph built on Neo4j) via MCP (Model Context Protocol) to store and retrieve memories, tasks, and project context across sessions.
+
+> **Note**: For architectural principles (Clean Architecture, Event-Driven Architecture, layer responsibilities), see the [Core Library Development](#core-library-development) section above.
 
 ### Source Code Organization
 
@@ -513,11 +597,9 @@ src/
 │   └── application/                  # Use cases
 └── project/                          # Templates (mirrors deployment)
     ├── .lisa/
-    │   ├── skills/                   # Shared skills
-    │   │   ├── common/               # group-id.ts with full functions
-    │   │   ├── shared/utils/         # DI-based utilities
-    │   │   ├── memory/               # scripts/memory.js
-    │   │   ├── tasks/                # scripts/tasks.js
+    │   ├── skills/                   # Shared skills (SKILL.md files only)
+    │   │   ├── memory/               # SKILL.md for memory
+    │   │   ├── tasks/                # SKILL.md for tasks
     │   │   ├── lisa/                 # Intelligent router
     │   │   ├── git/                  # PR, CI, version bump
     │   │   ├── jira/                 # Jira REST API
@@ -527,21 +609,9 @@ src/
     │   │   ├── shared/               # clean-architecture, code-quality, testing, git
     │   │   └── typescript/           # TS-specific standards
     │   └── docker/                   # docker-compose.graphiti.yml
-    ├── .claude/
-    │   ├── hooks/                    # Claude Code lifecycle hooks
-    │   │   ├── session-start.ts
-    │   │   ├── session-stop.ts
-    │   │   ├── session-stop-worker.ts
-    │   │   ├── user-prompt-submit.ts
-    │   │   └── utils/                # Hook utilities
-    │   │       ├── common/           # mcp-client, context, group-id
-    │   │       ├── core/             # task-loader, rules-loader
-    │   │       ├── io/               # output-formatter
-    │   │       └── session/          # trigger-handler, plan-mode
-    │   └── config.ts
     └── .opencode/
         └── plugin/
-            ├── lisa.ts
+            ├── lisa.ts               # OpenCode plugin source
             └── opencode-events.ts
 ```
 
@@ -614,17 +684,6 @@ type BackendSource = 'mcp' | 'neo4j' | 'zep';
 
 ---
 
-## Development Workflow: "The Reverse Engineer"
-When developing hooks or skills, use this workflow to avoid constant compilation wait times:
-
-1.  **Prototype**: Edit the compiled JS files in `.claude/hooks/` or `.lisa/skills/` directly.
-2.  **Test**: Trigger the hook manually (e.g., `echo '{"trigger":"startup"}' | node .claude/hooks/session-start.js`).
-3.  **Port**: Move your working logic back to the corresponding `.ts` file in `src/project/`.
-4.  **Verify**: Run `npm run build` to re-deploy and ensure your changes persist.
-5.  **Test**: Add a unit test in `tests/unit/` mirroring the source path.
-
----
-
 ## Code Style & Engineering Standards
 
 ### TypeScript & DI
@@ -650,7 +709,7 @@ The DAL uses a **Strategy Pattern** to route operations:
 - `npm test`: Runs all unit tests.
 - `npm run test:unit`: Fast isolated tests.
 - `npm run test:integration`: Integration tests (requires Docker/Zep).
-- **Manual Hook Test**: `node --import tsx --test tests/unit/src/project/claude/hooks/session-start.test.ts`
+- **Manual Hook Test**: `echo '{"source":"startup"}' | lisa hook session-start`
 
 ### Environment
 - **Local Graphiti**: `docker compose -f .lisa/docker-compose.graphiti.yml up -d`
@@ -662,8 +721,9 @@ The DAL uses a **Strategy Pattern** to route operations:
 
 | Type | Name | Purpose |
 |------|------|---------|
-| **Hook** | `session-start` | Loads memory, tasks, and rules into context. |
-| **Hook** | `session-stop` | Spawns background worker to capture work. |
+| **Hook** | `lisa hook session-start` | Loads memory, tasks, and rules into context. |
+| **Hook** | `lisa hook session-stop` | Spawns background worker to capture work. |
+| **Hook** | `lisa hook user-prompt-submit` | Validates and logs prompts. |
 | **Skill** | `/lisa` | Main router for memory/task queries. |
 | **Skill** | `/memory` | Direct interaction with the knowledge graph. |
 | **Skill** | `/tasks` | CRUD operations for project tasks. |

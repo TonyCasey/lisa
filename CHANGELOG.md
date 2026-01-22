@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.3.0] - 2026-01-22
+
+### Added
+
+#### Zero-Impact Installation
+- **Subdirectory symlinks** - Lisa now installs into subdirectories instead of replacing entire folders
+  - `.claude/skills/lisa/` symlinks to `../../.lisa/skills` (preserves user's `.claude/skills/`)
+  - `.claude/rules/lisa/` symlinks to `../../.lisa/rules` (preserves user's `.claude/rules/`)
+  - OpenCode uses individual skill symlinks (`.opencode/skills/memory/`, etc.)
+
+#### CLI Hook Commands
+- **`lisa hook` command group** - Hooks now invoked via CLI commands instead of bundled JS files
+  - `lisa hook session-start` - Load memory context at session start
+  - `lisa hook session-stop` - Capture work when session stops
+  - `lisa hook user-prompt-submit` - Process user prompts
+  - Registered in `.claude/settings.json` as command hooks
+
+#### Hook Handlers
+- **Application-layer handlers** - New handler classes in `src/lib/application/handlers/hooks/`
+  - `SessionStartHookHandler` - Loads memory, tasks, and project context
+  - `SessionStopHookHandler` - Spawns background worker to capture work
+  - `UserPromptSubmitHookHandler` - Validates and logs prompts
+  - Shared utilities in `hooks/utils.ts` and `hooks/types.ts`
+
+#### Testing
+- **78 unit tests** - Comprehensive test coverage for new hook handlers
+  - Tests for `parseTrigger()`, stdin/stdout utilities, config loading
+  - Tests for all three hook handlers with various input scenarios
+  - Fixed glob pattern in `npm run test:unit` to find all test files
+
+### Changed
+
+#### Architecture
+- **Hooks via CLI** - Hooks no longer bundled as JS files in `.claude/hooks/`
+  - Hook logic moved from `src/project/.claude/hooks/` to `src/lib/application/handlers/hooks/`
+  - Removes need for `bundle-hooks.js` script
+  - Version consistency - hook logic matches installed `lisa` version
+
+- **Settings.json configuration** - Hook registration in `.claude/settings.json`
+  - Replaces direct file deployment to `.claude/hooks/`
+  - Merges Lisa hooks with any existing user hooks
+  - Preserves user's `settings.json` configuration
+
+#### Files Removed
+- `src/project/.claude/hooks/session-start.ts` - Logic moved to `SessionStartHookHandler`
+- `src/project/.claude/hooks/session-stop.ts` - Logic moved to `SessionStopHookHandler`
+- `src/project/.claude/hooks/session-stop-worker.ts` - Logic moved to handler
+- `src/project/.claude/hooks/user-prompt-submit.ts` - Logic moved to `UserPromptSubmitHookHandler`
+- `src/project/.claude/config.ts` - No longer needed (env vars read directly)
+- `scripts/bundle-hooks.js` - No longer needed
+
+### Fixed
+- **Memory integration tests** - Updated to use `lisa` CLI instead of standalone scripts
+- **Test discovery** - Fixed glob pattern to find tests in nested directories
+
+### Documentation
+- Updated `docs/getting-started.md` with new directory structure
+- Updated `docs/commands.md` with `lisa hook` commands
+- Updated `docs/configuration.md` to replace `config.js` with `settings.json`
+- Updated `.dev/features/symlink-plan.md` with implementation status
+
+---
+
 ## [2.2.0] - 2026-01-21
 
 ### Changed

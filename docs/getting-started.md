@@ -95,18 +95,24 @@ your-project/
 │   ├── .env              # Configuration (LOG_LEVEL, endpoints, etc.)
 │
 ├── .claude/              # (if Claude Code selected)
-│   ├── hooks/            # Session lifecycle hooks
-│   ├── config.js         # Hook configuration
-│   ├── skills -> ../.lisa/skills
-│   └── rules -> ../.lisa/rules
+│   ├── settings.json     # Hook configuration (CLI commands)
+│   ├── skills/
+│   │   └── lisa/ -> ../../.lisa/skills  # Subdirectory symlink
+│   └── rules/
+│       └── lisa/ -> ../../.lisa/rules   # Subdirectory symlink
 │
 ├── .opencode/            # (if OpenCode selected)
 │   ├── plugin/
 │   │   └── lisa.js       # OpenCode plugin
-│   └── skills -> ../.lisa/skills
+│   └── skills/
+│       ├── memory/ -> ../../.lisa/skills/memory
+│       ├── tasks/ -> ../../.lisa/skills/tasks
+│       └── ...           # Individual skill symlinks
 │
 └── docker-compose.graphiti.yml  # (if using Docker)
 ```
+
+**Note:** Lisa uses subdirectory symlinks (e.g., `.claude/skills/lisa/`) instead of replacing entire folders. This preserves any existing user files in `.claude/skills/` or `.claude/rules/`.
 
 ## Next Steps
 

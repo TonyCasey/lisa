@@ -111,10 +111,19 @@ Each skill has this structure:
 
 ```
 .lisa/skills/<skill-name>/
-├── SKILL.md           # Definition and instructions
-└── scripts/
-    └── <skill-name>.js  # Implementation
+└── SKILL.md           # Definition and instructions
 ```
+
+Skill implementations are part of the `lisa` CLI and invoked via subcommands:
+
+```bash
+lisa memory load      # Load memories
+lisa memory add       # Add a memory
+lisa tasks list       # List tasks
+lisa tasks add        # Add a task
+```
+
+The `SKILL.md` file tells the AI assistant when to invoke these commands and how to interpret the output.
 
 ### SKILL.md Format
 
@@ -133,14 +142,14 @@ When to invoke this skill:
 - "user asks about Y"
 
 ## How to use
-1. Run script: `node scripts/my-skill.js <args>`
+1. Run CLI command: `lisa <skill> <action> [args]`
 2. Process JSON output
 3. Summarize results to user
 
 ## I/O contract
 - Input: command line arguments
 - Output: JSON to stdout
-- Fallback: JSON with fallback data if MCP unavailable
+- Fallback: JSON with fallback data if backend unavailable
 ```
 
 ## Cache Fallback
@@ -148,7 +157,7 @@ When to invoke this skill:
 Skills support offline operation via `--cache` flag:
 
 ```bash
-node scripts/memory.js load --cache
+lisa memory load --cache
 ```
 
 If the MCP server is unavailable, skills return cached data from the last successful operation.
@@ -170,9 +179,10 @@ LOG_LEVEL=debug
 
 1. Create directory: `src/project/.lisa/skills/<name>/`
 2. Add `SKILL.md` with triggers and instructions
-3. Add `scripts/<name>.ts` with implementation
-4. Run `npm run build` to compile and deploy
-5. Test with your AI assistant
+3. Add skill implementation in `src/lib/skills/<name>/<name>.ts`
+4. Add CLI subcommand in `src/lib/cli.ts`
+5. Run `npm run build` to compile and deploy
+6. Test with your AI assistant
 
 See [CONTRIBUTING.md](../CONTRIBUTING.md#adding-a-skill) for detailed instructions.
 
