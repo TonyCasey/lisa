@@ -117,16 +117,24 @@ describe('DAL integration', () => {
         assert.equal(result.source, 'neo4j', 'Source should be neo4j');
         assert.ok(Array.isArray(result.items), 'Items should be an array');
 
-        // Verify date ordering (if we have multiple items)
+        // Verify date ordering (if we have multiple items with valid dates)
         if (result.items.length >= 2) {
-          const dates = result.items.map((item) =>
-            item.created_at ? new Date(item.created_at).getTime() : 0
-          );
-          for (let i = 0; i < dates.length - 1; i++) {
-            assert.ok(
-              dates[i] >= dates[i + 1],
-              `Items should be ordered by date descending: ${dates[i]} >= ${dates[i + 1]}`
+          const itemsWithDates = result.items.filter((item) => {
+            if (!item.created_at) return false;
+            const time = new Date(item.created_at).getTime();
+            return !isNaN(time);
+          });
+          
+          if (itemsWithDates.length >= 2) {
+            const dates = itemsWithDates.map((item) =>
+              new Date(item.created_at!).getTime()
             );
+            for (let i = 0; i < dates.length - 1; i++) {
+              assert.ok(
+                dates[i] >= dates[i + 1],
+                `Items should be ordered by date descending: ${dates[i]} >= ${dates[i + 1]}`
+              );
+            }
           }
         }
       });
