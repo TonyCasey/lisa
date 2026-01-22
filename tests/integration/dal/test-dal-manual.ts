@@ -19,8 +19,8 @@
 import {
   createRepositoryRouter,
   closeConnections,
-} from '../../../src/infrastructure/dal';
-import { createServicesWithCleanup } from '../../../src/infrastructure/di';
+} from '../../../src/lib/infrastructure/dal';
+import { createServicesWithCleanup } from '../../../src/lib/infrastructure/di';
 
 const GROUP_ID = 'lisa'; // Group ID as stored in Neo4j
 
