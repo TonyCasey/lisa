@@ -3,15 +3,15 @@
  * Claude Code - User Prompt Submit Hook (Thin Adapter)
  *
  * Fires when the user submits a prompt.
- * This is a thin adapter that delegates to PromptSubmitHandler.
+ * This is a thin adapter that delegates to PromptSubmitHandler via mediator.
  * 
  * In plan mode, also runs memory recursion to surface relevant context.
  * 
  * Note: This hook runs fire-and-forget style to avoid blocking the user.
  */
 
-import { createServicesWithCleanup } from '../../di';
-import { PromptSubmitHandler } from '../../../application/handlers';
+import { bootstrapContainer, TOKENS } from '../../di';
+import type { IMediator } from '../../../application/mediator';
 import { PromptSubmitRequest } from '../../../application/mediator/requests';
 import { toISOTimestamp, PermissionMode } from '../../../domain';
 import { readStdin } from './stdin';
@@ -35,20 +35,18 @@ async function main(): Promise<void> {
     return;
   }
 
-  // Create services via DI (with cleanup for connections)
-  // Disable pino logging to avoid worker thread issues in bundled hooks
-  const services = await createServicesWithCleanup({
+  // Bootstrap container with DI
+  const { container, dispose } = await bootstrapContainer({
     projectRoot: process.cwd(),
-    source: 'claude-code',
     disableLogging: true,
   });
 
   try {
-    // Create handler and process request
-    const handler = new PromptSubmitHandler(services);
+    // Resolve mediator and send request
+    const mediator = await container.resolve<IMediator>(TOKENS.Mediator);
     const request = new PromptSubmitRequest(content, toISOTimestamp(), undefined, permissionMode);
     
-    const result = await handler.handle(request);
+    const result = await mediator.send(request);
 
     // Output recursion results to stdout (Claude context)
     if (result.recursion?.hasContext) {
@@ -58,7 +56,7 @@ async function main(): Promise<void> {
     }
   } finally {
     // Clean up connections before exiting
-    await services.cleanup();
+    await dispose();
   }
 
   // Exit cleanly

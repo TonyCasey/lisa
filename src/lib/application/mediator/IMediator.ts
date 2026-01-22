@@ -46,8 +46,8 @@ export interface IRequestHandler<TRequest extends IRequest<TResponse>, TResponse
  * Request type constructor.
  * Used for registering handlers by request class.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface IRequestType<TRequest extends IRequest<TResponse>, TResponse = unknown> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   new (...args: any[]): TRequest;
 }
 

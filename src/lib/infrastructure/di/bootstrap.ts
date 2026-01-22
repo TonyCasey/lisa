@@ -176,7 +176,14 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
   );
 
   // Session Capture Service (transient - stateless)
-  container.registerSync(TOKENS.SessionCaptureService, () => new SessionCaptureService(), 'transient');
+  container.register(
+    TOKENS.SessionCaptureService,
+    async () => {
+      const log = await container.resolve<ILogger>(TOKENS.Logger);
+      return new SessionCaptureService(log.child({ service: 'session-capture' }));
+    },
+    'transient'
+  );
 
   // Recursion Service (transient - lightweight)
   container.register(

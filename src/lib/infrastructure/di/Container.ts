@@ -189,6 +189,7 @@ export class Container implements IContainer {
    * Get the root container.
    */
   private getRoot(): Container {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     let current: Container = this;
     while (current.parent) {
       current = current.parent;
