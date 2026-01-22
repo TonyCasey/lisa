@@ -105,7 +105,7 @@ export function createMcpConnectionManager(
   const config: IMcpConnectionConfig = {
     endpoint: endpoint || process.env.GRAPHITI_ENDPOINT || 'http://localhost:8010/mcp/',
     apiKey: apiKey || process.env.ZEP_API_KEY,
-    timeout: timeout || 15000,
+    timeout: timeout || 30000,  // MCP semantic search can be slow
   };
 
   return new McpConnectionManager(config);

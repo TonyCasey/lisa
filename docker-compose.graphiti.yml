@@ -3,6 +3,7 @@ name: lisa
 services:
   neo4j:
     image: neo4j:5.26.2
+    hostname: neo4j
     ports:
       - "7474:7474"
       - "7687:7687"
@@ -11,7 +12,7 @@ services:
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
-    restart: unless-stopped
+    restart: always
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
       interval: 5s
@@ -20,56 +21,25 @@ services:
       start_period: 15s
 
   graphiti-mcp:
-    image: zepai/knowledge-graph-mcp:standalone
-    ports:
-      - "8010:8000"  # MCP HTTP endpoint
+    image: zepai/knowledge-graph-mcp:latest
     depends_on:
       neo4j:
         condition: service_healthy
-    environment:
-      # Neo4j
-      - NEO4J_URI=${NEO4J_URI:-bolt://neo4j:7687}
-      - NEO4J_USER=${NEO4J_USER:-neo4j}
-      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-demodemo}
-      - NEO4J_DATABASE=${NEO4J_DATABASE:-neo4j}
-      - USE_PARALLEL_RUNTIME=${USE_PARALLEL_RUNTIME:-false}
-      # Graphiti MCP
-      - GRAPHITI_GROUP_ID=${GRAPHITI_GROUP_ID:-main}
-      - SEMAPHORE_LIMIT=${SEMAPHORE_LIMIT:-10}
-      - CONFIG_PATH=/app/mcp/config/config.yaml
-      - PATH=/root/.local/bin:${PATH}
-      # LLM + embeddings (defaults to OpenAI; override as needed)
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OPENAI_API_URL=${OPENAI_API_URL:-https://api.openai.com/v1}
-      - OPENAI_ORGANIZATION_ID=${OPENAI_ORGANIZATION_ID:-}
-      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
-      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
-      - AZURE_OPENAI_API_VERSION=${AZURE_OPENAI_API_VERSION:-2024-10-21}
-      - AZURE_OPENAI_DEPLOYMENT=${AZURE_OPENAI_DEPLOYMENT:-}
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
-      - GOOGLE_PROJECT_ID=${GOOGLE_PROJECT_ID:-}
-      - GOOGLE_LOCATION=${GOOGLE_LOCATION:-us-central1}
-      - GROQ_API_KEY=${GROQ_API_KEY:-}
-      - GROQ_API_URL=${GROQ_API_URL:-https://api.groq.com/openai/v1}
-      - VOYAGE_API_KEY=${VOYAGE_API_KEY:-}
-      - VOYAGE_API_URL=${VOYAGE_API_URL:-https://api.voyageai.com/v1}
     env_file:
-      - path: ./.env
+      - path: ../.env
         required: false
-      - path: ./.env.graphiti
-        required: false
-    volumes:
-      - mcp_logs:/var/log/graphiti
-      - ./mcp_server/config/config-docker-neo4j.yaml:/app/mcp/config/config.yaml:ro
-    restart: unless-stopped
+    environment:
+      # NEO4J_URI must point to container hostname, not localhost
+      - NEO4J_URI=bolt://neo4j:7687
+    ports:
+      - "8010:8000"
+    restart: always
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 30s
+      retries: 3
 
 volumes:
   neo4j_data:
   neo4j_logs:
-  mcp_logs:

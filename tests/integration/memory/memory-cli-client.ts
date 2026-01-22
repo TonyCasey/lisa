@@ -69,13 +69,13 @@ export type MemoryResponse =
   | IMemoryFallbackResponse;
 
 // =============================================================================
-// Script Detection
+// CLI Detection
 // =============================================================================
 
-/** Full path to memory script, or null if not found */
+/** Skill name for memory operations (used with Lisa CLI) */
 export const memoryScriptPath = findSkillScript('memory');
 
-/** Whether the memory script exists (requires build) */
+/** Whether the Lisa CLI is available for memory operations */
 export const memoryScriptExists = memoryScriptPath !== null;
 
 // =============================================================================

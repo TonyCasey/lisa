@@ -129,7 +129,9 @@ if (!memoryTestsEnabled) {
         { timeout: 60_000 },
         async () => {
           const groupId = `${baseGroupId}-save-load`;
-          const uniqueText = `Memory test ${randomUUID()}`;
+          const uniqueId = randomUUID().slice(0, 8);
+          // Use meaningful content that LLM fact extraction will turn into facts
+          const uniqueText = `DECISION: We decided to use PostgreSQL for project ${uniqueId} because it provides better JSON support and reliability`;
 
           // Add memory
           const addResult = await addMemory(uniqueText, {
@@ -139,8 +141,9 @@ if (!memoryTestsEnabled) {
           assert.equal(addResult.status, 'ok');
           assert.equal(addResult.text, uniqueText);
 
-          // Wait for eventual consistency (Zep processes asynchronously)
-          await delay(isZepCloud ? 10000 : 2000);
+          // Wait for eventual consistency (Graphiti processes asynchronously)
+          // LLM fact extraction takes time on both local and cloud
+          await delay(isZepCloud ? 10000 : 10000);
 
           // Load and verify
           const loadResult = await loadMemory({
@@ -149,20 +152,12 @@ if (!memoryTestsEnabled) {
             limit: 25,
           });
 
-          if (isZepCloud) {
-            // Zep Cloud transforms content via LLM fact extraction,
-            // so we verify facts exist rather than exact text match
-            assert.ok(
-              loadResult.facts.length >= 1,
-              'Group should have facts after add operation'
-            );
-          } else {
-            // Local MCP preserves exact text
-            const found = loadResult.facts.some((fact) =>
-              (fact.fact || fact.name || '').includes(uniqueText)
-            );
-            assert.ok(found, 'Added memory should be found via load');
-          }
+          // Both Zep Cloud and local Graphiti use LLM fact extraction,
+          // so we verify facts exist rather than exact text match
+          assert.ok(
+            loadResult.facts.length >= 1,
+            `Group should have facts after add operation (got ${loadResult.facts.length} facts)`
+          );
         }
       );
     });

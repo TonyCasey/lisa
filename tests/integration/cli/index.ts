@@ -137,9 +137,12 @@ describe('CLI init command integration', () => {
         assert.ok(await dirExists(skillsDir), '.lisa/skills directory should exist');
       });
 
-      test('creates Claude config.js', { timeout: 10_000 }, async () => {
-        const configPath = path.join(tempDir, '.claude', 'config.js');
-        assert.ok(await fs.pathExists(configPath), '.claude/config.js should exist');
+      test('creates Claude settings.json with hooks', { timeout: 10_000 }, async () => {
+        const settingsPath = path.join(tempDir, '.claude', 'settings.json');
+        assert.ok(await fs.pathExists(settingsPath), '.claude/settings.json should exist');
+        
+        const settings = await fs.readJson(settingsPath);
+        assert.ok(settings.hooks, 'settings.json should have hooks configured');
       });
     });
 

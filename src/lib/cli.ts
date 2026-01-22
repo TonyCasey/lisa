@@ -8,11 +8,28 @@ import {checkbox, input, password, select} from '@inquirer/prompts';
 import {createDefaultServices, IServices} from './services';
 import {IScanOptions, runScan} from './scanner';
 import {createLogger, withCorrelation} from './infrastructure';
+import {bootstrapContainer, TOKENS} from './infrastructure/di';
+import type {IMediator} from './application/mediator';
+import {
+  SessionStartRequest,
+  SessionStopRequest,
+  PromptSubmitRequest,
+} from './application/mediator/requests';
+import {
+  readJsonFromStdin,
+  writeJsonToStdout,
+  writeStatus,
+  parseTrigger,
+  type ISessionStartInput,
+  type ISessionStopInput,
+  type IPromptSubmitInput,
+  type IHookOutput,
+} from './infrastructure/cli';
+import {toISOTimestamp, type PermissionMode} from './domain';
 
 // Templates are copied into dist/project by postbuild; resolve relative to compiled file.
 const TEMPLATE_ROOT = path.join(__dirname, '..', 'project');
-// Bundled hooks and plugins are in dist/hooks and dist/opencode
-const BUNDLED_HOOKS_ROOT = path.join(__dirname, '..', 'hooks');
+// Bundled OpenCode plugin is in dist/opencode
 const BUNDLED_OPENCODE_ROOT = path.join(__dirname, '..', 'opencode');
 
 // Read version from package.json (works in both dev and dist)
@@ -298,6 +315,111 @@ async function promptCliSupport(): Promise<CliSupport[]> {
   return choices;
 }
 
+/**
+ * Lisa hook configuration for Claude Code settings.json
+ */
+const LISA_HOOKS_CONFIG = {
+  SessionStart: [{
+    hooks: [{ type: 'command', command: 'lisa hook session-start' }],
+  }],
+  Stop: [{
+    hooks: [{ type: 'command', command: 'lisa hook session-stop' }],
+  }],
+  UserPromptSubmit: [{
+    hooks: [{ type: 'command', command: 'lisa hook user-prompt-submit' }],
+  }],
+};
+
+/**
+ * Merge Lisa hooks into .claude/settings.json.
+ * Preserves existing user settings and hooks.
+ */
+async function mergeClaudeSettings(settingsPath: string, verbose: boolean): Promise<void> {
+  let settings: Record<string, unknown> = {};
+
+  // Load existing settings if present
+  if (await fs.pathExists(settingsPath)) {
+    try {
+      settings = await fs.readJson(settingsPath);
+    } catch {
+      // Invalid JSON, start fresh but warn user
+      if (verbose) {
+        console.log(chalk.yellow('  Warning: Could not parse existing settings.json, creating new one'));
+      }
+    }
+  }
+
+  // Merge hooks - Lisa hooks are added to existing hooks (not replaced)
+  const existingHooks = (settings.hooks || {}) as Record<string, unknown[]>;
+  const mergedHooks: Record<string, unknown[]> = { ...existingHooks };
+
+  for (const [eventName, lisaHookConfigs] of Object.entries(LISA_HOOKS_CONFIG)) {
+    const existingEventHooks = mergedHooks[eventName] || [];
+    
+    // Check if Lisa hooks are already present (avoid duplicates)
+    const hasLisaHook = existingEventHooks.some((h: unknown) => {
+      if (typeof h === 'object' && h !== null) {
+        const hookObj = h as Record<string, unknown>;
+        const hooks = hookObj.hooks as Array<{ command?: string }> | undefined;
+        return hooks?.some(hh => hh.command?.startsWith('lisa hook'));
+      }
+      return false;
+    });
+
+    if (!hasLisaHook) {
+      // Add Lisa hooks
+      mergedHooks[eventName] = [...existingEventHooks, ...lisaHookConfigs];
+    }
+  }
+
+  settings.hooks = mergedHooks;
+
+  // Write merged settings
+  await fs.writeJson(settingsPath, settings, { spaces: 2 });
+}
+
+/**
+ * Clean up old Claude Code files that are no longer needed.
+ * - Old bundled hooks (now via CLI commands)
+ * - Old config.js (now read from env vars)
+ */
+async function cleanupOldClaudeFiles(claudeDir: string, verbose: boolean): Promise<void> {
+  // Remove old bundled hooks
+  const hooksDir = path.join(claudeDir, 'hooks');
+  const oldHooks = ['session-start.js', 'session-stop.js', 'user-prompt-submit.js', 'session-stop-worker.js'];
+  
+  for (const hook of oldHooks) {
+    const hookPath = path.join(hooksDir, hook);
+    if (await fs.pathExists(hookPath)) {
+      await fs.remove(hookPath);
+      if (verbose) {
+        console.log(chalk.gray(`  Removed old hook: ${hook}`));
+      }
+    }
+  }
+
+  // Remove hooks directory if empty
+  try {
+    const hooksContents = await fs.readdir(hooksDir);
+    // Filter out hidden files and utils directory (keep user hooks)
+    const userHooks = hooksContents.filter(f => !f.startsWith('.') && f !== 'utils');
+    if (userHooks.length === 0) {
+      // Only remove if there are no user hooks
+      // But keep the directory if user has custom hooks
+    }
+  } catch {
+    // Hooks directory doesn't exist, that's fine
+  }
+
+  // Remove old config.js (no longer needed - env vars read directly)
+  const configPath = path.join(claudeDir, 'config.js');
+  if (await fs.pathExists(configPath)) {
+    await fs.remove(configPath);
+    if (verbose) {
+      console.log(chalk.gray('  Removed old config.js (env vars read directly)'));
+    }
+  }
+}
 
 async function initCommand(opts: {
   endpoint?: string;
@@ -450,58 +572,87 @@ async function initCommand(opts: {
   copies.push(services.templateCopier.copy('.lisa/rules/typescript/testing.md', path.join(rulesDir, 'typescript', 'testing.md'), replacements, force));
   copies.push(services.templateCopier.copy('.lisa/rules/typescript/typescript-config-guide.md', path.join(rulesDir, 'typescript', 'typescript-config-guide.md'), replacements, force));
 
-  // Claude Code scaffolding (hooks and settings) - only if Claude Code is selected
+  // Claude Code scaffolding - only if Claude Code is selected
+  // Uses subdirectory symlinks to avoid destroying user's existing files
   if (supportClaudeCode) {
-    copies.push(services.templateCopier.copy('.claude/config.js', path.join(claudeDir, 'config.js'), replacements, force));
+    await fs.ensureDir(claudeDir);
     
-    // Copy bundled hooks (these are pre-bundled with all dependencies)
-    const hooksDir = path.join(claudeDir, 'hooks');
-    await fs.ensureDir(hooksDir);
-    const bundledHooks = ['session-start.js', 'session-stop.js', 'user-prompt-submit.js'];
-    for (const hook of bundledHooks) {
-      const src = path.join(BUNDLED_HOOKS_ROOT, hook);
-      const dest = path.join(hooksDir, hook);
-      if (await fs.pathExists(src)) {
-        copies.push(fs.copy(src, dest, { overwrite: force }));
-      }
-    }
+    // Create .claude/skills/ directory (preserve user content)
+    const claudeSkillsDir = path.join(claudeDir, 'skills');
+    const claudeSkillsLisaLink = path.join(claudeSkillsDir, 'lisa');
     
-    // Create symlinks for .claude/skills and .claude/rules
-    // If these are real directories (not symlinks), clean them up first
-    const claudeSkillsLink = path.join(claudeDir, 'skills');
-    const claudeRulesLink = path.join(claudeDir, 'rules');
-    
-    // Check if .claude/skills exists as a real directory (not symlink)
+    // Handle migration from old whole-folder symlink
     try {
-      const skillsStat = await fs.lstat(claudeSkillsLink);
-      if (skillsStat.isDirectory() && !skillsStat.isSymbolicLink()) {
-        // Clean up old scripts in .claude/skills before removing
+      const skillsStat = await fs.lstat(claudeSkillsDir);
+      if (skillsStat.isSymbolicLink()) {
+        // Old symlink - remove it and create directory
         if (verbose) {
-          console.log(chalk.cyan('\nConverting .claude/skills from directory to symlink:'));
+          console.log(chalk.cyan('\nMigrating .claude/skills from symlink to directory:'));
         }
-        await cleanupPreviousInstall(claudeSkillsLink, verbose);
-        await fs.remove(claudeSkillsLink);
-        console.log(chalk.cyan('  Converted .claude/skills to symlink -> .lisa/skills'));
+        await fs.remove(claudeSkillsDir);
+        console.log(chalk.cyan('  Removed old symlink .claude/skills'));
       }
     } catch {
-      // Doesn't exist, will be created as symlink
+      // Doesn't exist, that's fine
     }
     
+    await fs.ensureDir(claudeSkillsDir);
+    
+    // Remove old lisa symlink if it exists and create new one
     try {
-      const rulesStat = await fs.lstat(claudeRulesLink);
-      if (rulesStat.isDirectory() && !rulesStat.isSymbolicLink()) {
-        await fs.remove(claudeRulesLink);
-        console.log(chalk.cyan('  Converted .claude/rules to symlink -> .lisa/rules'));
+      await fs.lstat(claudeSkillsLisaLink);
+      await fs.remove(claudeSkillsLisaLink);
+    } catch {
+      // Doesn't exist
+    }
+    await createSymlink(skillsDir, claudeSkillsLisaLink, cwd);
+    
+    // Create .claude/rules/ directory (preserve user content)
+    const claudeRulesDir = path.join(claudeDir, 'rules');
+    const claudeRulesLisaLink = path.join(claudeRulesDir, 'lisa');
+    
+    // Handle migration from old whole-folder symlink
+    try {
+      const rulesStat = await fs.lstat(claudeRulesDir);
+      if (rulesStat.isSymbolicLink()) {
+        // Old symlink - remove it and create directory
+        if (verbose) {
+          console.log(chalk.cyan('\nMigrating .claude/rules from symlink to directory:'));
+        }
+        await fs.remove(claudeRulesDir);
+        console.log(chalk.cyan('  Removed old symlink .claude/rules'));
       }
     } catch {
-      // Doesn't exist, will be created as symlink
+      // Doesn't exist, that's fine
     }
     
-    await createSymlink(skillsDir, claudeSkillsLink, cwd);
-    await createSymlink(rulesDir, claudeRulesLink, cwd);
+    await fs.ensureDir(claudeRulesDir);
+    
+    // Remove old lisa symlink if it exists and create new one
+    try {
+      await fs.lstat(claudeRulesLisaLink);
+      await fs.remove(claudeRulesLisaLink);
+    } catch {
+      // Doesn't exist
+    }
+    await createSymlink(rulesDir, claudeRulesLisaLink, cwd);
+    
+    // Merge Lisa hook configuration into .claude/settings.json
+    const settingsPath = path.join(claudeDir, 'settings.json');
+    await mergeClaudeSettings(settingsPath, verbose);
+    
+    // Clean up old files that are no longer needed
+    await cleanupOldClaudeFiles(claudeDir, verbose);
+    
+    if (verbose) {
+      console.log(chalk.green('  Created .claude/skills/lisa/ -> .lisa/skills'));
+      console.log(chalk.green('  Created .claude/rules/lisa/ -> .lisa/rules'));
+      console.log(chalk.green('  Merged hook configuration into .claude/settings.json'));
+    }
   }
 
   // OpenCode scaffolding - only if OpenCode is selected
+  // Uses subdirectory symlinks to avoid destroying user's existing files
   if (supportOpenCode) {
     const opencodeDir = path.join(cwd, '.opencode');
     const pluginDir = path.join(opencodeDir, 'plugin');
@@ -514,8 +665,47 @@ async function initCommand(opts: {
       copies.push(fs.copy(pluginSrc, pluginDest, { overwrite: force }));
     }
     
-    // Create symlink for .opencode/skills
-    await createSymlink(skillsDir, path.join(opencodeDir, 'skills'), cwd);
+    // Create .opencode/skills/ directory (preserve user content)
+    const opencodeSkillsDir = path.join(opencodeDir, 'skills');
+    
+    // Handle migration from old whole-folder symlink
+    try {
+      const skillsStat = await fs.lstat(opencodeSkillsDir);
+      if (skillsStat.isSymbolicLink()) {
+        await fs.remove(opencodeSkillsDir);
+        if (verbose) {
+          console.log(chalk.cyan('  Removed old symlink .opencode/skills'));
+        }
+      }
+    } catch {
+      // Doesn't exist
+    }
+    
+    await fs.ensureDir(opencodeSkillsDir);
+    
+    // OpenCode expects skills directly in .opencode/skills/<skill>/SKILL.md
+    // Create individual symlinks for each Lisa skill
+    const lisaSkills = ['memory', 'tasks', 'lisa', 'git', 'jira', 'init-review', 'prompt'];
+    for (const skill of lisaSkills) {
+      const skillLink = path.join(opencodeSkillsDir, skill);
+      const skillTarget = path.join(skillsDir, skill);
+      
+      // Only create if the skill exists in .lisa/skills
+      if (await fs.pathExists(skillTarget)) {
+        try {
+          await fs.lstat(skillLink);
+          await fs.remove(skillLink);
+        } catch {
+          // Doesn't exist
+        }
+        // Pass absolute path so createSymlink calculates correct relative path
+        await createSymlink(skillTarget, skillLink, cwd);
+      }
+    }
+    
+    if (verbose) {
+      console.log(chalk.green(`  Created .opencode/skills/{${lisaSkills.join(',')}} -> .lisa/skills/*`));
+    }
   }
 
   if (includeDocker) {
@@ -1132,6 +1322,142 @@ program
     const args = cmd.args || [];
     const scriptPath = path.join(__dirname, 'skills', 'lisa', 'compile-skills.js');
     await spawnAndWait(scriptPath, args);
+  });
+
+// Subcommand: lisa hook
+// These commands are called by Claude Code via settings.json hooks
+const hookCmd = program
+  .command('hook')
+  .description('Hook commands for Claude Code integration');
+
+hookCmd
+  .command('session-start')
+  .description('Handle session start event (called by Claude Code)')
+  .action(async () => {
+    let dispose: (() => Promise<void>) | undefined;
+    try {
+      // Read input from Claude Code
+      const input = await readJsonFromStdin<ISessionStartInput>();
+      const trigger = parseTrigger(input.source, input.session_type, input.trigger);
+
+      // Bootstrap container and resolve mediator
+      const bootstrap = await bootstrapContainer({
+        projectRoot: input.cwd || process.cwd(),
+        disableLogging: true,
+      });
+      dispose = bootstrap.dispose;
+
+      const mediator = await bootstrap.container.resolve<IMediator>(TOKENS.Mediator);
+
+      // Create and send request
+      const request = new SessionStartRequest(trigger, toISOTimestamp(), input.session_id);
+      const result = await mediator.send(request);
+
+      // Output context to stdout (goes to Claude)
+      const output: IHookOutput = {
+        hookSpecificOutput: {
+          hookEventName: 'SessionStart',
+          additionalContext: result.contextContent,
+        },
+      };
+      await writeJsonToStdout(output);
+
+      // Status message to stderr (shown to user)
+      await writeStatus(result.message);
+    } catch (error) {
+      // On error, still output something to not block session
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const output: IHookOutput = {
+        hookSpecificOutput: {
+          hookEventName: 'SessionStart',
+          additionalContext: `Memory load skipped: ${errorMessage}`,
+        },
+      };
+      await writeJsonToStdout(output);
+      await writeStatus(`Memory load failed: ${errorMessage}`);
+    } finally {
+      if (dispose) await dispose();
+    }
+  });
+
+hookCmd
+  .command('session-stop')
+  .description('Handle session stop event (called by Claude Code)')
+  .action(async () => {
+    let dispose: (() => Promise<void>) | undefined;
+    try {
+      // Read input from Claude Code
+      const input = await readJsonFromStdin<ISessionStopInput>();
+
+      // Bootstrap container and resolve mediator
+      const bootstrap = await bootstrapContainer({
+        projectRoot: input.cwd || process.cwd(),
+        disableLogging: true,
+      });
+      dispose = bootstrap.dispose;
+
+      const mediator = await bootstrap.container.resolve<IMediator>(TOKENS.Mediator);
+
+      // Create and send request
+      const request = new SessionStopRequest(
+        'idle',
+        toISOTimestamp(),
+        input.session_id,
+        input.transcript_path
+      );
+      const result = await mediator.send(request);
+
+      // Status message to stderr
+      await writeStatus(result.message);
+    } catch (error) {
+      // Silent failure - don't block user
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      await writeStatus(`Session capture failed: ${errorMessage}`);
+    } finally {
+      if (dispose) await dispose();
+    }
+  });
+
+hookCmd
+  .command('user-prompt-submit')
+  .description('Handle user prompt submit event (called by Claude Code)')
+  .action(async () => {
+    let dispose: (() => Promise<void>) | undefined;
+    try {
+      // Read input from Claude Code
+      const input = await readJsonFromStdin<IPromptSubmitInput>();
+      const content = input.prompt || input.content || '';
+      const permissionMode = (input.permission_mode || input.permissionMode || 'default') as PermissionMode;
+
+      if (!content) {
+        // No content to process
+        return;
+      }
+
+      // Bootstrap container and resolve mediator
+      const bootstrap = await bootstrapContainer({
+        projectRoot: process.cwd(),
+        disableLogging: true,
+      });
+      dispose = bootstrap.dispose;
+
+      const mediator = await bootstrap.container.resolve<IMediator>(TOKENS.Mediator);
+
+      // Create and send request
+      const request = new PromptSubmitRequest(content, toISOTimestamp(), input.session_id, permissionMode);
+      const result = await mediator.send(request);
+
+      // Output recursion results if in plan mode
+      if (result.recursion?.hasContext) {
+        console.log('\n🔍 Related Context from Memory:\n');
+        console.log(result.recursion.summary);
+        console.log('');
+      }
+    } catch {
+      // Silent failure - don't block user
+    } finally {
+      if (dispose) await dispose();
+    }
   });
 
 if (require.main === module) {

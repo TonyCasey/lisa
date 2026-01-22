@@ -132,7 +132,9 @@ if (!tasksTestsEnabled) {
         { timeout: 60_000 },
         async () => {
           const groupId = `${baseGroupId}-save-list`;
-          const uniqueTitle = `Task test ${randomUUID()}`;
+          const uniqueId = randomUUID().slice(0, 8);
+          // Use meaningful content that LLM fact extraction will turn into facts
+          const uniqueTitle = `Implement user authentication for project ${uniqueId}`;
 
           // Add task
           const addResult = await addTask(uniqueTitle, {
@@ -143,8 +145,9 @@ if (!tasksTestsEnabled) {
           assert.equal(addResult.status, 'ok');
           assert.equal(addResult.task.title, uniqueTitle);
 
-          // Wait for eventual consistency
-          await delay(2000);
+          // Wait for eventual consistency (Graphiti processes asynchronously)
+          // LLM fact extraction takes time
+          await delay(10000);
 
           // List and verify
           const listResult = await listTasks({
@@ -153,9 +156,12 @@ if (!tasksTestsEnabled) {
             limit: 25,
           });
           const found = listResult.tasks.some((task) =>
-            task.title.includes(uniqueTitle)
+            task.title.includes(uniqueId)
           );
-          assert.ok(found, 'Added task should be found via list');
+          assert.ok(
+            found,
+            `Added task should be found via list (got ${listResult.tasks.length} tasks)`
+          );
         }
       );
     });

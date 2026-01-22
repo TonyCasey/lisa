@@ -220,7 +220,20 @@ This enables verbose logging for hooks and skills.
 
 ### Check Hook Output
 
-For Claude Code, hook output appears in the conversation. For OpenCode, check the plugin logs.
+For Claude Code, hook output appears in the conversation. You can also test hooks manually:
+
+```bash
+# Test session-start hook
+echo '{"source":"startup"}' | lisa hook session-start
+
+# Test session-stop hook
+echo '{"session_id":"test"}' | lisa hook session-stop
+
+# Test user-prompt-submit hook
+echo '{"prompt":"test"}' | lisa hook user-prompt-submit
+```
+
+For OpenCode, check the plugin logs.
 
 ### Test MCP Directly
 
