@@ -12,7 +12,8 @@
 
 import { createServicesWithCleanup } from '../../di';
 import { PromptSubmitHandler } from '../../../application/handlers';
-import { toISOTimestamp, createPromptSubmitEvent, PermissionMode } from '../../../domain';
+import { PromptSubmitRequest } from '../../../application/mediator/requests';
+import { toISOTimestamp, PermissionMode } from '../../../domain';
 import { readStdin } from './stdin';
 
 interface IPromptInput {
@@ -43,11 +44,11 @@ async function main(): Promise<void> {
   });
 
   try {
-    // Create handler and process event
+    // Create handler and process request
     const handler = new PromptSubmitHandler(services);
-    const event = createPromptSubmitEvent(content, toISOTimestamp(), undefined, permissionMode);
+    const request = new PromptSubmitRequest(content, toISOTimestamp(), undefined, permissionMode);
     
-    const result = await handler.handle(event);
+    const result = await handler.handle(request);
 
     // Output recursion results to stdout (Claude context)
     if (result.recursion?.hasContext) {

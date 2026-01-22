@@ -7,9 +7,14 @@
 
 import { createServices } from '../../di';
 import { SessionStartHandler, SessionStopHandler, PromptSubmitHandler } from '../../../application/handlers';
-import { toISOTimestamp, createSessionStartEvent, createSessionStopEvent, createPromptSubmitEvent, PermissionMode } from '../../../domain';
+import {
+  SessionStartRequest,
+  SessionStopRequest,
+  PromptSubmitRequest,
+} from '../../../application/mediator/requests';
+import { toISOTimestamp, PermissionMode } from '../../../domain';
 import { OpenCodeEventNames, OpenCodeEventToTrigger } from './opencode-events';
-import type { SessionTrigger } from '../../../domain';
+import type { SessionTrigger, SessionStopReason } from '../../../domain';
 
 /**
  * OpenCode Session type (subset of fields we care about)
@@ -77,8 +82,8 @@ export async function LisaPlugin(ctx: IOpenCodePluginContext): Promise<Record<st
   // Helper to handle session start events
   const handleSessionStart = async (trigger: SessionTrigger): Promise<void> => {
     try {
-      const event = createSessionStartEvent(trigger, toISOTimestamp());
-      const result = await sessionStartHandler.handle(event);
+      const request = new SessionStartRequest(trigger, toISOTimestamp());
+      const result = await sessionStartHandler.handle(request);
       await log('info', result.message);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -118,8 +123,8 @@ export async function LisaPlugin(ctx: IOpenCodePluginContext): Promise<Record<st
     [OpenCodeEventNames.SESSION_COMPACTING]: async (_input: unknown, output?: ICompactionOutput) => {
       try {
         const trigger = OpenCodeEventToTrigger[OpenCodeEventNames.SESSION_COMPACTING] as SessionTrigger;
-        const event = createSessionStartEvent(trigger, toISOTimestamp());
-        const result = await sessionStartHandler.handle(event);
+        const request = new SessionStartRequest(trigger, toISOTimestamp());
+        const result = await sessionStartHandler.handle(request);
 
         if (result.contextContent && output) {
           output.context.push(result.contextContent);
@@ -137,8 +142,8 @@ export async function LisaPlugin(ctx: IOpenCodePluginContext): Promise<Record<st
      */
     [OpenCodeEventNames.SESSION_IDLE]: async () => {
       try {
-        const event = createSessionStopEvent('idle', toISOTimestamp());
-        await sessionStopHandler.handle(event);
+        const request = new SessionStopRequest('idle' as SessionStopReason, toISOTimestamp());
+        await sessionStopHandler.handle(request);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         await log('error', `Session capture failed: ${message}`);
@@ -172,8 +177,8 @@ export async function LisaPlugin(ctx: IOpenCodePluginContext): Promise<Record<st
             }
           }
 
-          const event = createPromptSubmitEvent(msg.content, toISOTimestamp(), msg.sessionId, permissionMode);
-          const result = await promptSubmitHandler.handle(event);
+          const request = new PromptSubmitRequest(msg.content, toISOTimestamp(), msg.sessionId, permissionMode);
+          const result = await promptSubmitHandler.handle(request);
 
           // Output recursion results (OpenCode captures stdout for context)
           if (result.recursion?.hasContext) {

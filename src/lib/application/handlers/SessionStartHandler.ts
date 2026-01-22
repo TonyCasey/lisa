@@ -1,6 +1,20 @@
-import type { ISessionStartEvent, SessionTrigger, ILisaServices, IMemoryItem, ITask, ITaskCounts } from '../../domain';
+import type {
+  SessionTrigger,
+  ILisaServices,
+  ILisaContext,
+  IMemoryService,
+  ITaskService,
+  IMcpClient,
+  IMemoryItem,
+  ITask,
+  ITaskCounts,
+  ILogger,
+} from '../../domain';
+import type { IRepositoryRouter } from '../../domain/interfaces/dal';
 import { emptyTaskCounts } from '../../domain';
 import type { ISessionStartResult } from '../interfaces';
+import type { IRequestHandler } from '../mediator';
+import { SessionStartRequest } from '../mediator/requests';
 
 interface IMcpNodeResponse {
   result?: {
@@ -30,25 +44,85 @@ const EXCLUDED_RELATIONSHIPS = new Set([
 /**
  * Handler for session start events.
  * Loads memory context and formats it for display.
+ *
+ * Implements IRequestHandler for use with the Mediator pattern.
  */
-export class SessionStartHandler {
-  constructor(private readonly services: ILisaServices) {}
+export class SessionStartHandler implements IRequestHandler<SessionStartRequest, ISessionStartResult> {
+  private readonly context: ILisaContext;
+  private readonly memory: IMemoryService;
+  private readonly tasks: ITaskService;
+  private readonly mcp: IMcpClient;
+  private readonly router?: IRepositoryRouter;
+  private readonly logger?: ILogger;
 
   /**
-   * Handle a session start event.
+   * Create a new SessionStartHandler.
+   *
+   * @param services - Lisa services (legacy constructor for backward compatibility)
    */
-  async handle(event: ISessionStartEvent): Promise<ISessionStartResult> {
-    const { context, memory, router } = this.services;
-    const { hierarchicalGroupIds, projectAliases, branch, projectName, userName, folderType, projectRoot } = context;
+  constructor(services: ILisaServices);
+
+  /**
+   * Create a new SessionStartHandler with individual service injection.
+   *
+   * @param context - Lisa context
+   * @param memory - Memory service
+   * @param tasks - Task service
+   * @param mcp - MCP client
+   * @param router - Repository router (optional)
+   * @param logger - Logger (optional)
+   */
+  constructor(
+    context: ILisaContext,
+    memory: IMemoryService,
+    tasks: ITaskService,
+    mcp: IMcpClient,
+    router?: IRepositoryRouter,
+    logger?: ILogger
+  );
+
+  constructor(
+    contextOrServices: ILisaContext | ILisaServices,
+    memory?: IMemoryService,
+    tasks?: ITaskService,
+    mcp?: IMcpClient,
+    router?: IRepositoryRouter,
+    logger?: ILogger
+  ) {
+    // Check if this is the legacy ILisaServices constructor
+    if ('context' in contextOrServices && 'memory' in contextOrServices) {
+      const services = contextOrServices as ILisaServices;
+      this.context = services.context;
+      this.memory = services.memory;
+      this.tasks = services.tasks;
+      this.mcp = services.mcp;
+      this.router = services.router;
+      this.logger = services.logger;
+    } else {
+      // Individual service injection
+      this.context = contextOrServices as ILisaContext;
+      this.memory = memory!;
+      this.tasks = tasks!;
+      this.mcp = mcp!;
+      this.router = router;
+      this.logger = logger;
+    }
+  }
+
+  /**
+   * Handle a session start request.
+   */
+  async handle(request: SessionStartRequest): Promise<ISessionStartResult> {
+    const { hierarchicalGroupIds, projectAliases, branch, projectName, userName, folderType, projectRoot } = this.context;
 
     // Load memory - use DAL for date-ordered facts if router is available
     let memories;
-    if (router && router.isBackendAvailable('neo4j')) {
+    if (this.router && this.router.isBackendAvailable('neo4j')) {
       // Use DAL with Neo4j for proper date ordering
       memories = await this.loadMemoryWithDAL(hierarchicalGroupIds, projectAliases, branch);
     } else {
       // Fall back to MCP-only path
-      memories = await memory.loadMemory(
+      memories = await this.memory.loadMemory(
         hierarchicalGroupIds,
         projectAliases,
         branch,
@@ -62,7 +136,7 @@ export class SessionStartHandler {
 
     // Build context content
     const contextContent = this.formatContextContent(
-      event.trigger,
+      request.trigger,
       memories,
       tasks,
       taskCounts,
@@ -76,7 +150,7 @@ export class SessionStartHandler {
     );
 
     // Build message
-    const message = this.getTriggerMessage(event.trigger, memories.timedOut);
+    const message = this.getTriggerMessage(request.trigger, memories.timedOut);
 
     return {
       message,
@@ -97,7 +171,8 @@ export class SessionStartHandler {
     projectAliases: readonly string[],
     branch: string | null
   ): Promise<{ facts: IMemoryItem[]; nodes: IMemoryItem[]; tasks: IMemoryItem[]; initReview: string | null; timedOut: boolean }> {
-    const { memory, mcp } = this.services;
+    const memory = this.memory;
+    const mcp = this.mcp;
     const result = {
       facts: [] as IMemoryItem[],
       nodes: [] as IMemoryItem[],
@@ -162,8 +237,7 @@ export class SessionStartHandler {
 
       // Load tasks via DAL (uses Neo4j when available for date ordering)
       try {
-        const { tasks: taskService } = this.services;
-        const loadedTasks = await taskService.getTasksSimple(allGroupIds);
+        const loadedTasks = await this.tasks.getTasksSimple(allGroupIds);
         
         // Convert ITask[] to IMemoryItem[] format for compatibility
         for (const task of loadedTasks) {
