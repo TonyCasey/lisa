@@ -66,6 +66,9 @@ fi
 echo "  Running: npx lisa init $INIT_FLAGS"
 npx lisa init $INIT_FLAGS
 
+# Add local node_modules/.bin to PATH for subsequent scripts
+export PATH="$PWD/node_modules/.bin:$PATH"
+
 # =============================================================================
 # Phase 3: Verify Installation
 # =============================================================================
