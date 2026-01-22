@@ -8,6 +8,20 @@ import type { IRequest } from '../IMediator';
 import type { SessionStopReason, ISOTimestamp } from '../../../domain';
 
 /**
+ * A suggested action for the user.
+ */
+export interface ISessionStopSuggestion {
+  /** Action identifier */
+  readonly action: string;
+  /** Human-readable description */
+  readonly message: string;
+  /** CLI command to execute the action */
+  readonly command: string;
+  /** Number of items this suggestion applies to */
+  readonly count?: number;
+}
+
+/**
  * Result from handling a session stop request.
  */
 export interface ISessionStopResult {
@@ -22,6 +36,9 @@ export interface ISessionStopResult {
 
   /** Reason for skipping, if applicable */
   readonly skipReason?: string;
+
+  /** Suggested follow-up actions for the user */
+  readonly suggestions?: readonly ISessionStopSuggestion[];
 }
 
 /**

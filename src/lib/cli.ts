@@ -1280,6 +1280,18 @@ program
     await spawnAndWait(scriptPath, args);
   });
 
+// Subcommand: lisa github
+program
+  .command('github')
+  .description('GitHub Issues and Projects operations')
+  .allowUnknownOption()
+  .action(async (_opts, cmd) => {
+    // Pass all arguments after the command to the script
+    const args = cmd.args || [];
+    const scriptPath = path.join(__dirname, 'skills', 'github', 'github.js');
+    await spawnAndWait(scriptPath, args);
+  });
+
 // Subcommand: lisa prompt
 program
   .command('prompt')
