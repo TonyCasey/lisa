@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.4] - 2026-01-23
+
+### Fixed
+
+#### Deterministic Transcript Resolution ([#12](https://github.com/TonyCasey/lisa/issues/12))
+- **Explicit path preference** - When `transcript_path` is provided, it is always used directly
+  - No fallback to search when explicit path is provided but not found
+  - Clear error logging when explicit path doesn't exist
+
+- **Newest transcript selection** - When searching, selects newest transcript by modification time
+  - Collects all matching transcript candidates
+  - Sorts by mtime descending and returns newest
+  - Makes resolution deterministic and predictable
+
+- **Warning for multiple candidates** - Logs warning when multiple transcript files found
+  - Lists all candidates with paths and timestamps
+  - Helps debugging transcript resolution issues
+
+- **Documented resolution algorithm** - Clear code comments explaining:
+  1. Explicit path is always preferred
+  2. Standard locations are searched
+  3. All candidates collected
+  4. Newest selected by mtime
+  5. Warning logged for multiple matches
+
+- **Affected files**:
+  - `src/lib/infrastructure/services/SessionCaptureService.ts` - Deterministic resolution
+
+### Testing
+- 17 new unit tests for transcript resolution
+- Tests cover explicit paths, search, mtime ordering, and warning logging
+
+---
+
 ## [2.4.2] - 2026-01-23
 
 ### Added
