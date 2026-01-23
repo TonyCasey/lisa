@@ -31,9 +31,19 @@ interface McpResponse {
 /**
  * MCP Client implementation.
  * Communicates with Graphiti MCP server or Zep Cloud.
+ *
+ * Session Management:
+ * This client manages MCP sessions internally. It:
+ * - Automatically initializes a session on first call
+ * - Updates session ID when server returns a new one in response headers
+ * - Re-initializes session if a request fails with 401/403 (expired session)
+ * - Thread-safe for concurrent requests (all share the same session)
+ *
+ * Callers should NOT track session IDs manually - the client handles this.
  */
 export class McpClient implements IMcpClient {
   private sessionId: string | null = null;
+  private initializePromise: Promise<string> | null = null;
 
   constructor(
     private readonly endpoint: string,
@@ -78,8 +88,34 @@ export class McpClient implements IMcpClient {
 
   /**
    * Initialize the MCP session.
+   * Uses a promise cache to prevent concurrent initialization requests.
    */
   async initialize(timeoutMs: number = DEFAULT_TIMEOUT_MS): Promise<string> {
+    // If already initializing, return the pending promise
+    if (this.initializePromise) {
+      return this.initializePromise;
+    }
+
+    // If already have a session, return it
+    if (this.sessionId) {
+      return this.sessionId;
+    }
+
+    // Start initialization
+    this.initializePromise = this.doInitialize(timeoutMs);
+
+    try {
+      const sessionId = await this.initializePromise;
+      return sessionId;
+    } finally {
+      this.initializePromise = null;
+    }
+  }
+
+  /**
+   * Internal initialization logic.
+   */
+  private async doInitialize(timeoutMs: number): Promise<string> {
     const body = {
       jsonrpc: '2.0',
       id: 'init',
@@ -108,15 +144,48 @@ export class McpClient implements IMcpClient {
   }
 
   /**
+   * Force re-initialization of the session.
+   * Called when a request fails with session-related errors.
+   */
+  private async reinitialize(timeoutMs: number): Promise<string> {
+    this.sessionId = null;
+    this.initializePromise = null;
+    return this.initialize(timeoutMs);
+  }
+
+  /**
    * Make an RPC call to the MCP server.
+   *
+   * Session management is handled internally:
+   * - Session is initialized automatically on first call
+   * - Session ID from response headers updates the internal state
+   * - On 401/403, session is re-initialized and request retried once
+   *
+   * @param method - Method name
+   * @param params - Method parameters
+   * @param _sessionId - DEPRECATED: Ignored. Session managed internally.
+   * @param timeoutMs - Timeout in milliseconds
    */
   async call<T = unknown>(
     method: string,
     params: Record<string, unknown> = {},
-    sessionId: string | null = null,
+    _sessionId: string | null = null, // Ignored - session managed internally
     timeoutMs: number = DEFAULT_TIMEOUT_MS
   ): Promise<[T, string]> {
-    const sid = sessionId || this.sessionId || (await this.initialize(timeoutMs));
+    return this.doCall<T>(method, params, timeoutMs, false);
+  }
+
+  /**
+   * Internal call implementation with retry logic for session expiry.
+   */
+  private async doCall<T>(
+    method: string,
+    params: Record<string, unknown>,
+    timeoutMs: number,
+    isRetry: boolean
+  ): Promise<[T, string]> {
+    // Always use internal session ID, never the passed one
+    const sid = this.sessionId || (await this.initialize(timeoutMs));
 
     const headers = {
       ...this.getHeaders(),
@@ -136,9 +205,16 @@ export class McpClient implements IMcpClient {
       signal: AbortSignal.timeout(timeoutMs),
     });
 
+    // Update session ID from response
     const newSid = resp.headers.get('mcp-session-id');
     if (newSid) {
       this.sessionId = newSid;
+    }
+
+    // Handle session expiry - retry once with fresh session
+    if ((resp.status === 401 || resp.status === 403) && !isRetry) {
+      await this.reinitialize(timeoutMs);
+      return this.doCall<T>(method, params, timeoutMs, true);
     }
 
     const text = await resp.text();

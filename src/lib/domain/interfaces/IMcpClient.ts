@@ -1,6 +1,13 @@
 /**
  * MCP (Model Context Protocol) client interface.
  * Handles communication with Graphiti MCP server or Zep Cloud.
+ *
+ * Session Management:
+ * The MCP client manages sessions internally. Callers should NOT track
+ * or pass session IDs manually. The client automatically:
+ * - Initializes a session on first call
+ * - Updates session ID when server returns a new one
+ * - Handles session expiry by re-initializing
  */
 export interface IMcpClient {
   /**
@@ -12,11 +19,16 @@ export interface IMcpClient {
 
   /**
    * Make an RPC call to the MCP server.
+   *
+   * Session ID is managed internally - do not pass sessionId manually.
+   * The client uses its cached session ID and updates it automatically.
+   *
    * @param method - Method name (e.g., 'search_memory_facts', 'add_memory')
    * @param params - Method parameters
-   * @param sessionId - Optional session ID (uses cached if not provided)
    * @param timeoutMs - Timeout in milliseconds
-   * @returns Tuple of [result, sessionId]
+   * @returns Tuple of [result, sessionId] (sessionId returned for logging/debugging only)
+   *
+   * @deprecated The sessionId parameter is deprecated. Do not pass it manually.
    */
   call<T = unknown>(
     method: string,
@@ -33,6 +45,7 @@ export interface IMcpClient {
 
   /**
    * Get the current session ID.
+   * For debugging/logging purposes only.
    */
   getSessionId(): string | null;
 }

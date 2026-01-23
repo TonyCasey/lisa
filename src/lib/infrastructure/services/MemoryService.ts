@@ -48,6 +48,9 @@ export class MemoryService implements IMemoryService {
    * Uses AbortController-based cancellation to ensure no mutations
    * occur after timeout and resources are properly cleaned up.
    *
+   * Note: Session ID management is handled internally by McpClient.
+   * Callers do not need to track session IDs.
+   *
    * @param groupIds - Hierarchical group IDs to query
    * @param aliases - Project aliases for additional queries
    * @param branch - Current git branch (optional)
@@ -67,9 +70,8 @@ export class MemoryService implements IMemoryService {
 
     const cancellableResult = await withCancellation(
       async (abortSignal) => {
-        let sessionId: string | null = null;
-
         // Load init-review memory first (codebase summary)
+        // Session managed internally by McpClient - no need to track session ID
         try {
           checkCancellation(abortSignal, 'Memory load cancelled before init-review');
 
@@ -80,8 +82,7 @@ export class MemoryService implements IMemoryService {
             group_ids: [...groupIds],
             tags: ['type:init-review'],
           };
-          const [initResp, sid] = await this.mcp.call<McpMemoryResponse>('search_memory_facts', initParams, sessionId);
-          sessionId = sid;
+          const [initResp] = await this.mcp.call<McpMemoryResponse>('search_memory_facts', initParams);
 
           // Check cancellation before mutating result
           checkCancellation(abortSignal, 'Memory load cancelled after init-review fetch');
@@ -110,8 +111,7 @@ export class MemoryService implements IMemoryService {
             order: 'desc',
             group_ids: [...groupIds],
           };
-          const [recentResp, sid] = await this.mcp.call<McpMemoryResponse>('search_memory_facts', recentParams, sessionId);
-          sessionId = sid;
+          const [recentResp] = await this.mcp.call<McpMemoryResponse>('search_memory_facts', recentParams);
 
           // Check cancellation before mutating result
           checkCancellation(abortSignal, 'Memory load cancelled after facts fetch');
@@ -139,7 +139,7 @@ export class MemoryService implements IMemoryService {
               order: 'desc',
               group_ids: [...groupIds],
             };
-            const [factResp] = await this.mcp.call<McpMemoryResponse>('search_memory_facts', factParams, sessionId);
+            const [factResp] = await this.mcp.call<McpMemoryResponse>('search_memory_facts', factParams);
 
             checkCancellation(abortSignal, 'Memory load cancelled after alias facts fetch');
 
@@ -167,7 +167,7 @@ export class MemoryService implements IMemoryService {
                 max_nodes: 20,
                 group_ids: [...groupIds],
               };
-              const [nodeResp] = await this.mcp.call<McpMemoryResponse>('search_nodes', nodeParams, sessionId);
+              const [nodeResp] = await this.mcp.call<McpMemoryResponse>('search_nodes', nodeParams);
 
               checkCancellation(abortSignal, 'Memory load cancelled after nodes fetch');
 
@@ -201,7 +201,7 @@ export class MemoryService implements IMemoryService {
               max_nodes: 200,
               group_ids: [...groupIds],
             };
-            const [taskResp] = await this.mcp.call<McpMemoryResponse>('search_nodes', taskParams, sessionId);
+            const [taskResp] = await this.mcp.call<McpMemoryResponse>('search_nodes', taskParams);
 
             checkCancellation(abortSignal, 'Memory load cancelled after tasks fetch');
 
