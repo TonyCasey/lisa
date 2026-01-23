@@ -1,6 +1,15 @@
 import path from 'path';
 import fs from 'fs';
-import type { ILogger, ILoggerOptions, LogLevel } from '../../domain/interfaces';
+import type {
+  ILogger,
+  ILoggerOptions,
+  LogLevel,
+  IStructuredLog,
+  IStructuredLogger,
+  ILogContext,
+  LogEvent,
+} from '../../domain/interfaces';
+import { deriveCompleteEvent, deriveErrorEvent } from '../../domain/interfaces';
 
 /**
  * Default logger configuration.
@@ -74,22 +83,26 @@ function getDateString(): string {
 /**
  * Simple file-based logger implementation.
  * Writes single-line formatted logs with optional colorized console output.
+ * Also implements IStructuredLogger for standardized event logging.
  */
-export class Logger implements ILogger {
+export class Logger implements ILogger, IStructuredLogger {
   private readonly options: ILoggerOptions;
   private readonly getCorrelationId: () => string | undefined;
   private readonly logFile: string;
   private readonly bindings: Record<string, unknown>;
+  private readonly boundContext: ILogContext;
 
   constructor(
     options: ILoggerOptions,
     _pinoInstance?: unknown, // Kept for API compatibility
     getCorrelationId?: () => string | undefined,
-    bindings?: Record<string, unknown>
+    bindings?: Record<string, unknown>,
+    boundContext?: ILogContext
   ) {
     this.options = options;
     this.getCorrelationId = getCorrelationId ?? (() => undefined);
     this.bindings = bindings ?? {};
+    this.boundContext = boundContext ?? {};
 
     // Ensure log directory exists
     const logDir = path.resolve(options.logDir);
@@ -191,8 +204,134 @@ export class Logger implements ILogger {
       this.options,
       undefined,
       this.getCorrelationId,
-      { ...this.bindings, ...bindings }
+      { ...this.bindings, ...bindings },
+      this.boundContext
     );
+  }
+
+  // ============================================================================
+  // IStructuredLogger Implementation
+  // ============================================================================
+
+  /**
+   * Format a structured log entry into message and context.
+   *
+   * Note: log.data is flattened into the context object intentionally for better
+   * compatibility with log aggregation tools (Elasticsearch, Datadog, etc.) that
+   * prefer flat structures. Callers should avoid using keys in log.data that
+   * conflict with reserved context fields (event, sessionId, groupId, etc.).
+   */
+  private formatStructuredLog(log: IStructuredLog): { message: string; context: Record<string, unknown> } {
+    const context: Record<string, unknown> = {
+      event: log.event,
+      ...this.boundContext,
+      ...log.context,
+    };
+
+    // Flatten data into context for log aggregation compatibility
+    if (log.data) {
+      Object.assign(context, log.data);
+    }
+
+    if (log.durationMs !== undefined) {
+      context.durationMs = log.durationMs;
+    }
+
+    if (log.error) {
+      context.error = log.error;
+    }
+
+    // Use event name as the message for consistency
+    const message = `[${log.event}]`;
+
+    return { message, context };
+  }
+
+  /**
+   * Log a structured event at info level.
+   */
+  logEvent(log: IStructuredLog): void {
+    const { message, context } = this.formatStructuredLog(log);
+    this.info(message, context);
+  }
+
+  /**
+   * Log a structured event at debug level.
+   */
+  logEventDebug(log: IStructuredLog): void {
+    const { message, context } = this.formatStructuredLog(log);
+    this.debug(message, context);
+  }
+
+  /**
+   * Log a structured event at warn level.
+   */
+  logEventWarn(log: IStructuredLog): void {
+    const { message, context } = this.formatStructuredLog(log);
+    this.warn(message, context);
+  }
+
+  /**
+   * Log a structured event at error level.
+   */
+  logEventError(log: IStructuredLog): void {
+    const { message, context } = this.formatStructuredLog(log);
+    this.error(message, context);
+  }
+
+  /**
+   * Create a child logger with bound context.
+   */
+  withContext(context: ILogContext): IStructuredLogger {
+    return new Logger(
+      this.options,
+      undefined,
+      this.getCorrelationId,
+      this.bindings,
+      { ...this.boundContext, ...context }
+    );
+  }
+
+  /**
+   * Start a timed operation and return a function to complete it.
+   */
+  startOperation(
+    event: LogEvent | string,
+    context?: ILogContext
+  ): (result?: { data?: Record<string, unknown>; error?: string }) => void {
+    const startTime = Date.now();
+    const mergedContext = { ...this.boundContext, ...context };
+
+    // Log the start event at debug level
+    this.logEventDebug({
+      event,
+      context: mergedContext,
+    });
+
+    // Return a function to complete the operation
+    return (result?: { data?: Record<string, unknown>; error?: string }) => {
+      const durationMs = Date.now() - startTime;
+      const completeEvent = result?.error
+        ? deriveErrorEvent(event)
+        : deriveCompleteEvent(event);
+
+      if (result?.error) {
+        this.logEventError({
+          event: completeEvent,
+          context: mergedContext,
+          data: result?.data,
+          durationMs,
+          error: result.error,
+        });
+      } else {
+        this.logEvent({
+          event: completeEvent,
+          context: mergedContext,
+          data: result?.data,
+          durationMs,
+        });
+      }
+    };
   }
 
   isLevelEnabled(level: LogLevel): boolean {
@@ -203,7 +342,7 @@ export class Logger implements ILogger {
 /**
  * No-op logger for testing or when logging is disabled.
  */
-export class NullLogger implements ILogger {
+export class NullLogger implements ILogger, IStructuredLogger {
   trace(_message: string, _context?: Record<string, unknown>): void {
     // No-op
   }
@@ -234,5 +373,35 @@ export class NullLogger implements ILogger {
 
   isLevelEnabled(_level: LogLevel): boolean {
     return false;
+  }
+
+  // IStructuredLogger no-op implementations
+  logEvent(_log: IStructuredLog): void {
+    // No-op
+  }
+
+  logEventDebug(_log: IStructuredLog): void {
+    // No-op
+  }
+
+  logEventWarn(_log: IStructuredLog): void {
+    // No-op
+  }
+
+  logEventError(_log: IStructuredLog): void {
+    // No-op
+  }
+
+  withContext(_context: ILogContext): IStructuredLogger {
+    return this;
+  }
+
+  startOperation(
+    _event: LogEvent | string,
+    _context?: ILogContext
+  ): (result?: { data?: Record<string, unknown>; error?: string }) => void {
+    return () => {
+      // No-op
+    };
   }
 }
