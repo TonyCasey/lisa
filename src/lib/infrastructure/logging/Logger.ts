@@ -215,6 +215,11 @@ export class Logger implements ILogger, IStructuredLogger {
 
   /**
    * Format a structured log entry into message and context.
+   *
+   * Note: log.data is flattened into the context object intentionally for better
+   * compatibility with log aggregation tools (Elasticsearch, Datadog, etc.) that
+   * prefer flat structures. Callers should avoid using keys in log.data that
+   * conflict with reserved context fields (event, sessionId, groupId, etc.).
    */
   private formatStructuredLog(log: IStructuredLog): { message: string; context: Record<string, unknown> } {
     const context: Record<string, unknown> = {
@@ -223,6 +228,7 @@ export class Logger implements ILogger, IStructuredLogger {
       ...log.context,
     };
 
+    // Flatten data into context for log aggregation compatibility
     if (log.data) {
       Object.assign(context, log.data);
     }

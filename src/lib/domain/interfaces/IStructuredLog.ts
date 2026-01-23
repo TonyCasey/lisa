@@ -168,7 +168,7 @@ export interface IStructuredLogger {
 
 /**
  * Helper to create a correlation ID.
- * Uses a random hex string for uniqueness.
+ * Uses a base36 timestamp and random suffix for uniqueness.
  */
 export function generateCorrelationId(): string {
   const timestamp = Date.now().toString(36);
