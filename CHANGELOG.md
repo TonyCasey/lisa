@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.5.3] - 2026-01-23
+
+### Added
+
+#### Comprehensive Doctor Command ([#17](https://github.com/TonyCasey/lisa/issues/17))
+- **`lisa doctor --verbose`** - Detailed diagnostic output including:
+  - System information (Lisa version, project root, timestamp)
+  - Full configuration details (mode, group, endpoint, env file status)
+  - Health check timing for each component
+  - Transcript discovery paths and candidates
+  - Summary with pass/warning/error counts
+
+- **`lisa doctor --json`** - Machine-readable JSON output for scripting and CI integration
+  - Complete diagnostic data in structured format
+  - Includes all check results with timing
+  - Transcript candidate metadata
+
+- **Enhanced health checks**:
+  - Lisa directory structure validation (.lisa/skills, .lisa/rules)
+  - Claude Code hooks configuration check
+  - Neo4j direct connectivity test (local mode)
+  - Zep Cloud API reachability test (zep-cloud mode)
+  - Compose file existence verification
+
+- **Exit codes for scripting**:
+  - `0` = All checks passed
+  - `1` = Warnings detected (non-blocking issues)
+  - `2` = Errors detected (blocking issues)
+
+- **New module architecture**:
+  - `src/lib/commands/doctor.ts` - Standalone command module
+  - Clean separation of health checks, formatting, and CLI integration
+  - Comprehensive test suite (30 tests)
+
+### Changed
+- Refactored doctor command from inline function to modular command pattern
+- Improved doctor command description: "Validate Lisa configuration and backend connectivity"
+- Total unit tests: 328 (up from 298)
+
+### New Files
+- `src/lib/commands/doctor.ts` - Doctor command implementation
+- `src/lib/commands/index.ts` - Commands module exports
+- `tests/unit/src/lib/commands/doctor.test.ts` - Doctor command tests (30 tests)
+
+---
+
 ## [2.5.2] - 2026-01-23
 
 ### Added
