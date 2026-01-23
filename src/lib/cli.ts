@@ -26,6 +26,7 @@ import {
   type IHookOutput,
 } from './infrastructure/cli';
 import {toISOTimestamp, type PermissionMode} from './domain';
+import {doctorCommand} from './commands';
 
 // Templates are copied into dist/project by postbuild; resolve relative to compiled file.
 const TEMPLATE_ROOT = path.join(__dirname, '..', 'project');
@@ -784,108 +785,7 @@ async function initCommand(opts: {
   }
 }
 
-async function loadConfig(cwd: string): Promise<{ endpoint?: string; group?: string; mode?: DeploymentMode; zepApiKey?: string } | null> {
-  // Read from .env file (legacy/runtime config)
-  const lisaEnv = path.join(cwd, '.lisa', '.env');
-  const map: Record<string, string> = {};
-  if (await fs.pathExists(lisaEnv)) {
-    const raw = await fs.readFile(lisaEnv, 'utf8');
-    raw.split(/\r?\n/).forEach((line) => {
-      if (!line || line.startsWith('#')) return;
-      const idx = line.indexOf('=');
-      if (idx === -1) return;
-      const key = line.slice(0, idx).trim();
-      map[key] = line.slice(idx + 1).trim();
-    });
-  }
-
-  // If no .env exists, return null
-  if (Object.keys(map).length === 0) {
-    return null;
-  }
-
-  return {
-    endpoint: map.GRAPHITI_ENDPOINT || DEFAULT_ENDPOINT,
-    group: map.GRAPHITI_GROUP_ID || DEFAULT_GROUP,
-    mode: (map.STORAGE_MODE as DeploymentMode) || 'local',
-    zepApiKey: map.ZEP_API_KEY,
-  };
-}
-
-async function doctorCommand(opts: { cwd: string; compose?: string; endpoint?: string }, services: IServices) {
-  const cwd = opts.cwd;
-  // Default compose file location is at project root (deployed by init command)
-  const composeFile = opts.compose || path.join(cwd, 'docker-compose.graphiti.yml');
-  const config = (await loadConfig(cwd)) ?? { endpoint: undefined, group: undefined, mode: 'local' as DeploymentMode };
-  const endpoint = opts.endpoint || config.endpoint || DEFAULT_ENDPOINT;
-  const mode = config.mode || 'local';
-
-  const results: string[] = [];
-
-  // Show current mode
-  results.push(chalk.cyan(`Mode: ${mode}`));
-  results.push(chalk.cyan(`Group: ${config.group || DEFAULT_GROUP}`));
-  results.push('');
-
-  // Mode-specific checks
-  if (mode === 'zep-cloud') {
-    // Zep Cloud mode - no local Docker needed
-    results.push(chalk.yellow('Zep Cloud mode - no local Docker required'));
-    results.push('');
-
-    // Get API key from config or environment for Zep Cloud authentication
-    const zepApiKey = config.zepApiKey || process.env.ZEP_API_KEY;
-    if (!zepApiKey) {
-      results.push(chalk.yellow('Warning: ZEP_API_KEY not configured (required for Zep Cloud)'));
-    }
-
-    try {
-      await services.mcp.ping(endpoint, { apiKey: zepApiKey });
-      results.push(chalk.green(`Zep MCP reachable at ${endpoint}`));
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      results.push(chalk.red(`Zep MCP check failed at ${endpoint}: ${message}`));
-    }
-  } else if (mode === 'skip') {
-    // Skip mode - memory/tasks not configured
-    results.push(chalk.yellow('Skip mode - memory/tasks not configured'));
-    results.push(chalk.yellow('Run "lisa init" again to configure storage backend'));
-  } else {
-    // Local mode - Docker is needed
-    try {
-      const stdout = await services.docker.version();
-      results.push(chalk.green(`Docker OK: ${stdout}`));
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      results.push(chalk.red(`Docker missing or not running: ${message}`));
-    }
-
-    try {
-      const stdout = await services.docker.composeVersion();
-      results.push(chalk.green(`Docker Compose OK: ${stdout}`));
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      results.push(chalk.red(`Docker Compose missing: ${message}`));
-    }
-
-    if (await fs.pathExists(composeFile)) {
-      results.push(chalk.green(`Compose file found: ${composeFile}`));
-    } else {
-      results.push(chalk.red(`Compose file not found: ${composeFile}`));
-    }
-
-    try {
-      await services.mcp.ping(endpoint);
-      results.push(chalk.green(`MCP reachable at ${endpoint}`));
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      results.push(chalk.red(`MCP check failed at ${endpoint}: ${message}`));
-    }
-
-  }
-
-  console.log(results.join('\n'));
-}
+// loadConfig and doctorCommand moved to src/lib/commands/doctor.ts
 
 async function upCommand(opts: { composeFile: string }, services: IServices) {
   await services.docker.compose(opts.composeFile, ['up', '-d']);
@@ -1026,12 +926,20 @@ program
 
 program
   .command('doctor')
-  .description('Validate Docker and MCP connectivity')
+  .description('Validate Lisa configuration and backend connectivity')
   .option('-c, --compose <file>', 'Compose file', 'docker-compose.graphiti.yml')
   .option('-e, --endpoint <url>', 'MCP endpoint override')
+  .option('-v, --verbose', 'Show detailed diagnostics')
+  .option('--json', 'Output results as JSON')
   .action(async (cmd) => {
     const services = createDefaultServices(TEMPLATE_ROOT);
-    await doctorCommand({ cwd: process.cwd(), compose: cmd.compose, endpoint: cmd.endpoint }, services);
+    await doctorCommand({
+      cwd: process.cwd(),
+      compose: cmd.compose,
+      endpoint: cmd.endpoint,
+      verbose: cmd.verbose,
+      json: cmd.json,
+    }, services);
   });
 
 program
