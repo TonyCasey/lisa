@@ -1,5 +1,6 @@
 import type { ILisaServices, ILogger } from '../../domain/interfaces';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
+import type { IGitHubSyncService } from '../../skills/shared/services/GitHubSyncService';
 import { ContextDetector } from '../context';
 import { McpClient } from '../mcp';
 import { MemoryService, TaskService, EventEmitter, SessionCaptureService, RecursionService } from '../services';
@@ -10,6 +11,20 @@ import {
   type IRepositoryFactoryConfig,
 } from '../dal';
 import { createLogger, createNullLogger } from '../logging';
+import {
+  createGitHubClient,
+  createGitHubSyncService,
+  createTaskService as createSkillTaskService,
+} from '../../skills/shared/services';
+import {
+  createGhCliClientFromEnv,
+  createNeo4jClient,
+  createNeo4jConfigFromEnv,
+  createMcpClient as createSkillMcpClient,
+  createMcpConfigFromEnv,
+  createZepClient,
+  createZepConfigFromEnv,
+} from '../../skills/shared/clients';
 
 /**
  * Configuration for creating Lisa services.
@@ -41,6 +56,9 @@ export interface IServiceConfig {
   
   /** Disable logging entirely (for testing) */
   disableLogging?: boolean;
+  
+  /** Enable GitHub sync service for task synchronization (default: true if gh CLI available) */
+  enableGitHubSync?: boolean;
 }
 
 /**
@@ -67,6 +85,8 @@ function getDefaultApiKey(): string | undefined {
 
 /**
  * Create Lisa services with dependency injection.
+ *
+ * @deprecated Use bootstrapContainer() instead for proper DI with lifetime management.
  */
 export async function createServices(config: IServiceConfig = {}): Promise<ILisaServices> {
   const projectRoot = config.projectRoot || process.cwd();
@@ -117,6 +137,41 @@ export async function createServices(config: IServiceConfig = {}): Promise<ILisa
   const sessionCapture = new SessionCaptureService();
   const recursion = new RecursionService(memory, tasks);
 
+  // Try to create GitHub sync service (optional)
+  let githubSync: IGitHubSyncService | undefined;
+  const enableGitHubSync = config.enableGitHubSync !== false; // Default to true
+  
+  if (enableGitHubSync) {
+    try {
+      const ghCli = createGhCliClientFromEnv();
+      const githubClient = createGitHubClient(ghCli);
+      
+      // Create skill-layer task service for sync operations
+      const neo4jClient = createNeo4jClient(createNeo4jConfigFromEnv());
+      const mcpSkillClient = createSkillMcpClient(createMcpConfigFromEnv());
+      const zepConfig = createZepConfigFromEnv();
+      const zepClient = zepConfig ? createZepClient(zepConfig) : null;
+      
+      const skillTaskService = createSkillTaskService({
+        neo4jClient,
+        mcpClient: mcpSkillClient,
+        zepClient,
+      });
+      
+      githubSync = createGitHubSyncService({
+        github: githubClient,
+        tasks: skillTaskService,
+      });
+      
+      log.debug('GitHub sync service initialized');
+    } catch (error) {
+      // GitHub sync initialization failed - continue without it
+      log.debug('GitHub sync service not available', { 
+        error: (error as Error).message 
+      });
+    }
+  }
+
   return {
     context,
     memory,
@@ -127,6 +182,7 @@ export async function createServices(config: IServiceConfig = {}): Promise<ILisa
     logger,
     router,
     recursion,
+    githubSync,
   };
 }
 
@@ -135,6 +191,8 @@ export async function createServices(config: IServiceConfig = {}): Promise<ILisa
  * 
  * Use this when you need explicit control over connection lifecycle,
  * e.g., in scripts or CLI commands that should clean up on exit.
+ *
+ * @deprecated Use bootstrapContainer() instead for proper DI with lifetime management.
  */
 export async function createServicesWithCleanup(config: IServiceConfig = {}): Promise<IServicesWithCleanup> {
   const projectRoot = config.projectRoot || process.cwd();
@@ -183,6 +241,39 @@ export async function createServicesWithCleanup(config: IServiceConfig = {}): Pr
   const sessionCapture = new SessionCaptureService();
   const recursion = new RecursionService(memory, tasks);
 
+  // Try to create GitHub sync service (optional)
+  let githubSync: IGitHubSyncService | undefined;
+  const enableGitHubSync = config.enableGitHubSync !== false;
+  
+  if (enableGitHubSync) {
+    try {
+      const ghCli = createGhCliClientFromEnv();
+      const githubClient = createGitHubClient(ghCli);
+      
+      const neo4jClient = createNeo4jClient(createNeo4jConfigFromEnv());
+      const mcpSkillClient = createSkillMcpClient(createMcpConfigFromEnv());
+      const zepConfig = createZepConfigFromEnv();
+      const zepClient = zepConfig ? createZepClient(zepConfig) : null;
+      
+      const skillTaskService = createSkillTaskService({
+        neo4jClient,
+        mcpClient: mcpSkillClient,
+        zepClient,
+      });
+      
+      githubSync = createGitHubSyncService({
+        github: githubClient,
+        tasks: skillTaskService,
+      });
+      
+      log.debug('GitHub sync service initialized');
+    } catch (error) {
+      log.debug('GitHub sync service not available', { 
+        error: (error as Error).message 
+      });
+    }
+  }
+
   // Cleanup function to close all connections
   const cleanup = async (): Promise<void> => {
     log.debug('Cleaning up connections');
@@ -199,6 +290,7 @@ export async function createServicesWithCleanup(config: IServiceConfig = {}): Pr
     logger,
     router,
     recursion,
+    githubSync,
     cleanup,
   };
 }

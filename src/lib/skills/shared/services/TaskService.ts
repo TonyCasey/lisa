@@ -11,6 +11,9 @@ import type {
   ITaskListResult,
   ITaskWriteResult,
   ITaskWriteOptions,
+  ITaskLinkResult,
+  ITaskExternalLink,
+  ExternalLinkSource,
 } from './interfaces';
 
 /**
@@ -76,7 +79,7 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
           }
 
           if (taskObj && taskObj.type === 'task') {
-            return {
+            const task: ITask = {
               title: String(taskObj.title || ''),
               status: String(taskObj.status || 'unknown'),
               repo: String(taskObj.repo || defaultRepo),
@@ -86,6 +89,17 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
               uuid: r.uuid,
               created_at: r.created_at,
             };
+            // Include external link if present
+            if (taskObj.externalLink && typeof taskObj.externalLink === 'object') {
+              const link = taskObj.externalLink as Record<string, unknown>;
+              task.externalLink = {
+                source: String(link.source) as ExternalLinkSource,
+                id: String(link.id),
+                url: String(link.url),
+                syncedAt: link.syncedAt ? String(link.syncedAt) : undefined,
+              };
+            }
+            return task;
           }
 
           // Fallback: extract title from name
@@ -126,11 +140,14 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
         assignee: options.assignee || '',
         notes: options.notes,
         tag: options.tag,
+        externalLink: options.externalLink ?? undefined,
       };
+      // For storage, we need to serialize to JSON
+      const storageObj = { ...taskObj };
 
       // Use Zep if available
       if (zepClient) {
-        const result = await zepClient.addTask(groupId, taskObj);
+        const result = await zepClient.addTask(groupId, storageObj);
         return {
           status: 'ok',
           action: 'add',
@@ -145,7 +162,7 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
       await mcpClient.initialize();
       const params = {
         name: `TASK: ${title.slice(0, 60)}`,
-        episode_body: JSON.stringify(taskObj),
+        episode_body: JSON.stringify(storageObj),
         source: 'json',
         group_id: groupId,
         tags: options.tag ? [options.tag] : undefined,
@@ -175,11 +192,13 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
         assignee: options.assignee || '',
         notes: options.notes,
         tag: options.tag,
+        externalLink: options.externalLink ?? undefined,
       };
+      const storageObj = { ...taskObj };
 
       // Use Zep if available
       if (zepClient) {
-        const result = await zepClient.addTask(groupId, taskObj);
+        const result = await zepClient.addTask(groupId, storageObj);
         return {
           status: 'ok',
           action: 'update',
@@ -194,7 +213,7 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
       await mcpClient.initialize();
       const params = {
         name: `TASK UPDATE: ${title.slice(0, 60)}`,
-        episode_body: JSON.stringify({ ...taskObj, updated: true }),
+        episode_body: JSON.stringify({ ...storageObj, updated: true }),
         source: 'json',
         group_id: groupId,
         tags: options.tag ? [options.tag] : undefined,
@@ -208,6 +227,190 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
         group: groupId,
         result,
         mode: 'mcp',
+      };
+    },
+
+    async link(
+      taskUuid: string,
+      groupId: string,
+      externalLink: ITaskExternalLink
+    ): Promise<ITaskLinkResult> {
+      // First, find the task by UUID to get its current data
+      await neo4jClient.connect();
+      
+      try {
+        const cypher = `
+          MATCH (e:Episodic)
+          WHERE e.uuid = $uuid
+          RETURN e.uuid AS uuid, e.name AS name, e.content AS content
+          LIMIT 1
+        `;
+        const records: Array<{ uuid: string; name: string; content?: string }> = 
+          await neo4jClient.query(cypher, { uuid: taskUuid });
+
+        if (records.length === 0) {
+          throw new Error(`Task not found: ${taskUuid}`);
+        }
+
+        const record = records[0];
+        let taskObj: Record<string, unknown> = { type: 'task', title: '' };
+        
+        if (record.content) {
+          try {
+            taskObj = JSON.parse(record.content);
+          } catch {
+            // Use name as fallback title
+            taskObj.title = record.name?.replace(/^TASK:\s*/, '') || 'Unknown task';
+          }
+        }
+
+        // Add the external link with sync timestamp
+        taskObj.externalLink = {
+          ...externalLink,
+          syncedAt: new Date().toISOString(),
+        };
+
+        // Store the updated task
+        if (zepClient) {
+          await zepClient.addTask(groupId, taskObj);
+          return {
+            status: 'ok',
+            action: 'link',
+            task: {
+              title: String(taskObj.title),
+              uuid: taskUuid,
+              externalLink: taskObj.externalLink as ITaskExternalLink,
+            },
+            group: groupId,
+            mode: 'zep-cloud',
+          };
+        }
+
+        // Use MCP
+        await mcpClient.initialize();
+        const params = {
+          name: `TASK LINK: ${String(taskObj.title).slice(0, 50)} -> ${externalLink.source}#${externalLink.id}`,
+          episode_body: JSON.stringify({ ...taskObj, linked: true }),
+          source: 'json',
+          group_id: groupId,
+        };
+        await mcpClient.rpcCall<unknown>('add_memory', params);
+
+        return {
+          status: 'ok',
+          action: 'link',
+          task: {
+            title: String(taskObj.title),
+            uuid: taskUuid,
+            externalLink: taskObj.externalLink as ITaskExternalLink,
+          },
+          group: groupId,
+          mode: 'mcp',
+        };
+      } finally {
+        await neo4jClient.disconnect();
+      }
+    },
+
+    async unlink(
+      taskUuid: string,
+      groupId: string
+    ): Promise<ITaskLinkResult> {
+      // First, find the task by UUID
+      await neo4jClient.connect();
+      
+      try {
+        const cypher = `
+          MATCH (e:Episodic)
+          WHERE e.uuid = $uuid
+          RETURN e.uuid AS uuid, e.name AS name, e.content AS content
+          LIMIT 1
+        `;
+        const records: Array<{ uuid: string; name: string; content?: string }> = 
+          await neo4jClient.query(cypher, { uuid: taskUuid });
+
+        if (records.length === 0) {
+          throw new Error(`Task not found: ${taskUuid}`);
+        }
+
+        const record = records[0];
+        let taskObj: Record<string, unknown> = { type: 'task', title: '' };
+        
+        if (record.content) {
+          try {
+            taskObj = JSON.parse(record.content);
+          } catch {
+            taskObj.title = record.name?.replace(/^TASK:\s*/, '') || 'Unknown task';
+          }
+        }
+
+        // Remove the external link
+        delete taskObj.externalLink;
+
+        // Store the updated task
+        if (zepClient) {
+          await zepClient.addTask(groupId, taskObj);
+          return {
+            status: 'ok',
+            action: 'unlink',
+            task: {
+              title: String(taskObj.title),
+              uuid: taskUuid,
+            },
+            group: groupId,
+            mode: 'zep-cloud',
+          };
+        }
+
+        // Use MCP
+        await mcpClient.initialize();
+        const params = {
+          name: `TASK UNLINK: ${String(taskObj.title).slice(0, 60)}`,
+          episode_body: JSON.stringify({ ...taskObj, unlinked: true }),
+          source: 'json',
+          group_id: groupId,
+        };
+        await mcpClient.rpcCall<unknown>('add_memory', params);
+
+        return {
+          status: 'ok',
+          action: 'unlink',
+          task: {
+            title: String(taskObj.title),
+            uuid: taskUuid,
+          },
+          group: groupId,
+          mode: 'mcp',
+        };
+      } finally {
+        await neo4jClient.disconnect();
+      }
+    },
+
+    async listLinked(
+      groupIds: string[],
+      source: ExternalLinkSource | undefined,
+      limit: number,
+      defaultRepo: string,
+      defaultAssignee: string
+    ): Promise<ITaskListResult> {
+      // Get all tasks first, then filter by external link
+      const result = await this.list(groupIds, limit * 2, defaultRepo, defaultAssignee);
+      
+      // Filter to only tasks with external links
+      let linkedTasks = result.tasks.filter((t) => t.externalLink);
+      
+      // Further filter by source if specified
+      if (source) {
+        linkedTasks = linkedTasks.filter((t) => t.externalLink?.source === source);
+      }
+
+      // Apply limit
+      linkedTasks = linkedTasks.slice(0, limit);
+
+      return {
+        ...result,
+        tasks: linkedTasks,
       };
     },
   };

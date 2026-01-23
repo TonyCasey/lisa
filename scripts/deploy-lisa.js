@@ -15,10 +15,8 @@ const targetLisa = path.resolve(__dirname, '..', '.lisa');
 const distLegacyAgents = path.resolve(__dirname, '..', 'dist', 'templates', 'agents');
 const distLegacyRules = path.resolve(__dirname, '..', 'dist', 'templates', 'rules');
 
-// Claude Code templates (hooks)
+// Claude Code templates
 const distClaude = path.join(distProject, '.claude');
-path.resolve(__dirname, '..', 'dist', 'templates', 'claude');
-const distBundledHooks = path.resolve(__dirname, '..', 'dist', 'hooks');
 const targetClaude = path.resolve(__dirname, '..', '.claude');
 
 // OpenCode templates (plugin)
@@ -213,6 +211,65 @@ async function recordCopyFallback(projectRoot, link, target) {
 }
 
 /**
+ * Lisa hook configuration for Claude Code settings.json
+ */
+const LISA_HOOKS_CONFIG = {
+  SessionStart: [{
+    hooks: [{ type: 'command', command: 'lisa hook session-start' }],
+  }],
+  Stop: [{
+    hooks: [{ type: 'command', command: 'lisa hook session-stop' }],
+  }],
+  UserPromptSubmit: [{
+    hooks: [{ type: 'command', command: 'lisa hook user-prompt-submit' }],
+  }],
+};
+
+/**
+ * Merge Lisa hooks into .claude/settings.json.
+ * Preserves existing user settings and hooks.
+ */
+async function mergeClaudeSettings(settingsPath) {
+  let settings = {};
+
+  // Load existing settings if present
+  if (await fs.pathExists(settingsPath)) {
+    try {
+      settings = await fs.readJson(settingsPath);
+    } catch {
+      // Invalid JSON, start fresh
+    }
+  }
+
+  // Merge hooks - Lisa hooks are added to existing hooks (not replaced)
+  const existingHooks = settings.hooks || {};
+  const mergedHooks = { ...existingHooks };
+
+  for (const [eventName, lisaHookConfigs] of Object.entries(LISA_HOOKS_CONFIG)) {
+    const existingEventHooks = mergedHooks[eventName] || [];
+    
+    // Check if Lisa hooks are already present (avoid duplicates)
+    const hasLisaHook = existingEventHooks.some(h => {
+      if (typeof h === 'object' && h !== null) {
+        const hooks = h.hooks;
+        return hooks?.some(hh => hh.command?.startsWith('lisa hook'));
+      }
+      return false;
+    });
+
+    if (!hasLisaHook) {
+      // Add Lisa hooks
+      mergedHooks[eventName] = [...existingEventHooks, ...lisaHookConfigs];
+    }
+  }
+
+  settings.hooks = mergedHooks;
+
+  // Write merged settings
+  await fs.writeJson(settingsPath, settings, { spaces: 2 });
+}
+
+/**
  * Create symlink with Windows fallback.
  * On Windows, tries junction first, then falls back to directory copy.
  */
@@ -357,29 +414,45 @@ async function main() {
     console.log(`No Claude templates found at ${distClaude}; skipping.`);
   }
 
-  // Deploy bundled hooks (new architecture) if available
-  // These override the template hooks with the clean architecture version
-  if (await fs.pathExists(distBundledHooks)) {
-    const targetHooks = path.join(targetClaude, 'hooks');
-    await fs.ensureDir(targetHooks);
-    await fs.copy(distBundledHooks, targetHooks, { overwrite: true, errorOnExist: false });
-    console.log(`Deployed bundled hooks to ${targetHooks}`);
-  }
+  // Note: Bundled hooks are no longer needed - hooks are now invoked via CLI commands
+  // (lisa hook session-start, lisa hook session-stop, lisa hook user-prompt-submit)
+  // registered in .claude/settings.json
 
-  // Create symlinks: .claude/rules -> ../.lisa/rules, .claude/skills -> ../.lisa/skills
+  // Create individual symlinks for each skill: .claude/skills/<skill> -> ../../.lisa/skills/<skill>
+  // This allows Claude Code to find SKILL.md at .claude/skills/<skill>/SKILL.md
   const projectRoot = path.resolve(__dirname, '..');
-  const rulesSymlink = path.join(targetClaude, 'rules');
-  const skillsSymlink = path.join(targetClaude, 'skills');
-
-  const rulesResult = await createSymlink('../.lisa/rules', rulesSymlink, projectRoot);
+  
+  const claudeSkillsDir = path.join(targetClaude, 'skills');
+  await fs.ensureDir(claudeSkillsDir);
+  
+  // Create individual symlinks for each Lisa skill (same pattern as OpenCode)
+  const lisaSkills = ['memory', 'tasks', 'lisa', 'git', 'jira', 'init-review', 'prompt'];
+  for (const skill of lisaSkills) {
+    const skillLink = path.join(claudeSkillsDir, skill);
+    const skillTarget = path.join(targetLisa, 'skills', skill);
+    
+    if (await fs.pathExists(skillTarget)) {
+      const result = await createSymlink(`../../.lisa/skills/${skill}`, skillLink, projectRoot);
+      if (result.success) {
+        console.log(`Created ${result.method}: .claude/skills/${skill} -> ../../.lisa/skills/${skill}`);
+      }
+    }
+  }
+  
+  // Create .claude/rules directory and lisa subdirectory symlink
+  // Rules can still use a single symlink since they're organized differently
+  const claudeRulesDir = path.join(targetClaude, 'rules');
+  const claudeRulesLisaLink = path.join(claudeRulesDir, 'lisa');
+  await fs.ensureDir(claudeRulesDir);
+  
+  const rulesResult = await createSymlink('../../.lisa/rules', claudeRulesLisaLink, projectRoot);
   if (rulesResult.success) {
-    console.log(`Created ${rulesResult.method}: .claude/rules -> ../.lisa/rules`);
+    console.log(`Created ${rulesResult.method}: .claude/rules/lisa -> ../../.lisa/rules`);
   }
-
-  const skillsResult = await createSymlink('../.lisa/skills', skillsSymlink, projectRoot);
-  if (skillsResult.success) {
-    console.log(`Created ${skillsResult.method}: .claude/skills -> ../.lisa/skills`);
-  }
+  
+  // Merge Lisa hook configuration into .claude/settings.json
+  await mergeClaudeSettings(path.join(targetClaude, 'settings.json'));
+  console.log('Merged hook configuration into .claude/settings.json');
 
   // Deploy OpenCode plugin if bundled
   if (await fs.pathExists(distOpenCodePlugin)) {
@@ -388,11 +461,22 @@ async function main() {
     await fs.copy(distOpenCodePlugin, targetPlugin, { overwrite: true, errorOnExist: false });
     console.log(`Deployed OpenCode plugin to ${targetPlugin}`);
 
-    // Create symlinks for OpenCode: .opencode/skills -> ../.lisa/skills
-    const opencodeSkillSymlink = path.join(targetOpenCode, 'skills');
-    const opencodeSkillResult = await createSymlink('../.lisa/skills', opencodeSkillSymlink, projectRoot);
-    if (opencodeSkillResult.success) {
-      console.log(`Created ${opencodeSkillResult.method}: .opencode/skills -> ../.lisa/skills`);
+    // OpenCode expects skills directly in .opencode/skills/<skill>/SKILL.md
+    // Create individual symlinks for each Lisa skill
+    const opencodeSkillsDir = path.join(targetOpenCode, 'skills');
+    await fs.ensureDir(opencodeSkillsDir);
+    
+    const lisaSkills = ['memory', 'tasks', 'lisa', 'git', 'jira', 'init-review', 'prompt'];
+    for (const skill of lisaSkills) {
+      const skillLink = path.join(opencodeSkillsDir, skill);
+      const skillTarget = path.join(targetLisa, 'skills', skill);
+      
+      if (await fs.pathExists(skillTarget)) {
+        const result = await createSymlink(`../../.lisa/skills/${skill}`, skillLink, projectRoot);
+        if (result.success) {
+          console.log(`Created ${result.method}: .opencode/skills/${skill} -> ../../.lisa/skills/${skill}`);
+        }
+      }
     }
   }
 }

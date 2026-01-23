@@ -7,6 +7,7 @@ import type { IEventEmitter } from './IEventEmitter';
 import type { IRepositoryRouter } from './dal';
 import type { IRecursionService } from './IRecursionService';
 import type { ILogger } from './ILogger';
+import type { IGitHubSyncService } from '../../skills/shared/services/GitHubSyncService';
 
 /**
  * Service container for dependency injection.
@@ -33,4 +34,10 @@ export interface ILisaServices {
    * Optional - may be undefined if not needed.
    */
   readonly recursion?: IRecursionService;
+
+  /**
+   * GitHub sync service for syncing tasks with GitHub Issues.
+   * Optional - may be undefined if GitHub integration is not configured.
+   */
+  readonly githubSync?: IGitHubSyncService;
 }

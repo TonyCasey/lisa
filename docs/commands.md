@@ -52,9 +52,16 @@ lisa init --isolated
 
 - `.lisa/` - Skills, rules, and configuration
 - `.lisa/.env` - Environment configuration (created on first init only)
-- `.claude/` - Claude Code hooks (if selected)
+- `.claude/` - Claude Code configuration (if selected)
+  - `settings.json` - Hook commands registered here
+  - `skills/lisa/` - Symlink to `.lisa/skills`
+  - `rules/lisa/` - Symlink to `.lisa/rules`
 - `.opencode/` - OpenCode plugin (if selected)
+  - `plugin/lisa.js` - Bundled plugin
+  - `skills/` - Individual skill symlinks
 - `docker-compose.graphiti.yml` - Docker stack (if local mode)
+
+**Note:** Lisa uses subdirectory symlinks to preserve any existing user files in `.claude/` or `.opencode/`.
 
 ---
 
@@ -176,6 +183,150 @@ Show Lisa version.
 ```bash
 lisa --version
 lisa -V
+```
+
+---
+
+## lisa hook
+
+Hook commands invoked by Claude Code during session lifecycle events. These are registered in `.claude/settings.json` and called automatically.
+
+```bash
+lisa hook <event>
+```
+
+### Subcommands
+
+| Command | Description |
+|---------|-------------|
+| `lisa hook session-start` | Load memory context at session start |
+| `lisa hook session-stop` | Capture work when session stops |
+| `lisa hook user-prompt-submit` | Process user prompts |
+
+### How Hooks Work
+
+Hooks are registered in `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "SessionStart": [{
+      "hooks": [{ "type": "command", "command": "lisa hook session-start" }]
+    }],
+    "Stop": [{
+      "hooks": [{ "type": "command", "command": "lisa hook session-stop" }]
+    }],
+    "UserPromptSubmit": [{
+      "hooks": [{ "type": "command", "command": "lisa hook user-prompt-submit" }]
+    }]
+  }
+}
+```
+
+Claude Code invokes these commands at the appropriate lifecycle events. The hooks:
+- Read JSON from stdin (event context)
+- Output JSON to stdout (context for Claude)
+- Write status messages to stderr (visible to user)
+
+### Manual Testing
+
+```bash
+# Test session-start hook
+echo '{"source":"startup"}' | lisa hook session-start
+
+# Test with resume trigger
+echo '{"source":"resume"}' | lisa hook session-start
+
+# Test session-stop hook
+echo '{"session_id":"test"}' | lisa hook session-stop
+```
+
+---
+
+## lisa github
+
+GitHub issues and projects management with bidirectional sync to Lisa tasks.
+
+```bash
+lisa github <subcommand> [options]
+```
+
+### Subcommands
+
+#### Issues
+
+```bash
+# List issues
+lisa github issues list --repo owner/repo [--state open|closed|all] [--labels x,y] [--limit N]
+
+# Create issue
+lisa github issues create --repo owner/repo --title "..." [--body "..."] [--labels x,y]
+
+# View issue
+lisa github issues view --repo owner/repo <number>
+
+# Close/reopen issue
+lisa github issues close --repo owner/repo <number> [--reason completed|not_planned]
+lisa github issues reopen --repo owner/repo <number>
+
+# Manage labels
+lisa github issues label --repo owner/repo <number> --add x,y
+lisa github issues label --repo owner/repo <number> --remove z
+```
+
+#### Projects v2
+
+```bash
+# List projects
+lisa github projects list --repo owner/repo
+
+# View project
+lisa github projects view --repo owner/repo <number>
+
+# List items in project
+lisa github projects items --repo owner/repo <number>
+
+# Add issue to project
+lisa github projects add --repo owner/repo <project-number> <issue-number>
+```
+
+#### Sync
+
+Bidirectional sync between GitHub Issues and Lisa tasks.
+
+```bash
+# Import GitHub issues to Lisa tasks
+lisa github sync --repo owner/repo --import
+
+# Export Lisa tasks to GitHub issues
+lisa github sync --repo owner/repo --export
+
+# Bidirectional sync (default)
+lisa github sync --repo owner/repo
+
+# Preview changes without applying
+lisa github sync --repo owner/repo --dry-run
+
+# Filter by labels
+lisa github sync --repo owner/repo --labels bug,enhancement
+
+# Custom group ID
+lisa github sync --repo owner/repo --group my-group
+```
+
+**Note:** GitHub sync runs automatically on every new session start. This command is for manual sync operations.
+
+### Examples
+
+```bash
+# Create a bug issue
+lisa github issues create --repo TonyCasey/lisa --title "Fix login bug" --labels bug,priority:high
+
+# Import all issues to Lisa tasks
+lisa github sync --repo TonyCasey/lisa --import
+
+# Preview what would be synced
+lisa github sync --repo TonyCasey/lisa --dry-run
 ```
 
 ---

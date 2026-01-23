@@ -4,6 +4,21 @@
  */
 
 /**
+ * External system link source types.
+ */
+export type ExternalLinkSource = 'github' | 'jira' | 'linear';
+
+/**
+ * Link to an external task management system.
+ */
+export interface ITaskExternalLink {
+  source: ExternalLinkSource;
+  id: string;        // e.g., "123" for GitHub issue #123, "PROJ-456" for Jira
+  url: string;       // Full URL to the external item
+  syncedAt?: string; // ISO timestamp of last sync
+}
+
+/**
  * A task item.
  */
 export interface ITask {
@@ -15,6 +30,7 @@ export interface ITask {
   tag?: string | null;
   uuid: string;
   created_at: string;
+  externalLink?: ITaskExternalLink;
 }
 
 /**
@@ -43,6 +59,7 @@ export interface ITaskWriteResult {
     assignee: string;
     notes?: string;
     tag?: string | null;
+    externalLink?: ITaskExternalLink;
   };
   group: string;
   result?: unknown;
@@ -59,6 +76,22 @@ export interface ITaskWriteOptions {
   assignee?: string;
   notes?: string;
   tag?: string | null;
+  externalLink?: ITaskExternalLink | null; // null to unlink
+}
+
+/**
+ * Result of a task link operation.
+ */
+export interface ITaskLinkResult {
+  status: 'ok';
+  action: 'link' | 'unlink';
+  task: {
+    title: string;
+    uuid: string;
+    externalLink?: ITaskExternalLink;
+  };
+  group: string;
+  mode: 'mcp' | 'zep-cloud';
 }
 
 /**
@@ -108,4 +141,45 @@ export interface ITaskService {
     groupId: string,
     options: ITaskWriteOptions
   ): Promise<ITaskWriteResult>;
+
+  /**
+   * Link a task to an external system (GitHub, Jira, etc.).
+   *
+   * @param taskUuid - UUID of the task to link
+   * @param groupId - Group identifier
+   * @param externalLink - External link details
+   */
+  link(
+    taskUuid: string,
+    groupId: string,
+    externalLink: ITaskExternalLink
+  ): Promise<ITaskLinkResult>;
+
+  /**
+   * Unlink a task from its external system.
+   *
+   * @param taskUuid - UUID of the task to unlink
+   * @param groupId - Group identifier
+   */
+  unlink(
+    taskUuid: string,
+    groupId: string
+  ): Promise<ITaskLinkResult>;
+
+  /**
+   * List tasks filtered by external link source.
+   *
+   * @param groupIds - Group identifiers to search
+   * @param source - External link source to filter by (optional, returns all linked if omitted)
+   * @param limit - Maximum number of tasks to return
+   * @param defaultRepo - Default repo name for tasks without one
+   * @param defaultAssignee - Default assignee for tasks without one
+   */
+  listLinked(
+    groupIds: string[],
+    source: ExternalLinkSource | undefined,
+    limit: number,
+    defaultRepo: string,
+    defaultAssignee: string
+  ): Promise<ITaskListResult>;
 }

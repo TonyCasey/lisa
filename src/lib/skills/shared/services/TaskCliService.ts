@@ -8,6 +8,9 @@ import type {
   ITaskService,
   ITaskListResult,
   ITaskWriteResult,
+  ITaskLinkResult,
+  ITaskExternalLink,
+  ExternalLinkSource,
 } from './interfaces';
 
 /**
@@ -23,6 +26,8 @@ export interface ITaskCliArgs {
   repo: string;
   assignee: string;
   notes: string;
+  link?: string | null;        // External link reference (e.g., "github#123", "jira#PROJ-456")
+  linkedSource?: string | null; // Filter by external link source for listLinked
 }
 
 /**
@@ -41,7 +46,43 @@ export interface ITaskCliDependencies {
  * Task CLI service interface.
  */
 export interface ITaskCliService {
-  run(args: ITaskCliArgs): Promise<ITaskListResult | ITaskWriteResult>;
+  run(args: ITaskCliArgs): Promise<ITaskListResult | ITaskWriteResult | ITaskLinkResult>;
+}
+
+/**
+ * Parse an external link reference string (e.g., "github#123", "jira#PROJ-456").
+ * Returns null if invalid format.
+ */
+function parseExternalLinkRef(ref: string): ITaskExternalLink | null {
+  // Format: source#id (e.g., github#123, jira#PROJ-456)
+  const match = ref.match(/^(github|jira|linear)#(.+)$/i);
+  if (!match) {
+    return null;
+  }
+  
+  const source = match[1].toLowerCase() as ExternalLinkSource;
+  const id = match[2];
+  
+  // Build URL based on source
+  let url: string;
+  switch (source) {
+    case 'github':
+      // For GitHub, we can't determine the full URL without repo context
+      // Just store a placeholder that can be resolved later
+      url = `https://github.com/OWNER/REPO/issues/${id}`;
+      break;
+    case 'jira':
+      // For Jira, we can't determine the full URL without endpoint
+      url = `https://COMPANY.atlassian.net/browse/${id}`;
+      break;
+    case 'linear':
+      url = `https://linear.app/issue/${id}`;
+      break;
+    default:
+      return null;
+  }
+  
+  return { source, id, url };
 }
 
 /**
@@ -51,29 +92,80 @@ export function createTaskCliService(deps: ITaskCliDependencies): ITaskCliServic
   const { env, logger, cache, taskService, getGroupIds, getCurrentGroupId } = deps;
 
   return {
-    async run(args: ITaskCliArgs): Promise<ITaskListResult | ITaskWriteResult> {
-      const { command, payload, explicitGroup, limit, status, tag, repo, assignee, notes } = args;
+    async run(args: ITaskCliArgs): Promise<ITaskListResult | ITaskWriteResult | ITaskLinkResult> {
+      const { command, payload, explicitGroup, limit, status, tag, repo, assignee, notes, link, linkedSource } = args;
 
-      if (!['add', 'list', 'update'].includes(command)) {
-        throw new Error('command must be add|list|update');
+      const validCommands = ['add', 'list', 'update', 'link', 'unlink', 'list-linked'];
+      if (!validCommands.includes(command)) {
+        throw new Error(`command must be ${validCommands.join('|')}`);
       }
 
       const groupId = explicitGroup || env.GRAPHITI_GROUP_ID || getCurrentGroupId();
 
       logger.info(`Executing command: ${command}`, { mode: env.STORAGE_MODE, group: groupId });
 
-      let result: ITaskListResult | ITaskWriteResult;
+      let result: ITaskListResult | ITaskWriteResult | ITaskLinkResult;
 
       if (command === 'list') {
         const groupIds = explicitGroup ? [explicitGroup] : getGroupIds();
         logger.debug('Using Neo4j direct mode for list');
         result = await taskService.list(groupIds, limit, repo, assignee);
+      } else if (command === 'list-linked') {
+        // List tasks with external links
+        const groupIds = explicitGroup ? [explicitGroup] : getGroupIds();
+        const source = linkedSource as ExternalLinkSource | undefined;
+        logger.debug('Listing linked tasks', { source });
+        result = await taskService.listLinked(groupIds, source, limit, repo, assignee);
       } else if (command === 'add') {
         if (!payload) throw new Error('add requires task text (title)');
-        result = await taskService.add(payload, groupId, { status, repo, assignee, notes, tag });
-      } else {
+        
+        // Parse external link if provided
+        let externalLink: ITaskExternalLink | undefined;
+        if (link) {
+          const parsed = parseExternalLinkRef(link);
+          if (!parsed) {
+            throw new Error(`Invalid link format: ${link}. Expected: github#123, jira#PROJ-456, or linear#ABC-123`);
+          }
+          externalLink = { ...parsed, syncedAt: new Date().toISOString() };
+        }
+        
+        result = await taskService.add(payload, groupId, { status, repo, assignee, notes, tag, externalLink });
+      } else if (command === 'update') {
         if (!payload) throw new Error('update requires task text (title)');
-        result = await taskService.update(payload, groupId, { status, repo, assignee, notes, tag });
+        
+        // Parse external link if provided (null means unlink)
+        let externalLink: ITaskExternalLink | null | undefined;
+        if (link === '') {
+          // Empty string means unlink
+          externalLink = null;
+        } else if (link) {
+          const parsed = parseExternalLinkRef(link);
+          if (!parsed) {
+            throw new Error(`Invalid link format: ${link}. Expected: github#123, jira#PROJ-456, or linear#ABC-123`);
+          }
+          externalLink = { ...parsed, syncedAt: new Date().toISOString() };
+        }
+        
+        result = await taskService.update(payload, groupId, { status, repo, assignee, notes, tag, externalLink });
+      } else if (command === 'link') {
+        // Link command: payload is UUID, link is the reference
+        if (!payload) throw new Error('link requires task UUID');
+        if (!link) throw new Error('link requires --link github#123 or similar');
+        
+        const parsed = parseExternalLinkRef(link);
+        if (!parsed) {
+          throw new Error(`Invalid link format: ${link}. Expected: github#123, jira#PROJ-456, or linear#ABC-123`);
+        }
+        const externalLink = { ...parsed, syncedAt: new Date().toISOString() };
+        
+        result = await taskService.link(payload, groupId, externalLink);
+      } else if (command === 'unlink') {
+        // Unlink command: payload is UUID
+        if (!payload) throw new Error('unlink requires task UUID');
+        
+        result = await taskService.unlink(payload, groupId);
+      } else {
+        throw new Error(`Unknown command: ${command}`);
       }
 
       const tasksCount = 'tasks' in result ? result.tasks?.length ?? 0 : 0;

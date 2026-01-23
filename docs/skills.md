@@ -105,16 +105,75 @@ Create and manage Jira issues.
 - "create ticket"
 - "list issues"
 
+### GitHub
+
+**Location:** `.lisa/skills/github/`
+
+GitHub issues and projects management.
+
+**Trigger phrases:**
+- "github"
+- "create issue"
+- "list issues"
+- "sync tasks"
+
+**Features:**
+- Create, view, close, and reopen issues
+- Manage labels and assignees
+- Projects v2 integration (list, view, add items, set fields)
+- **Bidirectional sync** between GitHub Issues and Lisa tasks
+
+## GitHub Issues Sync
+
+Lisa automatically syncs GitHub Issues to tasks on every new session start:
+
+1. **On session startup:** Detects GitHub repo from git remote
+2. **Imports new issues:** Creates Lisa tasks with `externalLink` metadata
+3. **Updates status:** Reflects closed/reopened issues in task status
+4. **Non-blocking:** Session continues even if sync fails
+
+**Manual sync:**
+```bash
+# Import GitHub issues to Lisa tasks
+lisa github sync --repo owner/repo --import
+
+# Export Lisa tasks to GitHub issues
+lisa github sync --repo owner/repo --export
+
+# Bidirectional sync
+lisa github sync --repo owner/repo
+
+# Dry run (preview changes)
+lisa github sync --repo owner/repo --dry-run
+```
+
+**Status mapping:**
+| Lisa Status | GitHub State |
+|-------------|--------------|
+| `ready`/`todo` | open |
+| `in-progress` | open + `in-progress` label |
+| `blocked` | open + `blocked` label |
+| `done` | closed |
+
 ## Skill Structure
 
 Each skill has this structure:
 
 ```
 .lisa/skills/<skill-name>/
-├── SKILL.md           # Definition and instructions
-└── scripts/
-    └── <skill-name>.js  # Implementation
+└── SKILL.md           # Definition and instructions
 ```
+
+Skill implementations are part of the `lisa` CLI and invoked via subcommands:
+
+```bash
+lisa memory load      # Load memories
+lisa memory add       # Add a memory
+lisa tasks list       # List tasks
+lisa tasks add        # Add a task
+```
+
+The `SKILL.md` file tells the AI assistant when to invoke these commands and how to interpret the output.
 
 ### SKILL.md Format
 
@@ -133,14 +192,14 @@ When to invoke this skill:
 - "user asks about Y"
 
 ## How to use
-1. Run script: `node scripts/my-skill.js <args>`
+1. Run CLI command: `lisa <skill> <action> [args]`
 2. Process JSON output
 3. Summarize results to user
 
 ## I/O contract
 - Input: command line arguments
 - Output: JSON to stdout
-- Fallback: JSON with fallback data if MCP unavailable
+- Fallback: JSON with fallback data if backend unavailable
 ```
 
 ## Cache Fallback
@@ -148,7 +207,7 @@ When to invoke this skill:
 Skills support offline operation via `--cache` flag:
 
 ```bash
-node scripts/memory.js load --cache
+lisa memory load --cache
 ```
 
 If the MCP server is unavailable, skills return cached data from the last successful operation.
@@ -170,9 +229,10 @@ LOG_LEVEL=debug
 
 1. Create directory: `src/project/.lisa/skills/<name>/`
 2. Add `SKILL.md` with triggers and instructions
-3. Add `scripts/<name>.ts` with implementation
-4. Run `npm run build` to compile and deploy
-5. Test with your AI assistant
+3. Add skill implementation in `src/lib/skills/<name>/<name>.ts`
+4. Add CLI subcommand in `src/lib/cli.ts`
+5. Run `npm run build` to compile and deploy
+6. Test with your AI assistant
 
 See [CONTRIBUTING.md](../CONTRIBUTING.md#adding-a-skill) for detailed instructions.
 

@@ -42,3 +42,16 @@ export {
   type ICache,
   type ICacheConfig,
 } from './cache';
+
+// Issue reference utilities
+export {
+  extractIssueRefs,
+  extractIssueRefsWithContext,
+  buildIssueUrl,
+  formatIssueRefs,
+  hasIssueRefs,
+  hasClosingRefs,
+  type IIssueRef,
+  type IIssueRefResult,
+  type IssueRefPrefix,
+} from './issue-refs';

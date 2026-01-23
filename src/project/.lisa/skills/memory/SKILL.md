@@ -31,12 +31,13 @@ Organize facts into these categories (skip empty categories):
 6. **Open Items** - Pending tasks, known issues
 
 ### How to Summarize
+- **ALWAYS sort memories by `created_at` descending** (newest first)
 - Group related facts together
 - Use bullet points for clarity
 - Include specific file names and paths when relevant
-- Mention dates/timeframes if available
+- Include the date for each memory (format: "Jan 23" or "Jan 23, 2026")
 - Filter out expired or superseded facts (check `expired_at` field)
-- Prioritize recent facts over older ones
+- Prioritize recent facts over older ones - show newest at top of each section
 - Extract the `fact` field from each item - that's the human-readable content
 
 ### Example Output Format

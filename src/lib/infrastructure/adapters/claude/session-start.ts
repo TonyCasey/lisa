@@ -3,12 +3,13 @@
  * Claude Code - Session Start Hook (Thin Adapter)
  *
  * Loads memory context from Graphiti MCP at the start of a new Claude session.
- * This is a thin adapter that delegates to SessionStartHandler.
+ * This is a thin adapter that delegates to SessionStartHandler via mediator.
  */
 
-import { createServicesWithCleanup } from '../../di';
-import { SessionStartHandler } from '../../../application/handlers';
-import { toISOTimestamp, createSessionStartEvent, SessionTrigger } from '../../../domain';
+import { bootstrapContainer, TOKENS } from '../../di';
+import type { IMediator } from '../../../application/mediator';
+import { SessionStartRequest } from '../../../application/mediator/requests';
+import { toISOTimestamp, type SessionTrigger } from '../../../domain';
 import { readStdin } from './stdin';
 
 async function main(): Promise<void> {
@@ -16,19 +17,17 @@ async function main(): Promise<void> {
   const hookInput = await readStdin();
   const trigger: SessionTrigger = hookInput.trigger || hookInput.session_type || 'startup';
 
-  // Create services via DI (with cleanup for connections)
-  // Disable pino logging to avoid worker thread issues in bundled hooks
-  const services = await createServicesWithCleanup({
+  // Bootstrap container with DI
+  const { container, dispose } = await bootstrapContainer({
     projectRoot: process.cwd(),
-    source: 'claude-code',
     disableLogging: true,
   });
 
   try {
-    // Create handler and process event
-    const handler = new SessionStartHandler(services);
-    const event = createSessionStartEvent(trigger, toISOTimestamp());
-    const result = await handler.handle(event);
+    // Resolve mediator and send request
+    const mediator = await container.resolve<IMediator>(TOKENS.Mediator);
+    const request = new SessionStartRequest(trigger, toISOTimestamp());
+    const result = await mediator.send(request);
 
     // Output goes to Claude as system-reminder context (stdout)
     console.log(result.contextContent);
@@ -44,7 +43,7 @@ async function main(): Promise<void> {
     console.error(`[Memory loaded${triggerLabel}: ${summary}]`);
   } finally {
     // Clean up connections before exiting
-    await services.cleanup();
+    await dispose();
   }
 
   // Exit cleanly - don't let any remaining handles keep process alive

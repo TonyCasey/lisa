@@ -3,35 +3,34 @@
  * Claude Code - Session Stop Hook (Thin Adapter)
  *
  * Captures session work when Claude stops responding.
- * This is a thin adapter that delegates to SessionStopHandler.
- * 
- * Note: The actual implementation spawns a background worker to avoid
- * blocking. This adapter is a placeholder that will need to integrate
- * with the existing worker approach.
+ * This is a thin adapter that delegates to SessionStopHandler via mediator.
  */
 
-import { createServicesWithCleanup } from '../../di';
-import { SessionStopHandler } from '../../../application/handlers';
-import { toISOTimestamp, createSessionStopEvent } from '../../../domain';
+import { bootstrapContainer, TOKENS } from '../../di';
+import type { IMediator } from '../../../application/mediator';
+import { SessionStopRequest } from '../../../application/mediator/requests';
+import { toISOTimestamp } from '../../../domain';
 
 async function main(): Promise<void> {
-  // Create services via DI (with cleanup for connections)
-  // Disable pino logging to avoid worker thread issues in bundled hooks
-  const services = await createServicesWithCleanup({
+  // Bootstrap container with DI
+  const { container, dispose } = await bootstrapContainer({
     projectRoot: process.cwd(),
-    source: 'claude-code',
     disableLogging: true,
   });
 
   try {
-    // Create handler and process event
-    const handler = new SessionStopHandler(services);
-    const event = createSessionStopEvent('idle', toISOTimestamp());
+    // Resolve mediator and send request
+    const mediator = await container.resolve<IMediator>(TOKENS.Mediator);
+    const request = new SessionStopRequest('idle', toISOTimestamp());
     
-    await handler.handle(event);
+    const result = await mediator.send(request);
+    
+    if (!result.skipped) {
+      console.error(`[Session captured: ${result.factsCaptured} facts]`);
+    }
   } finally {
     // Clean up connections before exiting
-    await services.cleanup();
+    await dispose();
   }
 
   // Exit cleanly

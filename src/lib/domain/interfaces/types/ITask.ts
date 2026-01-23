@@ -4,6 +4,21 @@
 export type TaskStatus = 'ready' | 'in-progress' | 'blocked' | 'done' | 'closed' | 'unknown';
 
 /**
+ * External system link source types.
+ */
+export type ExternalLinkSource = 'github' | 'jira' | 'linear';
+
+/**
+ * Link to an external task management system.
+ */
+export interface ITaskExternalLink {
+  readonly source: ExternalLinkSource;
+  readonly id: string;        // e.g., "123" for GitHub issue #123, "PROJ-456" for Jira
+  readonly url: string;       // Full URL to the external item
+  readonly syncedAt?: string; // ISO timestamp of last sync
+}
+
+/**
  * A task tracked in memory.
  */
 export interface ITask {
@@ -12,6 +27,7 @@ export interface ITask {
   readonly title: string;
   readonly blocked: readonly string[];
   readonly created_at?: string;
+  readonly externalLink?: ITaskExternalLink;
 }
 
 /**
@@ -21,6 +37,7 @@ export interface ITaskInput {
   readonly title: string;
   readonly status?: TaskStatus;
   readonly blocked?: readonly string[];
+  readonly externalLink?: ITaskExternalLink;
 }
 
 /**
@@ -30,6 +47,7 @@ export interface ITaskUpdate {
   readonly status?: TaskStatus;
   readonly title?: string;
   readonly blocked?: readonly string[];
+  readonly externalLink?: ITaskExternalLink | null; // null to unlink
 }
 
 /**

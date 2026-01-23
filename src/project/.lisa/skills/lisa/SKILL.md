@@ -112,6 +112,28 @@ When user asks for a retrospective, follow these steps:
   - `👧 lisa-> ` for conversational responses
 - For memory and task queries, include the storage mode at the end in parentheses:
   - Example: `👧 lisa-> Tasks: (neo4j)` or `👧 lisa-> Recent Memories: (zep-cloud)`
+
+### Task Display Rules
+- **ALWAYS sort tasks by `created_at` descending** (newest first)
+- Show the most recent tasks at the top of each section
+- Include the date for each task (format: "Jan 23" or "Jan 23, 2026")
+- Group by status (Active/In Progress, Pending/Todo, Completed/Done) but sort within each group by date
+- Example format:
+  ```
+  👧 lisa-> Tasks: (neo4j)
+  
+  Active (3):
+  1. 📋 Newest task here (Jan 23)
+  2. 📋 Second newest (Jan 22)
+  3. 📋 Third newest (Jan 20)
+  
+  Completed (2):
+  1. ✅ Recently completed (Jan 22)
+  2. ✅ Older completed (Jan 15)
+  ```
+
+### Memory Display Rules
+- Sort memories by `created_at` descending (newest first)
 - Example format:
   ```
   👧 lisa-> Recent Memories: (neo4j)

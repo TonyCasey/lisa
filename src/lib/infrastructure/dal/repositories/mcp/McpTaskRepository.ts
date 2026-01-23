@@ -195,13 +195,18 @@ export class McpTaskRepository implements ITaskRepository {
       source: 'lisa-dal',
     });
 
+    // Handle externalLink: null means unlink (set to undefined)
+    const externalLink = updates.externalLink === null 
+      ? undefined 
+      : (updates.externalLink ?? existing.externalLink);
+
     return {
-      ...existing,
-      ...updates,
       key: taskKey,
       title: updates.title || existing.title,
       status: updates.status || existing.status,
       blocked: updates.blocked || existing.blocked,
+      created_at: existing.created_at,
+      externalLink,
     };
   }
 
