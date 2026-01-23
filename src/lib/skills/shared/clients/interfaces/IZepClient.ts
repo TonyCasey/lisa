@@ -74,7 +74,13 @@ export interface IZepClient {
       assignee: string;
       notes?: string;
       tag?: string | null;
-    }
+      externalLink?: {
+        source: string;
+        id: string;
+        url: string;
+        syncedAt?: string;
+      };
+    } | Record<string, unknown>
   ): Promise<{ message_uuid?: string }>;
 
   /**

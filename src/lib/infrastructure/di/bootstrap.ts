@@ -28,6 +28,7 @@ import type {
   ISessionStopResult,
   IPromptSubmitResult,
 } from '../../application/mediator/requests';
+import type { IGitHubSyncService } from '../../skills/shared/services/GitHubSyncService';
 
 import { createContainer } from './Container';
 import { TOKENS } from './tokens';
@@ -196,6 +197,61 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
     'transient'
   );
 
+  // GitHub Sync Service (singleton - optional, may not be available)
+  const enableGitHubSync = config.enableGitHubSync !== false;
+  if (enableGitHubSync) {
+    container.register(
+      TOKENS.GitHubSyncService,
+      async () => {
+        const log = logger.child({ service: 'github-sync' });
+        try {
+          const {
+            createGitHubClient,
+            createGitHubSyncService,
+            createTaskService: createSkillTaskService,
+          } = await import('../../skills/shared/services');
+          const {
+            createGhCliClientFromEnv,
+            createNeo4jClient,
+            createNeo4jConfigFromEnv,
+            createMcpClient: createSkillMcpClient,
+            createMcpConfigFromEnv,
+            createZepClient,
+            createZepConfigFromEnv,
+          } = await import('../../skills/shared/clients');
+
+          const ghCli = createGhCliClientFromEnv();
+          const githubClient = createGitHubClient(ghCli);
+
+          const neo4jClient = createNeo4jClient(createNeo4jConfigFromEnv());
+          const mcpSkillClient = createSkillMcpClient(createMcpConfigFromEnv());
+          const zepConfig = createZepConfigFromEnv();
+          const zepClient = zepConfig ? createZepClient(zepConfig) : null;
+
+          const skillTaskService = createSkillTaskService({
+            neo4jClient,
+            mcpClient: mcpSkillClient,
+            zepClient,
+          });
+
+          const service = createGitHubSyncService({
+            github: githubClient,
+            tasks: skillTaskService,
+          });
+
+          log.debug('GitHub sync service initialized');
+          return service;
+        } catch (error) {
+          log.debug('GitHub sync service not available', {
+            error: (error as Error).message,
+          });
+          return undefined;
+        }
+      },
+      'singleton'
+    );
+  }
+
   // ============================================================
   // Application Layer - Handlers
   // ============================================================
@@ -213,7 +269,10 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
         ? await container.resolve<IRepositoryRouter>(TOKENS.RepositoryRouter)
         : undefined;
       const log = await container.resolve<ILogger>(TOKENS.Logger);
-      return new SessionStartHandler(ctx, mem, tsk, mcp, rtr, log);
+      const ghSync = container.isRegistered(TOKENS.GitHubSyncService)
+        ? await container.resolve<IGitHubSyncService | undefined>(TOKENS.GitHubSyncService)
+        : undefined;
+      return new SessionStartHandler(ctx, mem, tsk, mcp, rtr, log, ghSync);
     },
     'transient'
   );

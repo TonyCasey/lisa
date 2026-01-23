@@ -579,7 +579,6 @@ async function initCommand(opts: {
     
     // Create .claude/skills/ directory (preserve user content)
     const claudeSkillsDir = path.join(claudeDir, 'skills');
-    const claudeSkillsLisaLink = path.join(claudeSkillsDir, 'lisa');
     
     // Handle migration from old whole-folder symlink
     try {
@@ -598,14 +597,25 @@ async function initCommand(opts: {
     
     await fs.ensureDir(claudeSkillsDir);
     
-    // Remove old lisa symlink if it exists and create new one
-    try {
-      await fs.lstat(claudeSkillsLisaLink);
-      await fs.remove(claudeSkillsLisaLink);
-    } catch {
-      // Doesn't exist
+    // Create individual symlinks for each Lisa skill (same pattern as OpenCode)
+    // This ensures .claude/skills/<skill>/SKILL.md resolves correctly
+    const lisaSkills = ['memory', 'tasks', 'lisa', 'git', 'jira', 'init-review', 'prompt', 'github'];
+    for (const skill of lisaSkills) {
+      const skillLink = path.join(claudeSkillsDir, skill);
+      const skillTarget = path.join(skillsDir, skill);
+      
+      // Only create if the skill exists in .lisa/skills
+      if (await fs.pathExists(skillTarget)) {
+        try {
+          await fs.lstat(skillLink);
+          await fs.remove(skillLink);
+        } catch {
+          // Doesn't exist
+        }
+        // Pass absolute path so createSymlink calculates correct relative path
+        await createSymlink(skillTarget, skillLink, cwd);
+      }
     }
-    await createSymlink(skillsDir, claudeSkillsLisaLink, cwd);
     
     // Create .claude/rules/ directory (preserve user content)
     const claudeRulesDir = path.join(claudeDir, 'rules');
@@ -645,7 +655,7 @@ async function initCommand(opts: {
     await cleanupOldClaudeFiles(claudeDir, verbose);
     
     if (verbose) {
-      console.log(chalk.green('  Created .claude/skills/lisa/ -> .lisa/skills'));
+      console.log(chalk.green(`  Created .claude/skills/{${lisaSkills.join(',')}} -> .lisa/skills/*`));
       console.log(chalk.green('  Created .claude/rules/lisa/ -> .lisa/rules'));
       console.log(chalk.green('  Merged hook configuration into .claude/settings.json'));
     }
@@ -1277,6 +1287,18 @@ program
     // Pass all arguments after the command to the script
     const args = cmd.args || [];
     const scriptPath = path.join(__dirname, 'skills', 'jira', 'jira.js');
+    await spawnAndWait(scriptPath, args);
+  });
+
+// Subcommand: lisa github
+program
+  .command('github')
+  .description('GitHub Issues and Projects operations')
+  .allowUnknownOption()
+  .action(async (_opts, cmd) => {
+    // Pass all arguments after the command to the script
+    const args = cmd.args || [];
+    const scriptPath = path.join(__dirname, 'skills', 'github', 'github.js');
     await spawnAndWait(scriptPath, args);
   });
 

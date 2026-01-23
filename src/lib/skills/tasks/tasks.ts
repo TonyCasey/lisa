@@ -4,8 +4,11 @@
  *
  * Commands:
  *   node tasks.js list [--group <id>] [--limit N] [--cache]
- *   node tasks.js add "task text" [--status todo|doing|done] [--tag foo] [--group <id>] [--cache]
- *   node tasks.js update "task text" [--status ...] [--tag foo] [--group <id>] [--cache]
+ *   node tasks.js list-linked [--linked github|jira|linear] [--group <id>] [--limit N]
+ *   node tasks.js add "task text" [--status todo|doing|done] [--tag foo] [--link github#123] [--group <id>] [--cache]
+ *   node tasks.js update "task text" [--status ...] [--tag foo] [--link github#123] [--group <id>] [--cache]
+ *   node tasks.js link <uuid> --link github#123 [--group <id>]
+ *   node tasks.js unlink <uuid> [--group <id>]
  */
 
 export {};
@@ -37,6 +40,8 @@ async function main(): Promise<void> {
   const repo = popFlag(args, '--repo', path.basename(process.cwd()) || 'unknown');
   const assignee = popFlag(args, '--assignee', process.env.USER || 'unknown') || 'unknown';
   const notes = popFlag(args, '--notes', '');
+  const link = popFlag(args, '--link', null);         // External link (e.g., github#123)
+  const linkedSource = popFlag(args, '--linked', null); // Filter source for list-linked
   const useCache = hasFlag(args, '--cache');
   const payload = args.join(' ').trim();
 
@@ -54,7 +59,7 @@ async function main(): Promise<void> {
 
   try {
     const result = await cliService.run({
-      command, payload, explicitGroup, limit, status, tag, repo, assignee, notes,
+      command, payload, explicitGroup, limit, status, tag, repo, assignee, notes, link, linkedSource,
     });
     console.log(JSON.stringify(result, null, 2));
   } catch (err: unknown) {

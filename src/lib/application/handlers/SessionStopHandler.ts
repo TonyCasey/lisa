@@ -5,11 +5,12 @@ import type {
   ISessionCaptureService,
   IEventEmitter,
   ILogger,
+  ITaskService,
 } from '../../domain';
 import { toISOTimestamp } from '../../domain';
 import type { IRequestHandler } from '../mediator';
 import { SessionStopRequest } from '../mediator/requests';
-import type { ISessionStopResult } from '../mediator/requests';
+import type { ISessionStopResult, ISessionStopSuggestion } from '../mediator/requests';
 
 /**
  * Handler for session stop events.
@@ -20,6 +21,7 @@ import type { ISessionStopResult } from '../mediator/requests';
 export class SessionStopHandler implements IRequestHandler<SessionStopRequest, ISessionStopResult> {
   private readonly context: ILisaContext;
   private readonly memory: IMemoryService;
+  private readonly tasks?: ITaskService;
   private readonly sessionCapture: ISessionCaptureService;
   private readonly events: IEventEmitter;
   private readonly logger?: ILogger;
@@ -39,7 +41,8 @@ export class SessionStopHandler implements IRequestHandler<SessionStopRequest, I
     memory: IMemoryService,
     sessionCapture: ISessionCaptureService,
     events: IEventEmitter,
-    logger?: ILogger
+    logger?: ILogger,
+    tasks?: ITaskService
   );
 
   constructor(
@@ -47,12 +50,14 @@ export class SessionStopHandler implements IRequestHandler<SessionStopRequest, I
     memory?: IMemoryService,
     sessionCapture?: ISessionCaptureService,
     events?: IEventEmitter,
-    logger?: ILogger
+    logger?: ILogger,
+    tasks?: ITaskService
   ) {
     if ('context' in contextOrServices && 'memory' in contextOrServices) {
       const services = contextOrServices as ILisaServices;
       this.context = services.context;
       this.memory = services.memory;
+      this.tasks = services.tasks;
       this.sessionCapture = services.sessionCapture;
       this.events = services.events;
       this.logger = services.logger;
@@ -62,6 +67,7 @@ export class SessionStopHandler implements IRequestHandler<SessionStopRequest, I
       this.sessionCapture = sessionCapture!;
       this.events = events!;
       this.logger = logger;
+      this.tasks = tasks;
     }
   }
 
@@ -76,12 +82,16 @@ export class SessionStopHandler implements IRequestHandler<SessionStopRequest, I
       request.transcriptPath
     );
 
+    // Generate suggestions based on current state
+    const suggestions = await this.generateSuggestions();
+
     if (captured.facts.length === 0) {
       return {
         message: 'No significant work to capture.',
         factsCaptured: 0,
         skipped: true,
         skipReason: 'No facts captured from session',
+        suggestions: suggestions.length > 0 ? suggestions : undefined,
       };
     }
 
@@ -100,6 +110,55 @@ export class SessionStopHandler implements IRequestHandler<SessionStopRequest, I
       message: `Captured ${captured.facts.length} fact(s) from session.`,
       factsCaptured: captured.facts.length,
       skipped: false,
+      suggestions: suggestions.length > 0 ? suggestions : undefined,
     };
+  }
+
+  /**
+   * Generate suggestions based on current tasks and state.
+   * Suggests actions like syncing unlinked tasks to GitHub.
+   */
+  private async generateSuggestions(): Promise<ISessionStopSuggestion[]> {
+    const suggestions: ISessionStopSuggestion[] = [];
+
+    if (!this.tasks) {
+      return suggestions;
+    }
+
+    try {
+      // Get current tasks
+      const tasks = await this.tasks.getTasksSimple([this.context.groupId]);
+
+      // Count incomplete tasks without external links
+      const unlinkedIncompleteTasks = tasks.filter(
+        (t) => t.status !== 'done' && t.status !== 'closed' && !t.externalLink
+      );
+
+      if (unlinkedIncompleteTasks.length > 0) {
+        suggestions.push({
+          action: 'sync-github-export',
+          message: `${unlinkedIncompleteTasks.length} incomplete task(s) could be tracked as GitHub issues`,
+          command: 'lisa github sync --export',
+          count: unlinkedIncompleteTasks.length,
+        });
+      }
+
+      // Count tasks with external links that might need sync
+      const linkedTasks = tasks.filter((t) => t.externalLink?.source === 'github');
+      if (linkedTasks.length > 0) {
+        // Suggest sync to keep status in sync
+        suggestions.push({
+          action: 'sync-github-bidirectional',
+          message: `${linkedTasks.length} task(s) linked to GitHub - sync to update status`,
+          command: 'lisa github sync',
+          count: linkedTasks.length,
+        });
+      }
+    } catch (error) {
+      // Don't fail session stop if suggestions fail
+      this.logger?.debug?.('Failed to generate suggestions', { error });
+    }
+
+    return suggestions;
   }
 }

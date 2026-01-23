@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.2] - 2026-01-23
+
+### Added
+
+#### GitHub Issues Sync
+- **Automatic GitHub sync on session start** - GitHub Issues are now automatically synced to Lisa's task memory when a new session starts
+  - Detects GitHub repo from git remote (`git@github.com:` or `https://github.com/`)
+  - Imports new issues as tasks with `externalLink` metadata
+  - Updates task status from closed/reopened issues
+  - Runs only on `startup` trigger (not resume/compact)
+  - Non-blocking: session continues even if sync fails
+
+- **`IGitHubSyncService` in DI container** - New service for programmatic GitHub sync
+  - Registered in `bootstrapContainer()` when `gh` CLI is available
+  - Injected into `SessionStartHandler` for automatic sync
+  - Can be disabled via `enableGitHubSync: false` config option
+
+### Fixed
+
+- **Neo4jTaskRepository schema mismatch** - Fixed repository to query correct node type
+  - Was querying `Entity` nodes with `Task:` prefix
+  - Now queries `Episodic` nodes with `TASK:` prefix (matching how skills store tasks)
+  - Parses JSON `content` field to extract task status and metadata
+  - Tasks now properly appear in session-start context output
+
+---
+
+## [2.4.1] - 2026-01-23
+
+### Fixed
+- **Claude Code skills symlink structure** - Fixed incorrect symlink that caused "Unknown skill" errors ([#20](https://github.com/TonyCasey/lisa/issues/20))
+  - Before: `.claude/skills/lisa -> ../../.lisa/skills` (SKILL.md at wrong path)
+  - After: `.claude/skills/<skill> -> ../../.lisa/skills/<skill>` (individual symlinks per skill)
+  - Now matches the working OpenCode pattern
+
+---
+
 ## [2.3.0] - 2026-01-22
 
 ### Added

@@ -418,21 +418,29 @@ async function main() {
   // (lisa hook session-start, lisa hook session-stop, lisa hook user-prompt-submit)
   // registered in .claude/settings.json
 
-  // Create SUBDIRECTORY symlinks: .claude/skills/lisa -> ../.lisa/skills
-  // This preserves user's existing .claude/skills and .claude/rules directories
+  // Create individual symlinks for each skill: .claude/skills/<skill> -> ../../.lisa/skills/<skill>
+  // This allows Claude Code to find SKILL.md at .claude/skills/<skill>/SKILL.md
   const projectRoot = path.resolve(__dirname, '..');
   
-  // Create .claude/skills directory and lisa subdirectory symlink
   const claudeSkillsDir = path.join(targetClaude, 'skills');
-  const claudeSkillsLisaLink = path.join(claudeSkillsDir, 'lisa');
   await fs.ensureDir(claudeSkillsDir);
   
-  const skillsResult = await createSymlink('../../.lisa/skills', claudeSkillsLisaLink, projectRoot);
-  if (skillsResult.success) {
-    console.log(`Created ${skillsResult.method}: .claude/skills/lisa -> ../../.lisa/skills`);
+  // Create individual symlinks for each Lisa skill (same pattern as OpenCode)
+  const lisaSkills = ['memory', 'tasks', 'lisa', 'git', 'jira', 'init-review', 'prompt'];
+  for (const skill of lisaSkills) {
+    const skillLink = path.join(claudeSkillsDir, skill);
+    const skillTarget = path.join(targetLisa, 'skills', skill);
+    
+    if (await fs.pathExists(skillTarget)) {
+      const result = await createSymlink(`../../.lisa/skills/${skill}`, skillLink, projectRoot);
+      if (result.success) {
+        console.log(`Created ${result.method}: .claude/skills/${skill} -> ../../.lisa/skills/${skill}`);
+      }
+    }
   }
   
   // Create .claude/rules directory and lisa subdirectory symlink
+  // Rules can still use a single symlink since they're organized differently
   const claudeRulesDir = path.join(targetClaude, 'rules');
   const claudeRulesLisaLink = path.join(claudeRulesDir, 'lisa');
   await fs.ensureDir(claudeRulesDir);
