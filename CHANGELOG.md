@@ -64,6 +64,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Comprehensive Doctor Command ([#17](https://github.com/TonyCasey/lisa/issues/17))
+- **`lisa doctor --verbose`** - Detailed diagnostic output including:
+  - System information (Lisa version, project root, timestamp)
+  - Full configuration details (mode, group, endpoint, env file status)
+  - Health check timing for each component
+  - Transcript discovery paths and candidates
+  - Summary with pass/warning/error counts
+
+- **`lisa doctor --json`** - Machine-readable JSON output for scripting and CI integration
+  - Complete diagnostic data in structured format
+  - Includes all check results with timing
+  - Transcript candidate metadata
+
+- **Enhanced health checks**:
+  - Lisa directory structure validation (.lisa/skills, .lisa/rules)
+  - Claude Code hooks configuration check
+  - Neo4j direct connectivity test (local mode)
+  - Zep Cloud API reachability test (zep-cloud mode)
+  - Compose file existence verification
+
+- **Exit codes for scripting**:
+  - `0` = All checks passed
+  - `1` = Warnings detected (non-blocking issues)
+  - `2` = Errors detected (blocking issues)
+
+- **New module architecture**:
+  - `src/lib/commands/doctor.ts` - Standalone command module
+  - Clean separation of health checks, formatting, and CLI integration
+  - Comprehensive test suite (30 tests)
+
 #### Structured Log Enrichment ([#16](https://github.com/TonyCasey/lisa/issues/16))
 - **IStructuredLog interface** - Standardized structured log entry format
   - Event-based logging with standardized event names
@@ -95,10 +125,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `deriveCompleteEvent()` - Convert start event to complete event
   - `deriveErrorEvent()` - Convert start event to error event
 
+### Changed
+- Refactored doctor command from inline function to modular command pattern
+- Improved doctor command description: "Validate Lisa configuration and backend connectivity"
+
+### New Files
+- `src/lib/commands/doctor.ts` - Doctor command implementation
+- `src/lib/commands/index.ts` - Commands module exports
+- `tests/unit/src/lib/commands/doctor.test.ts` - Doctor command tests (30 tests)
+
 ### Testing
+- 30 new unit tests for doctor command
 - 16 new unit tests for structured logging
-- Tests cover event constants, derivation helpers, and logger implementation
-- Total unit tests: 301 (up from 298)
+- Total unit tests: 331 (up from 298)
 
 ---
 
