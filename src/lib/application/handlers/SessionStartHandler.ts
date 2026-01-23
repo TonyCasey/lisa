@@ -11,6 +11,7 @@ import type {
   ILogger,
 } from '../../domain';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
+import type { IGitHubSyncService } from '../../skills/shared/services/GitHubSyncService';
 import { emptyTaskCounts } from '../../domain';
 import type { ISessionStartResult } from '../interfaces';
 import type { IRequestHandler } from '../mediator';
@@ -54,6 +55,7 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
   private readonly mcp: IMcpClient;
   private readonly router?: IRepositoryRouter;
   private readonly logger?: ILogger;
+  private readonly githubSync?: IGitHubSyncService;
 
   /**
    * Create a new SessionStartHandler.
@@ -71,6 +73,7 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
    * @param mcp - MCP client
    * @param router - Repository router (optional)
    * @param logger - Logger (optional)
+   * @param githubSync - GitHub sync service (optional)
    */
   constructor(
     context: ILisaContext,
@@ -78,7 +81,8 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
     tasks: ITaskService,
     mcp: IMcpClient,
     router?: IRepositoryRouter,
-    logger?: ILogger
+    logger?: ILogger,
+    githubSync?: IGitHubSyncService
   );
 
   constructor(
@@ -87,7 +91,8 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
     tasks?: ITaskService,
     mcp?: IMcpClient,
     router?: IRepositoryRouter,
-    logger?: ILogger
+    logger?: ILogger,
+    githubSync?: IGitHubSyncService
   ) {
     // Check if this is the legacy ILisaServices constructor
     if ('context' in contextOrServices && 'memory' in contextOrServices) {
@@ -98,6 +103,7 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
       this.mcp = services.mcp;
       this.router = services.router;
       this.logger = services.logger;
+      this.githubSync = services.githubSync;
     } else {
       // Individual service injection
       this.context = contextOrServices as ILisaContext;
@@ -106,6 +112,7 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
       this.mcp = mcp!;
       this.router = router;
       this.logger = logger;
+      this.githubSync = githubSync;
     }
   }
 
@@ -114,6 +121,41 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
    */
   async handle(request: SessionStartRequest): Promise<ISessionStartResult> {
     const { hierarchicalGroupIds, projectAliases, branch, projectName, userName, folderType, projectRoot } = this.context;
+
+    // Sync GitHub issues on startup (non-blocking, fire-and-forget for speed)
+    let githubSyncResult: { imported: number; updated: number } | undefined;
+    if (this.githubSync && request.trigger === 'startup') {
+      try {
+        // Get repo from context (format: owner/repo or just repo name)
+        const repo = await this.detectGitHubRepo();
+        if (repo) {
+          const groupId = hierarchicalGroupIds[0] || projectName;
+          this.logger?.debug('Starting GitHub sync', { repo, groupId });
+          
+          // Run sync with import direction (GitHub -> Lisa)
+          const result = await this.githubSync.sync({
+            repo,
+            direction: 'import',
+            groupId,
+            dryRun: false,
+          });
+          
+          githubSyncResult = {
+            imported: result.imported,
+            updated: result.updated,
+          };
+          
+          this.logger?.info('GitHub sync completed', { 
+            imported: result.imported, 
+            updated: result.updated,
+            skipped: result.skipped,
+          });
+        }
+      } catch (error) {
+        // Don't fail session start if GitHub sync fails
+        this.logger?.warn('GitHub sync failed', { error: (error as Error).message });
+      }
+    }
 
     // Load memory - use DAL for date-ordered facts if router is available
     let memories;
@@ -438,6 +480,35 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
   }
 
   // --- Helper methods extracted from original hook ---
+
+  /**
+   * Detect the GitHub repository from git remote.
+   * Returns owner/repo format or null if not a GitHub repo.
+   */
+  private async detectGitHubRepo(): Promise<string | null> {
+    try {
+      const { execSync } = await import('child_process');
+      const remote = execSync('git remote get-url origin', { 
+        encoding: 'utf8',
+        cwd: this.context.projectRoot,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      }).trim();
+      
+      // Parse GitHub URL formats:
+      // https://github.com/owner/repo.git
+      // git@github.com:owner/repo.git
+      const httpsMatch = remote.match(/github\.com\/([^/]+\/[^/.]+)/);
+      const sshMatch = remote.match(/github\.com:([^/]+\/[^/.]+)/);
+      
+      const match = httpsMatch || sshMatch;
+      if (match) {
+        return match[1].replace(/\.git$/, '');
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
 
   private getTaskId(tags: readonly string[] = []): string | null {
     const t = tags.find((x) => x.startsWith('task_id:'));

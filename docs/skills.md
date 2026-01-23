@@ -105,6 +105,56 @@ Create and manage Jira issues.
 - "create ticket"
 - "list issues"
 
+### GitHub
+
+**Location:** `.lisa/skills/github/`
+
+GitHub issues and projects management.
+
+**Trigger phrases:**
+- "github"
+- "create issue"
+- "list issues"
+- "sync tasks"
+
+**Features:**
+- Create, view, close, and reopen issues
+- Manage labels and assignees
+- Projects v2 integration (list, view, add items, set fields)
+- **Bidirectional sync** between GitHub Issues and Lisa tasks
+
+## GitHub Issues Sync
+
+Lisa automatically syncs GitHub Issues to tasks on every new session start:
+
+1. **On session startup:** Detects GitHub repo from git remote
+2. **Imports new issues:** Creates Lisa tasks with `externalLink` metadata
+3. **Updates status:** Reflects closed/reopened issues in task status
+4. **Non-blocking:** Session continues even if sync fails
+
+**Manual sync:**
+```bash
+# Import GitHub issues to Lisa tasks
+lisa github sync --repo owner/repo --import
+
+# Export Lisa tasks to GitHub issues
+lisa github sync --repo owner/repo --export
+
+# Bidirectional sync
+lisa github sync --repo owner/repo
+
+# Dry run (preview changes)
+lisa github sync --repo owner/repo --dry-run
+```
+
+**Status mapping:**
+| Lisa Status | GitHub State |
+|-------------|--------------|
+| `ready`/`todo` | open |
+| `in-progress` | open + `in-progress` label |
+| `blocked` | open + `blocked` label |
+| `done` | closed |
+
 ## Skill Structure
 
 Each skill has this structure:

@@ -243,6 +243,94 @@ echo '{"session_id":"test"}' | lisa hook session-stop
 
 ---
 
+## lisa github
+
+GitHub issues and projects management with bidirectional sync to Lisa tasks.
+
+```bash
+lisa github <subcommand> [options]
+```
+
+### Subcommands
+
+#### Issues
+
+```bash
+# List issues
+lisa github issues list --repo owner/repo [--state open|closed|all] [--labels x,y] [--limit N]
+
+# Create issue
+lisa github issues create --repo owner/repo --title "..." [--body "..."] [--labels x,y]
+
+# View issue
+lisa github issues view --repo owner/repo <number>
+
+# Close/reopen issue
+lisa github issues close --repo owner/repo <number> [--reason completed|not_planned]
+lisa github issues reopen --repo owner/repo <number>
+
+# Manage labels
+lisa github issues label --repo owner/repo <number> --add x,y
+lisa github issues label --repo owner/repo <number> --remove z
+```
+
+#### Projects v2
+
+```bash
+# List projects
+lisa github projects list --repo owner/repo
+
+# View project
+lisa github projects view --repo owner/repo <number>
+
+# List items in project
+lisa github projects items --repo owner/repo <number>
+
+# Add issue to project
+lisa github projects add --repo owner/repo <project-number> <issue-number>
+```
+
+#### Sync
+
+Bidirectional sync between GitHub Issues and Lisa tasks.
+
+```bash
+# Import GitHub issues to Lisa tasks
+lisa github sync --repo owner/repo --import
+
+# Export Lisa tasks to GitHub issues
+lisa github sync --repo owner/repo --export
+
+# Bidirectional sync (default)
+lisa github sync --repo owner/repo
+
+# Preview changes without applying
+lisa github sync --repo owner/repo --dry-run
+
+# Filter by labels
+lisa github sync --repo owner/repo --labels bug,enhancement
+
+# Custom group ID
+lisa github sync --repo owner/repo --group my-group
+```
+
+**Note:** GitHub sync runs automatically on every new session start. This command is for manual sync operations.
+
+### Examples
+
+```bash
+# Create a bug issue
+lisa github issues create --repo TonyCasey/lisa --title "Fix login bug" --labels bug,priority:high
+
+# Import all issues to Lisa tasks
+lisa github sync --repo TonyCasey/lisa --import
+
+# Preview what would be synced
+lisa github sync --repo TonyCasey/lisa --dry-run
+```
+
+---
+
 ## lisa help
 
 Show help for any command.

@@ -26,6 +26,7 @@ export const INFRA_TOKENS = {
   EventEmitter: Symbol.for('Lisa.EventEmitter'),
   SessionCaptureService: Symbol.for('Lisa.SessionCaptureService'),
   RecursionService: Symbol.for('Lisa.RecursionService'),
+  GitHubSyncService: Symbol.for('Lisa.GitHubSyncService'),
 } as const;
 
 /**
