@@ -112,6 +112,113 @@ function createMockTaskService(tasks: ITask[] = []): ITaskService {
 
 describe('SessionStopHandler', () => {
   describe('handle()', () => {
+    it('should pass transcript path to session capture service', async () => {
+      let receivedTranscriptPath: string | undefined;
+      let receivedSessionId: string | undefined;
+      
+      const sessionCapture: ISessionCaptureService = {
+        captureSessionWork: async (sessionId, transcriptPath) => {
+          receivedSessionId = sessionId;
+          receivedTranscriptPath = transcriptPath;
+          return { facts: ['Test fact'], complexity: 'low' };
+        },
+      };
+
+      const handler = new SessionStopHandler(
+        createMockContext(),
+        createMockMemory(),
+        sessionCapture,
+        createMockEvents()
+      );
+
+      const request = new SessionStopRequest(
+        'idle',
+        '2026-01-22T12:00:00.000Z',
+        'session-abc',
+        '/explicit/path/to/transcript.jsonl'
+      );
+
+      await handler.handle(request);
+
+      assert.strictEqual(receivedSessionId, 'session-abc');
+      assert.strictEqual(receivedTranscriptPath, '/explicit/path/to/transcript.jsonl');
+    });
+
+    it('should pass undefined transcript path when not provided', async () => {
+      let receivedTranscriptPath: string | undefined = 'not-called';
+      
+      const sessionCapture: ISessionCaptureService = {
+        captureSessionWork: async (_sessionId, transcriptPath) => {
+          receivedTranscriptPath = transcriptPath;
+          return { facts: ['Test fact'], complexity: 'low' };
+        },
+      };
+
+      const handler = new SessionStopHandler(
+        createMockContext(),
+        createMockMemory(),
+        sessionCapture,
+        createMockEvents()
+      );
+
+      const request = new SessionStopRequest(
+        'idle',
+        '2026-01-22T12:00:00.000Z',
+        'session-xyz'
+        // No transcript path
+      );
+
+      await handler.handle(request);
+
+      assert.strictEqual(receivedTranscriptPath, undefined);
+    });
+
+    it('should handle session capture errors gracefully', async () => {
+      const failingCapture: ISessionCaptureService = {
+        captureSessionWork: async () => {
+          throw new Error('Transcript not found');
+        },
+      };
+
+      const handler = new SessionStopHandler(
+        createMockContext(),
+        createMockMemory(),
+        failingCapture,
+        createMockEvents()
+      );
+
+      const request = new SessionStopRequest('idle', '2026-01-22T12:00:00.000Z');
+
+      // Should throw - capture errors are not silently ignored
+      await assert.rejects(
+        async () => handler.handle(request),
+        /Transcript not found/
+      );
+    });
+
+    it('should handle memory save errors gracefully', async () => {
+      const failingMemory = createMockMemory({
+        saveMemory: async () => {
+          throw new Error('Memory unavailable');
+        },
+      });
+
+      const handler = new SessionStopHandler(
+        createMockContext(),
+        failingMemory,
+        createMockSessionCapture({ facts: ['Fact 1'], complexity: 'low' }),
+        createMockEvents()
+      );
+
+      const request = new SessionStopRequest('idle', '2026-01-22T12:00:00.000Z');
+
+      // Memory save errors should propagate
+      await assert.rejects(
+        async () => handler.handle(request),
+        /Memory unavailable/
+      );
+    });
+
     it('should capture facts and save to memory', async () => {
       let savedFacts: string[] = [];
       const context = createMockContext();

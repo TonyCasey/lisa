@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.3] - 2026-01-23
+
+### Added
+
+#### Handler Unit Tests (#13)
+- **SessionStartHandler tests** (16 tests) - Comprehensive coverage for session start handling
+  - Trigger type handling (startup, resume, compact, clear)
+  - Memory loading with various result sizes
+  - Timeout behavior
+  - Task processing and deduplication
+  - Output formatting
+
+- **SessionStopHandler tests** (13 tests) - Coverage for session stop handling
+  - Transcript path passing to capture service
+  - Fact capture and memory save
+  - Event emission
+  - GitHub sync suggestions for unlinked/linked tasks
+  - Error handling for capture and memory failures
+
+- **PromptSubmitHandler tests** (20 tests) - Coverage for prompt submission handling
+  - Constructor variants (ILisaServices vs individual injection)
+  - Basic prompt handling and blocking
+  - Memory storage with truncation
+  - Plan mode recursion with context
+  - Hierarchical group ID passing
+  - Error handling for recursion and memory failures
+
+### Changed
+- Handler tests now use consistent mock factory patterns across all handlers
+- Total handler tests: 49 (up from 9)
+
+---
+
 ## [2.4.2] - 2026-01-23
 
 ### Added
