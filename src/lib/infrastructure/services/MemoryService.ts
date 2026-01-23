@@ -1,9 +1,19 @@
-import type { IMemoryService, IMcpClient, IMemoryResult, IMemoryItem, ILogger, IMemoryResultBuilder } from '../../domain';
+import type {
+  IMemoryService,
+  IMcpClient,
+  IMemoryResult,
+  IMemoryItem,
+  ILogger,
+  IMemoryResultBuilder,
+  IStructuredLogger,
+  ILogContext,
+} from '../../domain';
 import {
   createMemoryResultBuilder,
   withCancellation,
   checkCancellation,
   isCancellationError,
+  LogEvents,
 } from '../../domain';
 import { ContextDetector } from '../context';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
@@ -33,13 +43,30 @@ interface McpMemoryResponse {
  */
 export class MemoryService implements IMemoryService {
   private readonly logger: ILogger;
+  private readonly structuredLogger: IStructuredLogger;
 
   constructor(
     private readonly mcp: IMcpClient,
     private readonly router?: IRepositoryRouter,
     logger?: ILogger
   ) {
-    this.logger = logger ?? new NullLogger();
+    const nullLogger = new NullLogger();
+    this.logger = logger ?? nullLogger;
+    // Use the logger as structured logger if it implements IStructuredLogger
+    this.structuredLogger = (logger && 'logEvent' in logger)
+      ? (logger as unknown as IStructuredLogger)
+      : nullLogger;
+  }
+
+  /**
+   * Create log context for memory operations.
+   */
+  private createLogContext(groupIds: readonly string[], operation?: string): ILogContext {
+    return {
+      groupId: groupIds[0],
+      operation,
+      sessionId: this.mcp.getSessionId() ?? undefined,
+    };
   }
 
   /**
@@ -64,7 +91,11 @@ export class MemoryService implements IMemoryService {
     timeoutMs: number = MEMORY_LOAD_TIMEOUT_MS,
     signal?: AbortSignal
   ): Promise<IMemoryResult> {
-    this.logger.debug('Loading memory', { groupIds, aliases, branch, timeoutMs });
+    const logContext = this.createLogContext(groupIds, 'loadMemory');
+    const completeOperation = this.structuredLogger.startOperation(
+      LogEvents.MEMORY_LOAD_START,
+      { ...logContext, branch: branch ?? undefined }
+    );
 
     const result: IMemoryResultBuilder = createMemoryResultBuilder();
 
@@ -233,13 +264,29 @@ export class MemoryService implements IMemoryService {
     // Set timedOut flag based on cancellation result
     result.timedOut = cancellableResult.timedOut;
 
-    this.logger.info('Memory loaded', {
-      factsCount: result.facts.length,
-      nodesCount: result.nodes.length,
-      tasksCount: result.tasks.length,
-      hasInitReview: !!result.initReview,
-      timedOut: result.timedOut,
-      cancelled: cancellableResult.cancelled,
+    // Log completion with structured event
+    if (result.timedOut) {
+      this.structuredLogger.logEventWarn({
+        event: LogEvents.MEMORY_LOAD_TIMEOUT,
+        context: logContext,
+        data: {
+          factsCount: result.facts.length,
+          nodesCount: result.nodes.length,
+          tasksCount: result.tasks.length,
+          hasInitReview: !!result.initReview,
+        },
+      });
+    }
+
+    completeOperation({
+      data: {
+        factsCount: result.facts.length,
+        nodesCount: result.nodes.length,
+        tasksCount: result.tasks.length,
+        hasInitReview: !!result.initReview,
+        timedOut: result.timedOut,
+        cancelled: cancellableResult.cancelled,
+      },
     });
 
     return result;
@@ -258,7 +305,11 @@ export class MemoryService implements IMemoryService {
    * Add a single fact to memory.
    */
   async addFact(groupId: string, fact: string, tags: readonly string[] = []): Promise<void> {
-    this.logger.debug('Adding fact', { groupId, factLength: fact.length, tags });
+    const logContext = this.createLogContext([groupId], 'addFact');
+    const completeOperation = this.structuredLogger.startOperation(
+      LogEvents.MEMORY_SAVE_START,
+      logContext
+    );
     
     // Use DAL router if available for writes
     if (this.router) {
@@ -266,13 +317,16 @@ export class MemoryService implements IMemoryService {
         const repo = this.router.getMemoryRepository('write');
         if ('save' in repo) {
           await repo.save(groupId, fact, { tags });
-          this.logger.debug('Fact saved via DAL router');
+          completeOperation({ data: { backend: 'dal', factLength: fact.length } });
           return;
         }
       } catch (error) {
-        // Log at info level so users can see when fallback is used
-        this.logger.info('DAL router write failed, using MCP fallback', { 
-          error: (error as Error).message 
+        // Log fallback event
+        this.structuredLogger.logEvent({
+          event: LogEvents.DAL_FALLBACK,
+          context: logContext,
+          data: { from: 'dal', to: 'mcp' },
+          error: (error as Error).message,
         });
       }
     }
@@ -282,7 +336,7 @@ export class MemoryService implements IMemoryService {
       group_ids: [groupId],
       tags: [...tags],
     });
-    this.logger.debug('Fact saved via MCP');
+    completeOperation({ data: { backend: 'mcp', factLength: fact.length } });
   }
 
   /**
@@ -296,11 +350,14 @@ export class MemoryService implements IMemoryService {
     groupIds: readonly string[],
     limit: number = 50
   ): Promise<IMemoryItem[]> {
-    this.logger.debug('Loading facts date-ordered', { groupIds, limit });
+    const logContext = this.createLogContext(groupIds, 'loadFactsDateOrdered');
+    const completeOperation = this.structuredLogger.startOperation(
+      LogEvents.MEMORY_LOAD_START,
+      logContext
+    );
     
     if (!this.router) {
       // Fall back to MCP-only path
-      this.logger.debug('Using MCP-only path (no router)');
       const [response] = await this.mcp.call<McpMemoryResponse>('search_memory_facts', {
         query: '*',
         max_facts: limit,
@@ -314,7 +371,7 @@ export class MemoryService implements IMemoryService {
         const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
         return dateB - dateA;
       });
-      this.logger.debug('Loaded facts via MCP', { count: sorted.length });
+      completeOperation({ data: { backend: 'mcp', count: sorted.length } });
       return sorted;
     }
 
@@ -325,11 +382,17 @@ export class MemoryService implements IMemoryService {
         sort: { field: 'created_at', order: 'desc' },
         limit,
       });
-      this.logger.debug('Loaded facts via DAL router (list)', { count: result.items.length });
+      completeOperation({ data: { backend: 'neo4j', count: result.items.length } });
       return [...result.items];
     } catch (error) {
-      // Fall back to MCP
-      this.logger.debug('DAL list failed, falling back to search', { error: (error as Error).message });
+      // Log fallback
+      this.structuredLogger.logEvent({
+        event: LogEvents.DAL_FALLBACK,
+        context: logContext,
+        data: { from: 'neo4j', to: 'mcp' },
+        error: (error as Error).message,
+      });
+      
       const repo = this.router.getMemoryRepository('search');
       const result = await repo.findByGroupIds(groupIds, { limit });
       const sorted = [...result.items].sort((a, b) => {
@@ -337,7 +400,7 @@ export class MemoryService implements IMemoryService {
         const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
         return dateB - dateA;
       });
-      this.logger.debug('Loaded facts via DAL router (search)', { count: sorted.length });
+      completeOperation({ data: { backend: 'mcp-fallback', count: sorted.length } });
       return sorted;
     }
   }
@@ -354,7 +417,11 @@ export class MemoryService implements IMemoryService {
     query: string,
     limit: number = 20
   ): Promise<IMemoryItem[]> {
-    this.logger.debug('Searching facts', { groupIds, query, limit });
+    const logContext = this.createLogContext(groupIds, 'searchFacts');
+    const completeOperation = this.structuredLogger.startOperation(
+      LogEvents.MEMORY_SEARCH_START,
+      logContext
+    );
     
     if (!this.router) {
       // Fall back to MCP-only path
@@ -364,7 +431,7 @@ export class MemoryService implements IMemoryService {
         group_ids: [...groupIds],
       });
       const facts = response?.result?.facts || response?.facts || [];
-      this.logger.debug('Search completed via MCP', { resultsCount: facts.length });
+      completeOperation({ data: { backend: 'mcp', resultsCount: facts.length, query } });
       return facts;
     }
 
@@ -372,10 +439,13 @@ export class MemoryService implements IMemoryService {
     try {
       const repo = this.router.getMemoryRepository('search');
       const result = await repo.findByGroupIds(groupIds, { query, limit });
-      this.logger.debug('Search completed via DAL router', { resultsCount: result.items.length });
+      completeOperation({ data: { backend: 'dal', resultsCount: result.items.length, query } });
       return [...result.items];
     } catch (error) {
-      this.logger.warn('Search failed', { error: (error as Error).message });
+      completeOperation({ 
+        data: { backend: 'dal', query },
+        error: (error as Error).message,
+      });
       return [];
     }
   }

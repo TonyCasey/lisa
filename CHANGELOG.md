@@ -41,15 +41,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Clean separation of health checks, formatting, and CLI integration
   - Comprehensive test suite (30 tests)
 
+#### Structured Log Enrichment ([#16](https://github.com/TonyCasey/lisa/issues/16))
+- **IStructuredLog interface** - Standardized structured log entry format
+  - Event-based logging with standardized event names
+  - Context fields for correlation (sessionId, groupId, projectRoot, correlationId)
+  - Duration tracking for performance monitoring
+  - Error field for error context
+
+- **LogEvents constants** - Standardized event names for log aggregation
+  - Memory operations: `memory:load:start/complete/error/timeout`, `memory:save:*`, `memory:search:*`
+  - Task operations: `task:load:*`, `task:sync:*`
+  - Session operations: `session:start/stop`, `session:capture:*`
+  - DAL operations: `dal:connect:*`, `dal:fallback`
+  - Handler operations: `handler:start/complete/error`
+
+- **IStructuredLogger interface** - Extended logger with structured event support
+  - `logEvent()`, `logEventDebug()`, `logEventWarn()`, `logEventError()` methods
+  - `withContext()` for binding context to child loggers
+  - `startOperation()` for automatic duration tracking
+
+- **Logger class updated** to implement IStructuredLogger
+- **NullLogger class updated** to implement IStructuredLogger
+- **MemoryService updated** with structured logging
+  - All operations now emit standardized events
+  - Duration tracking on load/save/search operations
+  - Fallback events logged with source/target backends
+
+- **Utility functions** for event derivation
+  - `generateCorrelationId()` - Create unique correlation IDs
+  - `deriveCompleteEvent()` - Convert start event to complete event
+  - `deriveErrorEvent()` - Convert start event to error event
+
 ### Changed
 - Refactored doctor command from inline function to modular command pattern
 - Improved doctor command description: "Validate Lisa configuration and backend connectivity"
-- Total unit tests: 328 (up from 298)
 
 ### New Files
 - `src/lib/commands/doctor.ts` - Doctor command implementation
 - `src/lib/commands/index.ts` - Commands module exports
 - `tests/unit/src/lib/commands/doctor.test.ts` - Doctor command tests (30 tests)
+
+### Testing
+- 30 new unit tests for doctor command
+- 16 new unit tests for structured logging
+- Total unit tests: 331 (up from 298)
 
 ---
 
