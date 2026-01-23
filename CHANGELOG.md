@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.1] - 2026-01-23
+
+### Fixed
+- **Claude Code skills symlink structure** - Fixed incorrect symlink that caused "Unknown skill" errors ([#20](https://github.com/TonyCasey/lisa/issues/20))
+  - Before: `.claude/skills/lisa -> ../../.lisa/skills` (SKILL.md at wrong path)
+  - After: `.claude/skills/<skill> -> ../../.lisa/skills/<skill>` (individual symlinks per skill)
+  - Now matches the working OpenCode pattern
+
+---
+
 ## [2.3.0] - 2026-01-22
 
 ### Added
