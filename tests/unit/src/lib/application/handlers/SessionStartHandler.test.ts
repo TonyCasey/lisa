@@ -130,7 +130,7 @@ const now = () => new Date().toISOString();
 
 describe('SessionStartHandler', () => {
   describe('trigger handling', () => {
-    it('should handle startup trigger', async () => {
+    it('handle_givenStartupTrigger_shouldReturnContextAndMessage', async () => {
       const handler = new SessionStartHandler(
         createMockContext(),
         createMockMemory(),
@@ -146,7 +146,7 @@ describe('SessionStartHandler', () => {
       assert.ok(result.contextContent.includes('User:'));
     });
 
-    it('should handle resume trigger', async () => {
+    it('handle_givenResumeTrigger_shouldReturnResumeMessage', async () => {
       const handler = new SessionStartHandler(
         createMockContext(),
         createMockMemory(),
@@ -160,7 +160,7 @@ describe('SessionStartHandler', () => {
       assert.ok(result.message.includes('resume'));
     });
 
-    it('should handle compact trigger with reminder', async () => {
+    it('handle_givenCompactTrigger_shouldReturnCompactMessageAndContext', async () => {
       const handler = new SessionStartHandler(
         createMockContext(),
         createMockMemory(),
@@ -175,7 +175,7 @@ describe('SessionStartHandler', () => {
       assert.ok(result.contextContent.includes('compacted'));
     });
 
-    it('should handle clear trigger with reminder', async () => {
+    it('handle_givenClearTrigger_shouldReturnClearMessageAndContext', async () => {
       const handler = new SessionStartHandler(
         createMockContext(),
         createMockMemory(),
@@ -469,7 +469,7 @@ describe('SessionStartHandler', () => {
   });
 
   describe('error handling', () => {
-    it('should handle memory service errors gracefully', async () => {
+    it('handle_givenMemoryServiceError_shouldPropagateError', async () => {
       const memory = createMockMemory({
         loadMemory: async () => {
           throw new Error('Memory service unavailable');
@@ -483,13 +483,11 @@ describe('SessionStartHandler', () => {
         createMockMcp()
       );
 
-      // Should not throw, handler catches errors internally
-      // The actual behavior depends on implementation
-      try {
-        await handler.handle(new SessionStartRequest('startup', now()));
-      } catch {
-        // Some implementations may throw, which is acceptable
-      }
+      // Handler propagates memory errors to caller
+      await assert.rejects(
+        handler.handle(new SessionStartRequest('startup', now())),
+        /Memory service unavailable/
+      );
     });
   });
 });
