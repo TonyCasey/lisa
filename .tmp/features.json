@@ -1,0 +1,11 @@
+{
+  "status": "ok",
+  "action": "load",
+  "group": "lisa",
+  "groups": [
+    "lisa"
+  ],
+  "query": "FEATURE FIX REFACTOR implemented",
+  "facts": [],
+  "mode": "neo4j"
+}

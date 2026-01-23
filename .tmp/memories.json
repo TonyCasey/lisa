@@ -1,0 +1,4431 @@
+{
+  "status": "ok",
+  "action": "load",
+  "group": "lisa",
+  "groups": [
+    "lisa"
+  ],
+  "query": "",
+  "facts": [
+    {
+      "uuid": "9d62ca7e-7cd0-4b2a-b152-c891174ff868",
+      "name": "BELONGS_TO",
+      "fact": "The task 'Applying review fixes' belongs to the 'lisa' repo.",
+      "group_id": "lisa",
+      "created_at": "2026-01-19T08:58:44.417279000Z",
+      "valid_at": "2026-01-19T08:58:40.950546000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "4eeaf45a-9051-437a-a77a-0e3d295bd2c5",
+      "name": "ASSIGNED_TO",
+      "fact": "Tony is assigned to the task 'Applying review fixes'.",
+      "group_id": "lisa",
+      "created_at": "2026-01-19T08:58:44.417236000Z",
+      "valid_at": "2026-01-19T08:58:40.950546000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "5c8950ad-ccc1-45f7-8c2f-88549fb4ec69",
+      "name": "TASK_STATUS",
+      "fact": "The status of the task 'Applying review fixes' is 'todo'.",
+      "group_id": "lisa",
+      "created_at": "2026-01-19T08:58:30.027689000Z",
+      "valid_at": "2026-01-19T08:58:25.367030000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "9418d5a6-823c-43e1-914f-71d39c5518fe",
+      "name": "REPO_CONTAINS_TASK",
+      "fact": "The repository 'lisa' contains the task 'Applying review fixes'.",
+      "group_id": "lisa",
+      "created_at": "2026-01-19T08:58:30.027678000Z",
+      "valid_at": "2026-01-19T08:58:25.367030000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "f345f00d-1354-4007-87d3-fa44613b618b",
+      "name": "ASSIGNED_BY",
+      "fact": "The task in the repo 'lisa' is assigned by the contributor 'unknown'.",
+      "group_id": "lisa",
+      "created_at": "2026-01-19T08:58:09.695683000Z",
+      "valid_at": "2026-01-19T08:58:05.870639000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "ab36493c-c9fd-4a0b-a981-b5b9c2bcaeba",
+      "name": "ASSIGNED_TO",
+      "fact": "The task '2d8416b2-54de-4fa3-8b1d-fc5c91a46089' has been completed by unknown in the lisa repository.",
+      "group_id": "lisa",
+      "created_at": "2026-01-19T08:57:49.852876000Z",
+      "valid_at": "2026-01-19T08:57:46.656489000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "1cce135c-d0b0-4f0c-8295-92ada60076d1",
+      "name": "ASSIGNED",
+      "fact": "The task af84d1a0-3f96-4418-8f20-4f2bb7a93b4e is done and assigned to lisa by unknown.",
+      "group_id": "lisa",
+      "created_at": "2026-01-19T08:57:42.837732000Z",
+      "valid_at": "2026-01-19T08:57:39.912265000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "613fd600-c419-40f9-99fd-51f8adf0e840",
+      "name": "STATUS_OF",
+      "fact": "The task titled '21ded268-bc17-49ff-8d97-1dfc21542450' has a status of done.",
+      "group_id": "lisa",
+      "created_at": "2026-01-19T08:57:36.425637000Z",
+      "valid_at": "2026-01-19T08:57:32.520278000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "b2a19280-361b-4ee1-b393-e1799143f238",
+      "name": "ASSIGNED_TO",
+      "fact": "The task titled '21ded268-bc17-49ff-8d97-1dfc21542450' is assigned to unknown.",
+      "group_id": "lisa",
+      "created_at": "2026-01-19T08:57:36.425588000Z",
+      "valid_at": "2026-01-19T08:57:32.520278000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "b5dae250-a472-4846-b9e2-094f01a21622",
+      "name": "TASK_STATUS_UPDATED",
+      "fact": "The task with ID 84396b94-a3a3-4cbe-b5a3-24a63932b05f in the lisa repo has been marked as done.",
+      "group_id": "lisa",
+      "created_at": "2026-01-19T08:57:21.782533000Z",
+      "valid_at": "2026-01-19T08:57:13Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "4d5c9522-010e-4227-9cce-c8e802c97f71",
+      "name": "ASSIGNED_TO",
+      "fact": "The task 'Test task for lisa repo' is assigned to the lisa repository.",
+      "group_id": "lisa",
+      "created_at": "2026-01-18T12:26:53.367548000Z",
+      "valid_at": "2026-01-18T12:26:48.271884000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "f8bfa82f-9c89-4a70-8526-7769d3e05810",
+      "name": "DEV_LOGS_LOCATION",
+      "fact": "Development logs are directed to .agents/logs/*.log in the repo lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-18T10:00:34.961072000Z",
+      "valid_at": "2026-01-18T10:00:29.540200000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "856f3e7a-3877-4a24-bf84-322d82d821c0",
+      "name": "SETTINGS_LOCATED_IN",
+      "fact": "The settings for the logging system are found in .env in the repo lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-18T10:00:34.961053000Z",
+      "valid_at": "2026-01-18T10:00:29.540200000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "10f61189-79d5-4224-acf8-8f3066487a22",
+      "name": "ADDED_LOGGING_SYSTEM",
+      "fact": "Add logging system with configurable levels (default: error for production) is associated with the repo lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-18T10:00:34.960985000Z",
+      "valid_at": "2026-01-18T10:00:29.540200000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "72e8998e-61cc-4f3d-b2dd-0afb6eb4cdee",
+      "name": "STATUS_OF",
+      "fact": "The status of the task 'Second test task' is doing.",
+      "group_id": "lisa",
+      "created_at": "2026-01-18T09:37:17.300721000Z",
+      "valid_at": "2026-01-18T09:37:11.373746000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "b99bf3d4-24eb-4b1b-ba6a-99c91d2bd634",
+      "name": "BELONGS_TO",
+      "fact": "The task 'Second test task' belongs to the 'scripts' repository.",
+      "group_id": "lisa",
+      "created_at": "2026-01-18T09:37:17.300710000Z",
+      "valid_at": "2026-01-18T09:37:11.373746000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "9aad1772-3fae-4ff6-9b69-89464cb8ebb8",
+      "name": "PART_OF_REPO",
+      "fact": "The test task for Neo4j query is part of the scripts repository.",
+      "group_id": "lisa",
+      "created_at": "2026-01-18T09:36:40.327783000Z",
+      "valid_at": "2026-01-18T09:36:27.038627000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "677570ae-8d23-4328-ae0d-1d1cd2a52dd0",
+      "name": "COMMITTED",
+      "fact": "The branch opencode-support contains commits: 4bc4f39, 0dfc1bc, c7ab161, 5951e7f.",
+      "group_id": "lisa",
+      "created_at": "2026-01-16T22:43:56.270054000Z",
+      "valid_at": "2026-01-16T22:43:43.224194000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "cb076dc6-a5db-4851-a12f-1c2d6a81b4d6",
+      "name": "HAS_REMAINING_PHASE",
+      "fact": "OpenCode support has Phase 5 (testing) remaining to complete.",
+      "group_id": "lisa",
+      "created_at": "2026-01-16T22:43:56.270043000Z",
+      "valid_at": "2026-01-16T22:43:43.224194000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "c3b2df2d-7cde-4dfb-8192-4b9f425904d2",
+      "name": "HAS_REMAINING_PHASE",
+      "fact": "OpenCode support has Phase 4 (config templates) remaining to complete.",
+      "group_id": "lisa",
+      "created_at": "2026-01-16T22:43:56.270031000Z",
+      "valid_at": "2026-01-16T22:43:43.224194000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "8f6b1690-720a-4832-abca-4dce610a8624",
+      "name": "HAS_REMAINING_PHASE",
+      "fact": "OpenCode support has Phase 3 (commands) remaining to complete.",
+      "group_id": "lisa",
+      "created_at": "2026-01-16T22:43:56.270019000Z",
+      "valid_at": "2026-01-16T22:43:43.224194000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "7b3eed6d-347c-49c5-8505-81bc398dbcee",
+      "name": "DEPLOYED_TO",
+      "fact": "The OpenCode plugin was deployed to .opencode/plugin/lisa.js.",
+      "group_id": "lisa",
+      "created_at": "2026-01-16T22:43:56.270003000Z",
+      "valid_at": "2026-01-16T22:43:43.224194000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "dceef7f1-9c7f-47a9-862b-c543b31ec832",
+      "name": "COMPLETED_PHASE",
+      "fact": "OpenCode support Phase 2 (OpenCode Adapter) was completed, creating domain/application/infrastructure layers with shared handlers.",
+      "group_id": "lisa",
+      "created_at": "2026-01-16T22:43:56.269974000Z",
+      "valid_at": "2026-01-16T22:43:43.224194000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "c589eeed-4803-428e-a4f9-85ce26607462",
+      "name": "COMPLETED_PHASE",
+      "fact": "OpenCode support Phase 1 (Clean Architecture) was completed, creating domain/application/infrastructure layers with shared handlers.",
+      "group_id": "lisa",
+      "created_at": "2026-01-16T22:43:56.269621000Z",
+      "valid_at": "2026-01-16T22:43:43.224194000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "339ee7d6-63c6-4dbf-b527-7e2495008693",
+      "name": "PRIMARY_FILE_TYPES",
+      "fact": "The primary file types used are .md and .yml.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:16:19.077599000Z",
+      "valid_at": "2026-01-15T23:16:13.841897000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "177783f4-1d20-4e75-bfc1-f4eb25b3dcd8",
+      "name": "FILES_ORGANIZED_IN",
+      "fact": "Files are organized in src\\templates\\agents\\skills\\memory and .github\\workflows.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:16:19.077558000Z",
+      "valid_at": "2026-01-15T23:16:13.841897000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "a83b23bf-977e-4292-96c0-c65a9de1ccd3",
+      "name": "MODIFIED",
+      "fact": ".github\\workflows\\npm-publish.yml was modified in the repository 'lisa'.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:16:07.773349000Z",
+      "valid_at": "2026-01-15T23:15:54.256000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "35c83608-f073-46f4-a1d0-bd8f49efa35d",
+      "name": "MODIFIED",
+      "fact": "SKILL.md was modified in the workflow.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:16:07.773295000Z",
+      "valid_at": "2026-01-15T23:15:54.256000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "6d1e1f54-d498-40c5-ad92-8e90649a8024",
+      "name": "AUTOMATED_PROCESS",
+      "fact": "The session 7b4bb70d-e296-4edb-a743-ece027ada9d9 is part of the automated process.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:10:35.122242000Z",
+      "valid_at": "2026-01-15T23:10:30.414254000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "3382d95b-471c-4be3-bb18-a85342a5699c",
+      "name": "PRIMARY_FILE_TYPE",
+      "fact": "The primary file type in the repository lisa is .md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:10:35.122233000Z",
+      "valid_at": "2026-01-15T23:10:30.414254000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "c3a18213-8a61-44cf-a339-ea6b33056aaa",
+      "name": "STRUCTURED_IN",
+      "fact": "The files are organized in the src\\templates\\agents\\skills\\memory directory in the repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:10:35.122192000Z",
+      "valid_at": "2026-01-15T23:10:30.414254000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "9c896f61-6366-4f07-9356-8b1b770c2781",
+      "name": "DOCUMENTATION_UPDATED",
+      "fact": "Milestone saved indicates that memory documentation was updated in repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:10:24.697395000Z",
+      "valid_at": "2026-01-15T23:10:07Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "37ad9f83-5c19-4f17-8b85-e8764feda225",
+      "name": "BRANCH_NAME",
+      "fact": "The changes were pushed to the main branch of repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:10:24.697385000Z",
+      "valid_at": "2026-01-15T23:10:07Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "d3cec560-ee5f-4f6d-ba10-af6f856b98e0",
+      "name": "COMMIT_HASH",
+      "fact": "The commit for this milestone is identified by the hash dfe0db3 in repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:10:24.697372000Z",
+      "valid_at": "2026-01-15T23:10:07Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "77773360-d976-4a58-9a4e-4e92d465e912",
+      "name": "USED_TOOL",
+      "fact": "Write was used in the milestone for repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:10:24.697359000Z",
+      "valid_at": "2026-01-15T23:10:07Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "2627a4d1-43a1-45da-ba7e-9e9a386ddd4b",
+      "name": "USED_TOOL",
+      "fact": "Edit was used in the milestone for repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:10:24.697345000Z",
+      "valid_at": "2026-01-15T23:10:07Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "6b04bb76-72d2-4201-8271-60aeda2af021",
+      "name": "USED_TOOL",
+      "fact": "Read was used in the milestone for repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:10:24.697332000Z",
+      "valid_at": "2026-01-15T23:10:07Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "6bb065b9-ed64-498e-ad15-aed494d818ec",
+      "name": "USED_TOOL",
+      "fact": "Bash was extensively used in the milestone for repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:10:24.697318000Z",
+      "valid_at": "2026-01-15T23:10:07Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "115cfe17-a261-4799-9d37-dd9f879ad14a",
+      "name": "MODIFIED",
+      "fact": "CHANGELOG.md was created and src\\templates\\agents\\skills\\memory\\SKILL.md was modified during this milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:10:24.697299000Z",
+      "valid_at": "2026-01-15T23:10:07Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "dcaea8eb-d2ae-416f-a4cf-a5892a064141",
+      "name": "COMPLETED",
+      "fact": "Release v1.2.0 has been completed as part of repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:10:24.697232000Z",
+      "valid_at": "2026-01-15T23:10:07Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "61961113-6e56-4bb7-9403-8eb370af5ef7",
+      "name": "ADDED",
+      "fact": "The release v1.2.0 introduced SKILL.local.md extensions and session-start trigger handling.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:10:08.732515000Z",
+      "valid_at": "2026-01-15T23:10:02.832865000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "6afe4dc3-19fe-43bd-9c53-5d4de1e26838",
+      "name": "ADDED",
+      "fact": "The release v1.2.0 included memory summarization and session-start trigger handling.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:10:08.732508000Z",
+      "valid_at": "2026-01-15T23:10:02.832865000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "4b0b90f2-f32f-419e-b130-ec47a31293f1",
+      "name": "ADDED",
+      "fact": "The release v1.2.0 introduced SKILL.local.md extensions and memory summarization.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:10:08.732499000Z",
+      "valid_at": "2026-01-15T23:10:02.832865000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "00755f08-5c2a-4aca-b43c-bd7b3e78e724",
+      "name": "ADDED",
+      "fact": "The release v1.2.0 included new skills: lisa and git.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:10:08.732486000Z",
+      "valid_at": "2026-01-15T23:10:02.832865000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "213d7d08-ce75-422b-8519-5f49c01cbc6c",
+      "name": "ADDED",
+      "fact": "The release v1.2.0 included new skills: lisa and jira.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:10:08.732418000Z",
+      "valid_at": "2026-01-15T23:10:02.832865000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "df003af2-a2a5-478d-9291-85d3afeb49cb",
+      "name": "ASSOCIATED_WITH",
+      "fact": "The session:7b4bb70d-e296-4edb-a743-ece027ada9d9 is associated with the repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:04:27.198178000Z[UTC]",
+      "valid_at": "2026-01-15T23:04:22.926322000Z[UTC]",
+      "expired_at": null
+    },
+    {
+      "uuid": "8e06db87-5a83-47c6-aca7-09639770b744",
+      "name": "SEARCHED_FOR",
+      "fact": "The session is tagged automated and is associated with session:7b4bb70d-e296-4edb-a743-ece027ada9d9.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:04:27.198158000Z",
+      "valid_at": "2026-01-15T23:04:22.926322000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "0ea7da46-2664-4e70-ac50-3335300b5c2c",
+      "name": "INCLUDES_FEATURE",
+      "fact": "The repository lisa includes a scanner module for cross-repo knowledge as a key feature.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:04:15.031597000Z",
+      "valid_at": "2026-01-15T23:04:05.413000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "d286de7d-b33a-4a35-a7eb-8188c6be5d29",
+      "name": "INCLUDES_FEATURE",
+      "fact": "The repository lisa includes memory summarization as a key feature.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:04:15.031585000Z",
+      "valid_at": "2026-01-15T23:04:05.413000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "5fb28826-6837-453d-a17e-c28108430881",
+      "name": "INCLUDES_FEATURE",
+      "fact": "The repository lisa includes the jira feature for issue management.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:04:15.031574000Z",
+      "valid_at": "2026-01-15T23:04:05.413000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "57e48235-d049-46bb-a5f4-d6fe0e7db443",
+      "name": "INCLUDES_FEATURE",
+      "fact": "The repository lisa includes the git feature for version bump and PR workflows.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:04:15.031568000Z",
+      "valid_at": "2026-01-15T23:04:05.413000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "b9c6c32a-a3ba-42f0-93f6-8839b9e0ac92",
+      "name": "CREATED",
+      "fact": "CHANGELOG.md was created for the repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:04:15.031521000Z[UTC]",
+      "valid_at": "2026-01-15T23:04:05.413000000Z[UTC]",
+      "expired_at": null
+    },
+    {
+      "uuid": "41d3ad40-e31d-496a-ba33-bda706d38b43",
+      "name": "REPOSITORY",
+      "fact": "The repository associated with tests\\unit\\src\\templates\\claude\\hooks is lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:59:54.611963000Z",
+      "valid_at": "2026-01-15T22:59:42.992923000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "267de87a-8c63-4f15-bfd7-af5ea08c5cdd",
+      "name": "REPOSITORY",
+      "fact": "The repository associated with src\\templates\\agents\\skills\\git\\scripts is lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:59:54.611957000Z",
+      "valid_at": "2026-01-15T22:59:42.992923000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "08fc8f65-c7f9-4d36-94a9-3163afb1b526",
+      "name": "SESSION",
+      "fact": "The session is associated with the hooks in tests\\unit\\src\\templates\\claude.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:59:54.611950000Z",
+      "valid_at": "2026-01-15T22:59:42.992923000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "da0c9b99-c974-4f3e-9eae-c3d2e14d2b83",
+      "name": "SESSION",
+      "fact": "The session is associated with the scripts in src\\templates\\agents\\skills\\git.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:59:54.611943000Z",
+      "valid_at": "2026-01-15T22:59:42.992923000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e60c477a-3f26-48f4-a47b-ede77ff93570",
+      "name": "NAMING_CONVENTION",
+      "fact": "The naming convention for files in src\\templates\\agents\\skills\\git\\scripts is kebab-case.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:59:54.611930000Z",
+      "valid_at": "2026-01-15T22:59:42.992923000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "c30aa7d5-600b-4ed8-8aa0-1893ad26a95a",
+      "name": "PRIMARY_FILE_TYPES",
+      "fact": "The primary file types for src\\templates\\agents\\skills\\git\\scripts are .ts, .md, and .js.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:59:54.611923000Z",
+      "valid_at": "2026-01-15T22:59:42.992923000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "112f40cc-fdf2-4c73-96c3-ab16e6b491f1",
+      "name": "FILE_STRUCTURE",
+      "fact": "Files are organized in tests\\unit\\src\\templates\\claude\\hooks and tests\\unit\\src\\templates\\agents\\skills\\git\\scripts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:59:54.611906000Z",
+      "valid_at": "2026-01-15T22:59:42.992923000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "7db860b7-a011-4c24-a97b-0bf1387f918a",
+      "name": "CREATED",
+      "fact": "The compile-skills.ts file was created in the repository named lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:59:34.942239000Z",
+      "valid_at": "2026-01-15T22:59:21.779000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "2be31a7b-8f0d-4196-a90b-787cf139d8ce",
+      "name": "CREATED",
+      "fact": "The EXTENDING-SKILLS.md file was created in the repository named lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:59:34.942227000Z",
+      "valid_at": "2026-01-15T22:59:21.779000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "60e231ca-5586-4a33-96b6-e9106a4191bb",
+      "name": "CREATED",
+      "fact": "The bump-version.test.ts file was created in the repository named lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:59:34.942222000Z",
+      "valid_at": "2026-01-15T22:59:21.779000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "dec87bbd-3b85-41ad-a096-6e1b5bc2fef3",
+      "name": "CREATED",
+      "fact": "The bump-version.js file was created in the repository named lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:59:34.942211000Z",
+      "valid_at": "2026-01-15T22:59:21.779000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "686af40e-30c3-4ba4-895c-c1e20d72dd99",
+      "name": "MODIFIED",
+      "fact": "The session-start.ts file was modified in the repository named lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:59:34.942193000Z",
+      "valid_at": "2026-01-15T22:59:21.779000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "cb84d198-bc05-495e-8b22-0713f3fdf188",
+      "name": "PART_OF_REPOSITORY",
+      "fact": "The session pertains to the repository named lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:55:01.894918000Z[UTC]",
+      "valid_at": "2026-01-15T22:54:57.483000000Z[UTC]",
+      "expired_at": null
+    },
+    {
+      "uuid": "fec4aa58-3ed5-4eb9-beee-a7c7f3f4c8f8",
+      "name": "CREATED_CONFIG_FILE",
+      "fact": "The graphiti-config.yaml configuration file has been created for the Lisa - Long-term memory system for Claude Code.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:54:48.758303000Z",
+      "valid_at": "2026-01-15T22:54:37.913000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "9df1356e-7486-4494-a803-0cb6ef0c672e",
+      "name": "CREATED_CONFIG_FILE",
+      "fact": "The config-docker-neo4j.yaml configuration file has been created for the Lisa - Long-term memory system for Claude Code.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:54:48.758298000Z",
+      "valid_at": "2026-01-15T22:54:37.913000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "7351580a-e774-44a1-b896-29775021e54c",
+      "name": "USES_DOCKER_IMAGE",
+      "fact": "The Docker image zepai/knowledge-graph-mcp:standalone is used for the Lisa - Long-term memory system for Claude Code.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:54:48.758293000Z",
+      "valid_at": "2026-01-15T22:54:37.913000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "a51f4f05-b50a-499e-b86d-a5609bb02802",
+      "name": "USES_LANGUAGE",
+      "fact": "The Lisa - Long-term memory system for Claude Code is developed using TypeScript.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:54:48.758287000Z",
+      "valid_at": "2026-01-15T22:54:37.913000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "ce064033-66f3-47df-98fe-d38891cbee1e",
+      "name": "USES_LANGUAGE",
+      "fact": "The Lisa - Long-term memory system for Claude Code is developed using JavaScript.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:54:48.758282000Z",
+      "valid_at": "2026-01-15T22:54:37.913000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "d50c9ccb-b89c-41cf-9a2f-f2a4643be1b2",
+      "name": "FOLLOWS_PATTERN",
+      "fact": "The Feature implementation follows the kebab-case naming convention.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:54:48.758276000Z",
+      "valid_at": "2026-01-15T22:54:37.913000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "641f0389-a811-471b-a360-eba65e41c9a7",
+      "name": "USED_TOOL",
+      "fact": "The Task tool was applied in the Lisa - Long-term memory system for Claude Code.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:54:48.758270000Z",
+      "valid_at": "2026-01-15T22:54:37.913000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "22f37034-a37b-430c-8190-decf3f1958fa",
+      "name": "USED_TOOL",
+      "fact": "The Write tool was involved in the Lisa - Long-term memory system for Claude Code.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:54:48.758265000Z",
+      "valid_at": "2026-01-15T22:54:37.913000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e2a1fccd-f77c-415b-b3f9-04c411149e27",
+      "name": "USED_TOOL",
+      "fact": "The Edit tool was utilized in the Lisa - Long-term memory system for Claude Code.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:54:48.758259000Z",
+      "valid_at": "2026-01-15T22:54:37.913000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e1c9eb04-73e9-412d-899c-6c2fe4a93b06",
+      "name": "USED_TOOL",
+      "fact": "The TodoWrite tool was used for the Lisa - Long-term memory system for Claude Code.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:54:48.758250000Z",
+      "valid_at": "2026-01-15T22:54:37.913000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "dfb8faaa-7ea7-497b-b030-fefc87ef857b",
+      "name": "MODIFIED",
+      "fact": "The file src/lib/mcp.ts has been modified for integration with the Lisa - Long-term memory system for Claude Code.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:54:48.758211000Z",
+      "valid_at": "2026-01-15T22:54:37.913000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "929b9c5d-b5be-4541-9e11-1b5090aeeeb5",
+      "name": "TAGGED_AS",
+      "fact": "The process is tagged with the repository identifier repo:lisa and is related to session:7b4bb70d-e296-4edb-a743-ece027ada9d9.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:50:46.254961000Z",
+      "valid_at": "2026-01-15T22:50:41.193799000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "12b1d647-64b2-412e-b0b8-21c3e2f5cfb1",
+      "name": "INCLUDED",
+      "fact": "The Summarization (Required for Recall) section mandates the summarization of skilled memory, ensuring raw data isn't displayed directly.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:50:33.880793000Z",
+      "valid_at": "2026-01-15T22:50:21.644000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "dc3ea978-8c1b-4442-85d1-5d6905082f1a",
+      "name": "INSTRUCTS",
+      "fact": "The Summarization (Required for Recall) section provides instructions on how to synthesize facts, including filtering expired facts and prioritizing recent ones.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:50:33.880787000Z",
+      "valid_at": "2026-01-15T22:50:21.644000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "88aed02f-c9e5-4895-a90a-ec952b4238fd",
+      "name": "DEFINED",
+      "fact": "The Summarization (Required for Recall) section also includes a category for Open Items in the summary structure.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:50:33.880781000Z",
+      "valid_at": "2026-01-15T22:50:21.644000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "487415b1-e82b-46c7-b61c-d169ee405ff9",
+      "name": "DEFINED",
+      "fact": "The Summarization (Required for Recall) section incorporates a category for Milestones in its summary structure.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:50:33.880775000Z",
+      "valid_at": "2026-01-15T22:50:21.644000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "27020c49-7a1b-48ad-8add-94bf0efd6bf7",
+      "name": "DEFINED",
+      "fact": "The Summarization (Required for Recall) section has a category for Configuration in the defined summary structure.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:50:33.880769000Z",
+      "valid_at": "2026-01-15T22:50:21.644000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "6dc33318-fa0e-4ccd-988a-09b0692f6a98",
+      "name": "DEFINED",
+      "fact": "The Summarization (Required for Recall) section includes a category for Conventions & Patterns within its summary structure.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:50:33.880763000Z",
+      "valid_at": "2026-01-15T22:50:21.644000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "bd83c469-5907-4f85-b9b2-42cd73b5e58a",
+      "name": "DEFINED",
+      "fact": "The Summarization (Required for Recall) section contains a category for Recent Activity in the summary structure.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:50:33.880756000Z",
+      "valid_at": "2026-01-15T22:50:21.644000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "8dac9e39-ccea-43cd-86cf-44d4cebe57af",
+      "name": "DEFINED",
+      "fact": "The Summarization (Required for Recall) section includes a defined summary structure with categories including Project Overview.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:50:33.880746000Z",
+      "valid_at": "2026-01-15T22:50:21.644000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "a61e1af0-7d8d-464c-bf12-3ee3694ec48b",
+      "name": "MODIFIED",
+      "fact": "The memory skill has been enhanced by adding the Summarization (Required for Recall) section to its documentation.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:50:33.880688000Z",
+      "valid_at": "2026-01-15T22:50:21.644000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "c090205e-883a-4110-852d-63c7565eaa34",
+      "name": "PARTICIPATES_IN_SESSION",
+      "fact": "This structure is part of the session with ID de4fed3d-21eb-48b0-83a3-961efa2bf156 in the repo named lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:49:39.833097000Z",
+      "valid_at": "2026-01-15T22:49:33Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "c5b469b4-95db-40a4-9072-5137d6a7a063",
+      "name": "PRIMARY_FILE_TYPES",
+      "fact": "The primary file types include TypeScript, Markdown, and JavaScript for tests located in tests\\unit\\src\\templates\\claude\\hooks.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:49:39.833086000Z",
+      "valid_at": "2026-01-15T22:49:33Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "9bf94cd9-bd93-432f-99f3-82352eabeb9d",
+      "name": "STRUCTURED_IN",
+      "fact": "Scripts are organized in the directory tests\\unit\\src\\templates\\agents\\skills\\git\\scripts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:49:39.833080000Z",
+      "valid_at": "2026-01-15T22:49:33Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e08df732-5320-4fca-8e75-16c24d5b0969",
+      "name": "STRUCTURED_IN",
+      "fact": "Scripts are organized in the directory src\\templates\\agents\\skills\\git\\scripts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:49:39.833072000Z",
+      "valid_at": "2026-01-15T22:49:33Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e2401f7b-332d-4b93-aaa8-57a37bc43333",
+      "name": "CREATED_FILE",
+      "fact": "The compile-skills feature was created as part of the test files for the session-start tests.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:49:25.466660000Z",
+      "valid_at": "2026-01-15T22:48:47Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "79ea49d1-e67e-4fff-b066-173a0ad19891",
+      "name": "COMPLETED_MILESTONE",
+      "fact": "The milestone concerning the session-start tests was fulfilled as all tests passed.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:49:25.466655000Z",
+      "valid_at": "2026-01-15T22:48:47Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "7d4fbb88-923e-45d5-96ac-246f49cc3a47",
+      "name": "USED_TOOL",
+      "fact": "The Write tool was part of the process in developing the compile-skills feature.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:49:25.466649000Z",
+      "valid_at": "2026-01-15T22:48:47Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "80ab2364-6c7d-40f7-a01a-91fad241c3cc",
+      "name": "USED_TOOL",
+      "fact": "The Bash tool was involved in the execution of the compile-skills feature.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:49:25.466644000Z",
+      "valid_at": "2026-01-15T22:48:47Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "be831e26-9886-4362-9f24-5813189c308e",
+      "name": "USED_TOOL",
+      "fact": "The Edit tool was applied while working on the compile-skills feature implementation.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:49:25.466639000Z",
+      "valid_at": "2026-01-15T22:48:47Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "99f0601a-326a-41be-90e3-585d7e84bee0",
+      "name": "USED_TOOL",
+      "fact": "The Read tool was utilized during the implementation process of the compile-skills feature.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:49:25.466633000Z",
+      "valid_at": "2026-01-15T22:48:47Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "c9dce907-850c-466e-9361-8d1f8da1d8bc",
+      "name": "USED_TOOL",
+      "fact": "The AskUserQuestion tool was used in the development of the compile-skills feature.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:49:25.466628000Z",
+      "valid_at": "2026-01-15T22:48:47Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "353186a1-cf7a-4939-8903-eb45e3428cdc",
+      "name": "STRUCTURAL_CHANGE_EXECUTED",
+      "fact": "A structural change was made, resulting in three documentation files being recorded.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:49:25.466622000Z",
+      "valid_at": "2026-01-15T22:48:47Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "3cb9104b-5048-4bd3-9cc0-7d69383a650f",
+      "name": "COMMITED_FEATURE",
+      "fact": "The compile-skills feature was completed and committed as part of developments for the lisa repository.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:49:25.466615000Z",
+      "valid_at": "2026-01-15T22:48:47Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "0714e35f-129e-429a-ade2-7e89d1870f21",
+      "name": "SESSION_START_TESTS_PASS",
+      "fact": "The session-start tests passed successfully, confirming the functionality of the test files.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:49:25.466606000Z",
+      "valid_at": "2026-01-15T22:48:47Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "d746cf34-d468-4b13-bcd9-2dc2919dbb75",
+      "name": "PRIMARY_FILE_TYPE",
+      "fact": "The primary file types include .js and session:de4fed3d-21eb-48b0-83a3-961efa2bf156.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:49:08.005777000Z",
+      "valid_at": "2026-01-15T22:49:00Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "8d19b6fb-68b5-4244-b6ad-c68c56bf08be",
+      "name": "PRIMARY_FILE_TYPE",
+      "fact": "The primary file types include .md and session:de4fed3d-21eb-48b0-83a3-961efa2bf156.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:49:08.005767000Z",
+      "valid_at": "2026-01-15T22:49:00Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "0b7c9f57-7c19-4a99-978d-c6a460539564",
+      "name": "PRIMARY_FILE_TYPE",
+      "fact": "The primary file types include .ts and session:de4fed3d-21eb-48b0-83a3-961efa2bf156.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:49:08.005744000Z",
+      "valid_at": "2026-01-15T22:49:00Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "cb7cf7b5-fb43-410d-bb09-9a05c357ef14",
+      "name": "STRUCTURED_FILES_ORGANIZED_IN",
+      "fact": "The structure of files is organized in tests\\unit\\src\\templates\\claude\\hooks and src\\templates\\agents\\skills\\git\\scripts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:49:08.005657000Z[UTC]",
+      "valid_at": "2026-01-15T22:49:00Z[UTC]",
+      "expired_at": null
+    },
+    {
+      "uuid": "e1c7b382-c257-4130-98ec-9285acdfcd1c",
+      "name": "DEPENDS_ON",
+      "fact": "SKILL.local.md is a local extension script that merges with SKILL.md for skills.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:48:54.737922000Z",
+      "valid_at": "2026-01-15T22:48:40.570000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "a197080d-4ce9-426a-8f39-03afe2ad54db",
+      "name": "MODIFIED",
+      "fact": "session-start.ts was modified during session:de4fed3d-21eb-48b0-83a3-961efa2bf156.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:48:54.737917000Z",
+      "valid_at": "2026-01-15T22:48:40.570000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e4a66928-62eb-4161-bf0e-eed74d368c36",
+      "name": "MODIFIED",
+      "fact": "session-start.js was modified during session:de4fed3d-21eb-48b0-83a3-961efa2bf156.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:48:54.737911000Z",
+      "valid_at": "2026-01-15T22:48:40.570000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "cee8e431-9605-40b0-b8a8-eb007a17e70e",
+      "name": "CREATED",
+      "fact": "compile-skills.ts was created during session:de4fed3d-21eb-48b0-83a3-961efa2bf156.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:48:54.737905000Z",
+      "valid_at": "2026-01-15T22:48:40.570000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "b859c70c-b9e9-40b8-a9a1-9b12a7ce411d",
+      "name": "CREATED",
+      "fact": "EXTENDING-SKILLS.md was created during session:de4fed3d-21eb-48b0-83a3-961efa2bf156.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:48:54.737894000Z",
+      "valid_at": "2026-01-15T22:48:40.570000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "606b570b-03d9-4ddd-85c4-c7eff6a94de7",
+      "name": "CREATED",
+      "fact": "bump-version.ts was created during session:de4fed3d-21eb-48b0-83a3-961efa2bf156.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:48:54.737883000Z",
+      "valid_at": "2026-01-15T22:48:40.570000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "0fce79b0-5fa7-4f14-898a-8263fdf19dd1",
+      "name": "CREATED",
+      "fact": "bump-version.js was created during session:de4fed3d-21eb-48b0-83a3-961efa2bf156.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:48:54.737874000Z",
+      "valid_at": "2026-01-15T22:48:40.570000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "6aa89077-4980-4b2f-991a-f7c53ef8ca85",
+      "name": "NAMING_CONVENTION",
+      "fact": "The naming convention for files is kebab-case.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:34:48.625587000Z",
+      "valid_at": "2026-01-15T22:34:41.689795000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "86b3731c-2c97-4064-aae9-df40de55a697",
+      "name": "FILE_ORGANIZATION",
+      "fact": "Files are organized in src\\templates\\agents for session de4fed3d.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:34:48.625581000Z",
+      "valid_at": "2026-01-15T22:34:41.689795000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "cbaf5e48-6cb8-4161-807a-ef450d0f9051",
+      "name": "FILE_ORGANIZATION",
+      "fact": "Files are organized in tests\\unit\\src\\templates\\agents\\skills\\git\\scripts for session de4fed3d.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:34:48.625575000Z",
+      "valid_at": "2026-01-15T22:34:41.689795000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "961b2318-0818-4edf-bfc1-bbcd9a625873",
+      "name": "FILE_ORGANIZATION",
+      "fact": "Files are organized in tests\\unit\\src\\templates\\claude\\hooks for session de4fed3d.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:34:48.625563000Z",
+      "valid_at": "2026-01-15T22:34:41.689795000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "3a83d1bb-8831-40eb-99ce-ffafba737c8c",
+      "name": "FILE_TYPE",
+      "fact": "The primary file type is .js.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:34:48.625556000Z",
+      "valid_at": "2026-01-15T22:34:41.689795000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "5e4dd8f9-2516-4db1-ae69-4af0224cde88",
+      "name": "MODIFIED",
+      "fact": "The milestone documentation modified session-start.ts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:34:35.684215000Z",
+      "valid_at": "2026-01-15T22:34:23Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "56f2b871-dd82-419b-9089-a7672c499907",
+      "name": "MODIFIED",
+      "fact": "The milestone documentation modified session-start.js.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:34:35.684209000Z",
+      "valid_at": "2026-01-15T22:34:23Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "17d5beff-59c6-4f3c-920d-f8208d313a63",
+      "name": "CREATED",
+      "fact": "The milestone documentation includes the creation of session-start.test.ts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:34:35.684204000Z",
+      "valid_at": "2026-01-15T22:34:23Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "52e051c1-fa27-4d54-82e0-744b628ef2f8",
+      "name": "CREATED",
+      "fact": "The milestone documentation includes the creation of bump-version.js.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:34:35.684198000Z",
+      "valid_at": "2026-01-15T22:34:23Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "88ca168f-e7b4-4bff-8fed-ceeb249753dc",
+      "name": "CREATED",
+      "fact": "The milestone documentation includes the creation of bump-version.ts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:34:35.684191000Z",
+      "valid_at": "2026-01-15T22:34:23Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "8641ecd8-86bb-45ab-9da4-459f9725bbdd",
+      "name": "CREATED",
+      "fact": "The milestone documentation created CLAUDE.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:34:35.684183000Z",
+      "valid_at": "2026-01-15T22:34:23Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "ecaeb0cc-11c4-4ba4-a739-f5e0eca39d88",
+      "name": "MODIFIED",
+      "fact": "The milestone documentation modified the SKILL.md file.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:34:35.684162000Z",
+      "valid_at": "2026-01-15T22:34:23Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "07443371-0266-45a5-9c12-44664d6a9f6c",
+      "name": "TESTS_LOCATED_IN",
+      "fact": "Tests are located in tests\\unit\\src\\templates\\claude\\hooks related to session:de4fed3d-21eb-48b0-83a3-961efa2bf156.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:31:59.058507000Z",
+      "valid_at": "2026-01-15T22:31:49.228479000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "43204c11-ad4a-43fb-a28b-1772279a412b",
+      "name": "PRIMARY_FILE_TYPES",
+      "fact": "JavaScript files are used with kebab-case naming conventions.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:31:59.058502000Z",
+      "valid_at": "2026-01-15T22:31:49.228479000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "d66c7b97-fde6-44e0-96ef-76b387c51e60",
+      "name": "PRIMARY_FILE_TYPES",
+      "fact": "Markdown files are used with kebab-case naming conventions.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:31:59.058496000Z",
+      "valid_at": "2026-01-15T22:31:49.228479000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "5fc1ad44-dd3b-402c-88b0-d6bc86af9917",
+      "name": "FILES_ORGANIZED_IN",
+      "fact": "The file organization includes tests\\unit\\src\\templates\\agents\\skills\\git\\scripts related to session:de4fed3d-21eb-48b0-83a3-961efa2bf156.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:31:59.058479000Z",
+      "valid_at": "2026-01-15T22:31:49.228479000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "2ebb2238-23c2-4cb4-828f-05bc8e8f2985",
+      "name": "FILES_ORGANIZED_IN",
+      "fact": "The file organization includes tests\\unit\\src\\templates\\claude\\hooks related to session:de4fed3d-21eb-48b0-83a3-961efa2bf156.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:31:59.058434000Z",
+      "valid_at": "2026-01-15T22:31:49.228479000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "14e742b6-6d6c-4b96-b1de-e92021d01803",
+      "name": "USED",
+      "fact": "Lisa utilized TaskOutput to generate results during the process.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:31:36.346489000Z",
+      "valid_at": "2026-01-15T22:31:20.491000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e6f8d462-6792-4fae-adf8-6ed51a293030",
+      "name": "USED",
+      "fact": "Lisa used Write commands for file modifications.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:31:36.346484000Z",
+      "valid_at": "2026-01-15T22:31:20.491000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "19dd43c9-61bc-4f88-9146-4a66921b60ca",
+      "name": "USED",
+      "fact": "Lisa employed Glob commands during the operations.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:31:36.346478000Z",
+      "valid_at": "2026-01-15T22:31:20.491000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "7e126718-d839-42e5-99a0-9fbdd744f17d",
+      "name": "USED",
+      "fact": "Lisa executed Bash commands for the milestone tasks.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:31:36.346472000Z",
+      "valid_at": "2026-01-15T22:31:20.491000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "3413c9c6-5195-48b2-a853-62ca279da6a9",
+      "name": "USED",
+      "fact": "Lisa used the Edit tool to make changes.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:31:36.346466000Z",
+      "valid_at": "2026-01-15T22:31:20.491000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "0634541f-ae7f-4250-b472-b841e512b13b",
+      "name": "USED",
+      "fact": "Lisa used the TodoWrite tool during the documentation task.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:31:36.346460000Z",
+      "valid_at": "2026-01-15T22:31:20.491000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "04315ca8-202e-4515-a693-6c87273928da",
+      "name": "USED",
+      "fact": "Lisa used the Task tool during the milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:31:36.346449000Z",
+      "valid_at": "2026-01-15T22:31:20.491000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "bc670877-64b3-4aaf-9e04-5291d8428f0c",
+      "name": "USED",
+      "fact": "Lisa used the tool AskUserQuestion during the process.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:31:36.346442000Z",
+      "valid_at": "2026-01-15T22:31:20.491000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "f4c958e3-fe5b-4443-87b9-3f824a35d103",
+      "name": "MODIFIED",
+      "fact": "Lisa modified the documentation file CLAUDE.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:31:36.346437000Z",
+      "valid_at": "2026-01-15T22:31:20.491000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "824d8ac7-921b-45a3-a17b-037400036248",
+      "name": "MODIFIED",
+      "fact": "Lisa modified the skills object.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:31:36.346431000Z",
+      "valid_at": "2026-01-15T22:31:20.491000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "51c3a35c-f8c4-486a-b9ae-5d8a8c7ff643",
+      "name": "MODIFIED",
+      "fact": "Lisa modified the file session-start.js.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:31:36.346424000Z",
+      "valid_at": "2026-01-15T22:31:20.491000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "64141131-19ff-4004-9d4e-a493b0fedb43",
+      "name": "MODIFIED",
+      "fact": "Lisa modified the Git skill file SKILL.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:31:36.346413000Z",
+      "valid_at": "2026-01-15T22:31:20.491000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "3640e78f-f0d6-406f-bb98-9c0285ce414f",
+      "name": "CREATED",
+      "fact": "Lisa created the merge script deploy-agents.js.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:31:36.346386000Z",
+      "valid_at": "2026-01-15T22:31:20.491000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "f402bc1c-0666-41bd-b63f-5e91a09e6983",
+      "name": "CREATED",
+      "fact": "Lisa created a documentation file named EXTENDING-SKILLS.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:31:36.346381000Z",
+      "valid_at": "2026-01-15T22:31:20.491000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "455de527-ddc6-47e5-90dd-9325fac0655c",
+      "name": "CREATED",
+      "fact": "Lisa created a test file named session-start.test.ts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:31:36.346375000Z",
+      "valid_at": "2026-01-15T22:31:20.491000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "3339ca7c-742e-4812-a416-16395c827471",
+      "name": "CREATED",
+      "fact": "Lisa created the script bump-version.ts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:31:36.346370000Z",
+      "valid_at": "2026-01-15T22:31:20.491000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "5905935b-8e8f-4c2f-bb07-df1a555d713b",
+      "name": "CREATED",
+      "fact": "Lisa created the script bump-version.js.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:31:36.346361000Z",
+      "valid_at": "2026-01-15T22:31:20.491000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "72cf207b-549a-41fe-982c-bc2931b7a31f",
+      "name": "EXTENSIONS_PRESERVED_ON",
+      "fact": "Extensions made using SKILL.local.md are preserved during updates.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:31:16.680990000Z",
+      "valid_at": "2026-01-15T22:31:11.231351000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "ffc6d39e-d45f-42cd-bca1-ca773a433fef",
+      "name": "SESSION_IDENTIFIER",
+      "fact": "The session identifier is associated with the repository called lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:23:17.001843000Z",
+      "valid_at": "2026-01-15T22:23:09.839488000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "bae0eabc-e05c-45fe-9243-eaebd773d429",
+      "name": "NAMING_CONVENTION",
+      "fact": "The naming convention for the files is kebab-case, associated with session:de4fed3d-21eb-48b0-83a3-961efa2bf156.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:23:17.001837000Z[UTC]",
+      "valid_at": "2026-01-15T22:23:09.839488000Z[UTC]",
+      "expired_at": null
+    },
+    {
+      "uuid": "961d8a3c-2e5c-499b-8a31-c22125443728",
+      "name": "TESTS_LOCATED_IN",
+      "fact": "Tests are located in the organized files in tests\\unit\\src\\templates\\claude\\hooks.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:23:17.001831000Z",
+      "valid_at": "2026-01-15T22:23:09.839488000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "8598acce-12c1-4b80-bff5-273f59b34ea7",
+      "name": "FILES_ORGANIZED_IN",
+      "fact": "Files are organized in a structure that follows kebab-case naming convention.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:23:17.001786000Z",
+      "valid_at": "2026-01-15T22:23:09.839488000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "f913d5e2-80ac-4c10-80ff-d82ef39bfb4b",
+      "name": "DESCRIBES",
+      "fact": "Claude Code describes a design for extensions",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:22:58.413349000Z",
+      "valid_at": "2026-01-15T22:22:40.980000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "bfb9ef97-45ff-4a01-8db2-9669e62f730b",
+      "name": "DESCRIBES",
+      "fact": "Claude Code describes how skill loading works",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:22:58.413343000Z",
+      "valid_at": "2026-01-15T22:22:40.980000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "ca632fd2-631f-466e-9a9b-eec35af4c2d6",
+      "name": "MODIFIED",
+      "fact": "lisa modified src/templates/agents/skills/git/SKILL.md",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:22:58.413335000Z",
+      "valid_at": "2026-01-15T22:22:40.980000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "368f79e3-8217-4be5-a44e-ed7faedd3497",
+      "name": "MODIFIED",
+      "fact": "lisa modified src/templates/claude/hooks/session-start.ts",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:22:58.413326000Z",
+      "valid_at": "2026-01-15T22:22:40.980000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "f8d0b04f-b0af-4dac-9cd0-f7e97b492d68",
+      "name": "MODIFIED",
+      "fact": "lisa modified .claude/hooks/session-start.js",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:22:58.413316000Z",
+      "valid_at": "2026-01-15T22:22:40.980000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "9d97047b-c185-461e-af7d-58f5c5b30e0e",
+      "name": "CREATED",
+      "fact": "lisa created src/templates/agents/skills/git/scripts/bump-version.ts",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:22:58.413297000Z",
+      "valid_at": "2026-01-15T22:22:40.980000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "924c3548-88c2-4eaa-9ac1-2bcf6d86a41f",
+      "name": "CREATED",
+      "fact": "lisa created CLAUDE.md",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:22:58.413227000Z[UTC]",
+      "valid_at": "2026-01-15T22:22:40.980000000Z[UTC]",
+      "expired_at": null
+    },
+    {
+      "uuid": "9f0d308a-169e-413d-97ae-5681c00ccede",
+      "name": "TAGGED_WITH_REPO",
+      "fact": "The session is tagged with the repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:18:18.677434000Z",
+      "valid_at": "2026-01-15T22:18:08.921495000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "b96e289d-6bca-46e8-8371-7864bdca1a60",
+      "name": "AUTOMATED_FOR_SESSION",
+      "fact": "The files are tagged as automated for session:de4fed3d-21eb-48b0-83a3-961efa2bf156.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:18:18.677427000Z",
+      "valid_at": "2026-01-15T22:18:08.921495000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "d8b4ce26-91a2-4a2b-bf00-9fa605da57f5",
+      "name": "STRUCTURED_IN",
+      "fact": "The files are organized in src\\templates\\agents\\skills\\git\\scripts and .claude\\hooks.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:18:18.677366000Z",
+      "valid_at": "2026-01-15T22:18:08.921495000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "7ac23438-1150-4e1d-be10-b56d3fd03382",
+      "name": "TESTED",
+      "fact": "The session-start.test.ts included 1 test for the parent directory scenario.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674653000Z",
+      "valid_at": "2026-01-15T22:17:34.732000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "6670404f-18a2-4148-8179-669d10d63e08",
+      "name": "TESTED",
+      "fact": "The session-start.test.ts included 2 tests for output format.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674647000Z",
+      "valid_at": "2026-01-15T22:17:34.732000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "5c2875e4-b9fd-43ae-834b-0d77fcc86a0a",
+      "name": "TESTED",
+      "fact": "The session-start.test.ts included 3 tests for error handling.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674642000Z",
+      "valid_at": "2026-01-15T22:17:34.732000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "50a09a2e-04e2-475a-9c39-74a51299542e",
+      "name": "TESTED",
+      "fact": "The session-start.test.ts included 2 tests for the major bump scenario.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674636000Z",
+      "valid_at": "2026-01-15T22:17:34.732000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e4495443-b40f-499b-8420-747eb647979e",
+      "name": "TESTED",
+      "fact": "The session-start.test.ts included 2 tests for the patch bump scenario.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674631000Z",
+      "valid_at": "2026-01-15T22:17:34.732000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "5143c79b-2d87-4e3e-9034-7400532d3531",
+      "name": "TESTED",
+      "fact": "The session-start.test.ts included 2 tests for the minor bump scenario.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674625000Z",
+      "valid_at": "2026-01-15T22:17:34.732000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "4d53d015-26b7-4262-abbd-6f7ed8a0b3d8",
+      "name": "TESTED",
+      "fact": "The session-start.test.ts included 14 tests covering different scenarios for minor, patch, major, prerelease, error handling, output format, and parent directory.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674619000Z",
+      "valid_at": "2026-01-15T22:17:34.732000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "04323fb5-2c89-4774-9729-169342531b80",
+      "name": "CREATED",
+      "fact": "TaskOutput tool was used in the repository lisa for the current milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674613000Z",
+      "valid_at": "2026-01-15T22:17:34.732000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "769eb59c-543f-4be8-ab8d-39bef541f4ec",
+      "name": "CREATED",
+      "fact": "Write tool was used in the repository lisa for the current milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674607000Z",
+      "valid_at": "2026-01-15T22:17:34.732000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "fcc584af-57ed-484b-bb78-7cfdd4ffa0ee",
+      "name": "CREATED",
+      "fact": "Glob tool was used in the repository lisa for the current milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674602000Z",
+      "valid_at": "2026-01-15T22:17:34.732000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "c7d962df-9246-48e0-83fc-94340e4506a1",
+      "name": "CREATED",
+      "fact": "Bash tool was used in the repository lisa for the current milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674596000Z",
+      "valid_at": "2026-01-15T22:17:34.732000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "2c68ff88-4d11-4dd8-a4e0-acea2c39ac6f",
+      "name": "CREATED",
+      "fact": "TodoWrite tool was used in the repository lisa for the current milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674584000Z",
+      "valid_at": "2026-01-15T22:17:34.732000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "b7dcc8f6-5538-4579-86de-cf727df31f0e",
+      "name": "CREATED",
+      "fact": "Task tool was used in the repository lisa for the current milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674572000Z",
+      "valid_at": "2026-01-15T22:17:34.732000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e76bed67-c1d8-40f4-a721-c81930e91d2c",
+      "name": "CREATED",
+      "fact": "AskUserQuestion tool was used in the repository lisa for the current milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674566000Z",
+      "valid_at": "2026-01-15T22:17:34.732000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "f7c3003a-0ccb-4ebc-9a3d-4cd480b7dbc7",
+      "name": "MODIFIED",
+      "fact": "SKILL.md was modified in the repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674560000Z",
+      "valid_at": "2026-01-15T22:17:34.732000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "ca4d0083-3c6a-47ad-9328-1ff98b4105f2",
+      "name": "MODIFIED",
+      "fact": "session-start.ts was modified in the repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674552000Z",
+      "valid_at": "2026-01-15T22:17:34.732000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e44d07ff-083c-4839-ab11-8ad4d13620cd",
+      "name": "MODIFIED",
+      "fact": "session-start.js was modified in the repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674538000Z[UTC]",
+      "valid_at": null,
+      "expired_at": null
+    },
+    {
+      "uuid": "2877dcf6-bbd0-4eb3-973d-11ebc0374774",
+      "name": "CREATED",
+      "fact": "session-start.test.ts was created in the repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674435000Z[UTC]",
+      "valid_at": "2026-01-15T22:17:34.732000000Z[UTC]",
+      "expired_at": null
+    },
+    {
+      "uuid": "58d9cc33-316b-4970-b763-b0a1c31ad0ff",
+      "name": "CREATED",
+      "fact": "bump-version.ts was created in the repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674429000Z[UTC]",
+      "valid_at": "2026-01-15T22:17:34.732000000Z[UTC]",
+      "expired_at": null
+    },
+    {
+      "uuid": "204017fe-39ba-4652-b748-0927411fdc14",
+      "name": "CREATED",
+      "fact": "CLAUDE.md was created in the repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674378000Z[UTC]",
+      "valid_at": "2026-01-15T22:17:34.732000000Z[UTC]",
+      "expired_at": null
+    },
+    {
+      "uuid": "42938a27-c19b-43b7-997b-8d668845bef3",
+      "name": "SESSION_IDENTIFIER",
+      "fact": "The session identifier is de4fed3d-21eb-48b0-83a3-961efa2bf156 for the entity named lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:16:43.769457000Z",
+      "valid_at": "2026-01-15T22:16:33.671116000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "276b330f-d882-4c11-af15-4551abcede78",
+      "name": "SESSION_IDENTIFIER",
+      "fact": "The session identifier is de4fed3d-21eb-48b0-83a3-961efa2bf156 for the entity named git.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:16:43.769449000Z",
+      "valid_at": "2026-01-15T22:16:33.671116000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e9feb6a2-2f26-4261-aec7-5f00f8969f09",
+      "name": "SESSION_IDENTIFIER",
+      "fact": "The session identifier is de4fed3d-21eb-48b0-83a3-961efa2bf156 for the entity named claude.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:16:43.769424000Z",
+      "valid_at": "2026-01-15T22:16:33.671116000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "59967e94-7960-4426-bc34-7fece4363c22",
+      "name": "TESTING_LOCATION",
+      "fact": "Tests are located in tests and hooks.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:16:43.769408000Z",
+      "valid_at": "2026-01-15T22:16:33.671116000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "3468c2b8-d8c6-453c-ba7d-e46f78100ead",
+      "name": "MODIFIED",
+      "fact": "SKILL.md was modified to include new workflow for version bumping as part of the current milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:16:27.261559000Z",
+      "valid_at": "2026-01-15T22:16:12.457000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "a16bed63-485b-4736-9392-ab66437ebc5f",
+      "name": "MODIFIED",
+      "fact": "The session-start.ts file was modified during the current milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:16:27.261553000Z",
+      "valid_at": "2026-01-15T22:16:12.457000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "4dd4bd02-d915-4dc8-a4d5-40168cedbd03",
+      "name": "MODIFIED",
+      "fact": "The session-start.js file was modified to accommodate the changes made during the milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:16:27.261547000Z",
+      "valid_at": "2026-01-15T22:16:12.457000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "9ec41b63-1911-4c97-a248-9e0dba8a600e",
+      "name": "CREATED",
+      "fact": "The documentation file SKILL.md was updated to include the new version bump script.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:16:27.261542000Z",
+      "valid_at": "2026-01-15T22:16:12.457000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "8f22c3b9-ffa6-47df-89db-3ccace3c5a9c",
+      "name": "CREATED",
+      "fact": "The script bump-version.ts was created as part of the milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:16:27.261534000Z",
+      "valid_at": "2026-01-15T22:16:12.457000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "51462ac0-59dd-48d1-8226-990448ac312b",
+      "name": "CREATED",
+      "fact": "CLAUDE.md was created as part of the milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:16:27.261491000Z",
+      "valid_at": "2026-01-15T22:16:12.457000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "7c801883-44b3-4152-8971-6a5aecfc49eb",
+      "name": "HAS_REQUIREMENT",
+      "fact": "Semantic version bumping includes the requirement for patch version changes.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:16:10.147610000Z",
+      "valid_at": "2026-01-15T22:16:03.946297000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e5c1ed75-2503-449e-b605-215f591fedbd",
+      "name": "HAS_REQUIREMENT",
+      "fact": "Semantic version bumping includes the requirement for minor version changes.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:16:10.147604000Z",
+      "valid_at": "2026-01-15T22:16:03.946297000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "2bf965df-1f84-4c8e-9434-9a067230bf17",
+      "name": "HAS_REQUIREMENT",
+      "fact": "Semantic version bumping includes the requirement for major version changes.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:16:10.147598000Z",
+      "valid_at": "2026-01-15T22:16:03.946297000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "6d20b1c1-c454-425e-8f3f-7575c920e4d4",
+      "name": "ADDED",
+      "fact": "The file bump-version.ts was added to the git skill for semantic versioning tasks.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:16:10.147550000Z",
+      "valid_at": "2026-01-15T22:16:03.946297000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "87ba8b07-2014-4773-8a3c-c8cf44ccc5d9",
+      "name": "COVERS",
+      "fact": "CLAUDE.md includes information about Hooks and their trigger types topic.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:10:02.824231000Z",
+      "valid_at": "2026-01-15T22:09:46.990000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "942f61d3-b30a-4d71-a480-81280e582cbc",
+      "name": "COVERS",
+      "fact": "CLAUDE.md provides a Coding rules reference topic.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:10:02.824226000Z",
+      "valid_at": "2026-01-15T22:09:46.990000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "0cfe1fa8-4d9b-4750-8bd5-c0453d722cf7",
+      "name": "COVERS",
+      "fact": "CLAUDE.md contains an Available skills table topic.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:10:02.824220000Z",
+      "valid_at": "2026-01-15T22:09:46.990000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "79a91a9d-2e8e-4954-ad41-6b3064c8f689",
+      "name": "COVERS",
+      "fact": "CLAUDE.md includes information about the Directory structure mapping topic.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:10:02.824214000Z",
+      "valid_at": "2026-01-15T22:09:46.990000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "2a3f5a9f-146a-4fd5-8693-173ca8810b1c",
+      "name": "COVERS",
+      "fact": "CLAUDE.md covers the Development Workflow topic.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:10:02.824208000Z",
+      "valid_at": "2026-01-15T22:09:46.990000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "f42d04d7-efa8-445a-9c48-ba824341d10c",
+      "name": "MODIFIED",
+      "fact": "src/templates/claude/hooks/session-start.ts was modified during the session de4fed3d-21eb-48b0-83a3-961efa2bf156.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:10:02.824203000Z",
+      "valid_at": "2026-01-15T22:09:46.990000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "3ab7cbce-48fa-4879-9231-a8053e373318",
+      "name": "MODIFIED",
+      "fact": ".claude/hooks/session-start.js was modified during the session de4fed3d-21eb-48b0-83a3-961efa2bf156.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:10:02.824197000Z",
+      "valid_at": "2026-01-15T22:09:46.990000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "6eafa6ee-363b-41da-9c4c-fb7cfd180db1",
+      "name": "CREATED",
+      "fact": "A test file was created during the session de4fed3d-21eb-48b0-83a3-961efa2bf156.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:10:02.824187000Z",
+      "valid_at": "2026-01-15T22:09:46.990000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "c3eef355-6774-407a-8d41-6d7ddf76f7c3",
+      "name": "CREATED",
+      "fact": "CLAUDE.md was created during the session de4fed3d-21eb-48b0-83a3-961efa2bf156.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:10:02.824135000Z[UTC]",
+      "valid_at": "2026-01-15T22:09:46.990000000Z[UTC]",
+      "expired_at": null
+    },
+    {
+      "uuid": "6204fdd1-8ab9-401e-a497-305b77c90d3d",
+      "name": "CONTAINS",
+      "fact": "The development workflow provides context about the project.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:09:46.959517000Z",
+      "valid_at": "2026-01-15T22:09:37.888374000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "212d3f3e-c1f7-41c4-8a10-300da06c1caa",
+      "name": "CONTAINS",
+      "fact": "The development workflow includes the reverse engineering pattern for hooks and skills.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:09:46.959511000Z",
+      "valid_at": "2026-01-15T22:09:37.888374000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "1db5e743-63f0-45b1-bb1a-23c942a43d91",
+      "name": "DOCUMENTS",
+      "fact": "CLAUDE.md documents the project context.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:09:46.959505000Z",
+      "valid_at": "2026-01-15T22:09:37.888374000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "a833e66a-bd4d-420a-9a04-b100771f8eda",
+      "name": "DOCUMENTS",
+      "fact": "CLAUDE.md documents the reverse engineering pattern for hooks and skills.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:09:46.959497000Z",
+      "valid_at": "2026-01-15T22:09:37.888374000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "925ee0f6-5998-48f2-b866-fe91d07ce455",
+      "name": "DOCUMENTS",
+      "fact": "CLAUDE.md includes a development workflow documenting the reverse engineering pattern for hooks and skills and project context.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:09:46.959455000Z",
+      "valid_at": "2026-01-15T22:09:37.888374000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "2c251aa7-cfed-40a0-8359-fc42ecc987e3",
+      "name": "MODIFIED",
+      "fact": "session-start.js was modified, adding 511 lines.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:03:33.070166000Z",
+      "valid_at": "2026-01-15T22:03:23.130000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "569b9a03-2fbf-49ed-a92d-4866c7fe4ed7",
+      "name": "MODIFIED",
+      "fact": "session-start.ts was modified in the commit, adding 94 lines.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:03:33.070160000Z",
+      "valid_at": "2026-01-15T22:03:23.130000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "b8f2c7a5-78bc-4dd2-ab1c-baadcbf65af8",
+      "name": "MODIFIED",
+      "fact": "session-start.js was modified in the commit.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:03:33.070152000Z",
+      "valid_at": "2026-01-15T22:03:23.130000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "da9d94a0-fca1-4fb5-9ee0-a713b85e31c8",
+      "name": "TESTS_LOCATED_IN",
+      "fact": "Tests are located in tests/unit/src/templates/claude/hooks and are automated.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:03:05.736971000Z",
+      "valid_at": "2026-01-15T22:02:58.849083000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "6d185958-2b20-4cbb-b878-77bc45f0a9c5",
+      "name": "USED_TOOL",
+      "fact": "The tool AskUserQuestion was used during session ID de4fed3d-21eb-48b0-83a3-961efa2bf156",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:02:49.049727000Z",
+      "valid_at": "2026-01-15T22:01:54.958000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "07ce2681-9994-4d02-a50d-95a8d8e0092a",
+      "name": "USED_TOOL",
+      "fact": "The tool TodoWrite was used during session ID de4fed3d-21eb-48b0-83a3-961efa2bf156",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:02:49.049720000Z",
+      "valid_at": "2026-01-15T22:01:54.958000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "a50a87f7-b6d5-4835-89fb-0e8aaec78438",
+      "name": "USED_TOOL",
+      "fact": "The tool Read was used during session ID de4fed3d-21eb-48b0-83a3-961efa2bf156",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:02:49.049707000Z",
+      "valid_at": "2026-01-15T22:01:54.958000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "17b3c51d-a04d-40da-b3ea-a4409aed132b",
+      "name": "USED_TOOL",
+      "fact": "The tool Bash was used during session ID de4fed3d-21eb-48b0-83a3-961efa2bf156",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:02:49.049700000Z",
+      "valid_at": "2026-01-15T22:01:54.958000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "70991037-0fef-4b75-b22d-cafd7b7414c3",
+      "name": "USED_TOOL",
+      "fact": "The tool Edit was used during session ID de4fed3d-21eb-48b0-83a3-961efa2bf156",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:02:49.049694000Z",
+      "valid_at": "2026-01-15T22:01:54.958000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "263097c6-6864-4753-8789-231c77053b7a",
+      "name": "CREATED",
+      "fact": "The file tests/unit/src/templates/claude/hooks/session-start.test.ts was created in session ID de4fed3d-21eb-48b0-83a3-961efa2bf156",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:02:49.049687000Z[UTC]",
+      "valid_at": "2026-01-15T22:01:54.958000000Z[UTC]",
+      "expired_at": null
+    },
+    {
+      "uuid": "f08129c5-c7f2-42b4-a252-cc2978ea0541",
+      "name": "MODIFIED",
+      "fact": "The file src/templates/claude/hooks/session-start.ts was modified in session ID de4fed3d-21eb-48b0-83a3-961efa2bf156",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:02:49.049680000Z",
+      "valid_at": "2026-01-15T22:01:54.958000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "bd55994c-b7b5-4c4f-b2ec-d52bd69beb76",
+      "name": "HAS_MICRO_MILESTONE",
+      "fact": "The milestone associated with session ID de4fed3d-21eb-48b0-83a3-961efa2bf156",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:02:49.049617000Z",
+      "valid_at": "2026-01-15T22:01:54.958000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "50487278-ead6-4f56-8a9d-8caf3e54b00e",
+      "name": "COVERS",
+      "fact": "The test suite exit behavior includes 1 test",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:02:09.813708000Z",
+      "valid_at": "2026-01-15T22:01:48.254000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "86a26055-63d2-4fc1-94f3-7d3c061d5a0f",
+      "name": "COVERS",
+      "fact": "The test suite stdin parsing includes 3 tests",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:02:09.813701000Z",
+      "valid_at": "2026-01-15T22:01:48.254000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "de583c09-3dc0-4849-a14b-19cbdf78d548",
+      "name": "COVERS",
+      "fact": "The test suite getTriggerReminders includes 4 tests",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:02:09.813687000Z",
+      "valid_at": "2026-01-15T22:01:48.254000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e8da4434-bdea-4d6c-a364-14638403babd",
+      "name": "COVERS",
+      "fact": "The test suite getTriggerMessage includes 6 tests",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:02:09.813680000Z",
+      "valid_at": "2026-01-15T22:01:48.254000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "81f4cbba-95d4-42df-a0bc-ed4628945ce6",
+      "name": "USED",
+      "fact": "TaskOutput was used during the session",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:02:09.813673000Z",
+      "valid_at": "2026-01-15T22:01:48.254000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "0c02e39b-2303-49d6-88f9-f9740c848222",
+      "name": "USED",
+      "fact": "Write was used during the session",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:02:09.813667000Z",
+      "valid_at": "2026-01-15T22:01:48.254000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "47b10e9d-77fa-4bca-bb8e-19c6a070e47d",
+      "name": "USED",
+      "fact": "Glob was used during the session",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:02:09.813660000Z",
+      "valid_at": "2026-01-15T22:01:48.254000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "62fed65a-6921-409f-adeb-c64b5446685e",
+      "name": "USED",
+      "fact": "Bash was used during the session",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:02:09.813653000Z",
+      "valid_at": "2026-01-15T22:01:48.254000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "4adf78e5-0972-4897-875a-563b27d16176",
+      "name": "USED",
+      "fact": "Edit was used during the session",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:02:09.813645000Z",
+      "valid_at": "2026-01-15T22:01:48.254000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "acaf532c-9064-41e0-b9ee-bbae53f13182",
+      "name": "USED",
+      "fact": "TodoWrite was used during the session",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:02:09.813639000Z",
+      "valid_at": "2026-01-15T22:01:48.254000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "6dffa1c8-d996-4372-8ba6-c0c676f091b1",
+      "name": "USED",
+      "fact": "AskUserQuestion was used during the session",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:02:09.813618000Z",
+      "valid_at": "2026-01-15T22:01:48.254000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "c483e407-08ea-42e7-b1ec-c10c55b4e461",
+      "name": "MODIFIED",
+      "fact": "The file session-start.ts was modified",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:02:09.813610000Z",
+      "valid_at": "2026-01-15T22:01:48.254000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "79477c1e-7612-45f9-b3b2-7479797f6146",
+      "name": "USES",
+      "fact": "The Bash tool was used in the repository lisa (main).",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T21:58:39.198297000Z",
+      "valid_at": "2026-01-15T21:58:13.930000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "dc7608cc-6841-49b5-8c9c-4ef8e15d1247",
+      "name": "USES",
+      "fact": "The Edit tool was used in the repository lisa (main).",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T21:58:39.198290000Z",
+      "valid_at": "2026-01-15T21:58:13.930000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "3c7c69a3-9d5f-4263-91d0-220d2f9304c7",
+      "name": "USES",
+      "fact": "The AskUserQuestion tool was used in the repository lisa (main).",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T21:58:39.198263000Z",
+      "valid_at": "2026-01-15T21:58:13.930000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "2bf55b5f-1c52-4016-89d9-ce584b472b82",
+      "name": "PROVIDES",
+      "fact": "Trigger types offer reminders for maintaining context continuity.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T21:58:19.648614000Z",
+      "valid_at": "2026-01-15T21:58:08.423524000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "6a635942-cc1c-4ff0-a3e4-5756776d3ebb",
+      "name": "INFORMS",
+      "fact": "Trigger types include trigger-specific messaging for context understanding.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T21:58:19.648596000Z",
+      "valid_at": "2026-01-15T21:58:08.423524000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "8a174260-a56c-405d-b67e-956053ed6ddd",
+      "name": "HANDLES",
+      "fact": "SessionStart hook accommodates various trigger types including startup, resume, compact, and clear.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T21:58:19.648526000Z",
+      "valid_at": "2026-01-15T21:58:08.423524000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "18b64321-87ce-4d58-974a-a8007865b1f5",
+      "name": "HAS_LAUNCH_TIMELINE",
+      "fact": "lisa has a 7-day launch timeline organized.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:22:22.917666000Z",
+      "valid_at": "2026-01-12T13:22:11.502000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "69a8eb55-0c28-4fcf-b45a-dc1dbed839c8",
+      "name": "USED",
+      "fact": "Write was used in the development of the promotion for lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:22:22.917660000Z",
+      "valid_at": "2026-01-12T13:22:11.502000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "2f33dfd6-2b93-40d6-abca-0810e77f42e8",
+      "name": "USED",
+      "fact": "Edit was used in the development of the promotion for lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:22:22.917653000Z",
+      "valid_at": "2026-01-12T13:22:11.502000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "80db7b94-62d8-4042-8b3c-b074428ec289",
+      "name": "USED",
+      "fact": "Bash was used in the development of the promotion for lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:22:22.917639000Z",
+      "valid_at": "2026-01-12T13:22:11.502000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "01f20aae-af36-4e59-842c-c09e0c4a73d4",
+      "name": "USED",
+      "fact": "Skill was used in the development of the promotion for lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:22:22.917632000Z",
+      "valid_at": "2026-01-12T13:22:11.502000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "adc99b39-f80a-462c-b6d1-edf6e0701973",
+      "name": "MODIFIED",
+      "fact": "LINKEDIN_POST_0_PRELAUNCH.md was modified for the launch of lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:22:22.917624000Z",
+      "valid_at": "2026-01-12T13:22:11.502000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "720945ed-3b60-4f81-9596-0edc73c26ab8",
+      "name": "MODIFIED",
+      "fact": "LINKEDIN_POSTS.md was modified for the launch of lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:22:22.917617000Z",
+      "valid_at": "2026-01-12T13:22:11.502000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "aa86ad7a-1865-4b65-84f0-076d38118d60",
+      "name": "CREATED",
+      "fact": "LINKEDIN_POST_RALPH_LISA.md was created for the launch of lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:22:22.917606000Z",
+      "valid_at": "2026-01-12T13:22:11.502000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "bd7f534e-1293-4edd-9527-7b26e8c4b56a",
+      "name": "CREATED",
+      "fact": "LINKEDIN_POST_0_PRELAUNCH.md was created for the launch of lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:22:22.917565000Z",
+      "valid_at": "2026-01-12T13:22:11.502000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "725f3ee9-a0be-4188-9968-4956c8880fa0",
+      "name": "USED",
+      "fact": "Lisa used the Edit tool.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:20:48.252221000Z",
+      "valid_at": "2026-01-12T13:20:39Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e49e73d1-bbdc-4e57-82a9-23fe5dd5b510",
+      "name": "USED",
+      "fact": "Lisa used the Skill tool.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:20:48.252198000Z",
+      "valid_at": "2026-01-12T13:20:39Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "94788efe-d7d6-4d43-8898-2551e49721ce",
+      "name": "MODIFIED",
+      "fact": "Lisa modified the file LINKEDIN_POSTS.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:20:48.252184000Z",
+      "valid_at": "2026-01-12T13:20:39Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "182ad034-44cb-4124-924e-983773cc8942",
+      "name": "CREATED",
+      "fact": "Lisa created the file LINKEDIN_POST_0_PRELAUNCH.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:20:48.252131000Z",
+      "valid_at": "2026-01-12T13:20:39Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "30924b4c-3548-4cc6-9e48-9b274b5a2b79",
+      "name": "MAKES_USE_OF",
+      "fact": "Edit was employed to modify LINKEDIN_POSTS.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:19:20.421180000Z",
+      "valid_at": "2026-01-12T13:19:10.858000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "f2b3a747-ed15-4e1f-9755-d6847bd2438f",
+      "name": "MAKES_USE_OF",
+      "fact": "Read was used in reviewing the contents of LINKEDIN_POSTS.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:19:20.421171000Z",
+      "valid_at": "2026-01-12T13:19:10.858000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "f0f09d45-8463-47fd-abe3-35d24d18ca76",
+      "name": "MAKES_USE_OF",
+      "fact": "Bash was utilized in the process regarding the changes made to LINKEDIN_POSTS.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:19:20.421161000Z",
+      "valid_at": "2026-01-12T13:19:10.858000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "f836ab09-491b-49d7-977d-cedf746917b7",
+      "name": "MAKES_USE_OF",
+      "fact": "Skill was used in creating and modifying LINKEDIN_POSTS.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:19:20.421151000Z",
+      "valid_at": "2026-01-12T13:19:10.858000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "6b693910-5dc5-447e-8023-44a5c4544e4a",
+      "name": "MENTIONS",
+      "fact": "Neo4j and Graphiti are mentioned for strategic tagging in launch posts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:19:20.421142000Z",
+      "valid_at": "2026-01-12T13:19:10.858000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "a0b7bcbe-9528-4bc9-b706-59d8e6b7ad7b",
+      "name": "MENTIONS",
+      "fact": "Neo4j and Zep are mentioned for potential tagging in launch posts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:19:20.421133000Z",
+      "valid_at": "2026-01-12T13:19:10.858000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e4fb6b8e-56d4-4945-8027-1d23f77d71ab",
+      "name": "USED",
+      "fact": "Used the Edit tool during the session.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:18:38.850547000Z",
+      "valid_at": "2026-01-12T13:18:27.680000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "5cee6000-7b31-4cdb-8bed-b3b5405f024c",
+      "name": "USED",
+      "fact": "Used the Bash tool during the session.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:18:38.850529000Z",
+      "valid_at": "2026-01-12T13:18:27.680000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "9cbfb42d-a7e5-49c4-99d0-0b76c3eff125",
+      "name": "USES",
+      "fact": "The tool Bash was used for 5 commands, and the tool Edit was used for 3 commands during this session.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:15:56.202510000Z",
+      "valid_at": "2026-01-12T13:15:48.317000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "58163628-42f9-4c54-8adb-39da06e507a4",
+      "name": "USES",
+      "fact": "The tool Read was used for 3 commands, and the tool Edit was used for 3 commands during this session.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:15:56.202503000Z",
+      "valid_at": "2026-01-12T13:15:48.317000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "aec1f019-fb29-4e1a-8f55-0c58c9fb6fe5",
+      "name": "USES",
+      "fact": "The tool Write was used for 1 command, and the tool Edit was used for 3 commands during this session.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:15:56.202494000Z",
+      "valid_at": "2026-01-12T13:15:48.317000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e5807e7a-de9d-4a13-a6e0-35d3c214ddde",
+      "name": "USED_TOOL",
+      "fact": "Tony used Bash while working on the lisa repository.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:14:24.606178000Z",
+      "valid_at": "2026-01-12T13:14:11.903000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "731edbae-a7fa-4d35-bdd5-ea35db395549",
+      "name": "PROMOTES",
+      "fact": "The Goldfish Post is a pre-launch awareness post for Lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:14:10.211465000Z",
+      "valid_at": "2026-01-12T13:14:03.758146000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "a70e0512-99c7-4b7b-a2f2-d99042099982",
+      "name": "INCLUDES",
+      "fact": "The Goldfish Post includes the Claude thought bubble.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:14:10.211451000Z",
+      "valid_at": "2026-01-12T13:14:03.758146000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "ea0bf2d8-a925-4d4a-b728-bfea9ee7811f",
+      "name": "USES",
+      "fact": "The Goldfish Post uses the I Remember image.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:14:10.211434000Z",
+      "valid_at": "2026-01-12T13:14:03.758146000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "1bf96a55-19fa-4963-9732-9c3ae266d3c5",
+      "name": "CREATED",
+      "fact": "Tony created the Goldfish Post, a LinkedIn awareness post for Lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-12T13:14:10.211373000Z",
+      "valid_at": "2026-01-12T13:14:03.758146000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "7cfe81ad-00f3-4933-a5f8-0c234442474a",
+      "name": "HAS_GOAL",
+      "fact": "Lisa's goal for the launch plan is to achieve 500+ GitHub stars in the first week.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:54:59.998385000Z",
+      "valid_at": "2026-01-11T23:54:46.954000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "88b97273-57e0-49f4-9b09-ee6f86b846be",
+      "name": "TARGETS",
+      "fact": "Lisa targets the promotion strategy on LinkedIn as the primary platform.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:54:59.998377000Z",
+      "valid_at": "2026-01-11T23:54:46.954000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "df896670-31b4-486a-9aff-d7bcb3d479ac",
+      "name": "CREATED",
+      "fact": "Lisa created the document README.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:54:59.998369000Z",
+      "valid_at": "2026-01-11T23:54:46.954000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "b3536fc8-805f-4813-9acb-672e0ef1d8cb",
+      "name": "CREATED",
+      "fact": "Lisa created the document GITHUB_RELEASE_v1.0.0.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:54:59.998362000Z",
+      "valid_at": "2026-01-11T23:54:46.954000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "a51cb9e1-2098-4ce8-b0d3-5a1f030115b7",
+      "name": "CREATED",
+      "fact": "Lisa created the document REDDIT_POSTS.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:54:59.998355000Z",
+      "valid_at": "2026-01-11T23:54:46.954000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "26090d64-1a28-435f-98d2-a0630d5a2d86",
+      "name": "CREATED",
+      "fact": "Lisa created the document HACKERNEWS_POST.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:54:59.998348000Z",
+      "valid_at": "2026-01-11T23:54:46.954000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "b41f3b6c-f2f4-4b2c-8a69-cee200fc54d0",
+      "name": "CREATED",
+      "fact": "Lisa created the document TWITTER_THREADS.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:54:59.998340000Z",
+      "valid_at": "2026-01-11T23:54:46.954000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "174d5284-75be-4360-b93a-1e28a70f345f",
+      "name": "CREATED",
+      "fact": "Lisa created the document technical-deep-dive.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:54:59.998332000Z",
+      "valid_at": "2026-01-11T23:54:46.954000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "fed91d09-25d3-4e9f-94e3-579cfab3d740",
+      "name": "CREATED",
+      "fact": "Lisa created the document LAUNCH_STRATEGY.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:54:59.998278000Z",
+      "valid_at": "2026-01-11T23:54:46.954000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "1e44c692-ccb2-41e8-bf25-f56ae31bc786",
+      "name": "LEVERAGES",
+      "fact": "The launch strategy leverages Ralph Wiggum's viral momentum.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:54:46.697500000Z",
+      "valid_at": "2026-01-11T23:54:38Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "b76fd005-5067-4a6b-8d44-78f2a30f9b42",
+      "name": "HAS_CONTENT",
+      "fact": "The promotion folder contains GitHub v1.0.0 release notes as part of the launch kit.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:54:46.697495000Z",
+      "valid_at": "2026-01-11T23:54:38Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "08c0a7ba-c60f-42a3-aff6-0cb4ba3f1c4f",
+      "name": "TARGETS",
+      "fact": "The launch strategy targets HackerNews for the front page.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:54:46.697488000Z",
+      "valid_at": "2026-01-11T23:54:38Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "3138cbd3-82b9-4774-b7fb-1aab7418b007",
+      "name": "INCLUDES",
+      "fact": "The launch promotion strategy includes Twitter threads with Simpsons memes.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:54:46.697475000Z",
+      "valid_at": "2026-01-11T23:54:38Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "bab011ce-5fb2-4317-a074-0128ccdd11b1",
+      "name": "INCLUDES",
+      "fact": "The launch promotion strategy includes a HackerNews Show HN post.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:54:46.697466000Z",
+      "valid_at": "2026-01-11T23:54:38Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "70f842d6-a2ad-4c3d-8288-da10ceb9206c",
+      "name": "CREATED",
+      "fact": "Lisa created a complete launch promotion strategy for Lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:54:46.697421000Z",
+      "valid_at": "2026-01-11T23:54:38Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "c87744f9-703c-4397-9b93-4d50204a0e25",
+      "name": "SOLVES_OBVIOUS_GAP",
+      "fact": "Autonomous execution solves the gap that Lisa addresses with persistent memory.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:35:56.657081000Z",
+      "valid_at": "2026-01-11T23:35:48Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "574b1e64-3334-433e-bc08-e92d569e8ca1",
+      "name": "USES_AUTONOMOUS_EXECUTION",
+      "fact": "Ralph Wiggum employs autonomous looping technique for Claude Code.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:35:56.657075000Z",
+      "valid_at": "2026-01-11T23:35:48Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e203fbe7-22ff-4699-b5e3-70a8391c5a2b",
+      "name": "RESONATES_WITH",
+      "fact": "Ralph Wiggum's strong Simpsons branding resonates with developers.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:35:56.657068000Z",
+      "valid_at": "2026-01-11T23:35:48Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "da6c16c4-eb6f-420e-9cd0-606c3b30d237",
+      "name": "WENT_VIRAL",
+      "fact": "Ralph Wiggum went viral during the late 2025 to early 2026 YC hackathon.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:35:56.657060000Z",
+      "valid_at": "2026-01-11T23:35:48Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "35b738ee-61b5-47e3-b8da-9dd2394f9e53",
+      "name": "COMPLEMENTARY_NOT_COMPETITIVE",
+      "fact": "Ralph Wiggum's autonomous execution is complementary to Lisa's persistent memory.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:35:56.657016000Z",
+      "valid_at": "2026-01-11T23:35:48Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "7996356d-cd9f-45cd-9ae3-8e55401c6ee9",
+      "name": "CAN_USE",
+      "fact": "The project named lisa can potentially fetch public Twitter/X pages using WebFetch.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:30:19.375903000Z",
+      "valid_at": "2026-01-11T23:30:11Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "a2831918-8f2b-4ddb-94f9-927f118aa886",
+      "name": "MAJOR_MILESTONE",
+      "fact": "The milestone is related to the main branch.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:30:19.375897000Z",
+      "valid_at": "2026-01-11T23:30:11Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "4c14ce6a-c849-40e0-813a-a3d317322198",
+      "name": "CAN_USE_CLONE",
+      "fact": "Individuals can clone the repository lisa for a fresh start instead of resetting their local copy.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:19:42.946360000Z",
+      "valid_at": "2026-01-11T23:19:35.118000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "549e5502-a980-4aea-8690-74ec07069fa2",
+      "name": "HAS_OLD_HISTORY",
+      "fact": "The repository lisa had an old history with multiple commits, the last being 2250d03.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:19:42.946341000Z",
+      "valid_at": "2026-01-11T23:19:35.118000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "c23fe630-44fa-4b71-9448-94f87422f07d",
+      "name": "HAS_NEW_HISTORY",
+      "fact": "The repository lisa has a new main branch with a single 'Initial commit'.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:19:42.946332000Z",
+      "valid_at": "2026-01-11T23:19:35.118000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "db0e5c7f-c677-4807-96b6-7c7700c77adc",
+      "name": "PUSHED_TO_REMOTE",
+      "fact": "The commit a547465 was successfully pushed to the repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:19:42.946283000Z",
+      "valid_at": "2026-01-11T23:19:35.118000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "44c2f9f6-0a97-401c-a3d6-eff5e5c4cc13",
+      "name": "HAS_SESSION",
+      "fact": "The milestone has a session identified as session:1429821d-a084-4518-a309-1dbe14da79ab.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:18:44.567959000Z[UTC]",
+      "valid_at": "2026-01-11T23:18:37Z[UTC]",
+      "expired_at": null
+    },
+    {
+      "uuid": "09598d98-3217-4111-94a7-564c3dacbee8",
+      "name": "USED",
+      "fact": "The ExitPlanMode tool was used by lisa during the milestone session.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:18:44.567952000Z",
+      "valid_at": "2026-01-11T23:18:37Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "f2e95149-92c7-456d-8bd4-f91b0294f38f",
+      "name": "HAS_COMMIT_MESSAGE",
+      "fact": "The first commit message describes the change requested in the repository.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:16:17.538661000Z",
+      "valid_at": "2026-01-11T23:16:07.254000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "61223e8c-b6fc-46d2-9aec-1fdba4ab170f",
+      "name": "INCLUDES_OPTION",
+      "fact": "The option Soft Reset is another method to manage the first commit in the repository.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:16:17.538599000Z",
+      "valid_at": "2026-01-11T23:16:07.254000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "8861dbca-04db-44be-bfe2-adfa07dd3011",
+      "name": "INCLUDES_OPTION",
+      "fact": "The option Interactive Rebase is a method to manage the first commit in the repository.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:16:17.538592000Z",
+      "valid_at": "2026-01-11T23:16:07.254000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "94a00d98-ecf5-41ef-9950-520c53b523fc",
+      "name": "CONTAINS",
+      "fact": "Graph Memory includes TypeScript as a decision",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T22:35:06.391485000Z",
+      "valid_at": "2026-01-11T22:34:56Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "f99ca9a7-defb-4447-ba69-ab27e68dff59",
+      "name": "MODIFIED",
+      "fact": "lisa modified the file package.json",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T22:35:06.391474000Z",
+      "valid_at": "2026-01-11T22:34:56Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "f6858cd9-a095-4193-a259-64995c0c7339",
+      "name": "MODIFIED",
+      "fact": "lisa modified the file C:\\Users\\tony\\.claude\\plans\\luminous-marinating-sunset.md",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T22:35:06.391467000Z",
+      "valid_at": "2026-01-11T22:34:56Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "5a3a7b1b-7828-49a9-a49c-16f516c99b84",
+      "name": "CREATED",
+      "fact": "lisa created the file tests\\integration\\tasks\\index.ts",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T22:35:06.391456000Z",
+      "valid_at": "2026-01-11T22:34:56Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "2220b709-524d-4e81-80ba-9e5ee9abe122",
+      "name": "CREATED",
+      "fact": "lisa created the file tests\\integration\\tasks\\tasks-cli-client.ts",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T22:35:06.391449000Z",
+      "valid_at": "2026-01-11T22:34:56Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "a669cdb7-97c5-4fcf-9a11-285f1159dd16",
+      "name": "CREATED",
+      "fact": "lisa created the file tests\\integration\\memory\\index.ts",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T22:35:06.391443000Z",
+      "valid_at": "2026-01-11T22:34:56Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "7ebb8323-6dd5-471d-ab28-27160b95aaae",
+      "name": "CREATED",
+      "fact": "lisa created the file tests\\integration\\memory\\memory-cli-client.ts",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T22:35:06.391436000Z",
+      "valid_at": "2026-01-11T22:34:56Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "d295dd41-8f00-4328-a2de-10bbca6de22f",
+      "name": "CREATED",
+      "fact": "lisa created the file tests\\integration\\shared\\cli-runner.ts",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T22:35:06.391428000Z",
+      "valid_at": "2026-01-11T22:34:56Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "649bc802-c762-41fa-b80f-b64fcb307add",
+      "name": "CREATED",
+      "fact": "lisa created the file tests\\integration\\shared\\types.ts",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T22:35:06.391419000Z",
+      "valid_at": "2026-01-11T22:34:56Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "6d361c39-df27-4dd3-bfd5-53d265736f40",
+      "name": "CREATED",
+      "fact": "lisa created the file C:\\Users\\tony\\.claude\\plans\\luminous-marinating-sunset.md",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T22:35:06.391376000Z",
+      "valid_at": "2026-01-11T22:34:56Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "c8d8c655-513c-4f0d-8562-aea6e9e41e53",
+      "name": "COVERS",
+      "fact": "Memory and tasks skills include tests covering tags against Zep Cloud backend.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T21:48:20.210445000Z",
+      "valid_at": "2026-01-11T21:48:12.866490000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "47651004-bb97-4b73-9fb5-7483537ac7e3",
+      "name": "COVERS",
+      "fact": "Memory and tasks skills include tests covering group isolation.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T21:48:20.210439000Z",
+      "valid_at": "2026-01-11T21:48:12.866490000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "0abc0acd-248b-4010-b54d-f5130bcc36d7",
+      "name": "COVERS",
+      "fact": "Memory and tasks skills include tests covering persistence.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T21:48:20.210432000Z",
+      "valid_at": "2026-01-11T21:48:12.866490000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "0227e9c9-e1c8-48ce-8ee3-0dcfb22abf6e",
+      "name": "COVERS",
+      "fact": "Memory and tasks skills include tests covering I/O contracts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T21:48:20.210419000Z",
+      "valid_at": "2026-01-11T21:48:12.866490000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "f69ac044-320f-4aa6-a3b4-e5c274863970",
+      "name": "ADDED",
+      "fact": "SKILL.md integration tests have been added for memory and tasks skills encompassing various functionalities.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T21:48:20.210365000Z",
+      "valid_at": "2026-01-11T21:48:12.866490000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "f8e6903d-a17d-41a3-a8c8-c443a8cfbd18",
+      "name": "MODIFIED",
+      "fact": "Tony modified the package.json file.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T21:10:47.697484000Z",
+      "valid_at": "2026-01-11T21:10:34Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "d8c5c312-ccb2-45d3-b4b0-2d4acd87794c",
+      "name": "CREATED",
+      "fact": "Tony created the README.md file under tests.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T21:10:47.697457000Z",
+      "valid_at": "2026-01-11T21:10:34Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "6e8a816e-7907-4cdd-88dd-a5ea793e5036",
+      "name": "CREATED",
+      "fact": "Tony created the file index.ts under tests/integration/tasks.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T21:10:47.697442000Z[UTC]",
+      "valid_at": "2026-01-11T21:10:34Z[UTC]",
+      "expired_at": null
+    },
+    {
+      "uuid": "dfdb6953-c233-435a-8a12-5d6a41bf2093",
+      "name": "CREATED",
+      "fact": "Tony created the file memory-cli-client.ts under tests/integration/memory.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T21:10:47.697395000Z[UTC]",
+      "valid_at": "2026-01-11T21:10:34Z[UTC]",
+      "expired_at": null
+    },
+    {
+      "uuid": "3ee49fca-170c-4655-adeb-03a185f141c1",
+      "name": "CREATED",
+      "fact": "Tony created the file cli-runner.ts under tests/integration/shared.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T21:10:47.697380000Z[UTC]",
+      "valid_at": "2026-01-11T21:10:34Z[UTC]",
+      "expired_at": null
+    },
+    {
+      "uuid": "4cad091b-083c-4da6-a1bf-8a8e296e1d39",
+      "name": "CREATED",
+      "fact": "Tony created the file types.ts under tests/integration/shared.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T21:10:47.697362000Z",
+      "valid_at": "2026-01-11T21:10:34Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e4770573-d6cc-4c34-838e-806ffcb0341d",
+      "name": "CREATED",
+      "fact": "Tony created the file luminous-marinating-sunset.md in his Claude plans.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T21:10:47.697338000Z",
+      "valid_at": "2026-01-11T21:10:34Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "234bb474-8802-4052-886a-5e3b3d3e7596",
+      "name": "IMPLMENTED",
+      "fact": "The implementation of SKILL.md integration tests has been completed and all tests are passing.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T21:10:47.697263000Z",
+      "valid_at": "2026-01-11T21:10:34Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "70a78382-8d89-4fd4-a35d-cefe1d5adea7",
+      "name": "POINTS_TO",
+      "fact": "The npm scripts now point to the docker deployment directory that matches the committed structure.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T21:01:42.360906000Z",
+      "valid_at": "2026-01-11T21:01:34.674133000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "48b8de2d-2f0b-43f9-9c8c-dcd5bdf8a74c",
+      "name": "MODIFIED",
+      "fact": "The package.json file was modified in the lisa repository.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T21:01:42.360896000Z[UTC]",
+      "valid_at": "2026-01-11T21:01:34.674133000Z[UTC]",
+      "expired_at": null
+    },
+    {
+      "uuid": "eb286560-927b-4d8b-9a7b-d59ed3ca5d6e",
+      "name": "LINES_REMOVED",
+      "fact": "The repository lisa has approximately 46 lines removed.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T20:59:37.119384000Z",
+      "valid_at": "2026-01-11T20:59:28.945000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "cdc606be-b49c-46ec-a98a-33087ce968c0",
+      "name": "LINES_ADDED",
+      "fact": "The repository lisa has approximately 2,895 lines added.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T20:59:37.119376000Z",
+      "valid_at": "2026-01-11T20:59:28.945000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "3c1d045d-297b-4aae-ac7a-2c450e2bdf3b",
+      "name": "MODIFIED_FILES_COUNT",
+      "fact": "The repository lisa has 35 committed files.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T20:59:37.119365000Z",
+      "valid_at": "2026-01-11T20:59:28.945000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "c8b39d90-614a-4bf0-9704-2d75301f137b",
+      "name": "HAS_UNCOMMITTED_WORKING_CHANGES",
+      "fact": "The repository lisa has significant uncommitted working changes.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T20:59:37.119315000Z",
+      "valid_at": "2026-01-11T20:59:28.945000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "3c712617-4a46-4094-9d54-63998f558285",
+      "name": "PART_OF_BRANCH",
+      "fact": "lisa is associated with the main branch of the repo.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T20:38:43.073010000Z",
+      "valid_at": "2026-01-11T20:38:07Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "d9b1b09b-a1f0-4e35-a0ab-04688a6a8aa2",
+      "name": "SAVED_MEMORY",
+      "fact": "lisa successfully saved a memory.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T20:38:43.072925000Z",
+      "valid_at": "2026-01-11T20:38:07Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "895dde80-ae20-4809-9c95-e7eeb5caf5ac",
+      "name": "TESTED",
+      "fact": "The memory save functionality was tested at 20:53 on January 11, 2026.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T20:38:07.248499000Z[UTC]",
+      "valid_at": "2026-01-11T20:53:00Z[UTC]",
+      "expired_at": null
+    },
+    {
+      "uuid": "db6a43cc-37fe-4127-b4d6-1aee04dd99d3",
+      "name": "MODIFIED",
+      "fact": "Tony modified the documentation structure.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T20:37:38.638627000Z",
+      "valid_at": "2026-01-11T20:37:30.722000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "48613393-5e52-4342-87ff-06d3742f81cf",
+      "name": "VERIFIES",
+      "fact": "Memory persistence is being tested to verify save and retrieval functionality.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T20:35:21.355846000Z",
+      "valid_at": "2026-01-11T20:52:00Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "a8e7e0a5-00c1-464f-80e5-ad93aecd0cb6",
+      "name": "TESTS",
+      "fact": "Lisa is testing memory persistence.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T20:35:21.355792000Z",
+      "valid_at": "2026-01-11T20:52:00Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "2d736267-b955-4546-bb85-ad41abea6e84",
+      "name": "SWITCHED_FROM",
+      "fact": "The project switched from using latest.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T20:19:21.809594000Z",
+      "valid_at": "2026-01-11T20:19:00.753000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "211ac998-9a18-4ad8-8548-0a2f72529927",
+      "name": "SWITCHED_TO",
+      "fact": "The project switched from latest to standalone due to issues with asyncio.gather().",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T20:19:21.809555000Z",
+      "valid_at": "2026-01-11T20:19:00.753000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "1336b199-0d84-44c8-94b4-20efbd1d8e73",
+      "name": "USING",
+      "fact": "Graphiti runs CREATE INDEX queries in parallel using asyncio.gather().",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T20:19:21.809549000Z",
+      "valid_at": "2026-01-11T20:19:00.753000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "2e5168ca-dd3a-4058-b374-cbbe83f392d5",
+      "name": "USES",
+      "fact": "Neo4j uses the CREATE INDEX IF NOT EXISTS statement.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T20:19:21.809543000Z",
+      "valid_at": "2026-01-11T20:19:00.753000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "2fea9175-9d3a-4c3e-b71d-2862efe4d48b",
+      "name": "HAS_UPSTREAM_BUG",
+      "fact": "Graphiti has an upstream bug related to parallel CREATE INDEX queries.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T20:19:21.809536000Z",
+      "valid_at": "2026-01-11T20:19:00.753000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "68034260-c8e0-4c74-a7a1-3063f082451b",
+      "name": "CREATED",
+      "fact": "Documentation was created for tests/docker/README.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T20:19:21.809530000Z",
+      "valid_at": "2026-01-11T20:19:00.753000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "c99f1e55-c3f8-428d-bf27-0a51febee81f",
+      "name": "CREATED",
+      "fact": "Documentation was created for tests/docker/docker-compose.yml.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T20:19:21.809524000Z",
+      "valid_at": "2026-01-11T20:19:00.753000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "d52d47ee-d106-4529-a923-24fedfe1f5d8",
+      "name": "CREATED",
+      "fact": "A test script was created as tests/docker/test-scripts/setup-project.sh.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T20:19:21.809518000Z",
+      "valid_at": "2026-01-11T20:19:00.753000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "6d63b883-77d9-481e-9310-0e56e3ce645d",
+      "name": "CREATED",
+      "fact": "A test script was created as tests/docker/test-scripts/verify-installation.sh.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T20:19:21.809512000Z",
+      "valid_at": "2026-01-11T20:19:00.753000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "8c148fb0-e403-4e24-8fca-c962cebfb3a2",
+      "name": "CREATED",
+      "fact": "A test script was created as tests/docker/test-scripts/run-tests.sh.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T20:19:21.809506000Z",
+      "valid_at": "2026-01-11T20:19:00.753000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "87b2fa07-05f2-4052-bc96-0a27fdea5c87",
+      "name": "CREATED",
+      "fact": "Documentation was created for tests/docker/Dockerfile.fedora.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T20:19:21.809500000Z",
+      "valid_at": "2026-01-11T20:19:00.753000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "3253e6d7-45f2-42a3-bd59-a3467c2d4263",
+      "name": "CREATED",
+      "fact": "Documentation was created for tests/docker/Dockerfile.alpine.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T20:19:21.809492000Z",
+      "valid_at": "2026-01-11T20:19:00.753000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "780c343e-c6ee-45be-9e2e-ddcb5800e8f9",
+      "name": "CREATED",
+      "fact": "Documentation was created for tests/docker/Dockerfile.debian.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T20:19:21.809480000Z",
+      "valid_at": "2026-01-11T20:19:00.753000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "b1151500-06ea-4d1a-83b3-c86ef3ce4c9d",
+      "name": "CREATED",
+      "fact": "Documentation was created for tests/docker/Dockerfile.ubuntu.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T20:19:21.809428000Z",
+      "valid_at": "2026-01-11T20:19:00.753000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "be82dfeb-7aa2-4330-915d-391a19f1e356",
+      "name": "TESTED",
+      "fact": "Memory integration test was executed.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:54:39.458189000Z",
+      "valid_at": "2026-01-11T13:54:25.584000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "86ec077e-19a5-4c36-b0fb-3e523e1aaa6e",
+      "name": "IS_A",
+      "fact": "Local memory isolation is identified by the ID ae40ee8b-d15a-409c-9241-1ce10798b96a.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:54:33.448717000Z",
+      "valid_at": "2026-01-11T13:54:30Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "97016a67-6e51-4b11-a324-65109dd4fd42",
+      "name": "TEST_OF",
+      "fact": "Local memory test identified with the ID 7b8e31dc-234f-4ae9-8a53-9c5afafa30d3.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:54:25.033558000Z",
+      "valid_at": "2026-01-11T13:54:21.277715000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "94fb9c02-de13-44e2-9944-f8c93ab043fa",
+      "name": "INCLUDES",
+      "fact": "The Memory integration test is associated with the entity ID 33822928-7254-49e4-81f3-bb94a480a08b.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:49:48.280554000Z",
+      "valid_at": "2026-01-11T13:49:44.608757000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "026735e0-4e17-4ada-87d5-df3e89ddd7f0",
+      "name": "TESTS",
+      "fact": "Local memory test is identified by the UUID 907e528b-4663-441a-a6bd-e961318ec9d1.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:49:29.987974000Z",
+      "valid_at": "2026-01-11T13:49:25.806413000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "d615466a-9293-4df0-bc2d-67857045155c",
+      "name": "MODIFIED",
+      "fact": "The deploy-docker.md file in the tests directory was modified in the repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:29:55.319947000Z",
+      "valid_at": "2026-01-11T13:29:44.757000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "556c5409-47f7-4ca1-8dd4-dc300d8f44ed",
+      "name": "MODIFIED",
+      "fact": "The README.md file was modified in the repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:29:55.319942000Z",
+      "valid_at": "2026-01-11T13:29:44.757000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "b97786d0-613d-4000-8d02-5663fd610bff",
+      "name": "MODIFIED",
+      "fact": "The file Dockerfile.fedora was modified in the repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:29:55.319936000Z",
+      "valid_at": "2026-01-11T13:29:44.757000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "4db38811-1488-419e-b513-50c2346a4ca7",
+      "name": "MODIFIED",
+      "fact": "The file Dockerfile.alpine was modified in the repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:29:55.319931000Z",
+      "valid_at": "2026-01-11T13:29:44.757000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "f1d18629-00ca-4662-b6a1-cb8821c630e9",
+      "name": "MODIFIED",
+      "fact": "The file Dockerfile.debian was modified in the repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:29:55.319926000Z",
+      "valid_at": "2026-01-11T13:29:44.757000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "f128e5fe-9b46-42e3-9ac8-fcf5b368ed4a",
+      "name": "MODIFIED",
+      "fact": "The file Dockerfile.ubuntu was modified in the repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:29:55.319920000Z",
+      "valid_at": "2026-01-11T13:29:44.757000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "ba8a13d4-2266-4488-8295-2ecf8c5497e0",
+      "name": "MODIFIED",
+      "fact": "The file docker-compose.test.yml was modified in the repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:29:55.319911000Z",
+      "valid_at": "2026-01-11T13:29:44.757000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "a78b55b7-a7ce-4096-9552-d8a18fee16bb",
+      "name": "MODIFIED",
+      "fact": "The file docker-compose.yml was modified in the repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:29:55.319874000Z",
+      "valid_at": "2026-01-11T13:29:44.757000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "c40d915c-e648-4ce7-9b0e-017c6c2816e2",
+      "name": "FILES_MODIFIED",
+      "fact": "C:\\Users\\tony\\.claude\\plans\\eager-growing-naur.md was modified in the lisa repository.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:27:52.645328000Z",
+      "valid_at": "2026-01-11T13:27:40.861000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "4c85dc07-38ff-4caa-b059-c7b65c9218a4",
+      "name": "FILES_MODIFIED",
+      "fact": "CONTRIBUTING.md was modified in the lisa repository.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:27:52.645323000Z",
+      "valid_at": "2026-01-11T13:27:40.861000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "9d13fc7e-dc36-496a-8e8c-ad41ea5e4eb7",
+      "name": "FILES_CREATED",
+      "fact": "PUBLISHING.md was created in the lisa repository.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:27:52.645301000Z",
+      "valid_at": "2026-01-11T13:27:40.861000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "61c73e5f-c467-474e-bad4-8a78180dd283",
+      "name": "FILES_CREATED",
+      "fact": "docs/troubleshooting.md was created in the lisa repository.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:27:52.645294000Z",
+      "valid_at": "2026-01-11T13:27:40.861000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "2f35e595-e1c0-4fd9-85c8-64aa56ddcb18",
+      "name": "FILES_CREATED",
+      "fact": "docs/skills.md was created in the lisa repository.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:27:52.645289000Z",
+      "valid_at": "2026-01-11T13:27:40.861000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "3cb8c23b-b98e-4e96-a746-9b051bdc041d",
+      "name": "FILES_CREATED",
+      "fact": "docs/configuration.md was created in the lisa repository.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:27:52.645283000Z",
+      "valid_at": "2026-01-11T13:27:40.861000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "0758ea9c-44a2-4a28-85c6-a910403838a1",
+      "name": "FILES_CREATED",
+      "fact": "docs/commands.md was created in the lisa repository.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:27:52.645277000Z",
+      "valid_at": "2026-01-11T13:27:40.861000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "ac22cef1-5102-4f15-b03b-9fc9a2d4ecc9",
+      "name": "FILES_CREATED",
+      "fact": "CONTRIBUTING.md was created in the lisa repository.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:27:52.645254000Z",
+      "valid_at": "2026-01-11T13:27:40.861000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "41c1a021-bd0f-4f98-97d7-2a0033e8e04c",
+      "name": "TESTS_MEMORY_PERSISTENCE",
+      "fact": "The memory.js script is used in the memory persistence tests located in tests/integration/deploy/docker/scripts/test-memory-persistence.sh.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:17:53.956843000Z",
+      "valid_at": "2026-01-11T13:17:42.178000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "ec7fea40-2e7d-481c-b89d-9ec35d252cf1",
+      "name": "CONTAINS_TEST",
+      "fact": "The Graphiti MCP contains a memory persistence test script located at tests/integration/deploy/docker/scripts/test-memory-persistence.sh.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:17:53.956837000Z",
+      "valid_at": "2026-01-11T13:17:42.178000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "8dc2528a-5838-4b92-9964-391b80708065",
+      "name": "CREATED",
+      "fact": "Tony created docs\\README.md in the lisa repository.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:17:53.956831000Z[UTC]",
+      "valid_at": "2026-01-11T13:17:42.178000000Z[UTC]",
+      "expired_at": null
+    },
+    {
+      "uuid": "4db1230b-5211-4940-a940-e775a8ba48fd",
+      "name": "CREATED",
+      "fact": "Tony created PUBLISHING.md in the lisa repository.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:17:53.956824000Z",
+      "valid_at": "2026-01-11T13:17:42.178000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "bae5c585-003c-488d-8974-95438f25bc2b",
+      "name": "CREATED",
+      "fact": "Tony created docs\\commands.md in the lisa repository.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:17:53.956801000Z",
+      "valid_at": "2026-01-11T13:17:42.178000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "b58f998d-e672-4a86-8dad-379ef5e657ba",
+      "name": "CREATED",
+      "fact": "Tony created docs\\getting-started.md in the lisa repository.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:17:53.956795000Z[UTC]",
+      "valid_at": "2026-01-11T13:17:42.178000000Z[UTC]",
+      "expired_at": null
+    },
+    {
+      "uuid": "de43b496-dd8e-4722-b135-f94ad841956c",
+      "name": "TESTED_ON",
+      "fact": "The final integration test was performed on Alpine 3.20 with some CLI failures",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:16:23.601162000Z",
+      "valid_at": "2026-01-11T13:16:06.742000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "72c106b8-6816-423a-be96-f08dead69e57",
+      "name": "TESTED_ON",
+      "fact": "The final integration test was performed on Fedora 40 with all tests passing",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:16:23.601157000Z",
+      "valid_at": "2026-01-11T13:16:06.742000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "f2f76f9e-342a-4ca1-b7eb-25ca04ea54a9",
+      "name": "TESTED_ON",
+      "fact": "The final integration test was performed on Debian Bookworm with all tests passing",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:16:23.601152000Z",
+      "valid_at": "2026-01-11T13:16:06.742000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "c11e17f3-643e-49df-bae2-1f917de1bf65",
+      "name": "TESTED_ON",
+      "fact": "The final integration test was performed on Ubuntu 22.04 LTS with all tests passing",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T13:16:23.601146000Z",
+      "valid_at": "2026-01-11T13:16:06.742000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "4bcf5da2-1e1f-47ff-9848-1b2d7fd6c416",
+      "name": "CREATED",
+      "fact": "Tony created the file AGENTS.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:33:03.955717000Z",
+      "valid_at": "2026-01-11T12:32:50.703000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "a011cffe-5cc3-48f6-aef3-eb71fc2cb731",
+      "name": "CREATED",
+      "fact": "Tony created the documentation files.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:33:03.955705000Z",
+      "valid_at": "2026-01-11T12:32:50.703000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "88277b97-286e-47a1-95ed-94e06cc52c95",
+      "name": "CREATED",
+      "fact": "Tony created the file docs/troubleshooting.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:33:03.955694000Z",
+      "valid_at": "2026-01-11T12:32:50.703000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "2766f1ad-0c58-44d6-bd7e-dbb3b43b6c44",
+      "name": "CREATED",
+      "fact": "Tony created the file docs/skills.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:33:03.955687000Z",
+      "valid_at": "2026-01-11T12:32:50.703000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "92915071-7a27-4858-8732-8b663149ed27",
+      "name": "CREATED",
+      "fact": "Tony created the file docs/commands.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:33:03.955676000Z",
+      "valid_at": "2026-01-11T12:32:50.703000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "1d7ad2d3-acf9-4abf-9a55-73ff85d10253",
+      "name": "CREATES",
+      "fact": "The lisa project created a Go sample project.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:30:47.678665000Z",
+      "valid_at": "2026-01-11T12:30:32.178000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "8d1f6141-3bca-44e6-8ebd-22df3f9d2339",
+      "name": "CREATES",
+      "fact": "The lisa project created a JavaScript sample project.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:30:47.678660000Z",
+      "valid_at": "2026-01-11T12:30:32.178000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "d22c17d1-8977-4e9d-b90a-d7eb02fb371c",
+      "name": "CREATES",
+      "fact": "The lisa project created a Python sample project.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:30:47.678655000Z",
+      "valid_at": "2026-01-11T12:30:32.178000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "cf687e51-8dad-4896-a130-b781470f0b0a",
+      "name": "CREATES",
+      "fact": "The lisa project created docker-compose.yml.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:30:47.678644000Z",
+      "valid_at": "2026-01-11T12:30:32.178000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "0c4de701-70c3-485d-835c-751c5fdef112",
+      "name": "CREATES",
+      "fact": "The lisa project created setup-project.sh.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:30:47.678638000Z",
+      "valid_at": "2026-01-11T12:30:32.178000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "b2c642cf-dff7-4952-ad8b-c4b58a73c0d8",
+      "name": "CREATES",
+      "fact": "The lisa project created Dockerfile.fedora.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:30:47.678623000Z",
+      "valid_at": "2026-01-11T12:30:32.178000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "49c4d534-f74d-45d8-8e37-eb5629236998",
+      "name": "CREATES",
+      "fact": "The lisa project created Dockerfile.ubuntu.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:30:47.678607000Z",
+      "valid_at": "2026-01-11T12:30:32.178000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "02f79054-7633-4811-b9b8-df55134cf590",
+      "name": "CREATES",
+      "fact": "The lisa project created documentation related to its implementation.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:30:47.678601000Z",
+      "valid_at": "2026-01-11T12:30:32.178000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "1e8c5121-93fc-425b-b536-7dccb5624e84",
+      "name": "CREATES",
+      "fact": "The lisa project created various Dockerfiles for different OS containers.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:30:47.678593000Z",
+      "valid_at": "2026-01-11T12:30:32.178000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "046de381-4450-4570-a75a-f74eac288d04",
+      "name": "CONTAINS",
+      "fact": "The documentation contains detailed updates about the lisa project.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:30:47.678554000Z",
+      "valid_at": "2026-01-11T12:30:32.178000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "7086828a-177d-4bfa-8c7d-0ef03241eabb",
+      "name": "CREATED",
+      "fact": "The docker environment also includes the memory skill documentation file SKILL.md which was created during the integration test process.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:27:39.625227000Z",
+      "valid_at": "2026-01-11T12:27:24Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "92f6cc30-5f99-4cb6-ac2b-1ec5004503d3",
+      "name": "MAJOR_MILESTONE",
+      "fact": "The lisa repository successfully passed the installation verification for Fedora 40 during the integration tests.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:27:39.625216000Z",
+      "valid_at": "2026-01-11T12:27:24Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "7d6504de-4c23-483a-8781-d34101c284f6",
+      "name": "MAJOR_MILESTONE",
+      "fact": "The lisa repository successfully passed the installation verification for Debian Bookworm during the integration tests.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:27:39.625211000Z",
+      "valid_at": "2026-01-11T12:27:24Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "0d95b05e-2d74-4a26-bc84-d3c539fbeef4",
+      "name": "MAJOR_MILESTONE",
+      "fact": "The lisa repository successfully passed the installation verification for Ubuntu 22.04 LTS during the integration tests.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:27:39.625205000Z",
+      "valid_at": "2026-01-11T12:27:24Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "36bf85f5-aba0-4679-a765-1d9f72392047",
+      "name": "CREATED",
+      "fact": "The docker environment includes the script setup-project.sh which was created during the integration test process.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:27:39.625187000Z",
+      "valid_at": "2026-01-11T12:27:24Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "96288d36-35eb-4fc5-90ce-2149f5875969",
+      "name": "CREATED",
+      "fact": "The docker environment includes the script verify-installation.sh which was created during the integration test process.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:27:39.625181000Z",
+      "valid_at": "2026-01-11T12:27:24Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "1f5922a9-7523-4fc4-95ee-163ab58f2cff",
+      "name": "CREATED",
+      "fact": "The docker environment includes the script run-tests.sh which was created during the integration test process.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:27:39.625175000Z",
+      "valid_at": "2026-01-11T12:27:24Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "8756d891-4aab-465f-ace7-cb62062efb0b",
+      "name": "CREATED",
+      "fact": "The docker environment includes the file Dockerfile.ubuntu which was created during the integration test process.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:27:39.625149000Z",
+      "valid_at": "2026-01-11T12:27:24Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "492b6510-e2c0-46fe-b89c-ab7ea97b975e",
+      "name": "REORGANIZED",
+      "fact": "The test folder was reorganized according to the project structure guidelines in the documentation for the repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:13:54.729016000Z",
+      "valid_at": "2026-01-11T12:13:38Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "79cc250c-90aa-4ea8-9452-02ad8ae73ff3",
+      "name": "MODIFIED",
+      "fact": "src/templates/claude/hooks/session-start.ts should be updated in order to persist changes made in the documentation for the repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:13:54.729011000Z",
+      "valid_at": "2026-01-11T12:13:38Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "5d276cc5-3b51-45e2-8b10-7c5b15d67235",
+      "name": "MODIFIED",
+      "fact": "src/templates/agents/skills/tasks/SKILL.md should be updated in order to persist changes made in the documentation for the repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:13:54.729006000Z",
+      "valid_at": "2026-01-11T12:13:38Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "b16ef00c-d36c-4ad8-ad04-2be7043bfe10",
+      "name": "MODIFIED",
+      "fact": "src/templates/agents/skills/lisa/SKILL.md should be updated in order to persist changes made in the documentation for the repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:13:54.729000000Z",
+      "valid_at": "2026-01-11T12:13:38Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e45750ce-9d34-4cef-98bc-818e8288d562",
+      "name": "CREATED",
+      "fact": "tests/docker/README.md was created in the documentation for the repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:13:54.728994000Z",
+      "valid_at": "2026-01-11T12:13:38Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "8d68d52b-13d6-4dd0-9f61-d907908082f3",
+      "name": "CREATED",
+      "fact": "tests/docker/test-scripts/setup-project.sh was created in the documentation for the repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:13:54.728981000Z",
+      "valid_at": "2026-01-11T12:13:38Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "4796804a-1c44-4f41-b968-b1ec9cce7dfd",
+      "name": "CREATED",
+      "fact": "The tests directory contains a newly created Dockerfile.ubuntu.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:10:38.562450000Z",
+      "valid_at": "2026-01-11T12:10:27.131000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "76e8ddf7-5cae-4bea-94f3-923b74778313",
+      "name": "MODIFIED",
+      "fact": "Tony modified the file src\\templates\\agents\\skills\\prompt\\scripts\\prompt.ts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:06:17.750016000Z",
+      "valid_at": "2026-01-11T12:06:03.471000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "60ff4d18-aed8-4b71-8ca1-1d9021e1c005",
+      "name": "MODIFIED",
+      "fact": "Tony modified the file src\\templates\\agents\\skills\\init-review\\scripts\\ai-enrich.ts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:06:17.750010000Z",
+      "valid_at": "2026-01-11T12:06:03.471000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "b5de1758-49f2-49c7-863a-feaf80ffffee",
+      "name": "MODIFIED",
+      "fact": "Tony modified the file scripts\\postinstall.js.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:06:17.749990000Z",
+      "valid_at": "2026-01-11T12:06:03.471000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "2db43e6a-299e-40a8-a916-9cefb97b434c",
+      "name": "MODIFIED",
+      "fact": "Tony modified the file src\\templates\\agents\\skills\\memory\\scripts\\memory.ts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:06:17.749983000Z",
+      "valid_at": "2026-01-11T12:06:03.471000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "97ffa1aa-2c64-4524-965a-ee260c4933fa",
+      "name": "CREATED",
+      "fact": "Tony created the file src\\templates\\agents\\skills\\init-review\\scripts\\ai-enrich.ts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:06:17.749975000Z",
+      "valid_at": "2026-01-11T12:06:03.471000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "6404d67b-b5b4-44fc-8f90-44b283630840",
+      "name": "CREATED",
+      "fact": "Tony created the file src\\templates\\agents\\skills\\init-review\\scripts\\init-review.ts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:06:17.749967000Z",
+      "valid_at": "2026-01-11T12:06:03.471000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "7b346f25-4fad-4e57-a4a3-95b77b3b5592",
+      "name": "CREATED",
+      "fact": "Tony created the file src\\templates\\agents\\skills\\init-review\\SKILL.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:06:17.749957000Z",
+      "valid_at": "2026-01-11T12:06:03.471000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "cc1cf4d0-21d3-4a57-a58d-8d3e4a759ba3",
+      "name": "CREATED",
+      "fact": "Tony created the file C:\\Users\\tony\\.claude\\plans\\cheerful-whistling-taco.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T12:06:17.749910000Z",
+      "valid_at": "2026-01-11T12:06:03.471000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "056f2cac-3302-4fb0-ae84-f9ee9f3e4781",
+      "name": "INITIATES",
+      "fact": "The Init-review escape hatch was added to allow users to skip the initial review with npm installation.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:59:54.251064000Z",
+      "valid_at": "2026-01-11T11:59:41.604000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "71f50075-99fd-4bc6-9313-f2cab8f123b8",
+      "name": "REQUIRES",
+      "fact": "The Node 18+ requirement was added to the package.json file.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:59:54.251058000Z",
+      "valid_at": "2026-01-11T11:59:41.604000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "63049946-932e-4bc8-81c2-9fa71c0885f8",
+      "name": "MODIFIED",
+      "fact": "Tony modified the script src\\templates\\agents\\skills\\init-review\\scripts\\init-review.ts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:59:54.251052000Z[UTC]",
+      "valid_at": "2026-01-11T11:59:41.604000000Z[UTC]",
+      "expired_at": null
+    },
+    {
+      "uuid": "acf818c0-50c1-433e-84eb-1ff0328a4d0e",
+      "name": "MODIFIED",
+      "fact": "Tony modified the source file src\\cli.ts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:59:54.251040000Z",
+      "valid_at": "2026-01-11T11:59:41.604000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "3527c215-14fe-4c39-8344-b83812611656",
+      "name": "MODIFIED",
+      "fact": "Tony modified the source file src\\lib\\services.ts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:59:54.251034000Z",
+      "valid_at": "2026-01-11T11:59:41.604000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "23ab7f1d-d780-4627-b52a-ffe8e344c4cf",
+      "name": "MODIFIED",
+      "fact": "Tony modified the source file src\\lib\\interfaces\\IMcpClient.ts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:59:54.251029000Z",
+      "valid_at": "2026-01-11T11:59:41.604000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "4f92f26f-f6e8-42dd-8815-0823c622651e",
+      "name": "MODIFIED",
+      "fact": "Tony modified the script scripts\\postinstall.js.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:59:54.251016000Z",
+      "valid_at": "2026-01-11T11:59:41.604000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "f154e1df-228e-4990-838c-dc2182c041c1",
+      "name": "MODIFIED",
+      "fact": "Tony modified the script scripts\\postbuild-copy-templates.js.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:59:54.251008000Z",
+      "valid_at": "2026-01-11T11:59:41.604000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "c7d95c76-5a40-4bcf-86d4-53d9819baaca",
+      "name": "CREATED",
+      "fact": "Tony created the plan document at C:\\Users\\tony\\.claude\\plans\\jolly-orbiting-garden.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:59:54.250968000Z",
+      "valid_at": "2026-01-11T11:59:41.604000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "9553271b-e85d-4f89-897a-b670fab8e012",
+      "name": "DOCUMENTS",
+      "fact": "lisa documented the Graphiti index race condition in the troubleshooting section",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:58:26.859269000Z",
+      "valid_at": "2026-01-11T11:57:25.755000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "f30f78d8-b394-48d7-a3ec-eaed0c5d3fc1",
+      "name": "DOCUMENTED",
+      "fact": "tests/docker/README.md documents both Quick Mode and Full Mode",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:57:51.270996000Z",
+      "valid_at": "2026-01-11T11:57:17.626000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "8d2e550a-dc49-40e7-81ec-ab55f53b85a9",
+      "name": "USED",
+      "fact": "lisa used Graphiti in the integration test infrastructure",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:57:51.270990000Z",
+      "valid_at": "2026-01-11T11:57:17.626000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "759571f7-1686-4de2-a7f0-b78bec7bf28f",
+      "name": "USED",
+      "fact": "lisa used Neo4j in the integration test infrastructure",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:57:51.270984000Z",
+      "valid_at": "2026-01-11T11:57:17.626000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e677063e-4daf-4b8e-9dd8-a518159275d3",
+      "name": "CREATED",
+      "fact": "lisa created tests/docker/test-scripts/run-full-tests.sh",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:57:51.270965000Z",
+      "valid_at": "2026-01-11T11:57:17.626000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "6e06a801-8507-4ca7-8e40-3f9f0caa90b2",
+      "name": "CREATED",
+      "fact": "lisa created tests/docker/docker-compose.test.yml",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:57:51.270920000Z",
+      "valid_at": "2026-01-11T11:57:17.626000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "459df2f7-65a0-4d70-afb2-2980cabd719d",
+      "name": "MODIFIED",
+      "fact": "lisa modified the prompt script located at src/templates/agents/skills/prompt/scripts/prompt.ts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:50:05.975425000Z",
+      "valid_at": "2026-01-11T11:49:48.457000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "b195f492-c699-4b8a-8aa5-cd952fda112a",
+      "name": "MODIFIED",
+      "fact": "lisa modified the ai-enrich script located at src/templates/agents/skills/init-review/scripts/ai-enrich.ts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:50:05.975419000Z",
+      "valid_at": "2026-01-11T11:49:48.457000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "2a5a6d81-6ed0-43f0-b22e-f0b8923c5690",
+      "name": "MODIFIED",
+      "fact": "lisa modified the init-review script located at src/templates/agents/skills/init-review/scripts/init-review.ts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:50:05.975413000Z",
+      "valid_at": "2026-01-11T11:49:48.457000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "2ec73f89-9b84-4c15-b2ab-3adfbd3c3cda",
+      "name": "MODIFIED",
+      "fact": "lisa modified the postinstall script located at scripts/postinstall.js.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:50:05.975407000Z",
+      "valid_at": "2026-01-11T11:49:48.457000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "60c12771-a815-429f-8a70-3540f4f217fa",
+      "name": "COMPLETED_MILESTONE",
+      "fact": "lisa has completed the init-review feature milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:50:05.975329000Z",
+      "valid_at": "2026-01-11T11:49:48.457000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "a124ea61-735d-47a4-b2fe-4a61a9741c75",
+      "name": "COMMITTED",
+      "fact": "The issue of added Zep Cloud authentication to ai-enrich worker was resolved during the milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:49:36.432617000Z",
+      "valid_at": "2026-01-11T11:49:15.820000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "f69c6ee8-116d-4cf9-a71d-8420431a0818",
+      "name": "COMMITTED",
+      "fact": "The issue of removed /tmp debug logging from session-start was resolved during the milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:49:36.432611000Z",
+      "valid_at": "2026-01-11T11:49:15.820000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "d5d149ff-7b58-4f76-a79d-c84369e15902",
+      "name": "COMMITTED",
+      "fact": "API key authentication to pingMcp() was added as part of the milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:49:36.432605000Z",
+      "valid_at": "2026-01-11T11:49:15.820000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e08ef64b-53d7-4220-8550-088d80e70d6f",
+      "name": "COMMITTED",
+      "fact": "The issue of added port propagation to .agents/skills/.env was resolved during the milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:49:36.432599000Z",
+      "valid_at": "2026-01-11T11:49:15.820000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "98498205-3b14-4784-9026-a20da3980374",
+      "name": "COMMITTED",
+      "fact": "The issue of removed .cjs rename logic due to a Windows path bug was resolved during the milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:49:36.432592000Z",
+      "valid_at": "2026-01-11T11:49:15.820000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "57c0bd6b-21d7-42b3-ab34-ed46d03f3003",
+      "name": "COMMITTED",
+      "fact": "Multiple issues were resolved and committed during the milestone including fixes for issues related to code and functionality.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:49:36.432586000Z",
+      "valid_at": "2026-01-11T11:49:15.820000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "c8c59321-7e11-4f0a-a240-c439384b7296",
+      "name": "MODIFIED",
+      "fact": "The file src\\lib\\interfaces\\IMcpClient.ts was modified during the milestone process.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:49:36.432553000Z",
+      "valid_at": "2026-01-11T11:49:15.820000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "52e6b4bb-530a-4b2c-9a3c-0da6b85226c6",
+      "name": "DEPENDED_ON",
+      "fact": "The deployment tests using Docker are dependent on Neo4j and Graphiti configurations.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:36:21.589922000Z",
+      "valid_at": "2026-01-11T11:36:08.391000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "b0dac812-20ec-4051-81d2-bd13d1876e26",
+      "name": "TESTED_WITH",
+      "fact": "The CLI was tested with Docker during the deployment procedures in the lisa repository.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:36:21.589916000Z",
+      "valid_at": "2026-01-11T11:36:08.391000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "8b88d1ee-3d77-4ee9-b3d6-42776f54c31b",
+      "name": "PREVIOUSLY_DOCUMENTED",
+      "fact": "Previous documentation indicated the need for memory persistence testing within the docker setup for the lisa repository.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:36:21.589909000Z",
+      "valid_at": "2026-01-11T11:36:08.391000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "22550e24-837b-48a6-88bb-72d1e162dc4a",
+      "name": "UTILIZED",
+      "fact": "The lisa repository's deployment tests rely on external lisa memory infrastructure for functionality verification.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:36:21.589903000Z",
+      "valid_at": "2026-01-11T11:36:08.391000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "2ca5a0eb-1a0a-4865-bfe9-3d2cdf295336",
+      "name": "CREATED",
+      "fact": "The lisa repository created files necessary for npm package testing during the deployment test milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:36:21.589896000Z",
+      "valid_at": "2026-01-11T11:36:08.391000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "9d17f844-3e9d-46f4-9593-f243b5c52718",
+      "name": "CREATED",
+      "fact": "The lisa repository created multiple files for deployment tests, including tests/deploy-docker-tests.md and tests/docker/Dockerfile.ubuntu.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:36:21.589887000Z",
+      "valid_at": "2026-01-11T11:36:08.391000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "9929252b-c936-4b30-89d5-bfdc158b5092",
+      "name": "IDENTIFIED_ISSUE",
+      "fact": "The deployment on Alpine 3.20 identified a chalk ESM compatibility issue.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:34:30.994202000Z",
+      "valid_at": "2026-01-11T11:34:13.302000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "7e103bd8-48a0-4a92-8969-2901be86b336",
+      "name": "HAS_RESULT",
+      "fact": "The Docker test infrastructure has test results indicating that all tests for Ubuntu, Debian, and Fedora were passed, while Alpine had a partial result.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:34:30.994196000Z",
+      "valid_at": "2026-01-11T11:34:13.302000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "eb8cdfff-5fe3-40d1-86cc-a4be0a918cb5",
+      "name": "INVOLVES",
+      "fact": "The multi-OS deployment test plan has a complexity level of complexity:5.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:34:30.994181000Z",
+      "valid_at": "2026-01-11T11:34:13.302000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "022b35c7-98a7-4cc7-80c0-902cc77fff44",
+      "name": "DEPLOYED_ON",
+      "fact": "Docker test infrastructure was deployed on Fedora 40.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:34:30.994165000Z",
+      "valid_at": "2026-01-11T11:34:13.302000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "3b684671-b8cd-425b-a9eb-84b89d0dfaac",
+      "name": "DEPLOYED_ON",
+      "fact": "Docker test infrastructure was deployed on Debian Bookworm.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:34:30.994158000Z",
+      "valid_at": "2026-01-11T11:34:13.302000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "5e3a071e-0136-494d-ae21-f877c2096b46",
+      "name": "DEPLOYED_ON",
+      "fact": "Docker test infrastructure was deployed on Ubuntu 22.04.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:34:30.994151000Z",
+      "valid_at": "2026-01-11T11:34:13.302000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "713a92b7-2dc1-416e-8a88-9996fe225296",
+      "name": "CREATED",
+      "fact": "lisa created the Docker test infrastructure.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:34:30.994141000Z",
+      "valid_at": "2026-01-11T11:34:13.302000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "2a35d0b3-553b-406f-8cad-007d99a56745",
+      "name": "COMPLETED",
+      "fact": "lisa completed a multi-OS deployment test plan.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:34:30.994096000Z",
+      "valid_at": "2026-01-11T11:34:13.302000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "7bbf1dd8-3378-4760-ab0a-ad4da74048a9",
+      "name": "MODIFIED",
+      "fact": "The tests directory was modified in the session 55201dfd-3d6a-495b-86e8-a54a9247350e.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:31:47.764402000Z",
+      "valid_at": "2026-01-11T11:30:57.735000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "d4e682be-daa1-4aa7-afc8-82013441eeaf",
+      "name": "CREATED",
+      "fact": "The tests directory contained the creation of the tonycasey-lisa file.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:31:47.764390000Z",
+      "valid_at": "2026-01-11T11:30:57.735000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "14b77f8b-8991-42be-914e-78d9bd8d0631",
+      "name": "RUNS_INIT_REVIEW_ONCE",
+      "fact": "The init review will only run once during the installation of lisa unless it is explicitly requested again.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T10:52:18.367143000Z",
+      "valid_at": "2026-01-11T10:52:07Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "3063ee1d-1e31-490d-8bb5-d130a18b6478",
+      "name": "LOAD_INIT_REVIEW",
+      "fact": "On each Claude session start, the init review will be loaded along with recent tasks and memories.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T10:52:18.367123000Z",
+      "valid_at": "2026-01-11T10:52:07Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "84ed3549-f7aa-4fed-a895-1fe53c58cf51",
+      "name": "STORES_AS_FIRST_MEMORY",
+      "fact": "The results of the background code review will be stored as the first memory.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T10:52:18.367081000Z",
+      "valid_at": "2026-01-11T10:52:07Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "5fc41076-ea75-4c7a-af31-d6f91bd5eecb",
+      "name": "AUTO_REVIEW_ON_INSTALL",
+      "fact": "When lisa installs into a folder, it will detect if the folder contains a codebase and run an automated review in the background.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T10:52:18.366935000Z",
+      "valid_at": "2026-01-11T10:52:07Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "3b8fa04d-5b95-425a-84ee-0601d6e90327",
+      "name": "PROCESS_USE",
+      "fact": "The Neo4j configuration requires usage of the standalone image.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:31:18.609172000Z",
+      "valid_at": "2026-01-10T20:30:50.854000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "5d02db76-2e64-4d7d-9f48-db088d097130",
+      "name": "DEPENDS_ON",
+      "fact": "The CONFIG_PATH environment variable is required for proper loading of the standalone image.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:31:18.609157000Z",
+      "valid_at": "2026-01-10T20:30:50.854000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "7ed85610-e70a-4d05-bdf5-f8d73f7bac32",
+      "name": "MODIFIED",
+      "fact": "The index.js file was created for the standalone image.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:31:18.609142000Z",
+      "valid_at": "2026-01-10T20:30:50.854000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "0068abcf-d8e3-4d6e-bcd4-2cbdc84d44c1",
+      "name": "MODIFIED",
+      "fact": "The main.py file was created for the standalone image.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:31:18.609125000Z",
+      "valid_at": "2026-01-10T20:30:50.854000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "7ebd532e-ba90-48df-a485-9be4c813778c",
+      "name": "MODIFIED",
+      "fact": "The pyproject.toml file was created for the standalone image.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:31:18.609109000Z",
+      "valid_at": "2026-01-10T20:30:50.854000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "3b198a4c-9fa5-4a3e-ba51-f70f2deb4b8a",
+      "name": "MODIFIED",
+      "fact": "The index.ts file was created for the standalone image.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:31:18.609094000Z",
+      "valid_at": "2026-01-10T20:30:50.854000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "069e96f5-4048-46fe-91f2-3680a764cc26",
+      "name": "MODIFIED",
+      "fact": "The tsconfig.json file was created for the standalone image.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:31:18.609074000Z",
+      "valid_at": "2026-01-10T20:30:50.854000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "60670fb7-82d6-4b35-a2e5-6425ea6b55c5",
+      "name": "MODIFIED",
+      "fact": "The docker-compose.graphiti.yml file was created for the standalone image.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:31:18.609039000Z",
+      "valid_at": "2026-01-10T20:30:50.854000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "1a802c2f-fd81-4dea-8569-9ab59aee5a89",
+      "name": "MAJOR_MILESTONE",
+      "fact": "Lisa reached a major milestone with version 0.5.13.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:31:18.608916000Z",
+      "valid_at": "2026-01-10T20:30:50.854000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "f0480f37-10af-40bc-9a95-b51c4bdd70b5",
+      "name": "MERGED",
+      "fact": "The Neo4j standalone image fix was merged with the Codex removal refactor.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:30:59.198838000Z",
+      "valid_at": "2026-01-10T20:30:44.035993000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "9dd80f67-b825-442b-a069-97a4ed78a175",
+      "name": "MAJOR_MILESTONE",
+      "fact": "The milestone v0.5.13 was successfully pushed with the Neo4j standalone image fix.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:30:59.198768000Z",
+      "valid_at": "2026-01-10T20:30:44.035993000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "dc3756da-1086-4e5a-8fc1-6fb16bd1197f",
+      "name": "DETECTS",
+      "fact": "The deployment test for v0.5.13 includes detection logic for the Group ID in npm versus non-npm projects.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:27:17.370520000Z",
+      "valid_at": "2026-01-10T20:26:57Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "b826829a-3ef8-4d55-b987-9ba9abafe571",
+      "name": "REQUIRES",
+      "fact": "The deployment test for v0.5.13 requires the Neo4j configuration with the zepai/knowledge-graph-mcp:standalone image and a mounted config file.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:27:17.370505000Z",
+      "valid_at": "2026-01-10T20:26:57Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e978cbd4-3182-42cb-946c-4780a219655e",
+      "name": "ENSURES",
+      "fact": "Group ID detection ensures project-specific memory isolation for non-npm projects.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:27:09.206262000Z",
+      "valid_at": "2026-01-10T20:27:03Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "906101ce-9ada-46e1-812c-9ebe436eada7",
+      "name": "ENSURES",
+      "fact": "Group ID detection ensures project-specific memory isolation for npm projects.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:27:09.206256000Z",
+      "valid_at": "2026-01-10T20:27:03Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "9cd866e2-3f27-45a5-a987-5f6dc1907b21",
+      "name": "USES",
+      "fact": "non-npm projects use the directory name for group ID detection.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:27:09.206247000Z",
+      "valid_at": "2026-01-10T20:27:03Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "96b81dec-6a88-46ba-a297-513d60091b60",
+      "name": "USES",
+      "fact": "npm projects use the 'name' field from package.json for group ID detection.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:27:09.206207000Z",
+      "valid_at": "2026-01-10T20:27:03Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e0d1dbd7-263f-4e9d-8a99-0aee7717b58d",
+      "name": "USES",
+      "fact": "The CONFIG_PATH must be set to /app/mcp/config/config.yaml for the zepai/knowledge-graph-mcp:standalone image.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:27:00.068677000Z",
+      "valid_at": "2026-01-10T20:26:52.993620000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "b6a2fb79-fb4e-46e6-9a05-74089b1ac4c3",
+      "name": "CANNOT_USE",
+      "fact": "FalkorDB cannot use external Neo4j.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:27:00.068659000Z",
+      "valid_at": "2026-01-10T20:26:52.993620000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "ab29e78c-43b9-4be2-bfbd-bd7739c86bd0",
+      "name": "REQUIRES",
+      "fact": "The zepai/knowledge-graph-mcp:standalone image requires the config-docker-neo4j.yaml to be mounted to /app/mcp/config/config.yaml.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:27:00.068568000Z",
+      "valid_at": "2026-01-10T20:26:52.993620000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "5658a42e-2100-411b-9145-786f3a4758e3",
+      "name": "MEMORY_WORKING",
+      "fact": "The memory functionality in lisa v0.5.13 is confirmed to be working with project-specific group IDs.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:26:46.641650000Z",
+      "valid_at": "2026-01-10T20:26:37.344573000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "d4397d7b-71f8-4e2b-938b-484ac62e007e",
+      "name": "CREATED",
+      "fact": "JavaScript boilerplate files were created in .agents",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:18:55.524287000Z",
+      "valid_at": "2026-01-10T20:18:48Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e247ee7d-d4bc-4871-aca2-b841152e0016",
+      "name": "CREATED",
+      "fact": "Python boilerplate files were created in .agents",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:18:55.524269000Z",
+      "valid_at": "2026-01-10T20:18:48Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e83ffeb9-d04f-47d3-bcfc-6604faee44d8",
+      "name": "PACKAGE_LOCATION",
+      "fact": "The npm build commands were run in the directory C:/dev/lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:11:29.737840000Z",
+      "valid_at": "2026-01-10T20:11:16Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "7925d4a8-6f62-43b6-afaa-adcd4495e9a6",
+      "name": "MODIFIED",
+      "fact": "The archive tonycasey-lisa-0.5.12.tgz was created for the Lisa package changes.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:11:29.737835000Z",
+      "valid_at": "2026-01-10T20:11:16Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e18d2c94-f3c8-4722-ab1e-8bd0cd9e9817",
+      "name": "CREATED",
+      "fact": "The config-docker-neo4j.yaml file was created for the zepai/knowledge-graph-mcp:standalone image.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:10:05.168217000Z",
+      "valid_at": "2026-01-10T20:09:56Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "678c6515-8770-45a4-a956-53a4af716283",
+      "name": "CREATED",
+      "fact": "The config-docker-neo4j.yaml file was created for the zepai/knowledge-graph-mcp:latest image.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:10:05.168204000Z",
+      "valid_at": "2026-01-10T20:09:56Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "66536f82-e0f8-4bf9-b4f2-ac77282072a8",
+      "name": "WORKS_ON",
+      "fact": "Tony is working on the Lisa memory system project",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:09:08.888393000Z[UTC]",
+      "valid_at": "2026-01-10T20:09:04Z[UTC]",
+      "expired_at": null
+    }
+  ],
+  "mode": "neo4j"
+}

@@ -1,8 +1,9 @@
 /**
  * Domain Layer
  * 
- * Contains pure types, interfaces, events, and errors.
- * This layer has ZERO dependencies - it only defines contracts.
+ * Contains pure types, interfaces, events, errors, and domain utilities.
+ * This layer has ZERO dependencies - it only defines contracts and
+ * domain-agnostic utilities.
  * 
  * Layer Dependencies:
  *   Domain <- Application <- Infrastructure
@@ -17,3 +18,6 @@ export * from './interfaces';
 
 // Errors
 export * from './errors';
+
+// Domain utilities (cancellation, etc.)
+export * from './utils';

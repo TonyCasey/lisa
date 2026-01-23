@@ -7,11 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [2.4.3] - 2026-01-23
+## [2.5.1] - 2026-01-23
 
 ### Added
 
-#### Handler Unit Tests (#13)
+#### Handler Unit Tests ([#13](https://github.com/TonyCasey/lisa/issues/13))
 - **SessionStartHandler tests** (16 tests) - Comprehensive coverage for session start handling
   - Trigger type handling (startup, resume, compact, clear)
   - Memory loading with various result sizes
@@ -37,6 +37,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Handler tests now use consistent mock factory patterns across all handlers
 - Total handler tests: 49 (up from 9)
+
+---
+
+## [2.5.0] - 2026-01-23
+
+### Added
+
+#### Timeout Cancellation with AbortController ([#10](https://github.com/TonyCasey/lisa/issues/10))
+- **AbortController-based cancellation** - Memory loading and session start operations now use proper cancellation instead of `Promise.race`
+  - New `withCancellation()` utility for cancellable async workflows
+  - `checkCancellation()` helper to check abort signal at checkpoints
+  - `CancellationError` class for typed cancellation handling
+  - `createDeferred()` helper for external promise control
+
+- **No mutations after timeout** - Cancellation checks before every state mutation ensure clean timeout behavior
+  - Memory results are not modified after timeout occurs
+  - Resources are properly cleaned up on cancellation
+  - External abort signals can be combined with internal timeouts
+
+- **Affected files**:
+  - `src/lib/domain/utils/cancellation.ts` - New cancellation utilities (moved to domain layer)
+  - `src/lib/infrastructure/services/MemoryService.ts` - Updated `loadMemory()` with cancellation
+  - `src/lib/application/handlers/SessionStartHandler.ts` - Updated `loadMemoryWithDAL()` with cancellation
+
+### Fixed
+
+#### MCP Session ID Handling ([#11](https://github.com/TonyCasey/lisa/issues/11))
+- **Implicit session management** - MCP client now manages sessions internally
+  - Callers no longer need to track or pass session IDs
+  - Session ID parameter in `call()` is deprecated and ignored
+  - Client automatically initializes session on first call
+  - Session ID from response headers updates internal state
+
+- **Session expiry handling** - Automatic re-initialization on 401/403 errors
+  - On session expiry, client re-initializes and retries once
+  - Prevents failures due to stale session IDs
+
+- **Concurrent initialization protection** - Multiple concurrent calls share single init
+  - Uses promise caching to prevent duplicate initialization requests
+  - All concurrent calls wait for the same initialization to complete
+
+- **Affected files**:
+  - `src/lib/domain/interfaces/IMcpClient.ts` - Updated interface docs
+  - `src/lib/infrastructure/mcp/McpClient.ts` - Internal session management
+  - `src/lib/infrastructure/services/MemoryService.ts` - Removed manual session tracking
+  - `src/lib/skills/shared/clients/McpClient.ts` - Session expiry handling
+
+#### Deterministic Transcript Resolution ([#12](https://github.com/TonyCasey/lisa/issues/12))
+- **Explicit path preference** - When `transcript_path` is provided, it is always used directly
+  - No fallback to search when explicit path is provided but not found
+  - Clear error logging when explicit path doesn't exist
+
+- **Newest transcript selection** - When searching, selects newest transcript by modification time
+  - Collects all matching transcript candidates
+  - Sorts by mtime descending and returns newest
+  - Makes resolution deterministic and predictable
+
+- **Warning for multiple candidates** - Logs warning when multiple transcript files found
+  - Lists all candidates with paths and timestamps
+  - Helps debugging transcript resolution issues
+
+- **Documented resolution algorithm** - Clear code comments explaining:
+  1. Explicit path is always preferred
+  2. Standard locations are searched
+  3. All candidates collected
+  4. Newest selected by mtime
+  5. Warning logged for multiple matches
+
+- **Affected files**:
+  - `src/lib/infrastructure/services/SessionCaptureService.ts` - Deterministic resolution
+
+### Testing
+- 21 new unit tests for cancellation utilities
+- 8 new unit tests for MCP session handling
+- 17 new unit tests for transcript resolution
 
 ---
 

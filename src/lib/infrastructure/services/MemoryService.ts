@@ -1,5 +1,10 @@
 import type { IMemoryService, IMcpClient, IMemoryResult, IMemoryItem, ILogger, IMemoryResultBuilder } from '../../domain';
-import { createMemoryResultBuilder } from '../../domain';
+import {
+  createMemoryResultBuilder,
+  withCancellation,
+  checkCancellation,
+  isCancellationError,
+} from '../../domain';
 import { ContextDetector } from '../context';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
 import { NullLogger } from '../logging';
@@ -39,170 +44,204 @@ export class MemoryService implements IMemoryService {
 
   /**
    * Load memory for a group, querying hierarchically.
+   *
+   * Uses AbortController-based cancellation to ensure no mutations
+   * occur after timeout and resources are properly cleaned up.
+   *
+   * Note: Session ID management is handled internally by McpClient.
+   * Callers do not need to track session IDs.
+   *
+   * @param groupIds - Hierarchical group IDs to query
+   * @param aliases - Project aliases for additional queries
+   * @param branch - Current git branch (optional)
+   * @param timeoutMs - Timeout in milliseconds (default: 5000)
+   * @param signal - External abort signal for cancellation (optional)
    */
   async loadMemory(
     groupIds: readonly string[],
     aliases: readonly string[],
     branch: string | null,
-    timeoutMs: number = MEMORY_LOAD_TIMEOUT_MS
+    timeoutMs: number = MEMORY_LOAD_TIMEOUT_MS,
+    signal?: AbortSignal
   ): Promise<IMemoryResult> {
     this.logger.debug('Loading memory', { groupIds, aliases, branch, timeoutMs });
-    
+
     const result: IMemoryResultBuilder = createMemoryResultBuilder();
 
-    let sessionId: string | null = null;
-    let timedOut = false;
+    const cancellableResult = await withCancellation(
+      async (abortSignal) => {
+        // Load init-review memory first (codebase summary)
+        // Session managed internally by McpClient - no need to track session ID
+        try {
+          checkCancellation(abortSignal, 'Memory load cancelled before init-review');
 
-    const loadPromise = async (): Promise<void> => {
-      // Load init-review memory first (codebase summary)
-      try {
-        const initParams = {
-          query: 'init-review',
-          max_facts: 1,
-          order: 'desc',
-          group_ids: [...groupIds],
-          tags: ['type:init-review'],
-        };
-        const [initResp, sid] = await this.mcp.call<McpMemoryResponse>('search_memory_facts', initParams, sessionId);
-        sessionId = sid;
-
-        const initFacts = initResp?.result?.facts || initResp?.facts || [];
-        if (initFacts.length > 0) {
-          const fact = initFacts[0];
-          result.initReview = fact?.fact || fact?.name || null;
-          this.logger.debug('Loaded init-review');
-        }
-      } catch (error) {
-        this.logger.debug('Failed to load init-review', { error: (error as Error).message });
-      }
-
-      // Load recent facts/nodes from memory using hierarchical groups
-      try {
-        const seenUuids = new Set<string>();
-
-        // Query with hierarchical groups
-        const recentParams = {
-          query: '*',
-          max_facts: 100,
-          order: 'desc',
-          group_ids: [...groupIds],
-        };
-        const [recentResp, sid] = await this.mcp.call<McpMemoryResponse>('search_memory_facts', recentParams, sessionId);
-        sessionId = sid;
-
-        const recentFacts = recentResp?.result?.facts || recentResp?.facts || [];
-        for (const fact of recentFacts) {
-          const uuid = fact.uuid || `${fact.name}-${fact.fact}`;
-          if (!seenUuids.has(uuid)) {
-            seenUuids.add(uuid);
-            result.facts.push(fact);
-          }
-        }
-
-        // Also query by repo aliases
-        for (const alias of aliases) {
-          const baseParams = {
-            query: alias,
-            tags: ContextDetector.repoTags({ repo: alias, branch }),
+          const initParams = {
+            query: 'init-review',
+            max_facts: 1,
+            order: 'desc',
+            group_ids: [...groupIds],
+            tags: ['type:init-review'],
           };
-          const factParams = {
-            ...baseParams,
-            max_facts: 50,
+          const [initResp] = await this.mcp.call<McpMemoryResponse>('search_memory_facts', initParams);
+
+          // Check cancellation before mutating result
+          checkCancellation(abortSignal, 'Memory load cancelled after init-review fetch');
+
+          const initFacts = initResp?.result?.facts || initResp?.facts || [];
+          if (initFacts.length > 0) {
+            const fact = initFacts[0];
+            result.initReview = fact?.fact || fact?.name || null;
+            this.logger.debug('Loaded init-review');
+          }
+        } catch (error) {
+          if (isCancellationError(error)) throw error;
+          this.logger.debug('Failed to load init-review', { error: (error as Error).message });
+        }
+
+        // Load recent facts/nodes from memory using hierarchical groups
+        try {
+          checkCancellation(abortSignal, 'Memory load cancelled before facts');
+
+          const seenUuids = new Set<string>();
+
+          // Query with hierarchical groups
+          const recentParams = {
+            query: '*',
+            max_facts: 100,
             order: 'desc',
             group_ids: [...groupIds],
           };
-          const [factResp] = await this.mcp.call<McpMemoryResponse>('search_memory_facts', factParams, sessionId);
+          const [recentResp] = await this.mcp.call<McpMemoryResponse>('search_memory_facts', recentParams);
 
-          const aliasedFacts = factResp?.result?.facts || factResp?.facts || [];
-          for (const fact of aliasedFacts) {
+          // Check cancellation before mutating result
+          checkCancellation(abortSignal, 'Memory load cancelled after facts fetch');
+
+          const recentFacts = recentResp?.result?.facts || recentResp?.facts || [];
+          for (const fact of recentFacts) {
             const uuid = fact.uuid || `${fact.name}-${fact.fact}`;
             if (!seenUuids.has(uuid)) {
               seenUuids.add(uuid);
               result.facts.push(fact);
             }
           }
-        }
 
-        // Fall back to nodes if no facts found
-        if (!result.facts.length) {
+          // Also query by repo aliases
           for (const alias of aliases) {
+            checkCancellation(abortSignal, 'Memory load cancelled during alias iteration');
+
             const baseParams = {
               query: alias,
               tags: ContextDetector.repoTags({ repo: alias, branch }),
             };
-            const nodeParams = {
+            const factParams = {
               ...baseParams,
-              max_nodes: 20,
+              max_facts: 50,
+              order: 'desc',
               group_ids: [...groupIds],
             };
-            const [nodeResp] = await this.mcp.call<McpMemoryResponse>('search_nodes', nodeParams, sessionId);
-            const aliasedNodes = nodeResp?.result?.nodes || nodeResp?.nodes || [];
-            for (const node of aliasedNodes) {
-              const uuid = node.uuid || `${node.name}-${node.fact}`;
+            const [factResp] = await this.mcp.call<McpMemoryResponse>('search_memory_facts', factParams);
+
+            checkCancellation(abortSignal, 'Memory load cancelled after alias facts fetch');
+
+            const aliasedFacts = factResp?.result?.facts || factResp?.facts || [];
+            for (const fact of aliasedFacts) {
+              const uuid = fact.uuid || `${fact.name}-${fact.fact}`;
               if (!seenUuids.has(uuid)) {
                 seenUuids.add(uuid);
-                result.nodes.push(node);
+                result.facts.push(fact);
               }
             }
           }
-        }
-      } catch (error) {
-        this.logger.warn('Failed to load memory facts', { error: (error as Error).message });
-      }
 
-      // Load tasks for this repo
-      try {
-        const seenTaskUuids = new Set<string>();
+          // Fall back to nodes if no facts found
+          if (!result.facts.length) {
+            for (const alias of aliases) {
+              checkCancellation(abortSignal, 'Memory load cancelled during node iteration');
 
-        for (const alias of aliases) {
-          const taskParams = {
-            query: 'task',
-            tags: ['type:task', ...ContextDetector.repoTags({ repo: alias, branch })],
-            max_nodes: 200,
-            group_ids: [...groupIds],
-          };
-          const [taskResp] = await this.mcp.call<McpMemoryResponse>('search_nodes', taskParams, sessionId);
-          const aliasedTasks = taskResp?.result?.nodes || taskResp?.nodes || [];
-          for (const task of aliasedTasks) {
-            const uuid = task.uuid || `${task.name}-${task.fact}`;
-            if (!seenTaskUuids.has(uuid)) {
-              seenTaskUuids.add(uuid);
-              result.tasks.push(task);
+              const baseParams = {
+                query: alias,
+                tags: ContextDetector.repoTags({ repo: alias, branch }),
+              };
+              const nodeParams = {
+                ...baseParams,
+                max_nodes: 20,
+                group_ids: [...groupIds],
+              };
+              const [nodeResp] = await this.mcp.call<McpMemoryResponse>('search_nodes', nodeParams);
+
+              checkCancellation(abortSignal, 'Memory load cancelled after nodes fetch');
+
+              const aliasedNodes = nodeResp?.result?.nodes || nodeResp?.nodes || [];
+              for (const node of aliasedNodes) {
+                const uuid = node.uuid || `${node.name}-${node.fact}`;
+                if (!seenUuids.has(uuid)) {
+                  seenUuids.add(uuid);
+                  result.nodes.push(node);
+                }
+              }
             }
           }
+        } catch (error) {
+          if (isCancellationError(error)) throw error;
+          this.logger.warn('Failed to load memory facts', { error: (error as Error).message });
         }
-      } catch (error) {
-        this.logger.warn('Failed to load tasks', { error: (error as Error).message });
+
+        // Load tasks for this repo
+        try {
+          checkCancellation(abortSignal, 'Memory load cancelled before tasks');
+
+          const seenTaskUuids = new Set<string>();
+
+          for (const alias of aliases) {
+            checkCancellation(abortSignal, 'Memory load cancelled during task iteration');
+
+            const taskParams = {
+              query: 'task',
+              tags: ['type:task', ...ContextDetector.repoTags({ repo: alias, branch })],
+              max_nodes: 200,
+              group_ids: [...groupIds],
+            };
+            const [taskResp] = await this.mcp.call<McpMemoryResponse>('search_nodes', taskParams);
+
+            checkCancellation(abortSignal, 'Memory load cancelled after tasks fetch');
+
+            const aliasedTasks = taskResp?.result?.nodes || taskResp?.nodes || [];
+            for (const task of aliasedTasks) {
+              const uuid = task.uuid || `${task.name}-${task.fact}`;
+              if (!seenTaskUuids.has(uuid)) {
+                seenTaskUuids.add(uuid);
+                result.tasks.push(task);
+              }
+            }
+          }
+        } catch (error) {
+          if (isCancellationError(error)) throw error;
+          this.logger.warn('Failed to load tasks', { error: (error as Error).message });
+        }
+
+        return result;
+      },
+      {
+        timeoutMs,
+        signal,
+        onCancel: () => {
+          this.logger.debug('Memory load cancelled');
+        },
       }
-    };
+    );
 
-    // Race between loading and timeout
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    const timeoutPromise = new Promise<void>((resolve) => {
-      timeoutId = setTimeout(() => {
-        timedOut = true;
-        resolve();
-      }, timeoutMs);
-    });
+    // Set timedOut flag based on cancellation result
+    result.timedOut = cancellableResult.timedOut;
 
-    try {
-      await Promise.race([loadPromise(), timeoutPromise]);
-    } finally {
-      if (timeoutId !== null) {
-        clearTimeout(timeoutId);
-      }
-    }
-
-    result.timedOut = timedOut;
-    
     this.logger.info('Memory loaded', {
       factsCount: result.facts.length,
       nodesCount: result.nodes.length,
       tasksCount: result.tasks.length,
       hasInitReview: !!result.initReview,
-      timedOut,
+      timedOut: result.timedOut,
+      cancelled: cancellableResult.cancelled,
     });
-    
+
     return result;
   }
 

@@ -1,0 +1,399 @@
+{
+  "status": "ok",
+  "action": "load",
+  "group": "lisa",
+  "groups": [
+    "lisa"
+  ],
+  "query": "milestone",
+  "facts": [
+    {
+      "uuid": "d3cec560-ee5f-4f6d-ba10-af6f856b98e0",
+      "name": "COMMIT_HASH",
+      "fact": "The commit for this milestone is identified by the hash dfe0db3 in repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:10:24.697372000Z",
+      "valid_at": "2026-01-15T23:10:07Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "77773360-d976-4a58-9a4e-4e92d465e912",
+      "name": "USED_TOOL",
+      "fact": "Write was used in the milestone for repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:10:24.697359000Z",
+      "valid_at": "2026-01-15T23:10:07Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "2627a4d1-43a1-45da-ba7e-9e9a386ddd4b",
+      "name": "USED_TOOL",
+      "fact": "Edit was used in the milestone for repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:10:24.697345000Z",
+      "valid_at": "2026-01-15T23:10:07Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "6b04bb76-72d2-4201-8271-60aeda2af021",
+      "name": "USED_TOOL",
+      "fact": "Read was used in the milestone for repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:10:24.697332000Z",
+      "valid_at": "2026-01-15T23:10:07Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "6bb065b9-ed64-498e-ad15-aed494d818ec",
+      "name": "USED_TOOL",
+      "fact": "Bash was extensively used in the milestone for repository lisa.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:10:24.697318000Z",
+      "valid_at": "2026-01-15T23:10:07Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "115cfe17-a261-4799-9d37-dd9f879ad14a",
+      "name": "MODIFIED",
+      "fact": "CHANGELOG.md was created and src\\templates\\agents\\skills\\memory\\SKILL.md was modified during this milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T23:10:24.697299000Z",
+      "valid_at": "2026-01-15T23:10:07Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "79ea49d1-e67e-4fff-b066-173a0ad19891",
+      "name": "COMPLETED_MILESTONE",
+      "fact": "The milestone concerning the session-start tests was fulfilled as all tests passed.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:49:25.466655000Z",
+      "valid_at": "2026-01-15T22:48:47Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "5e4dd8f9-2516-4db1-ae69-4af0224cde88",
+      "name": "MODIFIED",
+      "fact": "The milestone documentation modified session-start.ts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:34:35.684215000Z",
+      "valid_at": "2026-01-15T22:34:23Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "56f2b871-dd82-419b-9089-a7672c499907",
+      "name": "MODIFIED",
+      "fact": "The milestone documentation modified session-start.js.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:34:35.684209000Z",
+      "valid_at": "2026-01-15T22:34:23Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "17d5beff-59c6-4f3c-920d-f8208d313a63",
+      "name": "CREATED",
+      "fact": "The milestone documentation includes the creation of session-start.test.ts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:34:35.684204000Z",
+      "valid_at": "2026-01-15T22:34:23Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "52e051c1-fa27-4d54-82e0-744b628ef2f8",
+      "name": "CREATED",
+      "fact": "The milestone documentation includes the creation of bump-version.js.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:34:35.684198000Z",
+      "valid_at": "2026-01-15T22:34:23Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "88ca168f-e7b4-4bff-8fed-ceeb249753dc",
+      "name": "CREATED",
+      "fact": "The milestone documentation includes the creation of bump-version.ts.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:34:35.684191000Z",
+      "valid_at": "2026-01-15T22:34:23Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "8641ecd8-86bb-45ab-9da4-459f9725bbdd",
+      "name": "CREATED",
+      "fact": "The milestone documentation created CLAUDE.md.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:34:35.684183000Z",
+      "valid_at": "2026-01-15T22:34:23Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "ecaeb0cc-11c4-4ba4-a739-f5e0eca39d88",
+      "name": "MODIFIED",
+      "fact": "The milestone documentation modified the SKILL.md file.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:34:35.684162000Z",
+      "valid_at": "2026-01-15T22:34:23Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "7e126718-d839-42e5-99a0-9fbdd744f17d",
+      "name": "USED",
+      "fact": "Lisa executed Bash commands for the milestone tasks.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:31:36.346472000Z",
+      "valid_at": "2026-01-15T22:31:20.491000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "04315ca8-202e-4515-a693-6c87273928da",
+      "name": "USED",
+      "fact": "Lisa used the Task tool during the milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:31:36.346449000Z",
+      "valid_at": "2026-01-15T22:31:20.491000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "04323fb5-2c89-4774-9729-169342531b80",
+      "name": "CREATED",
+      "fact": "TaskOutput tool was used in the repository lisa for the current milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674613000Z",
+      "valid_at": "2026-01-15T22:17:34.732000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "769eb59c-543f-4be8-ab8d-39bef541f4ec",
+      "name": "CREATED",
+      "fact": "Write tool was used in the repository lisa for the current milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674607000Z",
+      "valid_at": "2026-01-15T22:17:34.732000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "fcc584af-57ed-484b-bb78-7cfdd4ffa0ee",
+      "name": "CREATED",
+      "fact": "Glob tool was used in the repository lisa for the current milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674602000Z",
+      "valid_at": "2026-01-15T22:17:34.732000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "c7d962df-9246-48e0-83fc-94340e4506a1",
+      "name": "CREATED",
+      "fact": "Bash tool was used in the repository lisa for the current milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674596000Z",
+      "valid_at": "2026-01-15T22:17:34.732000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "2c68ff88-4d11-4dd8-a4e0-acea2c39ac6f",
+      "name": "CREATED",
+      "fact": "TodoWrite tool was used in the repository lisa for the current milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674584000Z",
+      "valid_at": "2026-01-15T22:17:34.732000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "b7dcc8f6-5538-4579-86de-cf727df31f0e",
+      "name": "CREATED",
+      "fact": "Task tool was used in the repository lisa for the current milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674572000Z",
+      "valid_at": "2026-01-15T22:17:34.732000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e76bed67-c1d8-40f4-a721-c81930e91d2c",
+      "name": "CREATED",
+      "fact": "AskUserQuestion tool was used in the repository lisa for the current milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:17:53.674566000Z",
+      "valid_at": "2026-01-15T22:17:34.732000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "3468c2b8-d8c6-453c-ba7d-e46f78100ead",
+      "name": "MODIFIED",
+      "fact": "SKILL.md was modified to include new workflow for version bumping as part of the current milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:16:27.261559000Z",
+      "valid_at": "2026-01-15T22:16:12.457000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "a16bed63-485b-4736-9392-ab66437ebc5f",
+      "name": "MODIFIED",
+      "fact": "The session-start.ts file was modified during the current milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:16:27.261553000Z",
+      "valid_at": "2026-01-15T22:16:12.457000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "4dd4bd02-d915-4dc8-a4d5-40168cedbd03",
+      "name": "MODIFIED",
+      "fact": "The session-start.js file was modified to accommodate the changes made during the milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:16:27.261547000Z",
+      "valid_at": "2026-01-15T22:16:12.457000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "8f22c3b9-ffa6-47df-89db-3ccace3c5a9c",
+      "name": "CREATED",
+      "fact": "The script bump-version.ts was created as part of the milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:16:27.261534000Z",
+      "valid_at": "2026-01-15T22:16:12.457000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "51462ac0-59dd-48d1-8226-990448ac312b",
+      "name": "CREATED",
+      "fact": "CLAUDE.md was created as part of the milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:16:27.261491000Z",
+      "valid_at": "2026-01-15T22:16:12.457000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "bd55994c-b7b5-4c4f-b2ec-d52bd69beb76",
+      "name": "HAS_MICRO_MILESTONE",
+      "fact": "The milestone associated with session ID de4fed3d-21eb-48b0-83a3-961efa2bf156",
+      "group_id": "lisa",
+      "created_at": "2026-01-15T22:02:49.049617000Z",
+      "valid_at": "2026-01-15T22:01:54.958000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "a2831918-8f2b-4ddb-94f9-927f118aa886",
+      "name": "MAJOR_MILESTONE",
+      "fact": "The milestone is related to the main branch.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:30:19.375897000Z",
+      "valid_at": "2026-01-11T23:30:11Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "44c2f9f6-0a97-401c-a3d6-eff5e5c4cc13",
+      "name": "HAS_SESSION",
+      "fact": "The milestone has a session identified as session:1429821d-a084-4518-a309-1dbe14da79ab.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:18:44.567959000Z[UTC]",
+      "valid_at": "2026-01-11T23:18:37Z[UTC]",
+      "expired_at": null
+    },
+    {
+      "uuid": "09598d98-3217-4111-94a7-564c3dacbee8",
+      "name": "USED",
+      "fact": "The ExitPlanMode tool was used by lisa during the milestone session.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T23:18:44.567952000Z",
+      "valid_at": "2026-01-11T23:18:37Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "60c12771-a815-429f-8a70-3540f4f217fa",
+      "name": "COMPLETED_MILESTONE",
+      "fact": "lisa has completed the init-review feature milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:50:05.975329000Z",
+      "valid_at": "2026-01-11T11:49:48.457000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "a124ea61-735d-47a4-b2fe-4a61a9741c75",
+      "name": "COMMITTED",
+      "fact": "The issue of added Zep Cloud authentication to ai-enrich worker was resolved during the milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:49:36.432617000Z",
+      "valid_at": "2026-01-11T11:49:15.820000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "f69c6ee8-116d-4cf9-a71d-8420431a0818",
+      "name": "COMMITTED",
+      "fact": "The issue of removed /tmp debug logging from session-start was resolved during the milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:49:36.432611000Z",
+      "valid_at": "2026-01-11T11:49:15.820000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "d5d149ff-7b58-4f76-a79d-c84369e15902",
+      "name": "COMMITTED",
+      "fact": "API key authentication to pingMcp() was added as part of the milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:49:36.432605000Z",
+      "valid_at": "2026-01-11T11:49:15.820000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "e08ef64b-53d7-4220-8550-088d80e70d6f",
+      "name": "COMMITTED",
+      "fact": "The issue of added port propagation to .agents/skills/.env was resolved during the milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:49:36.432599000Z",
+      "valid_at": "2026-01-11T11:49:15.820000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "98498205-3b14-4784-9026-a20da3980374",
+      "name": "COMMITTED",
+      "fact": "The issue of removed .cjs rename logic due to a Windows path bug was resolved during the milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:49:36.432592000Z",
+      "valid_at": "2026-01-11T11:49:15.820000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "57c0bd6b-21d7-42b3-ab34-ed46d03f3003",
+      "name": "COMMITTED",
+      "fact": "Multiple issues were resolved and committed during the milestone including fixes for issues related to code and functionality.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:49:36.432586000Z",
+      "valid_at": "2026-01-11T11:49:15.820000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "c8c59321-7e11-4f0a-a240-c439384b7296",
+      "name": "MODIFIED",
+      "fact": "The file src\\lib\\interfaces\\IMcpClient.ts was modified during the milestone process.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:49:36.432553000Z",
+      "valid_at": "2026-01-11T11:49:15.820000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "2ca5a0eb-1a0a-4865-bfe9-3d2cdf295336",
+      "name": "CREATED",
+      "fact": "The lisa repository created files necessary for npm package testing during the deployment test milestone.",
+      "group_id": "lisa",
+      "created_at": "2026-01-11T11:36:21.589896000Z",
+      "valid_at": "2026-01-11T11:36:08.391000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "1a802c2f-fd81-4dea-8569-9ab59aee5a89",
+      "name": "MAJOR_MILESTONE",
+      "fact": "Lisa reached a major milestone with version 0.5.13.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:31:18.608916000Z",
+      "valid_at": "2026-01-10T20:30:50.854000000Z",
+      "expired_at": null
+    },
+    {
+      "uuid": "9dd80f67-b825-442b-a069-97a4ed78a175",
+      "name": "MAJOR_MILESTONE",
+      "fact": "The milestone v0.5.13 was successfully pushed with the Neo4j standalone image fix.",
+      "group_id": "lisa",
+      "created_at": "2026-01-10T20:30:59.198768000Z",
+      "valid_at": "2026-01-10T20:30:44.035993000Z",
+      "expired_at": null
+    }
+  ],
+  "mode": "neo4j"
+}
