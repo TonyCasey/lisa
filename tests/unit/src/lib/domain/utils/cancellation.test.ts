@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, mock } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import {
   withCancellation,
@@ -6,7 +6,7 @@ import {
   CancellationError,
   isCancellationError,
   createDeferred,
-} from '../../../../../../src/lib/infrastructure/utils/cancellation';
+} from '../../../../../../src/lib/domain/utils/cancellation';
 
 describe('cancellation utilities', () => {
   describe('CancellationError', () => {

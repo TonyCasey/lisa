@@ -3,6 +3,9 @@
  *
  * Provides AbortController-based cancellation for async workflows,
  * ensuring no mutations occur after timeout and resources are cleaned up.
+ *
+ * These utilities are in the domain layer as they represent domain-agnostic
+ * patterns that can be used by both application and infrastructure layers.
  */
 
 /**
@@ -46,6 +49,29 @@ export interface CancellableResult<T> {
   timedOut: boolean;
   /** Error if operation failed (not due to cancellation). */
   error?: Error;
+}
+
+/**
+ * Combine multiple AbortSignals into one.
+ * The combined signal aborts when any of the input signals abort.
+ */
+function combineAbortSignals(...signals: AbortSignal[]): AbortSignal {
+  const controller = new AbortController();
+
+  for (const signal of signals) {
+    if (signal.aborted) {
+      controller.abort();
+      return controller.signal;
+    }
+
+    signal.addEventListener(
+      'abort',
+      () => controller.abort(),
+      { once: true }
+    );
+  }
+
+  return controller.signal;
 }
 
 /**
@@ -110,9 +136,10 @@ export async function withCancellation<T>(
     }, timeoutMs);
   }
 
-  // Listen to external signal
+  // Listen to external signal (store handler for cleanup)
+  let onExternalAbort: (() => void) | null = null;
   if (externalSignal) {
-    const onExternalAbort = () => {
+    onExternalAbort = () => {
       controller.abort();
       onCancel?.();
     };
@@ -137,30 +164,11 @@ export async function withCancellation<T>(
     if (timeoutId !== null) {
       clearTimeout(timeoutId);
     }
-  }
-}
-
-/**
- * Combine multiple AbortSignals into one.
- * The combined signal aborts when any of the input signals abort.
- */
-function combineAbortSignals(...signals: AbortSignal[]): AbortSignal {
-  const controller = new AbortController();
-
-  for (const signal of signals) {
-    if (signal.aborted) {
-      controller.abort();
-      return controller.signal;
+    // Clean up external signal listener to prevent memory leaks
+    if (externalSignal && onExternalAbort) {
+      externalSignal.removeEventListener('abort', onExternalAbort);
     }
-
-    signal.addEventListener(
-      'abort',
-      () => controller.abort(),
-      { once: true }
-    );
   }
-
-  return controller.signal;
 }
 
 /**

@@ -12,11 +12,15 @@ import type {
 } from '../../domain';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
 import type { IGitHubSyncService } from '../../skills/shared/services/GitHubSyncService';
-import { emptyTaskCounts } from '../../domain';
+import {
+  emptyTaskCounts,
+  withCancellation,
+  checkCancellation,
+  isCancellationError,
+} from '../../domain';
 import type { ISessionStartResult } from '../interfaces';
 import type { IRequestHandler } from '../mediator';
 import { SessionStartRequest } from '../mediator/requests';
-import { withCancellation, checkCancellation, isCancellationError } from '../../infrastructure/utils/cancellation';
 
 interface IMcpNodeResponse {
   result?: {

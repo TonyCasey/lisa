@@ -1,9 +1,13 @@
 import type { IMemoryService, IMcpClient, IMemoryResult, IMemoryItem, ILogger, IMemoryResultBuilder } from '../../domain';
-import { createMemoryResultBuilder } from '../../domain';
+import {
+  createMemoryResultBuilder,
+  withCancellation,
+  checkCancellation,
+  isCancellationError,
+} from '../../domain';
 import { ContextDetector } from '../context';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
 import { NullLogger } from '../logging';
-import { withCancellation, checkCancellation, isCancellationError } from '../utils/cancellation';
 
 const MEMORY_LOAD_TIMEOUT_MS = 5000;
 
