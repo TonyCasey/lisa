@@ -23,16 +23,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Backend availability checks
   - Logging verification during fallback scenarios
 
-- **RepositoryFactory tests** (13 tests) - Coverage for factory initialization and error handling
-  - Backend connection failure handling (MCP, Neo4j, Zep)
-  - Graceful degradation when backends fail
+- **RepositoryFactory tests** (12 tests) - Coverage for factory initialization and error handling
   - Selective backend configuration (enable/disable individual backends)
   - Error message quality verification
-  - Connection manager cleanup
+  - Connection manager cleanup with mock objects
   - Debug/warning logging during initialization
+  - Fast tests that avoid real network calls
 
 ### Changed
-- Total unit tests: 261 (up from 222)
+- Total unit tests: 260 (up from 222)
 - New test files:
   - `tests/unit/src/lib/infrastructure/dal/routing/RepositoryRouter.fallback.test.ts`
   - `tests/unit/src/lib/infrastructure/dal/RepositoryFactory.fallback.test.ts`
