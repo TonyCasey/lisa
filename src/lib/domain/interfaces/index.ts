@@ -23,6 +23,12 @@ export {
   deriveCompleteEvent,
   deriveErrorEvent,
 } from './IStructuredLog';
+export {
+  ILabelInferenceResult,
+  ILabelInferenceOptions,
+  ILabelInferenceService,
+  ILabelRule,
+} from './ILabelInference';
 
 // Event interfaces
 export * from './events';

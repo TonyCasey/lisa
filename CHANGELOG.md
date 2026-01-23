@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.5.4] - 2026-01-23
+
+### Added
+
+#### Auto-label Issues ([#21](https://github.com/TonyCasey/lisa/issues/21))
+- **`lisa issue create`** - Create GitHub issues with automatic label inference
+  - Analyzes title and body to suggest appropriate labels
+  - Supports conventional commit prefixes (`fix:`, `feat:`, `docs:`, `refactor:`, `test:`)
+  - Detects keywords in body content for type, priority, and phase labels
+  - Shows inferred labels with reasons before creation
+  - Interactive confirmation (skippable with `--yes`)
+
+- **`lisa issue labels`** - Preview label inference without creating an issue
+  - Useful for testing what labels would be inferred
+  - Supports `--json` output for scripting
+
+- **Label inference rules**:
+  | Pattern | Label |
+  |---------|-------|
+  | `fix:`, `bug:` prefix or "bug", "broken", "error" in body | `bug` |
+  | `feat:`, `feature:` prefix or "add", "implement" in body | `enhancement` |
+  | `docs:` prefix or "document", "readme" in body | `documentation` |
+  | `refactor:` prefix or "refactor", "clean up" in body | `refactor` |
+  | `test:` prefix or "test", "coverage" in body | `testing` |
+  | "critical", "urgent", "blocking" in body | `priority:high` |
+  | "reliability", "timeout", "race condition" in body | `phase:1` |
+  | "unit test", "test coverage" in body | `phase:2` |
+  | "observability", "logging", "diagnostic" in body | `phase:3` |
+  | "maintainability", "modular", "architecture" in body | `phase:4` |
+
+- **CLI options**:
+  - `--title`, `--body` - Issue content
+  - `--label` - Explicit labels (bypass auto-inference for type)
+  - `--no-auto-label` - Disable automatic inference
+  - `--yes` - Skip confirmation prompt
+  - `--dry-run` - Preview without creating
+
+- **Confidence scoring**:
+  - Prefix matches: 95% confidence
+  - Title matches: 80% confidence
+  - Body-only matches: 60% confidence
+
+### New Files
+- `src/lib/domain/interfaces/ILabelInference.ts` - Label inference interfaces
+- `src/lib/infrastructure/services/LabelInferenceService.ts` - Implementation
+- `tests/unit/src/lib/infrastructure/services/LabelInferenceService.test.ts` - 37 tests
+
+### Testing
+- 37 new unit tests for label inference
+- Total unit tests: 338 (up from 301)
+
+---
+
 ## [2.5.3] - 2026-01-23
 
 ### Added
