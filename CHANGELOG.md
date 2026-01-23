@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.5.2] - 2026-01-23
+
+### Added
+
+#### DAL Routing Fallback Tests ([#15](https://github.com/TonyCasey/lisa/issues/15))
+- **RepositoryRouter tests** (26 tests) - Comprehensive coverage for routing fallback behavior
+  - Preferred backend selection for all operation types (list, search, write, aggregate)
+  - Fallback behavior when preferred backend is unavailable
+  - Any-available backend selection when both preferred and fallback unavailable
+  - Error handling when no backends are registered
+  - Task repository routing with fallback
+  - Custom routing rules support
+  - Runtime rule updates
+  - Backend availability checks
+  - Logging verification during fallback scenarios
+
+- **RepositoryFactory tests** (13 tests) - Coverage for factory initialization and error handling
+  - Backend connection failure handling (MCP, Neo4j, Zep)
+  - Graceful degradation when backends fail
+  - Selective backend configuration (enable/disable individual backends)
+  - Error message quality verification
+  - Connection manager cleanup
+  - Debug/warning logging during initialization
+
+### Changed
+- Total unit tests: 261 (up from 222)
+- New test files:
+  - `tests/unit/src/lib/infrastructure/dal/routing/RepositoryRouter.fallback.test.ts`
+  - `tests/unit/src/lib/infrastructure/dal/RepositoryFactory.fallback.test.ts`
+
+---
+
 ## [2.5.1] - 2026-01-23
 
 ### Added
