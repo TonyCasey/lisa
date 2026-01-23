@@ -4,11 +4,15 @@
  *
  * Session Management:
  * This client manages MCP sessions internally. It:
- * - Automatically initializes a session on first call (if autoInit enabled)
+ * - Requires explicit initialize() call before making RPC calls
  * - Updates session ID when server returns a new one in response headers
  * - Re-initializes session if a request fails with 401/403 (expired session)
+ * - Protects against concurrent initialization with promise caching
  *
- * Callers can use initializeIfNeeded() for lazy initialization.
+ * Usage:
+ *   const client = createMcpClient({ endpoint: 'http://localhost:8010/mcp/' });
+ *   await client.initialize();
+ *   const result = await client.call('search_memory_facts', { query: '*' });
  */
 import type { IMcpClient, IMcpClientConfig, IMcpRpcResponse } from './interfaces';
 
@@ -79,10 +83,14 @@ export function createMcpClient(config: IMcpClientConfig): IMcpClient {
     }
 
     // Determine the correct payload structure
+    // MCP protocol methods (tools/*, resources/*, prompts/*) are sent as raw JSON-RPC
+    // Custom methods are wrapped into tools/call
     const isRawMethod =
       method === 'initialize' ||
       method === 'ping' ||
-      method.startsWith('tools/');
+      method.startsWith('tools/') ||
+      method.startsWith('resources/') ||
+      method.startsWith('prompts/');
 
     const payload = isRawMethod
       ? { jsonrpc: '2.0', id: '1', method, params }
