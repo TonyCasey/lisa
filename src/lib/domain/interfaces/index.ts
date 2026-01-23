@@ -13,6 +13,16 @@ export { EventHandler, IEventEmitter } from './IEventEmitter';
 export { ILisaServices } from './ILisaServices';
 export { IRecursionResult, IRecursionConfig, IRecursionService } from './IRecursionService';
 export { LogLevel, ILoggerOptions, ILogger, LoggerFactory } from './ILogger';
+export {
+  LogEvents,
+  LogEvent,
+  ILogContext,
+  IStructuredLog,
+  IStructuredLogger,
+  generateCorrelationId,
+  deriveCompleteEvent,
+  deriveErrorEvent,
+} from './IStructuredLog';
 
 // Event interfaces
 export * from './events';

@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.5.3] - 2026-01-23
+
+### Added
+
+#### Structured Log Enrichment ([#16](https://github.com/TonyCasey/lisa/issues/16))
+- **IStructuredLog interface** - Standardized structured log entry format
+  - Event-based logging with standardized event names
+  - Context fields for correlation (sessionId, groupId, projectRoot, correlationId)
+  - Duration tracking for performance monitoring
+  - Error field for error context
+
+- **LogEvents constants** - Standardized event names for log aggregation
+  - Memory operations: `memory:load:start/complete/error/timeout`, `memory:save:*`, `memory:search:*`
+  - Task operations: `task:load:*`, `task:sync:*`
+  - Session operations: `session:start/stop`, `session:capture:*`
+  - DAL operations: `dal:connect:*`, `dal:fallback`
+  - Handler operations: `handler:start/complete/error`
+
+- **IStructuredLogger interface** - Extended logger with structured event support
+  - `logEvent()`, `logEventDebug()`, `logEventWarn()`, `logEventError()` methods
+  - `withContext()` for binding context to child loggers
+  - `startOperation()` for automatic duration tracking
+
+- **Logger class updated** to implement IStructuredLogger
+- **NullLogger class updated** to implement IStructuredLogger
+- **MemoryService updated** with structured logging
+  - All operations now emit standardized events
+  - Duration tracking on load/save/search operations
+  - Fallback events logged with source/target backends
+
+- **Utility functions** for event derivation
+  - `generateCorrelationId()` - Create unique correlation IDs
+  - `deriveCompleteEvent()` - Convert start event to complete event
+  - `deriveErrorEvent()` - Convert start event to error event
+
+### Testing
+- 16 new unit tests for structured logging
+- Tests cover event constants, derivation helpers, and logger implementation
+- Total unit tests: 301 (up from 298)
+
+---
+
 ## [2.5.2] - 2026-01-23
 
 ### Added
