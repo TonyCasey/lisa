@@ -27,5 +27,8 @@ export * from './dal';
 // Logging infrastructure
 export * from './logging';
 
+// Utilities (cancellation, etc.)
+export * from './utils';
+
 // Note: CLI adapters (./adapters/claude/, ./adapters/opencode/)
 // are entry points, not exported from here.

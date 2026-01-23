@@ -36,6 +36,14 @@ export interface IWorkSummary {
 const MIN_MESSAGES_FOR_CAPTURE = 3;
 
 /**
+ * Transcript candidate with path and modification time.
+ */
+interface ITranscriptCandidate {
+  path: string;
+  mtime: number;
+}
+
+/**
  * Service for capturing session work from Claude Code transcripts.
  *
  * Analyzes session transcript and extracts facts worth remembering.
@@ -95,16 +103,74 @@ export class SessionCaptureService implements ISessionCaptureService {
   }
 
   /**
-   * Find the transcript file.
+   * Find the transcript file using deterministic resolution.
+   *
+   * Resolution algorithm:
+   * 1. If explicit path is provided and exists, use it directly
+   * 2. Otherwise, search standard Claude Code transcript locations
+   * 3. Collect all matching transcript candidates
+   * 4. Select the newest candidate (by modification time)
+   * 5. Log warning if multiple candidates found
+   *
+   * @param providedPath - Optional explicit transcript path (always preferred)
+   * @returns Path to transcript file, or null if not found
    */
   findTranscript(providedPath?: string): string | null {
-    // Try provided path first
-    if (providedPath && fs.existsSync(providedPath)) {
-      return providedPath;
+    // 1. Explicit path is always preferred when provided
+    if (providedPath) {
+      if (fs.existsSync(providedPath)) {
+        this.logger?.debug('Using explicit transcript path', { path: providedPath });
+        return providedPath;
+      }
+      this.logger?.warn('Explicit transcript path not found', { path: providedPath });
+      // Don't fall back to search when explicit path provided but not found
+      return null;
     }
 
-    // Try common Claude Code transcript locations
+    // 2. Collect all transcript candidates from standard locations
+    const candidates = this.findTranscriptCandidates();
+
+    if (candidates.length === 0) {
+      this.logger?.debug('No transcript candidates found');
+      return null;
+    }
+
+    // 3. Warn if multiple candidates (non-determinism risk)
+    if (candidates.length > 1) {
+      this.logger?.warn('Multiple transcript candidates found, using newest', {
+        candidateCount: candidates.length,
+        candidates: candidates.map(c => ({
+          path: c.path,
+          mtime: new Date(c.mtime).toISOString(),
+        })),
+      });
+    }
+
+    // 4. Sort by mtime descending and return newest
+    candidates.sort((a, b) => b.mtime - a.mtime);
+    const selected = candidates[0];
+
+    this.logger?.debug('Selected transcript', {
+      path: selected.path,
+      mtime: new Date(selected.mtime).toISOString(),
+    });
+
+    return selected.path;
+  }
+
+  /**
+   * Find all transcript candidates from standard Claude Code locations.
+   *
+   * Searches:
+   * - ~/.claude/projects/<project>/transcript.jsonl
+   * - ~/.claude/transcript.jsonl
+   *
+   * @returns Array of candidates with path and modification time
+   */
+  private findTranscriptCandidates(): ITranscriptCandidate[] {
+    const candidates: ITranscriptCandidate[] = [];
     const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+
     const possibleDirs = [
       path.join(homeDir, '.claude', 'projects'),
       path.join(homeDir, '.claude'),
@@ -113,29 +179,45 @@ export class SessionCaptureService implements ISessionCaptureService {
     for (const dir of possibleDirs) {
       if (!fs.existsSync(dir)) continue;
 
-      // Look for transcript.jsonl in this directory or subdirectories
-      const transcriptPath = path.join(dir, 'transcript.jsonl');
-      if (fs.existsSync(transcriptPath)) {
-        return transcriptPath;
+      // Check direct transcript in this directory
+      const directPath = path.join(dir, 'transcript.jsonl');
+      if (fs.existsSync(directPath)) {
+        try {
+          const stats = fs.statSync(directPath);
+          candidates.push({
+            path: directPath,
+            mtime: stats.mtimeMs,
+          });
+        } catch {
+          // Skip if can't stat
+        }
       }
 
-      // Check one level of subdirectories (project folders)
+      // Check subdirectories (project folders)
       try {
         const entries = fs.readdirSync(dir, { withFileTypes: true });
         for (const entry of entries) {
           if (entry.isDirectory()) {
             const subPath = path.join(dir, entry.name, 'transcript.jsonl');
             if (fs.existsSync(subPath)) {
-              return subPath;
+              try {
+                const stats = fs.statSync(subPath);
+                candidates.push({
+                  path: subPath,
+                  mtime: stats.mtimeMs,
+                });
+              } catch {
+                // Skip if can't stat
+              }
             }
           }
         }
       } catch {
-        // Ignore permission errors
+        // Ignore permission errors on directory listing
       }
     }
 
-    return null;
+    return candidates;
   }
 
   /**

@@ -1,5 +1,10 @@
 import type { IMemoryService, IMcpClient, IMemoryResult, IMemoryItem, ILogger, IMemoryResultBuilder } from '../../domain';
-import { createMemoryResultBuilder } from '../../domain';
+import {
+  createMemoryResultBuilder,
+  withCancellation,
+  checkCancellation,
+  isCancellationError,
+} from '../../domain';
 import { ContextDetector } from '../context';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
 import { NullLogger } from '../logging';
@@ -47,7 +52,8 @@ export class MemoryService implements IMemoryService {
     groupIds: readonly string[],
     aliases: readonly string[],
     branch: string | null,
-    timeoutMs: number = MEMORY_LOAD_TIMEOUT_MS
+    timeoutMs: number = MEMORY_LOAD_TIMEOUT_MS,
+    signal?: AbortSignal
   ): Promise<IMemoryResult> {
     this.logger.debug('Loading memory', { groupIds, aliases, branch, timeoutMs });
 
@@ -97,42 +103,50 @@ export class MemoryService implements IMemoryService {
             seenUuids.add(uuid);
             result.facts.push(fact);
           }
+        } catch (error) {
+          if (isCancellationError(error)) throw error;
+          this.logger.debug('Failed to load init-review', { error: (error as Error).message });
         }
 
-        // Also query by repo aliases
-        for (const alias of aliases) {
-          const baseParams = {
-            query: alias,
-            tags: ContextDetector.repoTags({ repo: alias, branch }),
-          };
-          const factParams = {
-            ...baseParams,
-            max_facts: 50,
+        // Load recent facts/nodes from memory using hierarchical groups
+        try {
+          checkCancellation(abortSignal, 'Memory load cancelled before facts');
+
+          const seenUuids = new Set<string>();
+
+          // Query with hierarchical groups
+          const recentParams = {
+            query: '*',
+            max_facts: 100,
             order: 'desc',
             group_ids: [...groupIds],
           };
           const [factResp] = await this.mcp.call<McpMemoryResponse>('search_memory_facts', factParams);
 
-          const aliasedFacts = factResp?.result?.facts || factResp?.facts || [];
-          for (const fact of aliasedFacts) {
+          // Check cancellation before mutating result
+          checkCancellation(abortSignal, 'Memory load cancelled after facts fetch');
+
+          const recentFacts = recentResp?.result?.facts || recentResp?.facts || [];
+          for (const fact of recentFacts) {
             const uuid = fact.uuid || `${fact.name}-${fact.fact}`;
             if (!seenUuids.has(uuid)) {
               seenUuids.add(uuid);
               result.facts.push(fact);
             }
           }
-        }
 
-        // Fall back to nodes if no facts found
-        if (!result.facts.length) {
+          // Also query by repo aliases
           for (const alias of aliases) {
+            checkCancellation(abortSignal, 'Memory load cancelled during alias iteration');
+
             const baseParams = {
               query: alias,
               tags: ContextDetector.repoTags({ repo: alias, branch }),
             };
-            const nodeParams = {
+            const factParams = {
               ...baseParams,
-              max_nodes: 20,
+              max_facts: 50,
+              order: 'desc',
               group_ids: [...groupIds],
             };
             const [nodeResp] = await this.mcp.call<McpMemoryResponse>('search_nodes', nodeParams);
@@ -141,18 +155,47 @@ export class MemoryService implements IMemoryService {
               const uuid = node.uuid || `${node.name}-${node.fact}`;
               if (!seenUuids.has(uuid)) {
                 seenUuids.add(uuid);
-                result.nodes.push(node);
+                result.facts.push(fact);
               }
             }
           }
-        }
-      } catch (error) {
-        this.logger.warn('Failed to load memory facts', { error: (error as Error).message });
-      }
 
-      // Load tasks for this repo
-      try {
-        const seenTaskUuids = new Set<string>();
+          // Fall back to nodes if no facts found
+          if (!result.facts.length) {
+            for (const alias of aliases) {
+              checkCancellation(abortSignal, 'Memory load cancelled during node iteration');
+
+              const baseParams = {
+                query: alias,
+                tags: ContextDetector.repoTags({ repo: alias, branch }),
+              };
+              const nodeParams = {
+                ...baseParams,
+                max_nodes: 20,
+                group_ids: [...groupIds],
+              };
+              const [nodeResp] = await this.mcp.call<McpMemoryResponse>('search_nodes', nodeParams, sessionId);
+
+              checkCancellation(abortSignal, 'Memory load cancelled after nodes fetch');
+
+              const aliasedNodes = nodeResp?.result?.nodes || nodeResp?.nodes || [];
+              for (const node of aliasedNodes) {
+                const uuid = node.uuid || `${node.name}-${node.fact}`;
+                if (!seenUuids.has(uuid)) {
+                  seenUuids.add(uuid);
+                  result.nodes.push(node);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          if (isCancellationError(error)) throw error;
+          this.logger.warn('Failed to load memory facts', { error: (error as Error).message });
+        }
+
+        // Load tasks for this repo
+        try {
+          checkCancellation(abortSignal, 'Memory load cancelled before tasks');
 
         for (const alias of aliases) {
           const taskParams = {
@@ -170,28 +213,24 @@ export class MemoryService implements IMemoryService {
               result.tasks.push(task);
             }
           }
+        } catch (error) {
+          if (isCancellationError(error)) throw error;
+          this.logger.warn('Failed to load tasks', { error: (error as Error).message });
         }
-      } catch (error) {
-        this.logger.warn('Failed to load tasks', { error: (error as Error).message });
-      }
-    };
 
-    // Race between loading and timeout
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    const timeoutPromise = new Promise<void>((resolve) => {
-      timeoutId = setTimeout(() => {
-        timedOut = true;
-        resolve();
-      }, timeoutMs);
-    });
-
-    try {
-      await Promise.race([loadPromise(), timeoutPromise]);
-    } finally {
-      if (timeoutId !== null) {
-        clearTimeout(timeoutId);
+        return result;
+      },
+      {
+        timeoutMs,
+        signal,
+        onCancel: () => {
+          this.logger.debug('Memory load cancelled');
+        },
       }
-    }
+    );
+
+    // Set timedOut flag based on cancellation result
+    result.timedOut = cancellableResult.timedOut;
 
     result.timedOut = timedOut;
 
@@ -200,7 +239,8 @@ export class MemoryService implements IMemoryService {
       nodesCount: result.nodes.length,
       tasksCount: result.tasks.length,
       hasInitReview: !!result.initReview,
-      timedOut,
+      timedOut: result.timedOut,
+      cancelled: cancellableResult.cancelled,
     });
 
     return result;
