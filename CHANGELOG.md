@@ -7,7 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [2.4.3] - 2026-01-23
+## [2.5.1] - 2026-01-23
+
+### Added
+
+#### Handler Unit Tests ([#13](https://github.com/TonyCasey/lisa/issues/13))
+- **SessionStartHandler tests** (16 tests) - Comprehensive coverage for session start handling
+  - Trigger type handling (startup, resume, compact, clear)
+  - Memory loading with various result sizes
+  - Timeout behavior
+  - Task processing and deduplication
+  - Output formatting
+
+- **SessionStopHandler tests** (13 tests) - Coverage for session stop handling
+  - Transcript path passing to capture service
+  - Fact capture and memory save
+  - Event emission
+  - GitHub sync suggestions for unlinked/linked tasks
+  - Error handling for capture and memory failures
+
+- **PromptSubmitHandler tests** (20 tests) - Coverage for prompt submission handling
+  - Constructor variants (ILisaServices vs individual injection)
+  - Basic prompt handling and blocking
+  - Memory storage with truncation
+  - Plan mode recursion with context
+  - Hierarchical group ID passing
+  - Error handling for recursion and memory failures
+
+### Changed
+- Handler tests now use consistent mock factory patterns across all handlers
+- Total handler tests: 49 (up from 9)
+
+---
+
+## [2.5.0] - 2026-01-23
+
+### Added
+
+#### Timeout Cancellation with AbortController ([#10](https://github.com/TonyCasey/lisa/issues/10))
+- **AbortController-based cancellation** - Memory loading and session start operations now use proper cancellation instead of `Promise.race`
+  - New `withCancellation()` utility for cancellable async workflows
+  - `checkCancellation()` helper to check abort signal at checkpoints
+  - `CancellationError` class for typed cancellation handling
+  - `createDeferred()` helper for external promise control
+
+- **No mutations after timeout** - Cancellation checks before every state mutation ensure clean timeout behavior
+  - Memory results are not modified after timeout occurs
+  - Resources are properly cleaned up on cancellation
+  - External abort signals can be combined with internal timeouts
+
+- **Affected files**:
+  - `src/lib/domain/utils/cancellation.ts` - New cancellation utilities (moved to domain layer)
+  - `src/lib/infrastructure/services/MemoryService.ts` - Updated `loadMemory()` with cancellation
+  - `src/lib/application/handlers/SessionStartHandler.ts` - Updated `loadMemoryWithDAL()` with cancellation
 
 ### Fixed
 
@@ -31,37 +83,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `src/lib/infrastructure/mcp/McpClient.ts` - Internal session management
   - `src/lib/infrastructure/services/MemoryService.ts` - Removed manual session tracking
   - `src/lib/skills/shared/clients/McpClient.ts` - Session expiry handling
-
-### Testing
-- 8 new unit tests for MCP session handling
-- Tests verify concurrent initialization, session reuse, and expiry retry
-## [2.5.0] - 2026-01-23
-
-### Added
-
-#### Timeout Cancellation with AbortController ([#10](https://github.com/TonyCasey/lisa/issues/10))
-- **AbortController-based cancellation** - Memory loading and session start operations now use proper cancellation instead of `Promise.race`
-  - New `withCancellation()` utility for cancellable async workflows
-  - `checkCancellation()` helper to check abort signal at checkpoints
-  - `CancellationError` class for typed cancellation handling
-  - `createDeferred()` helper for external promise control
-
-- **No mutations after timeout** - Cancellation checks before every state mutation ensure clean timeout behavior
-  - Memory results are not modified after timeout occurs
-  - Resources are properly cleaned up on cancellation
-  - External abort signals can be combined with internal timeouts
-
-- **Affected files**:
-  - `src/lib/infrastructure/utils/cancellation.ts` - New cancellation utilities
-  - `src/lib/infrastructure/services/MemoryService.ts` - Updated `loadMemory()` with cancellation
-  - `src/lib/application/handlers/SessionStartHandler.ts` - Updated `loadMemoryWithDAL()` with cancellation
-
-### Testing
-- 21 new unit tests for cancellation utilities
-- Tests verify timeout behavior, external signal handling, and cleanup
-## [2.4.4] - 2026-01-23
-
-### Fixed
 
 #### Deterministic Transcript Resolution ([#12](https://github.com/TonyCasey/lisa/issues/12))
 - **Explicit path preference** - When `transcript_path` is provided, it is always used directly
@@ -88,8 +109,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `src/lib/infrastructure/services/SessionCaptureService.ts` - Deterministic resolution
 
 ### Testing
+- 21 new unit tests for cancellation utilities
+- 8 new unit tests for MCP session handling
 - 17 new unit tests for transcript resolution
-- Tests cover explicit paths, search, mtime ordering, and warning logging
 
 ---
 
