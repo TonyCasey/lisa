@@ -256,21 +256,22 @@ describe('MemoryService timeout and cancellation', () => {
 
   describe('loadMemory_postTimeoutMutations', () => {
     it('loadMemory_givenTimeout_shouldNotMutateResultAfterTimeout', async () => {
-      // Track when mutations happen
+      // Track when mutations happen relative to timeout
       const mutationTimes: number[] = [];
-      let timeoutTime = 0;
+      const startTime = Date.now();
+      const timeoutMs = 50;
 
       // Create a service that tries to mutate after timeout
       const mcp: IMcpClient = {
         initialize: async () => 'session-123',
         call: async <T>(method: string) => {
-          // Simulate slow operation
+          // Simulate slow operation that completes AFTER timeout
           await new Promise((resolve) => setTimeout(resolve, 100));
 
           if (method === 'search_memory_facts') {
-            mutationTimes.push(Date.now());
+            mutationTimes.push(Date.now() - startTime);
             return [
-              { facts: [createMockMemoryItem({ fact: 'Late fact' })] } as T,
+              { facts: [createMockMemoryItem({ fact: 'Late fact that should not appear' })] } as T,
               'session-123',
             ] as [T, string];
           }
@@ -283,28 +284,46 @@ describe('MemoryService timeout and cancellation', () => {
 
       const service = new MemoryService(mcp, undefined, createMockLogger());
 
-      const startTime = Date.now();
-      const result = await service.loadMemory(['test-group'], ['test-alias'], 'main', 50);
-      timeoutTime = startTime + 50;
+      const result = await service.loadMemory(['test-group'], ['test-alias'], 'main', timeoutMs);
 
       // Verify timeout occurred
       assert.strictEqual(result.timedOut, true);
 
-      // Due to checkCancellation calls in MemoryService.loadMemory,
-      // mutations after timeout should not have been added to result
-      // The result should contain fewer items than if we had completed normally
+      // Verify the late fact was NOT added to the result
+      // If mutations after timeout were allowed, we'd see 'Late fact that should not appear'
+      const hasLateFact = result.facts.some(f => f.fact?.includes('Late fact') ?? false);
+      assert.strictEqual(hasLateFact, false, 'Late facts should not be added after timeout');
+
+      // Verify that any mutations occurred after the timeout (proving they were ignored)
+      if (mutationTimes.length > 0) {
+        for (const mutationTime of mutationTimes) {
+          assert.ok(
+            mutationTime >= timeoutMs,
+            `Mutation at ${mutationTime}ms should have occurred after timeout at ${timeoutMs}ms`
+          );
+        }
+      }
     });
 
-    it('loadMemory_givenTimeout_shouldNotExecuteCallbacksAfterTimeout', async () => {
-      let callbackExecutedAfterTimeout = false;
+    it('loadMemory_givenTimeout_shouldNotProcessLateResponses', async () => {
       const timeoutMs = 50;
+      let lateResponseProcessed = false;
 
       const mcp: IMcpClient = {
         initialize: async () => 'session-123',
-        call: async <T>() => {
+        call: async <T>(method: string) => {
+          // Simulate slow operation
           await new Promise((resolve) => setTimeout(resolve, 100));
-          // This simulates a callback that shouldn't run after timeout
-          callbackExecutedAfterTimeout = true;
+
+          if (method === 'search_memory_facts') {
+            // Mark that we returned data (but it should be ignored)
+            lateResponseProcessed = true;
+            return [
+              { facts: [createMockMemoryItem({ fact: 'This should be ignored' })] } as T,
+              'session-123',
+            ] as [T, string];
+          }
+
           return [{} as T, 'session-123'] as [T, string];
         },
         ping: async () => true,
@@ -316,8 +335,16 @@ describe('MemoryService timeout and cancellation', () => {
       const result = await service.loadMemory(['test-group'], ['test-alias'], 'main', timeoutMs);
 
       assert.strictEqual(result.timedOut, true);
-      // The MCP call may have executed, but the result should reflect timeout
-      // and the service should not have processed the late response
+
+      // The result should have no facts because the timeout occurred before data arrived
+      assert.strictEqual(result.facts.length, 0, 'No facts should be present when timeout occurs before data');
+
+      // Wait a bit to ensure the late response had time to complete
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Even though the MCP call eventually completed, result should not have been mutated
+      // (lateResponseProcessed may be true, but result.facts should still be empty)
+      assert.strictEqual(result.facts.length, 0, 'Late responses should not mutate the result');
     });
   });
 
