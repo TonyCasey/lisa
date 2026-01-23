@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.3] - 2026-01-23
+
+### Fixed
+
+#### MCP Session ID Handling ([#11](https://github.com/TonyCasey/lisa/issues/11))
+- **Implicit session management** - MCP client now manages sessions internally
+  - Callers no longer need to track or pass session IDs
+  - Session ID parameter in `call()` is deprecated and ignored
+  - Client automatically initializes session on first call
+  - Session ID from response headers updates internal state
+
+- **Session expiry handling** - Automatic re-initialization on 401/403 errors
+  - On session expiry, client re-initializes and retries once
+  - Prevents failures due to stale session IDs
+
+- **Concurrent initialization protection** - Multiple concurrent calls share single init
+  - Uses promise caching to prevent duplicate initialization requests
+  - All concurrent calls wait for the same initialization to complete
+
+- **Affected files**:
+  - `src/lib/domain/interfaces/IMcpClient.ts` - Updated interface docs
+  - `src/lib/infrastructure/mcp/McpClient.ts` - Internal session management
+  - `src/lib/infrastructure/services/MemoryService.ts` - Removed manual session tracking
+  - `src/lib/skills/shared/clients/McpClient.ts` - Session expiry handling
+
+### Testing
+- 8 new unit tests for MCP session handling
+- Tests verify concurrent initialization, session reuse, and expiry retry
+
+---
+
 ## [2.4.2] - 2026-01-23
 
 ### Added

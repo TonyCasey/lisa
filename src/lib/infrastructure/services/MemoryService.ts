@@ -39,6 +39,9 @@ export class MemoryService implements IMemoryService {
 
   /**
    * Load memory for a group, querying hierarchically.
+   *
+   * Note: Session ID management is handled internally by McpClient.
+   * Callers do not need to track session IDs.
    */
   async loadMemory(
     groupIds: readonly string[],
@@ -47,14 +50,13 @@ export class MemoryService implements IMemoryService {
     timeoutMs: number = MEMORY_LOAD_TIMEOUT_MS
   ): Promise<IMemoryResult> {
     this.logger.debug('Loading memory', { groupIds, aliases, branch, timeoutMs });
-    
-    const result: IMemoryResultBuilder = createMemoryResultBuilder();
 
-    let sessionId: string | null = null;
+    const result: IMemoryResultBuilder = createMemoryResultBuilder();
     let timedOut = false;
 
     const loadPromise = async (): Promise<void> => {
       // Load init-review memory first (codebase summary)
+      // Session managed internally by McpClient - no need to track session ID
       try {
         const initParams = {
           query: 'init-review',
@@ -63,8 +65,7 @@ export class MemoryService implements IMemoryService {
           group_ids: [...groupIds],
           tags: ['type:init-review'],
         };
-        const [initResp, sid] = await this.mcp.call<McpMemoryResponse>('search_memory_facts', initParams, sessionId);
-        sessionId = sid;
+        const [initResp] = await this.mcp.call<McpMemoryResponse>('search_memory_facts', initParams);
 
         const initFacts = initResp?.result?.facts || initResp?.facts || [];
         if (initFacts.length > 0) {
@@ -87,8 +88,7 @@ export class MemoryService implements IMemoryService {
           order: 'desc',
           group_ids: [...groupIds],
         };
-        const [recentResp, sid] = await this.mcp.call<McpMemoryResponse>('search_memory_facts', recentParams, sessionId);
-        sessionId = sid;
+        const [recentResp] = await this.mcp.call<McpMemoryResponse>('search_memory_facts', recentParams);
 
         const recentFacts = recentResp?.result?.facts || recentResp?.facts || [];
         for (const fact of recentFacts) {
@@ -111,7 +111,7 @@ export class MemoryService implements IMemoryService {
             order: 'desc',
             group_ids: [...groupIds],
           };
-          const [factResp] = await this.mcp.call<McpMemoryResponse>('search_memory_facts', factParams, sessionId);
+          const [factResp] = await this.mcp.call<McpMemoryResponse>('search_memory_facts', factParams);
 
           const aliasedFacts = factResp?.result?.facts || factResp?.facts || [];
           for (const fact of aliasedFacts) {
@@ -135,7 +135,7 @@ export class MemoryService implements IMemoryService {
               max_nodes: 20,
               group_ids: [...groupIds],
             };
-            const [nodeResp] = await this.mcp.call<McpMemoryResponse>('search_nodes', nodeParams, sessionId);
+            const [nodeResp] = await this.mcp.call<McpMemoryResponse>('search_nodes', nodeParams);
             const aliasedNodes = nodeResp?.result?.nodes || nodeResp?.nodes || [];
             for (const node of aliasedNodes) {
               const uuid = node.uuid || `${node.name}-${node.fact}`;
@@ -161,7 +161,7 @@ export class MemoryService implements IMemoryService {
             max_nodes: 200,
             group_ids: [...groupIds],
           };
-          const [taskResp] = await this.mcp.call<McpMemoryResponse>('search_nodes', taskParams, sessionId);
+          const [taskResp] = await this.mcp.call<McpMemoryResponse>('search_nodes', taskParams);
           const aliasedTasks = taskResp?.result?.nodes || taskResp?.nodes || [];
           for (const task of aliasedTasks) {
             const uuid = task.uuid || `${task.name}-${task.fact}`;
@@ -194,7 +194,7 @@ export class MemoryService implements IMemoryService {
     }
 
     result.timedOut = timedOut;
-    
+
     this.logger.info('Memory loaded', {
       factsCount: result.facts.length,
       nodesCount: result.nodes.length,
@@ -202,7 +202,7 @@ export class MemoryService implements IMemoryService {
       hasInitReview: !!result.initReview,
       timedOut,
     });
-    
+
     return result;
   }
 
