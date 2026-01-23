@@ -30,11 +30,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Debug/warning logging during initialization
   - Fast tests that avoid real network calls
 
+#### Timeout and Cancellation Tests ([#14](https://github.com/TonyCasey/lisa/issues/14))
+- **MemoryService timeout tests** (14 tests) - Comprehensive timeout/cancellation coverage
+  - Verify `timedOut` flag is set correctly on timeout
+  - Verify `timedOut` is false when operation completes normally
+  - Verify external abort signals cancel operations immediately
+  - Verify mid-operation abort stops processing early
+  - Verify no state mutations occur after timeout
+  - Verify cleanup callbacks are invoked on timeout/abort
+  - Verify default timeout of 5000ms
+  - Verify concurrent calls cancel independently
+
+- **SessionStartHandler timeout tests** (11 tests) - Handler-level timeout integration
+  - Verify `timedOut` propagates from memory service to handler result
+  - Verify timeout message is included in output
+  - Verify partial facts are included despite timeout
+  - Verify partial tasks are processed despite timeout
+  - Verify timeout behavior across all triggers (startup, resume, compact)
+  - Verify init-review is included if loaded before timeout
+  - Verify result structure consistency on timeout
+
 ### Changed
-- Total unit tests: 260 (up from 222)
+- Total unit tests: 298 (up from 222)
 - New test files:
   - `tests/unit/src/lib/infrastructure/dal/routing/RepositoryRouter.fallback.test.ts`
   - `tests/unit/src/lib/infrastructure/dal/RepositoryFactory.fallback.test.ts`
+  - `tests/unit/src/lib/infrastructure/services/MemoryService.timeout.test.ts`
+  - `tests/unit/src/lib/application/handlers/SessionStartHandler.timeout.test.ts`
 
 ---
 
