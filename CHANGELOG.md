@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.5.0] - 2026-01-23
+
+### Added
+
+#### Timeout Cancellation with AbortController ([#10](https://github.com/TonyCasey/lisa/issues/10))
+- **AbortController-based cancellation** - Memory loading and session start operations now use proper cancellation instead of `Promise.race`
+  - New `withCancellation()` utility for cancellable async workflows
+  - `checkCancellation()` helper to check abort signal at checkpoints
+  - `CancellationError` class for typed cancellation handling
+  - `createDeferred()` helper for external promise control
+
+- **No mutations after timeout** - Cancellation checks before every state mutation ensure clean timeout behavior
+  - Memory results are not modified after timeout occurs
+  - Resources are properly cleaned up on cancellation
+  - External abort signals can be combined with internal timeouts
+
+- **Affected files**:
+  - `src/lib/infrastructure/utils/cancellation.ts` - New cancellation utilities
+  - `src/lib/infrastructure/services/MemoryService.ts` - Updated `loadMemory()` with cancellation
+  - `src/lib/application/handlers/SessionStartHandler.ts` - Updated `loadMemoryWithDAL()` with cancellation
+
+### Testing
+- 21 new unit tests for cancellation utilities
+- Tests verify timeout behavior, external signal handling, and cleanup
 ## [2.4.4] - 2026-01-23
 
 ### Fixed
