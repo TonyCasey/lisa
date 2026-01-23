@@ -491,6 +491,9 @@ describe('MemoryService timeout and cancellation', () => {
       ]);
 
       // First should be cancelled (by external signal, so timedOut = false)
+      assert.strictEqual(result1.timedOut, false, 'First call was externally cancelled, not timed out');
+      assert.strictEqual(result1.facts.length, 0, 'First call should have no facts due to early cancellation');
+
       // Second should complete normally
       assert.strictEqual(result2.timedOut, false, 'Second call should complete normally');
     });
