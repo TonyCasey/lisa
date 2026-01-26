@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.5.5] - 2026-01-26
+
+### Changed
+
+#### CLI Modularization ([#18](https://github.com/TonyCasey/lisa/issues/18), [#45](https://github.com/TonyCasey/lisa/pull/45))
+- **Extracted init command** - `src/lib/commands/init.ts` now contains all initialization logic
+  - 571 lines extracted from cli.ts into dedicated module
+  - Cleaner separation of concerns
+  - Easier to maintain and test
+
+- **Extracted docker command** - `src/lib/commands/docker.ts` for Docker-related operations
+  - Container management functions isolated
+  - Reusable across commands
+
+- **Shared constants module** - `src/lib/commands/shared/constants.ts`
+  - Centralized configuration values
+  - Reduces magic strings across codebase
+
+- **CLI reduced from 800+ to ~100 lines** - Main cli.ts now focuses on command registration
+  - Delegates to dedicated command modules
+  - Improved code organization
+
+#### Architecture Documentation ([#19](https://github.com/TonyCasey/lisa/issues/19))
+- **New `docs/architecture/` directory** with detailed documentation:
+  - `README.md` - Architecture overview and navigation
+  - `dal-routing.md` - DAL routing strategy and fallback behavior
+  - `events.md` - Event-driven architecture and hook lifecycle
+  - `mcp-sessions.md` - MCP session management and implicit sessions
+  - `timeouts.md` - Timeout and cancellation with AbortController
+  - `transcripts.md` - Transcript resolution algorithm
+
+### Fixed
+- **CodeRabbit review comments** - Addressed PR #45 review feedback
+
+### New Files
+- `src/lib/commands/init.ts` - Init command implementation
+- `src/lib/commands/docker.ts` - Docker command implementation
+- `src/lib/commands/shared/constants.ts` - Shared constants
+- `src/lib/commands/shared/index.ts` - Module exports
+- `docs/architecture/README.md` - Architecture documentation index
+- `docs/architecture/dal-routing.md` - DAL routing documentation
+- `docs/architecture/events.md` - Events documentation
+- `docs/architecture/mcp-sessions.md` - MCP sessions documentation
+- `docs/architecture/timeouts.md` - Timeouts documentation
+- `docs/architecture/transcripts.md` - Transcripts documentation
+
+---
+
 ## [2.5.4] - 2026-01-23
 
 ### Added
