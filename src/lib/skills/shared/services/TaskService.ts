@@ -142,12 +142,10 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
         tag: options.tag,
         externalLink: options.externalLink ?? undefined,
       };
-      // For storage, we need to serialize to JSON
-      const storageObj = { ...taskObj };
 
       // Use Zep if available
       if (zepClient) {
-        const result = await zepClient.addTask(groupId, storageObj);
+        const result = await zepClient.addTask(groupId, taskObj);
         return {
           status: 'ok',
           action: 'add',
@@ -158,25 +156,39 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
         };
       }
 
-      // Use MCP
-      await mcpClient.initialize();
-      const params = {
-        name: `TASK: ${title.slice(0, 60)}`,
-        episode_body: JSON.stringify(storageObj),
-        source: 'json',
-        group_id: groupId,
-        tags: options.tag ? [options.tag] : undefined,
-      };
-      const result = await mcpClient.rpcCall<unknown>('add_memory', params);
+      // Write directly to Neo4j (not MCP) for immediate persistence
+      const uuid = `task-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      const name = `TASK: ${title.slice(0, 60)}`;
+      const content = JSON.stringify(taskObj);
+      const createdAt = new Date().toISOString();
 
-      return {
-        status: 'ok',
-        action: 'add',
-        task: taskObj,
-        group: groupId,
-        result,
-        mode: 'mcp',
-      };
+      await neo4jClient.connect();
+      try {
+        const cypher = `
+          CREATE (e:Episodic {
+            uuid: $uuid,
+            name: $name,
+            content: $content,
+            group_id: $groupId,
+            created_at: datetime($createdAt),
+            source: 'lisa-cli',
+            source_description: 'Task created via lisa tasks add'
+          })
+          RETURN e.uuid AS uuid
+        `;
+        await neo4jClient.query(cypher, { uuid, name, content, groupId, createdAt });
+
+        return {
+          status: 'ok',
+          action: 'add',
+          task: taskObj,
+          group: groupId,
+          result: { uuid, message: `Task created with uuid ${uuid}` },
+          mode: 'neo4j',
+        };
+      } finally {
+        await neo4jClient.disconnect();
+      }
     },
 
     async update(

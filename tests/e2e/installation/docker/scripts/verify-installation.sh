@@ -78,12 +78,13 @@ if [ "$CLI_MODE" = "both" ] || [ "$CLI_MODE" = "claude-only" ]; then
     check "settings.json has Stop hook" "grep -q 'lisa hook session-stop' .claude/settings.json"
     check "settings.json has UserPromptSubmit hook" "grep -q 'lisa hook user-prompt-submit' .claude/settings.json"
     
-    # Subdirectory symlinks to shared resources (zero-impact structure)
+    # Individual skill symlinks to shared resources
+    check ".claude/skills/memory exists" "[ -L .claude/skills/memory ] || [ -d .claude/skills/memory ]"
     check ".claude/skills/lisa exists" "[ -L .claude/skills/lisa ] || [ -d .claude/skills/lisa ]"
     check ".claude/rules/lisa exists" "[ -L .claude/rules/lisa ] || [ -d .claude/rules/lisa ]"
     
     # Verify symlinks resolve correctly
-    check ".claude/skills/lisa/memory accessible" "[ -f .claude/skills/lisa/memory/SKILL.md ]"
+    check ".claude/skills/memory/SKILL.md accessible" "[ -f .claude/skills/memory/SKILL.md ]"
 fi
 
 # =============================================================================

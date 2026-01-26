@@ -64,7 +64,7 @@ export interface ITaskWriteResult {
   group: string;
   result?: unknown;
   message_uuid?: string;
-  mode: 'mcp' | 'zep-cloud';
+  mode: 'mcp' | 'zep-cloud' | 'neo4j';
 }
 
 /**
