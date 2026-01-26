@@ -7,7 +7,7 @@
  * @see .dev/features/github-pr.md for full specification
  */
 
-import { execSync, type ExecSyncOptions } from 'child_process';
+import { execSync, spawnSync, type ExecSyncOptions } from 'child_process';
 import type {
   IGhPrResponse,
   IGhCheckResponse,
@@ -123,21 +123,110 @@ export class GithubClient {
 
   /**
    * Execute a gh api command.
+   * Uses stdin for POST data to avoid shell injection vulnerabilities.
    */
   private async execGhApi<T>(endpoint: string, method = 'GET', data?: Record<string, string>): Promise<T> {
-    let args = `api ${endpoint}`;
+    // Build args array to avoid shell interpolation
+    const args = ['api', endpoint];
 
     if (method !== 'GET') {
-      args += ` -X ${method}`;
+      args.push('-X', method);
     }
 
+    // For data payloads, use --input - to pass JSON via stdin (avoids shell injection)
     if (data) {
-      for (const [key, value] of Object.entries(data)) {
-        args += ` -f ${key}="${value.replace(/"/g, '\\"')}"`;
+      args.push('--input', '-');
+      return this.execGhWithStdin<T>(args, JSON.stringify(data));
+    }
+
+    return this.execGh<T>(args.join(' '));
+  }
+
+  /**
+   * Execute a gh CLI command with stdin input.
+   * Uses spawnSync with shell: false to avoid shell injection.
+   */
+  private async execGhWithStdin<T>(args: string[], input: string, parseJson = true): Promise<T> {
+    let lastError: Error | undefined;
+
+    for (let attempt = 0; attempt <= this.options.maxRetries; attempt++) {
+      try {
+        const result = spawnSync('gh', args, {
+          encoding: 'utf-8',
+          input,
+          timeout: this.options.timeoutMs,
+          maxBuffer: 10 * 1024 * 1024, // 10MB for large responses
+          shell: false, // Critical: avoid shell interpolation
+        });
+
+        if (result.error) {
+          throw result.error;
+        }
+
+        if (result.status !== 0) {
+          const errorMessage = result.stderr || result.stdout || 'Unknown error';
+          throw new Error(errorMessage);
+        }
+
+        const output = result.stdout.trim();
+        if (parseJson) {
+          return JSON.parse(output) as T;
+        }
+        return output as unknown as T;
+      } catch (error) {
+        lastError = error as Error;
+        const errorMessage = (error as Error).message || '';
+
+        // Check for specific error types
+        if (errorMessage.includes('ENOENT') || errorMessage.includes('gh: command not found')) {
+          throw new GithubClientError(
+            'GitHub CLI (gh) is not installed. Install from https://cli.github.com/',
+            'NOT_INSTALLED',
+            lastError
+          );
+        }
+
+        if (errorMessage.includes('not logged in') || errorMessage.includes('authentication')) {
+          throw new GithubClientError(
+            'GitHub CLI is not authenticated. Run: gh auth login',
+            'NOT_AUTHENTICATED',
+            lastError
+          );
+        }
+
+        if (errorMessage.includes('rate limit') || errorMessage.includes('API rate limit')) {
+          if (attempt < this.options.maxRetries) {
+            await this.delay(this.options.retryDelayMs * (attempt + 1));
+            continue;
+          }
+          throw new GithubClientError(
+            'GitHub API rate limit exceeded. Try again later.',
+            'RATE_LIMITED',
+            lastError
+          );
+        }
+
+        if (errorMessage.includes('Could not resolve') || errorMessage.includes('not found') || errorMessage.includes('404')) {
+          throw new GithubClientError(
+            `Resource not found: ${args.join(' ')}`,
+            'NOT_FOUND',
+            lastError
+          );
+        }
+
+        // Retry on transient errors
+        if (attempt < this.options.maxRetries) {
+          await this.delay(this.options.retryDelayMs * (attempt + 1));
+          continue;
+        }
       }
     }
 
-    return this.execGh<T>(args);
+    throw new GithubClientError(
+      `GitHub CLI command failed: gh ${args.join(' ')}`,
+      'UNKNOWN',
+      lastError
+    );
   }
 
   private delay(ms: number): Promise<void> {
@@ -174,6 +263,8 @@ export class GithubClient {
 
   /**
    * Get CI check statuses for a PR.
+   * Note: Returns empty array only when PR exists but has no checks.
+   * Throws NOT_FOUND if the PR itself doesn't exist.
    */
   async getPrChecks(repo: string, prNumber: number): Promise<readonly IGhCheckResponse[]> {
     const fields = ['name', 'state', 'conclusion', 'detailsUrl', 'startedAt', 'completedAt'].join(',');
@@ -181,9 +272,17 @@ export class GithubClient {
     try {
       return await this.execGh<IGhCheckResponse[]>(`pr checks ${prNumber} --repo ${repo} --json ${fields}`);
     } catch (error) {
-      // No checks is not an error
       if (error instanceof GithubClientError && error.code === 'NOT_FOUND') {
-        return [];
+        // Distinguish between "PR not found" vs "PR has no checks"
+        // by verifying the PR exists first
+        try {
+          await this.getPr(repo, prNumber);
+          // PR exists but has no checks - return empty array
+          return [];
+        } catch (prError) {
+          // PR itself doesn't exist - propagate the NOT_FOUND error
+          throw error;
+        }
       }
       throw error;
     }
@@ -339,6 +438,7 @@ export class GithubClient {
 
   /**
    * Create a new PR.
+   * Uses --body-file - to pass body via stdin, avoiding shell injection.
    */
   async createPr(options: {
     repo: string;
@@ -348,23 +448,24 @@ export class GithubClient {
     head?: string;
     draft?: boolean;
   }): Promise<IGhPrResponse> {
-    let args = `pr create --repo ${options.repo} --title "${options.title.replace(/"/g, '\\"')}"`;
+    // Build args array to avoid shell interpolation
+    const args = ['pr', 'create', '--repo', options.repo, '--title', options.title];
     
     if (options.base) {
-      args += ` --base ${options.base}`;
+      args.push('--base', options.base);
     }
     if (options.head) {
-      args += ` --head ${options.head}`;
+      args.push('--head', options.head);
     }
     if (options.draft) {
-      args += ' --draft';
+      args.push('--draft');
     }
 
-    // Use heredoc for body to preserve formatting
-    args += ` --body "${options.body.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`;
+    // Use --body-file - to read body from stdin (avoids shell injection)
+    args.push('--body-file', '-');
 
     // Create returns the URL, not JSON - so we get PR details after
-    const url = await this.execGh<string>(args, false);
+    const url = await this.execGhWithStdin<string>(args, options.body, false);
     const prNumberMatch = url.match(/\/pull\/(\d+)/);
     if (!prNumberMatch) {
       throw new GithubClientError(`Failed to parse PR URL: ${url}`, 'UNKNOWN');
