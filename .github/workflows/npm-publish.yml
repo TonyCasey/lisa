@@ -19,6 +19,9 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm test
+        shell: bash
+        env:
+          SHELL: /bin/bash
 
   publish-npm:
     needs: build
