@@ -54,6 +54,16 @@ export type {
   IReadOnlyTaskRepository,
 } from './ITaskRepository';
 
+// Pull Request Repository
+export type {
+  IPullRequestQueryOptions,
+  IPullRequestQueryResult,
+  IPullRequestRepositoryReader,
+  IPullRequestRepositoryWriter,
+  IPullRequestRepositoryCapabilities,
+  IPullRequestRepository,
+} from './IPullRequestRepository';
+
 // Repository Router
 export type {
   IRoutingRule,
