@@ -7,7 +7,7 @@
  * @see .dev/features/github-pr.md for full specification
  */
 
-import { execSync, spawnSync } from 'child_process';
+import { execSync, execFileSync, spawnSync } from 'child_process';
 import type {
   IGhPrResponse,
   IGhCheckResponse,
@@ -472,7 +472,7 @@ export class GithubClient {
       );
       return result.defaultBranchRef.name;
     } catch {
-      // Fallback: try common names
+      // Fallback: try common names (main, master, develop)
       try {
         execSync('git rev-parse --verify origin/main', { encoding: 'utf-8', stdio: 'pipe' });
         return 'main';
@@ -481,7 +481,12 @@ export class GithubClient {
           execSync('git rev-parse --verify origin/master', { encoding: 'utf-8', stdio: 'pipe' });
           return 'master';
         } catch {
-          return 'main'; // Default assumption
+          try {
+            execSync('git rev-parse --verify origin/develop', { encoding: 'utf-8', stdio: 'pipe' });
+            return 'develop';
+          } catch {
+            return 'main'; // Default assumption
+          }
         }
       }
     }
@@ -492,7 +497,7 @@ export class GithubClient {
    */
   async getCommitMessages(base: string, head = 'HEAD'): Promise<readonly string[]> {
     try {
-      const output = execSync(`git log ${base}..${head} --pretty=format:%s`, {
+      const output = execFileSync('git', ['log', `${base}..${head}`, '--pretty=format:%s'], {
         encoding: 'utf-8',
         timeout: this.options.timeoutMs,
       });
@@ -510,7 +515,7 @@ export class GithubClient {
    */
   async getChangedFiles(base: string, head = 'HEAD'): Promise<readonly string[]> {
     try {
-      const output = execSync(`git diff --name-only ${base}..${head}`, {
+      const output = execFileSync('git', ['diff', '--name-only', `${base}..${head}`], {
         encoding: 'utf-8',
         timeout: this.options.timeoutMs,
       });

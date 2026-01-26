@@ -110,13 +110,14 @@ export class PrCreateHandler {
         await this.commentOnLinkedIssues(repo, pr.number, issueDetails);
       }
 
-      // 8. Auto-watch the PR
+      // 8. Auto-watch the PR (also upserts PR node for relationship linking)
       if (!options.noWatch) {
         await this.watchPr(repo, pr);
       }
 
-      // 9. Create Neo4j relationships
-      if (issueDetails.length > 0) {
+      // 9. Create Neo4j relationships (requires PR node to exist)
+      // Only create relationships if watching is enabled (PR node exists)
+      if (!options.noWatch && issueDetails.length > 0) {
         await this.createNeo4jRelationships(repo, pr, issueDetails);
       }
 

@@ -731,6 +731,9 @@ prCmd
 
         if (opts.json) {
           console.log(JSON.stringify(result, null, 2));
+          if (!result.success) {
+            process.exit(1);
+          }
         } else if (result.success) {
           console.log(chalk.green(`✓ ${result.message}`));
           if (result.linkedIssues && result.linkedIssues.length > 0) {
