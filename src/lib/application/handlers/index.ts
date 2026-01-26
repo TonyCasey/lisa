@@ -9,9 +9,12 @@ export { PromptSubmitHandler } from './PromptSubmitHandler';
 
 // PR handlers
 export {
+  PrCreateHandler,
   PrChecksHandler,
   PrCommentsHandler,
   PrWatchHandler,
+  type IPrCreateResult,
+  type IPrCreateOptions,
   type IPrChecksResult,
   type IPrCommentsResult,
   type IPrWatchResult,

@@ -44,6 +44,15 @@ export interface IGithubClient {
   // Repository Operations
   getCurrentRepo(): Promise<string>;
 
+  // Git Operations
+  getCurrentBranch(): Promise<string>;
+  getDefaultBranch(repo: string): Promise<string>;
+  getCommitMessages(base: string, head?: string): Promise<readonly string[]>;
+  getChangedFiles(base: string, head?: string): Promise<readonly string[]>;
+
+  // Issue Operations
+  commentOnIssue(repo: string, issueNumber: number, body: string): Promise<void>;
+
   // PR Creation
   createPr(options: {
     repo: string;

@@ -1,15 +1,54 @@
 ---
 name: pr
-description: "PR workflow operations: check status, view comments, watch PRs. Triggers on 'pr checks', 'pr comments', 'watch pr', 'watching'."
+description: "PR workflow operations: create PRs, check status, view comments, watch PRs. Triggers on 'pr create', 'pr checks', 'pr comments', 'watch pr', 'watching'."
 ---
 
 ## Purpose
-Model-neutral helper for GitHub PR workflow operations including checking CI status, viewing and addressing review comments, and tracking PRs you're working on.
+Model-neutral helper for GitHub PR workflow operations including creating PRs with auto-generated content, checking CI status, viewing and addressing review comments, and tracking PRs you're working on.
 
 ## Triggers
-Use when the user says: "pr checks", "check pr", "pr comments", "view comments", "watch pr", "unwatch pr", "watching", "what prs am i watching", "pr status".
+Use when the user says: "create pr", "pr create", "pr checks", "check pr", "pr comments", "view comments", "watch pr", "unwatch pr", "watching", "what prs am i watching", "pr status".
 
 ## How to use
+
+### Create a PR
+Create a PR with auto-generated body, issue linking, and auto-watch:
+
+```bash
+# Create PR from current branch (auto-detects base branch and linked issues)
+lisa pr create
+
+# Create PR linking to specific issues
+lisa pr create --issue 40 --issue 41
+
+# Create PR with custom title and base branch
+lisa pr create --title "feat: add pr create command" --base develop
+
+# Create as draft PR
+lisa pr create --draft
+
+# Skip auto-watching the PR
+lisa pr create --no-watch
+
+# Skip commenting on linked issues
+lisa pr create --no-comment
+
+# Output as JSON
+lisa pr create --json
+```
+
+**Features:**
+- **Auto-detects linked issues** from branch name (supports: `15`, `15-description`, `feature/15`, `issue-15`, `fix/#15`)
+- **Auto-generates PR body** with Summary (from commits), Test Coverage (test files changed), and Linked Issues (`Closes #N`)
+- **Comments on linked issues** with `PR: #N`
+- **Auto-watches the PR** for future polling
+- **Creates Neo4j relationships** (`CLOSES`) between PR and issues
+
+**Output:**
+```text
+Created PR #51: https://github.com/owner/repo/pull/51
+Linked issues: #40
+```
 
 ### Check PR CI Status
 Get the current status of CI checks for a PR:
@@ -159,6 +198,22 @@ When you need to address PR review comments:
 
 ## I/O Contract
 
+### lisa pr create
+```json
+{
+  "success": true,
+  "message": "Created PR #51: https://github.com/owner/repo/pull/51",
+  "pr": {
+    "number": 51,
+    "url": "https://github.com/owner/repo/pull/51",
+    "title": "feat: add pr create command",
+    "repo": "owner/repo"
+  },
+  "linkedIssues": [40, 41],
+  "body": "## Summary\n- feat: add feature\n\n## Linked Issues\nCloses #40\nCloses #41"
+}
+```
+
 ### lisa pr checks
 ```json
 {
@@ -220,5 +275,5 @@ When you need to address PR review comments:
 - All: Neo4j must be running for watch/watching commands (lisa doctor to verify)
 
 ## Related Skills
-- `/git` - For creating PRs, version bumping, CI retriggers
+- `/git` - For version bumping, CI retriggers, and other git workflows
 - `/github` - For GitHub Issues and Projects operations

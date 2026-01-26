@@ -682,10 +682,83 @@ issueCmd
   });
 
 // Subcommand: lisa pr
-// PR workflow commands (checks, comments, watch)
+// PR workflow commands (create, checks, comments, watch)
 const prCmd = program
   .command('pr')
-  .description('PR workflow operations (checks, comments, watch)');
+  .description('PR workflow operations (create, checks, comments, watch)');
+
+prCmd
+  .command('create')
+  .description('Create a PR with auto-generated body and issue linking')
+  .option('-i, --issue <numbers...>', 'Issue number(s) to link (comma-separated)')
+  .option('-b, --base <branch>', 'Target branch (default: main/master)')
+  .option('-t, --title <title>', 'PR title (default: from issue or first commit)')
+  .option('-d, --draft', 'Create as draft PR')
+  .option('--no-watch', 'Skip auto-watching the PR')
+  .option('--no-comment', 'Skip commenting on linked issues')
+  .option('--json', 'Output as JSON')
+  .action(async (opts) => {
+    await withCorrelation(async () => {
+      const log = cliLogger.child({ command: 'pr create' });
+      log.info('Creating PR', { issues: opts.issue, base: opts.base, draft: opts.draft });
+
+      let neo4jConnection: Neo4jConnectionManager | undefined;
+      try {
+        const { GithubClient, Neo4jPullRequestRepository, createNeo4jConnectionManager } = await import('./infrastructure');
+        const { PrCreateHandler } = await import('./application/handlers');
+
+        const githubClient = new GithubClient();
+        neo4jConnection = createNeo4jConnectionManager();
+        const prRepository = new Neo4jPullRequestRepository(neo4jConnection);
+
+        // Parse issue numbers
+        let issues: number[] | undefined;
+        if (opts.issue) {
+          issues = opts.issue.flatMap((i: string) => 
+            i.split(',').map((n: string) => parseInt(n.trim(), 10))
+          ).filter((n: number) => !isNaN(n));
+        }
+
+        const handler = new PrCreateHandler(githubClient, prRepository);
+        const result = await handler.execute({
+          issues,
+          base: opts.base,
+          title: opts.title,
+          draft: opts.draft,
+          noWatch: opts.watch === false,
+          noComment: opts.comment === false,
+        });
+
+        if (opts.json) {
+          console.log(JSON.stringify(result, null, 2));
+        } else if (result.success) {
+          console.log(chalk.green(`✓ ${result.message}`));
+          if (result.linkedIssues && result.linkedIssues.length > 0) {
+            console.log(chalk.dim(`  Linked issues: ${result.linkedIssues.map((i: number) => `#${i}`).join(', ')}`));
+          }
+          if (result.pr) {
+            console.log('');
+            console.log(chalk.bold('PR Body:'));
+            console.log(chalk.dim('─'.repeat(60)));
+            console.log(result.body);
+            console.log(chalk.dim('─'.repeat(60)));
+          }
+        } else {
+          console.error(chalk.red(`✗ ${result.message}`));
+          process.exit(1);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        log.error('Failed to create PR', { error: message });
+        console.error(chalk.red(`Failed to create PR: ${message}`));
+        process.exit(1);
+      } finally {
+        if (neo4jConnection) {
+          await neo4jConnection.disconnect();
+        }
+      }
+    });
+  });
 
 prCmd
   .command('checks <pr-number>')

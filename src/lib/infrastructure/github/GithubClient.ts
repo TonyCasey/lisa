@@ -441,6 +441,104 @@ export class GithubClient {
   }
 
   // ============================================================
+  // Git Operations
+  // ============================================================
+
+  /**
+   * Get the current git branch name.
+   */
+  async getCurrentBranch(): Promise<string> {
+    try {
+      const output = execSync('git rev-parse --abbrev-ref HEAD', {
+        encoding: 'utf-8',
+        timeout: this.options.timeoutMs,
+      });
+      return output.trim();
+    } catch {
+      throw new GithubClientError(
+        'Could not determine current branch. Are you in a git repository?',
+        'UNKNOWN'
+      );
+    }
+  }
+
+  /**
+   * Get the default branch for a repository (usually main or master).
+   */
+  async getDefaultBranch(repo: string): Promise<string> {
+    try {
+      const result = await this.execGh<{ defaultBranchRef: { name: string } }>(
+        ['repo', 'view', repo, '--json', 'defaultBranchRef']
+      );
+      return result.defaultBranchRef.name;
+    } catch {
+      // Fallback: try common names
+      try {
+        execSync('git rev-parse --verify origin/main', { encoding: 'utf-8', stdio: 'pipe' });
+        return 'main';
+      } catch {
+        try {
+          execSync('git rev-parse --verify origin/master', { encoding: 'utf-8', stdio: 'pipe' });
+          return 'master';
+        } catch {
+          return 'main'; // Default assumption
+        }
+      }
+    }
+  }
+
+  /**
+   * Get commit messages between base and head (or HEAD if not specified).
+   */
+  async getCommitMessages(base: string, head = 'HEAD'): Promise<readonly string[]> {
+    try {
+      const output = execSync(`git log ${base}..${head} --pretty=format:%s`, {
+        encoding: 'utf-8',
+        timeout: this.options.timeoutMs,
+      });
+      if (!output.trim()) {
+        return [];
+      }
+      return output.trim().split('\n');
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Get list of changed files between base and head (or HEAD if not specified).
+   */
+  async getChangedFiles(base: string, head = 'HEAD'): Promise<readonly string[]> {
+    try {
+      const output = execSync(`git diff --name-only ${base}..${head}`, {
+        encoding: 'utf-8',
+        timeout: this.options.timeoutMs,
+      });
+      if (!output.trim()) {
+        return [];
+      }
+      return output.trim().split('\n');
+    } catch {
+      return [];
+    }
+  }
+
+  // ============================================================
+  // Issue Operations (Extended)
+  // ============================================================
+
+  /**
+   * Add a comment to an issue.
+   */
+  async commentOnIssue(repo: string, issueNumber: number, body: string): Promise<void> {
+    await this.execGhWithStdin<string>(
+      ['issue', 'comment', String(issueNumber), '--repo', repo, '--body-file', '-'],
+      body,
+      false
+    );
+  }
+
+  // ============================================================
   // PR Creation
   // ============================================================
 
