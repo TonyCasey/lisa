@@ -20,8 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Factory functions: `createPullRequest()`, `createGitHubIssue()` with sensible defaults
 
 - **Repository interface for PR operations** - New interfaces in `src/lib/domain/interfaces/dal/IPullRequestRepository.ts`
-  - `IPullRequestRepositoryReader` - findPr, findWatchedPrs, findIssuesByPr, findChecksByPr, findUnresolvedComments
-  - `IPullRequestRepositoryWriter` - upsertPr, upsertIssue, linkPrToIssues, setWatching, updateChecksStatus, upsertComment
+  - `IPullRequestRepositoryReader` - findPr, findWatchedPrs, findIssuesByPr, findChecksByPr, findCommentsByPr, getPrWithRelations
+  - `IPullRequestRepositoryWriter` - upsertPr, upsertIssue, upsertCheck, upsertComment, linkPrToIssues, setWatching, updateLastPolled, deletePr
   - `IPullRequestRepositoryCapabilities` - supportsWrite() returns true (direct write, not MCP queue)
 
 - **Neo4j repository implementation** - `src/lib/infrastructure/dal/repositories/neo4j/Neo4jPullRequestRepository.ts`

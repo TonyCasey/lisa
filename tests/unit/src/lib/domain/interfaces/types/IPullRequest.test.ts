@@ -137,7 +137,7 @@ describe('IPullRequest Types', () => {
       const _title: string = pr.title;
       const _status: 'open' | 'merged' | 'closed' = pr.status;
       const _watching: boolean = pr.watching;
-      const _checksStatus: 'pending' | 'success' | 'failure' | 'skipped' = pr.checksStatus;
+      const _checksStatus: 'pending' | 'success' | 'failure' | 'cancelled' | 'skipped' = pr.checksStatus;
       const _unresolvedComments: number = pr.unresolvedComments;
 
       assert.ok(pr);

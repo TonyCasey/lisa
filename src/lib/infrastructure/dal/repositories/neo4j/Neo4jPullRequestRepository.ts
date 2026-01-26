@@ -96,8 +96,10 @@ export class Neo4jPullRequestRepository implements IPullRequestRepository {
 
   private generateCheckUuid(repo: string, prNumber: number, checkName: string): string {
     const repoSlug = repo.replace('/', '-');
-    const checkSlug = checkName.replace(/[^a-zA-Z0-9]/g, '-');
-    return `prcheck-${repoSlug}-${prNumber}-${checkSlug}`;
+    // Use base64url encoding of check name to preserve uniqueness
+    // This ensures ci/build and ci-build produce different UUIDs
+    const checkHash = Buffer.from(checkName).toString('base64url');
+    return `prcheck-${repoSlug}-${prNumber}-${checkHash}`;
   }
 
   private generateCommentUuid(repo: string, commentId: string): string {
@@ -168,19 +170,28 @@ export class Neo4jPullRequestRepository implements IPullRequestRepository {
         AND e.content CONTAINS '"watching":true'
     `;
 
+    // Build params with proper parameterization to prevent Cypher injection
+    const params: Record<string, unknown> = {
+      userId,
+      offset,
+      fetchLimit: limit + 1,
+    };
+
     if (repo) {
-      cypher += ` AND e.content CONTAINS '"repo":"${repo}"'`;
+      // Use parameterized query for repo filter
+      cypher += ` AND e.content CONTAINS $repoFilter`;
+      params.repoFilter = `"repo":"${repo}"`;
     }
 
     cypher += `
       RETURN e.uuid AS uuid, e.name AS name, e.content AS content,
              e.group_id AS group_id, e.created_at AS created_at
       ORDER BY e.created_at DESC
-      SKIP ${offset}
-      LIMIT ${limit + 1}
+      SKIP $offset
+      LIMIT $fetchLimit
     `;
 
-    const records = await this.connection.query<Neo4jPrRecord>(cypher, { userId });
+    const records = await this.connection.query<Neo4jPrRecord>(cypher, params);
     const hasMore = records.length > limit;
     const items = records.slice(0, limit).map(r => this.parsePrRecord(r));
 
@@ -313,18 +324,28 @@ export class Neo4jPullRequestRepository implements IPullRequestRepository {
     const name = this.generatePrName(input.repo, input.number);
     const now = new Date().toISOString();
 
+    // First, try to find existing PR to preserve metadata
+    const existing = await this.findPr(userId, input.repo, input.number);
+
+    // Preserve existing watch/check metadata if this is an update
     const pr: IPullRequest = {
       type: 'pull_request',
       number: input.number,
       repo: input.repo,
       title: input.title,
-      status: input.status ?? 'open',
-      watching: input.watching ?? true,
-      watchingSince: input.watching !== false ? now : undefined,
-      checksStatus: 'pending',
-      unresolvedComments: 0,
+      status: input.status ?? existing?.status ?? 'open',
+      // Preserve watching state unless explicitly set in input
+      watching: input.watching ?? existing?.watching ?? true,
+      // Preserve watchingSince if already watching, or set now if starting to watch
+      watchingSince: existing?.watchingSince ?? ((input.watching !== false) ? now : undefined),
+      // Preserve lastPolled from existing
+      lastPolled: existing?.lastPolled,
+      // Preserve checksStatus from existing (updated via separate methods)
+      checksStatus: existing?.checksStatus ?? 'pending',
+      // Preserve unresolvedComments from existing (updated via separate methods)
+      unresolvedComments: existing?.unresolvedComments ?? 0,
       uuid,
-      created_at: now,
+      created_at: existing?.created_at ?? now,
     };
 
     const content = JSON.stringify(pr);
@@ -349,7 +370,7 @@ export class Neo4jPullRequestRepository implements IPullRequestRepository {
       name,
       content,
       userId,
-      createdAt: now,
+      createdAt: pr.created_at,
       updatedAt: now,
     });
 

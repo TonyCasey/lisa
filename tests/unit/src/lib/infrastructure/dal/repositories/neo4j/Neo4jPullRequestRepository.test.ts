@@ -1,22 +1,21 @@
 /**
  * Tests for Neo4jPullRequestRepository.
  *
- * Tests the PR repository implementation using mocked Neo4j connection.
+ * Tests the actual PR repository implementation with a mocked Neo4j connection.
+ * This ensures the real class logic (UUID generation, Cypher queries, etc.) is tested.
  */
-import { describe, it, beforeEach, mock } from 'node:test';
+import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert';
+import { Neo4jPullRequestRepository } from '../../../../../../../../src/lib/infrastructure/dal/repositories/neo4j/Neo4jPullRequestRepository';
 import type {
   IPullRequest,
   IGitHubIssue,
   IPrCheck,
   IPrComment,
 } from '../../../../../../../../src/lib/domain/interfaces/types/IPullRequest';
-import type {
-  IPullRequestRepository,
-} from '../../../../../../../../src/lib/domain/interfaces/dal/IPullRequestRepository';
 
 /**
- * Mock Neo4j connection manager for testing.
+ * Mock Neo4j connection manager that captures queries and returns configured results.
  */
 interface MockNeo4jConnectionManager {
   query: <T>(cypher: string, params?: Record<string, unknown>) => Promise<T[]>;
@@ -26,249 +25,21 @@ interface MockNeo4jConnectionManager {
   isConnected: () => Promise<boolean>;
 }
 
-/**
- * Create a mock repository implementation for testing the interface contract.
- */
-function createMockRepository(
-  mockConnection: MockNeo4jConnectionManager
-): IPullRequestRepository {
-  let cachedUserId: string | null = null;
-
-  const generatePrUuid = (repo: string, prNumber: number): string => {
-    const repoSlug = repo.replace('/', '-');
-    return `pr-${repoSlug}-${prNumber}`;
-  };
-
-  const generateIssueUuid = (repo: string, issueNumber: number): string => {
-    const repoSlug = repo.replace('/', '-');
-    return `issue-${repoSlug}-${issueNumber}`;
-  };
-
-  const generatePrName = (repo: string, prNumber: number): string => {
-    return `PR:${repo}#${prNumber}`;
-  };
-
-  const generateIssueName = (repo: string, issueNumber: number): string => {
-    return `ISSUE:${repo}#${issueNumber}`;
-  };
-
-  return {
-    supportsWrite: () => true,
-    supportsRelationships: () => true,
-
-    async getUserId(): Promise<string> {
-      if (cachedUserId) return cachedUserId;
-      // In tests, return a fixed user ID
-      cachedUserId = 'user:test-user';
-      return cachedUserId;
-    },
-
-    async findPr(userId, repo, prNumber) {
-      const uuid = generatePrUuid(repo, prNumber);
-      const records = await mockConnection.query<{
-        uuid: string;
-        content: string;
-        created_at?: string;
-      }>('', { uuid, userId });
-
-      if (records.length === 0) return null;
-
-      const content = JSON.parse(records[0].content) as IPullRequest;
-      return { ...content, uuid: records[0].uuid, created_at: records[0].created_at };
-    },
-
-    async findWatchedPrs(userId, options) {
-      const records = await mockConnection.query<{
-        uuid: string;
-        content: string;
-        created_at?: string;
-      }>('', { userId });
-
-      const items = records.map(r => {
-        const content = JSON.parse(r.content) as IPullRequest;
-        return { ...content, uuid: r.uuid, created_at: r.created_at };
-      });
-
-      return { items, hasMore: false };
-    },
-
-    async findIssue(userId, repo, issueNumber) {
-      const uuid = generateIssueUuid(repo, issueNumber);
-      const records = await mockConnection.query<{
-        uuid: string;
-        content: string;
-        created_at?: string;
-      }>('', { uuid, userId });
-
-      if (records.length === 0) return null;
-
-      const content = JSON.parse(records[0].content) as IGitHubIssue;
-      return { ...content, uuid: records[0].uuid, created_at: records[0].created_at };
-    },
-
-    async findIssuesByPr(userId, repo, prNumber) {
-      const records = await mockConnection.query<{
-        uuid: string;
-        content: string;
-        created_at?: string;
-      }>('', { userId });
-
-      return records.map(r => {
-        const content = JSON.parse(r.content) as IGitHubIssue;
-        return { ...content, uuid: r.uuid, created_at: r.created_at };
-      });
-    },
-
-    async findPrsByIssue(userId, repo, issueNumber) {
-      const records = await mockConnection.query<{
-        uuid: string;
-        content: string;
-        created_at?: string;
-      }>('', { userId });
-
-      return records.map(r => {
-        const content = JSON.parse(r.content) as IPullRequest;
-        return { ...content, uuid: r.uuid, created_at: r.created_at };
-      });
-    },
-
-    async findChecksByPr(userId, repo, prNumber) {
-      const records = await mockConnection.query<{
-        uuid: string;
-        content: string;
-        created_at?: string;
-      }>('', { userId });
-
-      return records.map(r => {
-        const content = JSON.parse(r.content) as IPrCheck;
-        return { ...content, uuid: r.uuid, created_at: r.created_at };
-      });
-    },
-
-    async findCommentsByPr(userId, repo, prNumber) {
-      const records = await mockConnection.query<{
-        uuid: string;
-        content: string;
-      }>('', { userId });
-
-      return records.map(r => {
-        const content = JSON.parse(r.content) as IPrComment;
-        return { ...content, uuid: r.uuid };
-      });
-    },
-
-    async getPrWithRelations(userId, repo, prNumber) {
-      const pr = await this.findPr(userId, repo, prNumber);
-      if (!pr) return null;
-
-      const [issues, checks, comments] = await Promise.all([
-        this.findIssuesByPr(userId, repo, prNumber),
-        this.findChecksByPr(userId, repo, prNumber),
-        this.findCommentsByPr(userId, repo, prNumber),
-      ]);
-
-      return { pr, issues, checks, comments };
-    },
-
-    async upsertPr(userId, input) {
-      const uuid = generatePrUuid(input.repo, input.number);
-      const now = new Date().toISOString();
-
-      const pr: IPullRequest = {
-        type: 'pull_request',
-        number: input.number,
-        repo: input.repo,
-        title: input.title,
-        status: input.status ?? 'open',
-        watching: input.watching ?? true,
-        watchingSince: input.watching !== false ? now : undefined,
-        checksStatus: 'pending',
-        unresolvedComments: 0,
-        uuid,
-        created_at: now,
-      };
-
-      await mockConnection.write('', { uuid, content: JSON.stringify(pr), userId });
-      return pr;
-    },
-
-    async upsertIssue(userId, input) {
-      const uuid = generateIssueUuid(input.repo, input.number);
-      const now = new Date().toISOString();
-
-      const issue: IGitHubIssue = {
-        type: 'issue',
-        number: input.number,
-        repo: input.repo,
-        title: input.title,
-        status: input.status ?? 'open',
-        url: input.url,
-        uuid,
-        created_at: now,
-      };
-
-      await mockConnection.write('', { uuid, content: JSON.stringify(issue), userId });
-      return issue;
-    },
-
-    async upsertCheck(userId, repo, prNumber, checkData) {
-      const now = new Date().toISOString();
-      const uuid = `prcheck-${repo.replace('/', '-')}-${prNumber}-${checkData.checkName}`;
-
-      const check: IPrCheck = {
-        type: 'pr_check',
-        ...checkData,
-        uuid,
-        created_at: now,
-      };
-
-      await mockConnection.write('', { uuid, content: JSON.stringify(check), userId });
-      return check;
-    },
-
-    async upsertComment(userId, repo, prNumber, commentData) {
-      const uuid = `prcomment-${repo.replace('/', '-')}-${commentData.commentId}`;
-
-      const comment: IPrComment = {
-        type: 'pr_comment',
-        ...commentData,
-        uuid,
-      };
-
-      await mockConnection.write('', { uuid, content: JSON.stringify(comment), userId });
-      return comment;
-    },
-
-    async linkPrToIssues(userId, repo, prNumber, issueNumbers) {
-      await mockConnection.write('', { userId, repo, prNumber, issueNumbers });
-    },
-
-    async setWatching(userId, repo, prNumber, watching) {
-      await mockConnection.write('', { userId, repo, prNumber, watching });
-    },
-
-    async updateLastPolled(userId, repo, prNumber) {
-      await mockConnection.write('', { userId, repo, prNumber });
-    },
-
-    async deletePr(userId, repo, prNumber) {
-      await mockConnection.write('', { userId, repo, prNumber });
-    },
-  };
-}
-
 describe('Neo4jPullRequestRepository', () => {
   let mockConnection: MockNeo4jConnectionManager;
-  let repo: IPullRequestRepository;
+  let repo: Neo4jPullRequestRepository;
   let queryResults: unknown[];
+  let queryCalls: Array<{ cypher: string; params?: Record<string, unknown> }>;
   let writeCalls: Array<{ cypher: string; params?: Record<string, unknown> }>;
 
   beforeEach(() => {
     queryResults = [];
+    queryCalls = [];
     writeCalls = [];
 
     mockConnection = {
-      query: async <T>(_cypher: string, _params?: Record<string, unknown>): Promise<T[]> => {
+      query: async <T>(cypher: string, params?: Record<string, unknown>): Promise<T[]> => {
+        queryCalls.push({ cypher, params });
         return queryResults as T[];
       },
       write: async (cypher: string, params?: Record<string, unknown>): Promise<void> => {
@@ -279,7 +50,8 @@ describe('Neo4jPullRequestRepository', () => {
       isConnected: async () => true,
     };
 
-    repo = createMockRepository(mockConnection);
+    // Cast to satisfy the constructor - the mock implements the interface we need
+    repo = new Neo4jPullRequestRepository(mockConnection as never);
   });
 
   describe('supportsWrite()', () => {
@@ -297,6 +69,7 @@ describe('Neo4jPullRequestRepository', () => {
   describe('getUserId()', () => {
     it('should return user ID in expected format', async () => {
       const userId = await repo.getUserId();
+      // Either returns actual git user or fallback
       assert.ok(userId.startsWith('user:'));
     });
 
@@ -314,6 +87,15 @@ describe('Neo4jPullRequestRepository', () => {
       assert.strictEqual(result, null);
     });
 
+    it('should generate correct UUID for query', async () => {
+      queryResults = [];
+      await repo.findPr('user:test', 'owner/repo', 42);
+      
+      assert.strictEqual(queryCalls.length, 1);
+      assert.strictEqual(queryCalls[0].params?.uuid, 'pr-owner-repo-42');
+      assert.strictEqual(queryCalls[0].params?.userId, 'user:test');
+    });
+
     it('should return PR when found', async () => {
       const prContent: IPullRequest = {
         type: 'pull_request',
@@ -328,7 +110,9 @@ describe('Neo4jPullRequestRepository', () => {
 
       queryResults = [{
         uuid: 'pr-owner-repo-42',
+        name: 'PR:owner/repo#42',
         content: JSON.stringify(prContent),
+        group_id: 'user:test',
         created_at: '2026-01-26T00:00:00Z',
       }];
 
@@ -350,6 +134,21 @@ describe('Neo4jPullRequestRepository', () => {
       assert.strictEqual(result.hasMore, false);
     });
 
+    it('should use parameterized query to prevent injection', async () => {
+      queryResults = [];
+      await repo.findWatchedPrs('user:test', { repo: 'evil/repo"; DROP TABLE' });
+
+      assert.strictEqual(queryCalls.length, 1);
+      // Verify params are used instead of string interpolation
+      assert.ok(queryCalls[0].params?.userId);
+      assert.ok(queryCalls[0].params?.offset !== undefined);
+      assert.ok(queryCalls[0].params?.fetchLimit !== undefined);
+      assert.ok(queryCalls[0].params?.repoFilter);
+      // Verify the cypher uses parameter placeholders
+      assert.ok(queryCalls[0].cypher.includes('$offset'));
+      assert.ok(queryCalls[0].cypher.includes('$fetchLimit'));
+    });
+
     it('should return watched PRs', async () => {
       const prContent: IPullRequest = {
         type: 'pull_request',
@@ -364,7 +163,9 @@ describe('Neo4jPullRequestRepository', () => {
 
       queryResults = [{
         uuid: 'pr-owner-repo-42',
+        name: 'PR:owner/repo#42',
         content: JSON.stringify(prContent),
+        group_id: 'user:test',
         created_at: '2026-01-26T00:00:00Z',
       }];
 
@@ -373,10 +174,40 @@ describe('Neo4jPullRequestRepository', () => {
       assert.strictEqual(result.items.length, 1);
       assert.strictEqual(result.items[0].number, 42);
     });
+
+    it('should detect hasMore when results exceed limit', async () => {
+      const makePr = (n: number): IPullRequest => ({
+        type: 'pull_request',
+        number: n,
+        repo: 'owner/repo',
+        title: `PR ${n}`,
+        status: 'open',
+        watching: true,
+        checksStatus: 'pending',
+        unresolvedComments: 0,
+      });
+
+      // Return limit + 1 results
+      queryResults = [1, 2, 3].map(n => ({
+        uuid: `pr-owner-repo-${n}`,
+        name: `PR:owner/repo#${n}`,
+        content: JSON.stringify(makePr(n)),
+        group_id: 'user:test',
+        created_at: '2026-01-26T00:00:00Z',
+      }));
+
+      const result = await repo.findWatchedPrs('user:test', { limit: 2 });
+
+      assert.strictEqual(result.items.length, 2);
+      assert.strictEqual(result.hasMore, true);
+    });
   });
 
   describe('upsertPr()', () => {
-    it('should create a PR and call write', async () => {
+    it('should create a PR with correct defaults', async () => {
+      // First query returns empty (no existing PR)
+      queryResults = [];
+
       const result = await repo.upsertPr('user:test', {
         number: 42,
         repo: 'owner/repo',
@@ -389,28 +220,87 @@ describe('Neo4jPullRequestRepository', () => {
       assert.strictEqual(result.title, 'New PR');
       assert.strictEqual(result.status, 'open');
       assert.strictEqual(result.watching, true);
+      assert.strictEqual(result.checksStatus, 'pending');
+      assert.strictEqual(result.unresolvedComments, 0);
       assert.ok(result.uuid);
       assert.ok(result.created_at);
+      assert.ok(result.watchingSince);
+      // Should have queried for existing + write
+      assert.strictEqual(queryCalls.length, 1);
       assert.strictEqual(writeCalls.length, 1);
     });
 
-    it('should respect custom status and watching', async () => {
+    it('should preserve existing metadata on update', async () => {
+      // Existing PR with metadata
+      const existingPr: IPullRequest = {
+        type: 'pull_request',
+        number: 42,
+        repo: 'owner/repo',
+        title: 'Old Title',
+        status: 'open',
+        watching: false,
+        watchingSince: '2026-01-01T00:00:00Z',
+        lastPolled: '2026-01-25T00:00:00Z',
+        checksStatus: 'success',
+        unresolvedComments: 3,
+        uuid: 'pr-owner-repo-42',
+        created_at: '2026-01-01T00:00:00Z',
+      };
+
+      queryResults = [{
+        uuid: 'pr-owner-repo-42',
+        name: 'PR:owner/repo#42',
+        content: JSON.stringify(existingPr),
+        group_id: 'user:test',
+        created_at: '2026-01-01T00:00:00Z',
+      }];
+
+      // Update just the title (no watching specified)
       const result = await repo.upsertPr('user:test', {
         number: 42,
         repo: 'owner/repo',
-        title: 'Merged PR',
-        status: 'merged',
+        title: 'Updated Title',
+      });
+
+      // Should preserve existing metadata
+      assert.strictEqual(result.title, 'Updated Title');
+      assert.strictEqual(result.watching, false); // Preserved
+      assert.strictEqual(result.watchingSince, '2026-01-01T00:00:00Z'); // Preserved
+      assert.strictEqual(result.lastPolled, '2026-01-25T00:00:00Z'); // Preserved
+      assert.strictEqual(result.checksStatus, 'success'); // Preserved
+      assert.strictEqual(result.unresolvedComments, 3); // Preserved
+      assert.strictEqual(result.created_at, '2026-01-01T00:00:00Z'); // Preserved
+    });
+
+    it('should respect explicit watching=false', async () => {
+      queryResults = [];
+
+      const result = await repo.upsertPr('user:test', {
+        number: 42,
+        repo: 'owner/repo',
+        title: 'New PR',
         watching: false,
       });
 
-      assert.strictEqual(result.status, 'merged');
       assert.strictEqual(result.watching, false);
       assert.strictEqual(result.watchingSince, undefined);
+    });
+
+    it('should generate correct UUID format', async () => {
+      queryResults = [];
+
+      const result = await repo.upsertPr('user:test', {
+        number: 42,
+        repo: 'owner/repo',
+        title: 'Test',
+      });
+
+      assert.strictEqual(result.uuid, 'pr-owner-repo-42');
     });
   });
 
   describe('upsertIssue()', () => {
-    it('should create an issue and call write', async () => {
+    it('should create an issue with correct defaults', async () => {
       const result = await repo.upsertIssue('user:test', {
         number: 15,
         repo: 'owner/repo',
@@ -423,13 +313,13 @@ describe('Neo4jPullRequestRepository', () => {
       assert.strictEqual(result.repo, 'owner/repo');
       assert.strictEqual(result.title, 'Bug report');
       assert.strictEqual(result.status, 'open');
-      assert.ok(result.uuid);
+      assert.strictEqual(result.uuid, 'issue-owner-repo-15');
       assert.strictEqual(writeCalls.length, 1);
     });
   });
 
   describe('upsertCheck()', () => {
-    it('should create a check and call write', async () => {
+    it('should create a check and link to PR', async () => {
       const result = await repo.upsertCheck('user:test', 'owner/repo', 42, {
         checkName: 'ci/build',
         status: 'success',
@@ -441,11 +331,31 @@ describe('Neo4jPullRequestRepository', () => {
       assert.strictEqual(result.status, 'success');
       assert.ok(result.uuid);
       assert.strictEqual(writeCalls.length, 1);
+      // Verify the cypher creates the HAS_CHECK relationship
+      assert.ok(writeCalls[0].cypher.includes('HAS_CHECK'));
+    });
+
+    it('should generate unique UUIDs for similarly named checks', async () => {
+      // Test that ci/build and ci-build produce different UUIDs
+      const result1 = await repo.upsertCheck('user:test', 'owner/repo', 42, {
+        checkName: 'ci/build',
+        status: 'success',
+        updatedAt: '2026-01-26T00:00:00Z',
+      });
+
+      const result2 = await repo.upsertCheck('user:test', 'owner/repo', 42, {
+        checkName: 'ci-build',
+        status: 'success',
+        updatedAt: '2026-01-26T00:00:00Z',
+      });
+
+      // UUIDs should be different (base64url encoding preserves the difference)
+      assert.notStrictEqual(result1.uuid, result2.uuid);
     });
   });
 
   describe('upsertComment()', () => {
-    it('should create a comment and call write', async () => {
+    it('should create a comment and link to PR', async () => {
       const result = await repo.upsertComment('user:test', 'owner/repo', 42, {
         commentId: '12345',
         file: 'src/index.ts',
@@ -462,34 +372,74 @@ describe('Neo4jPullRequestRepository', () => {
       assert.strictEqual(result.commentId, '12345');
       assert.strictEqual(result.file, 'src/index.ts');
       assert.strictEqual(result.author, 'reviewer');
-      assert.ok(result.uuid);
+      assert.strictEqual(result.uuid, 'prcomment-owner-repo-12345');
       assert.strictEqual(writeCalls.length, 1);
+      // Verify the cypher creates the HAS_COMMENT relationship
+      assert.ok(writeCalls[0].cypher.includes('HAS_COMMENT'));
     });
   });
 
   describe('linkPrToIssues()', () => {
-    it('should call write to create relationships', async () => {
+    it('should remove existing links and create new ones', async () => {
       await repo.linkPrToIssues('user:test', 'owner/repo', 42, [15, 16]);
 
-      assert.strictEqual(writeCalls.length, 1);
-      assert.deepStrictEqual(writeCalls[0].params?.issueNumbers, [15, 16]);
+      // Should have 3 write calls: 1 delete + 2 creates
+      assert.strictEqual(writeCalls.length, 3);
+      // First call removes existing CLOSES relationships
+      assert.ok(writeCalls[0].cypher.includes('DELETE'));
+      // Subsequent calls create new CLOSES relationships
+      assert.ok(writeCalls[1].cypher.includes('CLOSES'));
+      assert.ok(writeCalls[2].cypher.includes('CLOSES'));
     });
   });
 
   describe('setWatching()', () => {
-    it('should call write to update watching status', async () => {
+    it('should throw when PR not found', async () => {
+      queryResults = [];
+
+      await assert.rejects(
+        () => repo.setWatching('user:test', 'owner/repo', 42, false),
+        /PR not found/
+      );
+    });
+
+    it('should update watching status when PR exists', async () => {
+      const existingPr: IPullRequest = {
+        type: 'pull_request',
+        number: 42,
+        repo: 'owner/repo',
+        title: 'Test PR',
+        status: 'open',
+        watching: true,
+        watchingSince: '2026-01-01T00:00:00Z',
+        checksStatus: 'pending',
+        unresolvedComments: 0,
+      };
+
+      queryResults = [{
+        uuid: 'pr-owner-repo-42',
+        name: 'PR:owner/repo#42',
+        content: JSON.stringify(existingPr),
+        group_id: 'user:test',
+        created_at: '2026-01-26T00:00:00Z',
+      }];
+
       await repo.setWatching('user:test', 'owner/repo', 42, false);
 
       assert.strictEqual(writeCalls.length, 1);
-      assert.strictEqual(writeCalls[0].params?.watching, false);
+      // Verify the content was updated
+      const writtenContent = JSON.parse(writeCalls[0].params?.content as string);
+      assert.strictEqual(writtenContent.watching, false);
     });
   });
 
   describe('deletePr()', () => {
-    it('should call write to delete PR', async () => {
+    it('should delete PR and related entities', async () => {
       await repo.deletePr('user:test', 'owner/repo', 42);
 
       assert.strictEqual(writeCalls.length, 1);
+      // Verify detach delete is used
+      assert.ok(writeCalls[0].cypher.includes('DETACH DELETE'));
     });
   });
 
@@ -512,15 +462,18 @@ describe('Neo4jPullRequestRepository', () => {
         unresolvedComments: 0,
       };
 
-      // Set up mock to return PR on first call
+      // Set up mock to return PR on first call, empty for relations
       let callCount = 0;
-      mockConnection.query = async <T>(): Promise<T[]> => {
+      mockConnection.query = async <T>(cypher: string, params?: Record<string, unknown>): Promise<T[]> => {
+        queryCalls.push({ cypher, params });
         callCount++;
         if (callCount === 1) {
           // PR query
           return [{
             uuid: 'pr-owner-repo-42',
+            name: 'PR:owner/repo#42',
             content: JSON.stringify(prContent),
+            group_id: 'user:test',
             created_at: '2026-01-26T00:00:00Z',
           }] as T[];
         }
@@ -535,6 +488,39 @@ describe('Neo4jPullRequestRepository', () => {
       assert.ok(Array.isArray(result.issues));
       assert.ok(Array.isArray(result.checks));
       assert.ok(Array.isArray(result.comments));
+    });
+  });
+
+  describe('findIssuesByPr()', () => {
+    it('should query with correct relationship pattern', async () => {
+      queryResults = [];
+      await repo.findIssuesByPr('user:test', 'owner/repo', 42);
+
+      assert.strictEqual(queryCalls.length, 1);
+      assert.ok(queryCalls[0].cypher.includes('CLOSES'));
+      assert.strictEqual(queryCalls[0].params?.prName, 'PR:owner/repo#42');
+    });
+  });
+
+  describe('findChecksByPr()', () => {
+    it('should query with correct relationship pattern', async () => {
+      queryResults = [];
+      await repo.findChecksByPr('user:test', 'owner/repo', 42);
+
+      assert.strictEqual(queryCalls.length, 1);
+      assert.ok(queryCalls[0].cypher.includes('HAS_CHECK'));
+      assert.strictEqual(queryCalls[0].params?.prName, 'PR:owner/repo#42');
+    });
+  });
+
+  describe('findCommentsByPr()', () => {
+    it('should query with correct relationship pattern', async () => {
+      queryResults = [];
+      await repo.findCommentsByPr('user:test', 'owner/repo', 42);
+
+      assert.strictEqual(queryCalls.length, 1);
+      assert.ok(queryCalls[0].cypher.includes('HAS_COMMENT'));
+      assert.strictEqual(queryCalls[0].params?.prName, 'PR:owner/repo#42');
     });
   });
 });

@@ -15,7 +15,7 @@ export type PullRequestStatus = 'open' | 'merged' | 'closed';
 /**
  * PR check status values.
  */
-export type CheckStatus = 'pending' | 'success' | 'failure' | 'skipped';
+export type CheckStatus = 'pending' | 'success' | 'failure' | 'cancelled' | 'skipped';
 
 /**
  * PR comment status values.
