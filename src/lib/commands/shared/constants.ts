@@ -2,8 +2,8 @@
  * Shared constants for CLI commands.
  */
 
-import fs from 'fs-extra';
 import path from 'path';
+import fs from 'fs-extra';
 
 // Templates are copied into dist/project by postbuild; resolve relative to compiled file.
 export const TEMPLATE_ROOT = path.join(__dirname, '..', '..', '..', 'project');

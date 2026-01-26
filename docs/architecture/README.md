@@ -10,6 +10,7 @@ This directory contains technical documentation for Lisa's internal architecture
 | [MCP Sessions](./mcp-sessions.md) | MCP session lifecycle, initialization, and connection reuse |
 | [DAL Routing](./dal-routing.md) | Backend selection strategy and fallback behavior |
 | [Transcripts](./transcripts.md) | Claude Code transcript discovery, parsing, and capture |
+| [Events](./events.md) | Event-driven architecture, hooks, and handler patterns |
 
 ## Key Architectural Patterns
 
@@ -17,7 +18,7 @@ This directory contains technical documentation for Lisa's internal architecture
 
 Lisa follows Clean Architecture principles with clear layer separation:
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │                    CLI / Presentation                    │
 │                      (src/lib/cli.ts)                   │
@@ -67,6 +68,7 @@ const listRepo = router.getMemoryRepository('list');      // Routes to Neo4j
 ## Related Documentation
 
 - [ADR-001: Single Handler Pattern](../adr/ADR-001-single-handler-pattern.md) - Why handlers live in one location
+- [Events](./events.md) - Event-driven architecture and hook handlers
 - [Getting Started](../getting-started.md) - User-facing documentation
 - [Commands Reference](../commands.md) - CLI command documentation
 - [Configuration](../configuration.md) - Environment variables and settings

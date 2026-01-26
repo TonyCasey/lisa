@@ -30,7 +30,7 @@ findTranscript(providedPath?: string): string | null {
 
 ### Search Locations
 
-```
+```text
 ~/.claude/projects/<project>/transcript.jsonl  (primary)
 ~/.claude/transcript.jsonl                     (fallback)
 ```
@@ -122,7 +122,7 @@ parseTranscript(transcriptPath: string): IWorkSummary {
 
 ## Session Capture Flow
 
-```
+```text
 Claude Code Stop Hook
         │
         ▼
@@ -219,7 +219,7 @@ rateComplexity(work: IWorkSummary): 'low' | 'medium' | 'high' {
 
 The `lisa doctor --verbose` command shows transcript discovery details:
 
-```
+```text
 Transcript Discovery
   Search Paths:
     ✓ ~/.claude/projects

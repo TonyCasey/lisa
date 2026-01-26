@@ -5,8 +5,8 @@
  * Handles storage configuration (local Docker, Zep Cloud, or skip).
  */
 
-import fs from 'fs-extra';
 import path from 'path';
+import fs from 'fs-extra';
 import chalk from 'chalk';
 import { checkbox, input, password, select } from '@inquirer/prompts';
 import type { IServices } from '../interfaces/IServices';

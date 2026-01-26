@@ -177,7 +177,7 @@ await closeConnections(connections);
 
 ## Architecture Diagram
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                    RepositoryFactory                        │
 │  - Creates connections                                      │
