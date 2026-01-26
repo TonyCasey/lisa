@@ -49,6 +49,7 @@ export {
   McpTaskRepository,
   Neo4jMemoryRepository,
   Neo4jTaskRepository,
+  Neo4jPullRequestRepository,
   ZepMemoryRepository,
   ZepTaskRepository,
 } from './repositories';

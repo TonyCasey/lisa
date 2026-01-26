@@ -7,7 +7,7 @@
  * @see .dev/features/github-pr.md for full specification
  */
 
-import { execSync, spawnSync, type ExecSyncOptions } from 'child_process';
+import { execSync, spawnSync } from 'child_process';
 import type {
   IGhPrResponse,
   IGhCheckResponse,
@@ -45,32 +45,40 @@ export class GithubClient {
 
   /**
    * Execute a gh CLI command and parse JSON output.
+   * Uses spawnSync with shell: false to avoid shell injection.
    */
-  private async execGh<T>(args: string, parseJson = true): Promise<T> {
-    const command = `gh ${args}`;
+  private async execGh<T>(args: string[], parseJson = true): Promise<T> {
     let lastError: Error | undefined;
 
     for (let attempt = 0; attempt <= this.options.maxRetries; attempt++) {
       try {
-        const execOptions: ExecSyncOptions = {
+        const result = spawnSync('gh', args, {
           encoding: 'utf-8',
           timeout: this.options.timeoutMs,
-          stdio: ['pipe', 'pipe', 'pipe'],
           maxBuffer: 10 * 1024 * 1024, // 10MB for large PR diffs
-        };
+          shell: false, // Critical: avoid shell interpolation
+        });
 
-        const output = execSync(command, execOptions) as string;
-
-        if (parseJson) {
-          return JSON.parse(output.trim()) as T;
+        if (result.error) {
+          throw result.error;
         }
-        return output.trim() as unknown as T;
+
+        if (result.status !== 0) {
+          const errorMessage = result.stderr || result.stdout || 'Unknown error';
+          throw new Error(errorMessage);
+        }
+
+        const output = result.stdout.trim();
+        if (parseJson) {
+          return JSON.parse(output) as T;
+        }
+        return output as unknown as T;
       } catch (error) {
         lastError = error as Error;
-        const errorMessage = (error as { stderr?: Buffer })?.stderr?.toString() || (error as Error).message;
+        const errorMessage = (error as Error).message || '';
 
         // Check for specific error types
-        if (errorMessage.includes('gh: command not found') || errorMessage.includes('is not recognized')) {
+        if (errorMessage.includes('ENOENT') || errorMessage.includes('gh: command not found') || errorMessage.includes('is not recognized')) {
           throw new GithubClientError(
             'GitHub CLI (gh) is not installed. Install from https://cli.github.com/',
             'NOT_INSTALLED',
@@ -100,7 +108,7 @@ export class GithubClient {
 
         if (errorMessage.includes('Could not resolve') || errorMessage.includes('not found') || errorMessage.includes('404')) {
           throw new GithubClientError(
-            `Resource not found: ${args}`,
+            `Resource not found: ${args.join(' ')}`,
             'NOT_FOUND',
             lastError
           );
@@ -115,7 +123,7 @@ export class GithubClient {
     }
 
     throw new GithubClientError(
-      `GitHub CLI command failed: ${command}`,
+      `GitHub CLI command failed: gh ${args.join(' ')}`,
       'UNKNOWN',
       lastError
     );
@@ -139,7 +147,7 @@ export class GithubClient {
       return this.execGhWithStdin<T>(args, JSON.stringify(data));
     }
 
-    return this.execGh<T>(args.join(' '));
+    return this.execGh<T>(args);
   }
 
   /**
@@ -258,7 +266,7 @@ export class GithubClient {
       'repository',
     ].join(',');
 
-    return this.execGh<IGhPrResponse>(`pr view ${prNumber} --repo ${repo} --json ${fields}`);
+    return this.execGh<IGhPrResponse>(['pr', 'view', String(prNumber), '--repo', repo, '--json', fields]);
   }
 
   /**
@@ -270,7 +278,7 @@ export class GithubClient {
     const fields = ['name', 'state', 'conclusion', 'detailsUrl', 'startedAt', 'completedAt'].join(',');
 
     try {
-      return await this.execGh<IGhCheckResponse[]>(`pr checks ${prNumber} --repo ${repo} --json ${fields}`);
+      return await this.execGh<IGhCheckResponse[]>(['pr', 'checks', String(prNumber), '--repo', repo, '--json', fields]);
     } catch (error) {
       if (error instanceof GithubClientError && error.code === 'NOT_FOUND') {
         // Distinguish between "PR not found" vs "PR has no checks"
@@ -308,7 +316,7 @@ export class GithubClient {
    * Get the diff for a PR.
    */
   async getPrDiff(repo: string, prNumber: number): Promise<string> {
-    return this.execGh<string>(`pr diff ${prNumber} --repo ${repo}`, false);
+    return this.execGh<string>(['pr', 'diff', String(prNumber), '--repo', repo], false);
   }
 
   // ============================================================
@@ -331,7 +339,7 @@ export class GithubClient {
       'author',
     ].join(',');
 
-    return this.execGh<IGhIssueResponse>(`issue view ${issueNumber} --repo ${repo} --json ${fields}`);
+    return this.execGh<IGhIssueResponse>(['issue', 'view', String(issueNumber), '--repo', repo, '--json', fields]);
   }
 
   // ============================================================

@@ -7,6 +7,7 @@ import chalk from 'chalk';
 import {createDefaultServices} from './services';
 import {IScanOptions, runScan} from './scanner';
 import {createLogger, withCorrelation} from './infrastructure';
+import type {Neo4jConnectionManager} from './infrastructure/dal/connections';
 import {bootstrapContainer, TOKENS} from './infrastructure/di';
 import type {IMediator} from './application/mediator';
 import {
@@ -678,6 +679,275 @@ issueCmd
         console.log(`Confidence: ${(result.confidence * 100).toFixed(0)}%`);
       }
     }
+  });
+
+// Subcommand: lisa pr
+// PR workflow commands (checks, comments, watch)
+const prCmd = program
+  .command('pr')
+  .description('PR workflow operations (checks, comments, watch)');
+
+prCmd
+  .command('checks <pr-number>')
+  .description('Get CI check status for a PR')
+  .option('-r, --repo <repo>', 'Repository (owner/repo format)')
+  .option('--json', 'Output as JSON')
+  .option('--no-save', 'Do not save results to Neo4j')
+  .action(async (prNumber: string, opts) => {
+    await withCorrelation(async () => {
+      const log = cliLogger.child({ command: 'pr checks' });
+      log.info('Fetching PR checks', { prNumber, repo: opts.repo });
+
+      let neo4jConnection: Neo4jConnectionManager | undefined;
+      try {
+        const { GithubClient, Neo4jPullRequestRepository, createNeo4jConnectionManager } = await import('./infrastructure');
+        const { PrChecksHandler } = await import('./application/handlers');
+
+        const githubClient = new GithubClient();
+        neo4jConnection = createNeo4jConnectionManager();
+        const prRepository = new Neo4jPullRequestRepository(neo4jConnection);
+
+        const handler = new PrChecksHandler(githubClient, prRepository);
+        const result = await handler.execute({
+          prNumber: parseInt(prNumber, 10),
+          repo: opts.repo,
+          saveToNeo4j: opts.save !== false,
+        });
+
+        if (opts.json) {
+          console.log(JSON.stringify(result, null, 2));
+        } else {
+          console.log(chalk.bold(`PR #${result.prNumber} Checks`));
+          if (result.title) {
+            console.log(chalk.dim(result.title));
+          }
+          console.log('');
+          console.log(result.summary);
+          console.log('');
+
+          for (const check of result.checks) {
+            const statusSymbol = {
+              success: chalk.green('✓'),
+              failure: chalk.red('✗'),
+              pending: chalk.yellow('○'),
+              cancelled: chalk.gray('○'),
+              skipped: chalk.gray('-'),
+            };
+            console.log(`  ${statusSymbol[check.status]} ${check.name}`);
+            if (check.detailsUrl && check.status === 'failure') {
+              console.log(`    ${chalk.dim(check.detailsUrl)}`);
+            }
+          }
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        log.error('Failed to fetch PR checks', { error: message });
+        console.error(chalk.red(`Failed to fetch checks: ${message}`));
+        process.exit(1);
+      } finally {
+        if (neo4jConnection) {
+          await neo4jConnection.disconnect();
+        }
+      }
+    });
+  });
+
+prCmd
+  .command('comments <pr-number>')
+  .description('Fetch and display PR review comments')
+  .option('-r, --repo <repo>', 'Repository (owner/repo format)')
+  .option('-f, --filter <status>', 'Filter by status (pending, addressed, resolved)')
+  .option('--json', 'Output as JSON')
+  .option('--no-save', 'Do not save results to Neo4j')
+  .action(async (prNumber: string, opts) => {
+    await withCorrelation(async () => {
+      const log = cliLogger.child({ command: 'pr comments' });
+      log.info('Fetching PR comments', { prNumber, repo: opts.repo, filter: opts.filter });
+
+      let neo4jConnection: Neo4jConnectionManager | undefined;
+      try {
+        const { GithubClient, Neo4jPullRequestRepository, createNeo4jConnectionManager } = await import('./infrastructure');
+        const { PrCommentsHandler } = await import('./application/handlers');
+
+        const githubClient = new GithubClient();
+        neo4jConnection = createNeo4jConnectionManager();
+        const prRepository = new Neo4jPullRequestRepository(neo4jConnection);
+
+        const handler = new PrCommentsHandler(githubClient, prRepository);
+        const result = await handler.execute({
+          prNumber: parseInt(prNumber, 10),
+          repo: opts.repo,
+          filter: opts.filter,
+          saveToNeo4j: opts.save !== false,
+        });
+
+        if (opts.json) {
+          console.log(JSON.stringify(result, null, 2));
+        } else {
+          console.log(result.formattedOutput);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        log.error('Failed to fetch PR comments', { error: message });
+        console.error(chalk.red(`Failed to fetch comments: ${message}`));
+        process.exit(1);
+      } finally {
+        if (neo4jConnection) {
+          await neo4jConnection.disconnect();
+        }
+      }
+    });
+  });
+
+prCmd
+  .command('watch <pr-number>')
+  .description('Start watching a PR for updates')
+  .option('-r, --repo <repo>', 'Repository (owner/repo format)')
+  .action(async (prNumber: string, opts) => {
+    await withCorrelation(async () => {
+      const log = cliLogger.child({ command: 'pr watch' });
+      log.info('Watching PR', { prNumber, repo: opts.repo });
+
+      let neo4jConnection: Neo4jConnectionManager | undefined;
+      try {
+        const { GithubClient, Neo4jPullRequestRepository, createNeo4jConnectionManager } = await import('./infrastructure');
+        const { PrWatchHandler } = await import('./application/handlers');
+
+        const githubClient = new GithubClient();
+        neo4jConnection = createNeo4jConnectionManager();
+        const prRepository = new Neo4jPullRequestRepository(neo4jConnection);
+
+        const handler = new PrWatchHandler(githubClient, prRepository);
+        const result = await handler.watch({
+          prNumber: parseInt(prNumber, 10),
+          repo: opts.repo,
+        });
+
+        if (result.success) {
+          console.log(chalk.green(result.message));
+        } else {
+          console.error(chalk.red(result.message));
+          process.exit(1);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        log.error('Failed to watch PR', { error: message });
+        console.error(chalk.red(`Failed to watch PR: ${message}`));
+        process.exit(1);
+      } finally {
+        if (neo4jConnection) {
+          await neo4jConnection.disconnect();
+        }
+      }
+    });
+  });
+
+prCmd
+  .command('unwatch <pr-number>')
+  .description('Stop watching a PR')
+  .option('-r, --repo <repo>', 'Repository (owner/repo format)')
+  .action(async (prNumber: string, opts) => {
+    await withCorrelation(async () => {
+      const log = cliLogger.child({ command: 'pr unwatch' });
+      log.info('Unwatching PR', { prNumber, repo: opts.repo });
+
+      let neo4jConnection: Neo4jConnectionManager | undefined;
+      try {
+        const { GithubClient, Neo4jPullRequestRepository, createNeo4jConnectionManager } = await import('./infrastructure');
+        const { PrWatchHandler } = await import('./application/handlers');
+
+        const githubClient = new GithubClient();
+        neo4jConnection = createNeo4jConnectionManager();
+        const prRepository = new Neo4jPullRequestRepository(neo4jConnection);
+
+        const handler = new PrWatchHandler(githubClient, prRepository);
+        const result = await handler.unwatch({
+          prNumber: parseInt(prNumber, 10),
+          repo: opts.repo,
+        });
+
+        if (result.success) {
+          console.log(chalk.green(result.message));
+        } else {
+          console.error(chalk.red(result.message));
+          process.exit(1);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        log.error('Failed to unwatch PR', { error: message });
+        console.error(chalk.red(`Failed to unwatch PR: ${message}`));
+        process.exit(1);
+      } finally {
+        if (neo4jConnection) {
+          await neo4jConnection.disconnect();
+        }
+      }
+    });
+  });
+
+prCmd
+  .command('watching')
+  .description('List all PRs being watched')
+  .option('-r, --repo <repo>', 'Filter by repository (owner/repo format)')
+  .option('-l, --limit <n>', 'Max results', '20')
+  .option('--json', 'Output as JSON')
+  .action(async (opts) => {
+    await withCorrelation(async () => {
+      const log = cliLogger.child({ command: 'pr watching' });
+      log.info('Listing watched PRs', { repo: opts.repo });
+
+      let neo4jConnection: Neo4jConnectionManager | undefined;
+      try {
+        const { GithubClient, Neo4jPullRequestRepository, createNeo4jConnectionManager } = await import('./infrastructure');
+        const { PrWatchHandler } = await import('./application/handlers');
+
+        const githubClient = new GithubClient();
+        neo4jConnection = createNeo4jConnectionManager();
+        const prRepository = new Neo4jPullRequestRepository(neo4jConnection);
+
+        const handler = new PrWatchHandler(githubClient, prRepository);
+        const result = await handler.list({
+          repo: opts.repo,
+          limit: parseInt(opts.limit, 10),
+        });
+
+        if (opts.json) {
+          console.log(JSON.stringify(result, null, 2));
+        } else {
+          console.log(chalk.bold(result.message));
+          console.log('');
+
+          if (result.watchedPrs && result.watchedPrs.length > 0) {
+            for (const pr of result.watchedPrs) {
+              const statusEmoji = {
+                open: '🟢',
+                merged: '🟣',
+                closed: '⚪',
+              };
+              const checksEmoji = {
+                success: '✅',
+                failure: '❌',
+                pending: '⏳',
+                cancelled: '⚪',
+                skipped: '⚪',
+              };
+
+              console.log(`${statusEmoji[pr.status]} #${pr.number} ${pr.title}`);
+              console.log(`   ${chalk.dim(pr.repo)} ${checksEmoji[pr.checksStatus]} ${pr.unresolvedComments > 0 ? `💬${pr.unresolvedComments}` : ''}`);
+            }
+          }
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        log.error('Failed to list watched PRs', { error: message });
+        console.error(chalk.red(`Failed to list watched PRs: ${message}`));
+        process.exit(1);
+      } finally {
+        if (neo4jConnection) {
+          await neo4jConnection.disconnect();
+        }
+      }
+    });
   });
 
 // Subcommand: lisa hook
