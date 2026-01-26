@@ -1,0 +1,391 @@
+/**
+ * GitHub CLI Wrapper
+ *
+ * Wraps the `gh` CLI to provide a clean TypeScript interface for GitHub API operations.
+ * Uses the existing `gh` authentication and handles rate limiting automatically.
+ *
+ * @see .dev/features/github-pr.md for full specification
+ */
+
+import { execSync, type ExecSyncOptions } from 'child_process';
+import type {
+  IGhPrResponse,
+  IGhCheckResponse,
+  IGhReviewResponse,
+  IGhReviewCommentResponse,
+  IGhIssueResponse,
+  IGhUserResponse,
+  IGithubClientOptions,
+} from './types';
+import { GithubClientError } from './types';
+
+/**
+ * Default options for GithubClient.
+ */
+const DEFAULT_OPTIONS: Required<IGithubClientOptions> = {
+  maxRetries: 3,
+  retryDelayMs: 1000,
+  timeoutMs: 30000,
+};
+
+/**
+ * GitHub CLI wrapper for PR operations.
+ */
+export class GithubClient {
+  private readonly options: Required<IGithubClientOptions>;
+  private cachedUser: IGhUserResponse | null = null;
+
+  constructor(options?: IGithubClientOptions) {
+    this.options = { ...DEFAULT_OPTIONS, ...options };
+  }
+
+  // ============================================================
+  // Core Execution
+  // ============================================================
+
+  /**
+   * Execute a gh CLI command and parse JSON output.
+   */
+  private async execGh<T>(args: string, parseJson = true): Promise<T> {
+    const command = `gh ${args}`;
+    let lastError: Error | undefined;
+
+    for (let attempt = 0; attempt <= this.options.maxRetries; attempt++) {
+      try {
+        const execOptions: ExecSyncOptions = {
+          encoding: 'utf-8',
+          timeout: this.options.timeoutMs,
+          stdio: ['pipe', 'pipe', 'pipe'],
+          maxBuffer: 10 * 1024 * 1024, // 10MB for large PR diffs
+        };
+
+        const output = execSync(command, execOptions) as string;
+
+        if (parseJson) {
+          return JSON.parse(output.trim()) as T;
+        }
+        return output.trim() as unknown as T;
+      } catch (error) {
+        lastError = error as Error;
+        const errorMessage = (error as { stderr?: Buffer })?.stderr?.toString() || (error as Error).message;
+
+        // Check for specific error types
+        if (errorMessage.includes('gh: command not found') || errorMessage.includes('is not recognized')) {
+          throw new GithubClientError(
+            'GitHub CLI (gh) is not installed. Install from https://cli.github.com/',
+            'NOT_INSTALLED',
+            lastError
+          );
+        }
+
+        if (errorMessage.includes('not logged in') || errorMessage.includes('authentication')) {
+          throw new GithubClientError(
+            'GitHub CLI is not authenticated. Run: gh auth login',
+            'NOT_AUTHENTICATED',
+            lastError
+          );
+        }
+
+        if (errorMessage.includes('rate limit') || errorMessage.includes('API rate limit')) {
+          if (attempt < this.options.maxRetries) {
+            await this.delay(this.options.retryDelayMs * (attempt + 1));
+            continue;
+          }
+          throw new GithubClientError(
+            'GitHub API rate limit exceeded. Try again later.',
+            'RATE_LIMITED',
+            lastError
+          );
+        }
+
+        if (errorMessage.includes('Could not resolve') || errorMessage.includes('not found') || errorMessage.includes('404')) {
+          throw new GithubClientError(
+            `Resource not found: ${args}`,
+            'NOT_FOUND',
+            lastError
+          );
+        }
+
+        // Retry on transient errors
+        if (attempt < this.options.maxRetries) {
+          await this.delay(this.options.retryDelayMs * (attempt + 1));
+          continue;
+        }
+      }
+    }
+
+    throw new GithubClientError(
+      `GitHub CLI command failed: ${command}`,
+      'UNKNOWN',
+      lastError
+    );
+  }
+
+  /**
+   * Execute a gh api command.
+   */
+  private async execGhApi<T>(endpoint: string, method = 'GET', data?: Record<string, string>): Promise<T> {
+    let args = `api ${endpoint}`;
+
+    if (method !== 'GET') {
+      args += ` -X ${method}`;
+    }
+
+    if (data) {
+      for (const [key, value] of Object.entries(data)) {
+        args += ` -f ${key}="${value.replace(/"/g, '\\"')}"`;
+      }
+    }
+
+    return this.execGh<T>(args);
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // ============================================================
+  // PR Operations
+  // ============================================================
+
+  /**
+   * Get PR details.
+   */
+  async getPr(repo: string, prNumber: number): Promise<IGhPrResponse> {
+    const fields = [
+      'number',
+      'title',
+      'state',
+      'body',
+      'headRefName',
+      'baseRefName',
+      'url',
+      'isDraft',
+      'mergeable',
+      'createdAt',
+      'updatedAt',
+      'closingIssuesReferences',
+      'author',
+      'repository',
+    ].join(',');
+
+    return this.execGh<IGhPrResponse>(`pr view ${prNumber} --repo ${repo} --json ${fields}`);
+  }
+
+  /**
+   * Get CI check statuses for a PR.
+   */
+  async getPrChecks(repo: string, prNumber: number): Promise<readonly IGhCheckResponse[]> {
+    const fields = ['name', 'state', 'conclusion', 'detailsUrl', 'startedAt', 'completedAt'].join(',');
+
+    try {
+      return await this.execGh<IGhCheckResponse[]>(`pr checks ${prNumber} --repo ${repo} --json ${fields}`);
+    } catch (error) {
+      // No checks is not an error
+      if (error instanceof GithubClientError && error.code === 'NOT_FOUND') {
+        return [];
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Get PR reviews.
+   */
+  async getPrReviews(repo: string, prNumber: number): Promise<readonly IGhReviewResponse[]> {
+    const [owner, repoName] = repo.split('/');
+    return this.execGhApi<IGhReviewResponse[]>(`repos/${owner}/${repoName}/pulls/${prNumber}/reviews`);
+  }
+
+  /**
+   * Get PR review comments (inline comments on diff).
+   */
+  async getPrComments(repo: string, prNumber: number): Promise<readonly IGhReviewCommentResponse[]> {
+    const [owner, repoName] = repo.split('/');
+    return this.execGhApi<IGhReviewCommentResponse[]>(`repos/${owner}/${repoName}/pulls/${prNumber}/comments`);
+  }
+
+  /**
+   * Get the diff for a PR.
+   */
+  async getPrDiff(repo: string, prNumber: number): Promise<string> {
+    return this.execGh<string>(`pr diff ${prNumber} --repo ${repo}`, false);
+  }
+
+  // ============================================================
+  // Issue Operations
+  // ============================================================
+
+  /**
+   * Get issue details.
+   */
+  async getIssue(repo: string, issueNumber: number): Promise<IGhIssueResponse> {
+    const fields = [
+      'number',
+      'title',
+      'state',
+      'body',
+      'url',
+      'createdAt',
+      'updatedAt',
+      'labels',
+      'author',
+    ].join(',');
+
+    return this.execGh<IGhIssueResponse>(`issue view ${issueNumber} --repo ${repo} --json ${fields}`);
+  }
+
+  // ============================================================
+  // Comment Operations
+  // ============================================================
+
+  /**
+   * Reply to a PR review comment.
+   */
+  async replyToComment(repo: string, commentId: number, body: string): Promise<IGhReviewCommentResponse> {
+    const [owner, repoName] = repo.split('/');
+    return this.execGhApi<IGhReviewCommentResponse>(
+      `repos/${owner}/${repoName}/pulls/comments/${commentId}/replies`,
+      'POST',
+      { body }
+    );
+  }
+
+  /**
+   * Add a reaction to a PR comment.
+   * @param reaction - One of: +1, -1, laugh, confused, heart, hooray, rocket, eyes
+   */
+  async addReaction(
+    repo: string,
+    commentId: number,
+    reaction: '+1' | '-1' | 'laugh' | 'confused' | 'heart' | 'hooray' | 'rocket' | 'eyes'
+  ): Promise<void> {
+    const [owner, repoName] = repo.split('/');
+    await this.execGhApi(
+      `repos/${owner}/${repoName}/pulls/comments/${commentId}/reactions`,
+      'POST',
+      { content: reaction }
+    );
+  }
+
+  // ============================================================
+  // User Operations
+  // ============================================================
+
+  /**
+   * Get the currently authenticated GitHub user.
+   * Cached after first call.
+   */
+  async getCurrentUser(): Promise<IGhUserResponse> {
+    if (this.cachedUser) {
+      return this.cachedUser;
+    }
+
+    this.cachedUser = await this.execGhApi<IGhUserResponse>('user');
+    return this.cachedUser;
+  }
+
+  /**
+   * Get the user ID in Lisa's format for user-scoped storage.
+   * Returns format: "user:<github-username>"
+   */
+  async getUserId(): Promise<string> {
+    const user = await this.getCurrentUser();
+    return `user:${user.login.toLowerCase()}`;
+  }
+
+  // ============================================================
+  // Repository Operations
+  // ============================================================
+
+  /**
+   * Get the current repository from git remote.
+   * Returns format: "owner/repo"
+   */
+  async getCurrentRepo(): Promise<string> {
+    try {
+      const output = execSync('gh repo view --json nameWithOwner --jq .nameWithOwner', {
+        encoding: 'utf-8',
+        timeout: this.options.timeoutMs,
+      });
+      return output.trim();
+    } catch {
+      // Fallback to git remote parsing
+      try {
+        const remote = execSync('git remote get-url origin', { encoding: 'utf-8' }).trim();
+        // Parse SSH format: git@github.com:owner/repo.git
+        const sshMatch = remote.match(/git@github\.com:(.+?)(?:\.git)?$/);
+        if (sshMatch) {
+          return sshMatch[1];
+        }
+        // Parse HTTPS format: https://github.com/owner/repo.git
+        const httpsMatch = remote.match(/github\.com\/(.+?)(?:\.git)?$/);
+        if (httpsMatch) {
+          return httpsMatch[1];
+        }
+      } catch {
+        // Ignore git errors
+      }
+      throw new GithubClientError(
+        'Could not determine current repository',
+        'UNKNOWN'
+      );
+    }
+  }
+
+  // ============================================================
+  // PR Creation
+  // ============================================================
+
+  /**
+   * Create a new PR.
+   */
+  async createPr(options: {
+    repo: string;
+    title: string;
+    body: string;
+    base?: string;
+    head?: string;
+    draft?: boolean;
+  }): Promise<IGhPrResponse> {
+    let args = `pr create --repo ${options.repo} --title "${options.title.replace(/"/g, '\\"')}"`;
+    
+    if (options.base) {
+      args += ` --base ${options.base}`;
+    }
+    if (options.head) {
+      args += ` --head ${options.head}`;
+    }
+    if (options.draft) {
+      args += ' --draft';
+    }
+
+    // Use heredoc for body to preserve formatting
+    args += ` --body "${options.body.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`;
+
+    // Create returns the URL, not JSON - so we get PR details after
+    const url = await this.execGh<string>(args, false);
+    const prNumberMatch = url.match(/\/pull\/(\d+)/);
+    if (!prNumberMatch) {
+      throw new GithubClientError(`Failed to parse PR URL: ${url}`, 'UNKNOWN');
+    }
+
+    return this.getPr(options.repo, parseInt(prNumberMatch[1], 10));
+  }
+
+  // ============================================================
+  // Health Check
+  // ============================================================
+
+  /**
+   * Check if gh CLI is installed and authenticated.
+   */
+  async isAvailable(): Promise<boolean> {
+    try {
+      await this.getCurrentUser();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}

@@ -30,5 +30,8 @@ export * from './logging';
 // Utilities (cancellation, etc.)
 export * from './utils';
 
+// GitHub CLI wrapper
+export * from './github';
+
 // Note: CLI adapters (./adapters/claude/, ./adapters/opencode/)
 // are entry points, not exported from here.
