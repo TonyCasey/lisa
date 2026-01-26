@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.6.0] - 2026-01-26
+
+### Added
+
+#### PR Entity Types and Neo4j Repository ([#32](https://github.com/TonyCasey/lisa/issues/32))
+- **Domain types for PR tracking** - New interfaces in `src/lib/domain/interfaces/types/IPullRequest.ts`
+  - `IPullRequest` - PR entity with watching, checksStatus, unresolvedComments tracking
+  - `IGitHubIssue` - Issue linked to PRs with optional PR reference
+  - `IPrCheck` - CI check status (pending, success, failure, cancelled)
+  - `IPrComment` - Review comment with resolved/unresolved status tracking
+  - Factory functions: `createPullRequest()`, `createGitHubIssue()` with sensible defaults
+
+- **Repository interface for PR operations** - New interfaces in `src/lib/domain/interfaces/dal/IPullRequestRepository.ts`
+  - `IPullRequestRepositoryReader` - findPr, findWatchedPrs, findIssuesByPr, findChecksByPr, findCommentsByPr, getPrWithRelations
+  - `IPullRequestRepositoryWriter` - upsertPr, upsertIssue, upsertCheck, upsertComment, linkPrToIssues, setWatching, updateLastPolled, deletePr
+  - `IPullRequestRepositoryCapabilities` - supportsWrite() returns true (direct write, not MCP queue)
+
+- **Neo4j repository implementation** - `src/lib/infrastructure/dal/repositories/neo4j/Neo4jPullRequestRepository.ts`
+  - Direct read/write to Neo4j (bypasses MCP async queue for immediate persistence)
+  - User-scoped storage: `group_id: "user:<git-config-name>"` format
+  - UUID pattern: `pr-{owner}-{repo}-{number}`
+  - Name pattern: `PR:{owner}/{repo}#{number}`
+  - Relationship model: `PR -[:CLOSES]-> Issue`, `PR -[:HAS_CHECK]-> Check`, `PR -[:HAS_COMMENT]-> Comment`
+
+### Testing
+- 8 new unit tests for IPullRequest types and factory functions
+- 26 new unit tests for Neo4jPullRequestRepository
+- Total unit tests: 428 (up from 394)
+
+### New Files
+- `src/lib/domain/interfaces/types/IPullRequest.ts` - PR domain types
+- `src/lib/domain/interfaces/dal/IPullRequestRepository.ts` - Repository interfaces
+- `src/lib/infrastructure/dal/repositories/neo4j/Neo4jPullRequestRepository.ts` - Neo4j implementation
+- `tests/unit/src/lib/domain/interfaces/types/IPullRequest.test.ts` - Type tests
+- `tests/unit/src/lib/infrastructure/dal/repositories/neo4j/Neo4jPullRequestRepository.test.ts` - Repository tests
+
+---
+
 ## [2.5.5] - 2026-01-26
 
 ### Changed
