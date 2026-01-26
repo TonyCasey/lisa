@@ -7,7 +7,7 @@
  * @see .dev/features/github-pr.md for full specification
  */
 
-import type { GithubClient } from '../../../infrastructure/github';
+import type { IGithubClient } from '../../../domain/interfaces/dal/IGithubClient';
 import type { IPullRequestRepository } from '../../../domain/interfaces/dal/IPullRequestRepository';
 import type { CheckStatus } from '../../../domain/interfaces/types/IPullRequest';
 
@@ -42,7 +42,7 @@ export interface IPrChecksOptions {
  */
 export class PrChecksHandler {
   constructor(
-    private readonly githubClient: GithubClient,
+    private readonly githubClient: IGithubClient,
     private readonly prRepository: IPullRequestRepository
   ) {}
 

@@ -73,3 +73,6 @@ export type {
 } from './IRepositoryRouter';
 
 export { DEFAULT_ROUTING_RULES } from './IRepositoryRouter';
+
+// GitHub Client
+export type { IGithubClient } from './IGithubClient';

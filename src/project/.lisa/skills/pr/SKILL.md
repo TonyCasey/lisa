@@ -26,7 +26,7 @@ lisa pr checks <PR_NUMBER> --json
 ```
 
 **Output:**
-```
+```text
 PR #50 Checks
 fix(github): prevent shell injection in GithubClient
 
@@ -46,7 +46,7 @@ lisa pr comments <PR_NUMBER>
 # View only pending comments
 lisa pr comments <PR_NUMBER> --filter pending
 
-# View only unresolved (pending + addressed)
+# View only addressed comments
 lisa pr comments <PR_NUMBER> --filter addressed
 
 # Output as JSON
@@ -54,7 +54,7 @@ lisa pr comments <PR_NUMBER> --json
 ```
 
 **Output:**
-```
+```text
 PR: fix(github): prevent shell injection in GithubClient
 
 Comments: 4 total (2 pending, 1 addressed, 1 resolved)
@@ -83,7 +83,7 @@ lisa pr watch <PR_NUMBER> --repo owner/repo
 ```
 
 **Output:**
-```
+```text
 Now watching PR #50: fix(github): prevent shell injection in GithubClient
 ```
 
@@ -109,7 +109,7 @@ lisa pr watching --json
 ```
 
 **Output:**
-```
+```text
 Watching 3 PR(s)
 
 :green_circle: #50 fix(github): prevent shell injection in GithubClient

@@ -7,7 +7,7 @@
  * @see .dev/features/github-pr.md for full specification
  */
 
-import type { GithubClient } from '../../../infrastructure/github';
+import type { IGithubClient } from '../../../domain/interfaces/dal/IGithubClient';
 import type { IPullRequestRepository } from '../../../domain/interfaces/dal/IPullRequestRepository';
 import type { CommentStatus } from '../../../domain/interfaces/types/IPullRequest';
 
@@ -60,7 +60,7 @@ export interface IPrCommentsOptions {
  */
 export class PrCommentsHandler {
   constructor(
-    private readonly githubClient: GithubClient,
+    private readonly githubClient: IGithubClient,
     private readonly prRepository: IPullRequestRepository
   ) {}
 

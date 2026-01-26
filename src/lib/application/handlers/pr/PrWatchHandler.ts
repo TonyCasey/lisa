@@ -7,7 +7,7 @@
  * @see .dev/features/github-pr.md for full specification
  */
 
-import type { GithubClient } from '../../../infrastructure/github';
+import type { IGithubClient } from '../../../domain/interfaces/dal/IGithubClient';
 import type { IPullRequestRepository } from '../../../domain/interfaces/dal/IPullRequestRepository';
 import type { IPullRequest, CheckStatus } from '../../../domain/interfaces/types/IPullRequest';
 import { createPullRequest } from '../../../domain/interfaces/types/IPullRequest';
@@ -58,7 +58,7 @@ export interface IPrWatchingOptions {
  */
 export class PrWatchHandler {
   constructor(
-    private readonly githubClient: GithubClient,
+    private readonly githubClient: IGithubClient,
     private readonly prRepository: IPullRequestRepository
   ) {}
 
