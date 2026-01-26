@@ -31,10 +31,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Name pattern: `PR:{owner}/{repo}#{number}`
   - Relationship model: `PR -[:CLOSES]-> Issue`, `PR -[:HAS_CHECK]-> Check`, `PR -[:HAS_COMMENT]-> Comment`
 
+#### GitHub CLI Wrapper ([#33](https://github.com/TonyCasey/lisa/issues/33))
+- **GithubClient class** - Wraps `gh` CLI for GitHub API operations
+  - `getPr(repo, prNumber)` - Fetch PR details with closing issues
+  - `getPrChecks(repo, prNumber)` - Fetch CI check statuses
+  - `getPrReviews(repo, prNumber)` - Fetch PR reviews
+  - `getPrComments(repo, prNumber)` - Fetch inline review comments
+  - `getPrDiff(repo, prNumber)` - Fetch PR diff
+  - `getIssue(repo, issueNumber)` - Fetch issue details
+  - `replyToComment(repo, commentId, body)` - Reply to review comment
+  - `addReaction(repo, commentId, reaction)` - Add emoji reaction
+  - `getCurrentUser()` - Get authenticated user (cached)
+  - `getUserId()` - Get user ID in Lisa format (`user:<username>`)
+  - `getCurrentRepo()` - Detect repo from git remote
+  - `createPr(options)` - Create new PR
+  - `isAvailable()` - Check if gh CLI is installed/authenticated
+
+- **Error handling** - `GithubClientError` with typed error codes
+  - `NOT_INSTALLED` - gh CLI not installed
+  - `NOT_AUTHENTICATED` - gh CLI not logged in
+  - `RATE_LIMITED` - GitHub API rate limit exceeded
+  - `NOT_FOUND` - Resource not found
+  - `API_ERROR` - Generic API error
+
+- **Retry logic** - Configurable retries for transient failures
+  - Default: 3 retries with exponential backoff
+  - Automatic retry on rate limits
+
 ### Testing
 - 8 new unit tests for IPullRequest types and factory functions
 - 26 new unit tests for Neo4jPullRequestRepository
-- Total unit tests: 428 (up from 394)
+- 20 new unit tests for GithubClient
+- Total unit tests: 424 (up from 404)
 
 ### New Files
 - `src/lib/domain/interfaces/types/IPullRequest.ts` - PR domain types
@@ -42,6 +70,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `src/lib/infrastructure/dal/repositories/neo4j/Neo4jPullRequestRepository.ts` - Neo4j implementation
 - `tests/unit/src/lib/domain/interfaces/types/IPullRequest.test.ts` - Type tests
 - `tests/unit/src/lib/infrastructure/dal/repositories/neo4j/Neo4jPullRequestRepository.test.ts` - Repository tests
+- `src/lib/infrastructure/github/GithubClient.ts` - GitHub CLI wrapper
+- `src/lib/infrastructure/github/types.ts` - GitHub API response types
+- `tests/unit/src/lib/infrastructure/github/GithubClient.test.ts` - GithubClient tests
 
 ---
 
