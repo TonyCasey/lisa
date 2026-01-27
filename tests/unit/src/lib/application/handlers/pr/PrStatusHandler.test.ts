@@ -179,6 +179,32 @@ describe('PrStatusHandler', () => {
       assert.strictEqual(result.summary.blocked, 1);
     });
 
+    it('should mark PR as blocked when checks are cancelled', async () => {
+      const prs = [
+        createTestPr({ checksStatus: 'cancelled', unresolvedComments: 0 }),
+      ];
+      const repo = createMockRepository({ prs });
+      const handler = new PrStatusHandler(repo);
+
+      const result = await handler.execute();
+
+      assert.strictEqual(result.byRepo[0].prs[0].readyState, 'blocked');
+      assert.strictEqual(result.summary.blocked, 1);
+    });
+
+    it('should mark PR as blocked when checks are skipped', async () => {
+      const prs = [
+        createTestPr({ checksStatus: 'skipped', unresolvedComments: 0 }),
+      ];
+      const repo = createMockRepository({ prs });
+      const handler = new PrStatusHandler(repo);
+
+      const result = await handler.execute();
+
+      assert.strictEqual(result.byRepo[0].prs[0].readyState, 'blocked');
+      assert.strictEqual(result.summary.blocked, 1);
+    });
+
     it('should mark PR as blocked when has unresolved comments', async () => {
       const prs = [
         createTestPr({ checksStatus: 'success', unresolvedComments: 2 }),

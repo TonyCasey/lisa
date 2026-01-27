@@ -236,14 +236,25 @@ export class NotificationService implements INotificationService {
   }
 
   /**
+   * Escape string for XML attribute context.
+   */
+  private escapeForXmlAttribute(str: string): string {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  /**
    * Send Windows toast notification via PowerShell.
    * Uses -EncodedCommand to avoid shell escaping issues with quotes.
    * If URL is provided, clicking the notification opens the URL.
    * Includes Lisa icon if available.
    */
   private async sendWindowsNotification(title: string, body: string, url?: string): Promise<void> {
-    // Build launch attribute for clickable notifications
-    const launchAttr = url ? ` launch="${url}" activationType="protocol"` : '';
+    // Build launch attribute for clickable notifications (escape URL for XML safety)
+    const launchAttr = url ? ` launch="${this.escapeForXmlAttribute(url)}" activationType="protocol"` : '';
     
     // Check if Lisa icon exists
     const iconPath = await this.getIconPath();

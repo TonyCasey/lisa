@@ -25,8 +25,8 @@ export interface IPrStatusItem {
   readonly status: 'open' | 'merged' | 'closed';
   readonly isDraft: boolean;
   readonly checksStatus: CheckStatus;
-  readonly checksTotal: number;
-  readonly checksPassed: number;
+  readonly checksTotal?: number;  // Optional - may not be available yet
+  readonly checksPassed?: number; // Optional - may not be available yet
   readonly unresolvedComments: number;
   readonly hasApproval: boolean;
   readonly readyState: ReadyState;
@@ -153,9 +153,10 @@ export class PrStatusHandler {
     // Determine ready state based on criteria
     const readyState = this.determineReadyState(pr, isDraft);
 
-    // We don't have check counts stored yet, so estimate from status
-    const checksTotal = 1; // placeholder
-    const checksPassed = pr.checksStatus === 'success' ? 1 : 0;
+    // Check counts are optional - only set if we have real data
+    // The PR entity would need to store these from polling
+    const checksTotal = undefined; // Not available until we extend PR polling
+    const checksPassed = undefined;
 
     // We don't have approval status stored yet
     const hasApproval = false; // placeholder - would need GitHub API call
@@ -192,7 +193,11 @@ export class PrStatusHandler {
     if (isDraft) return 'draft';
 
     // Check blocking conditions
-    if (pr.checksStatus === 'failure') return 'blocked';
+    if (
+      pr.checksStatus === 'failure' ||
+      pr.checksStatus === 'cancelled' ||
+      pr.checksStatus === 'skipped'
+    ) return 'blocked';
     if (pr.checksStatus === 'pending') return 'pending';
     if (pr.unresolvedComments > 0) return 'blocked';
 
@@ -240,7 +245,11 @@ export class PrStatusHandler {
         prs: [...group.prs].sort((a, b) => {
           const priorityDiff = statePriority[a.readyState] - statePriority[b.readyState];
           if (priorityDiff !== 0) return priorityDiff;
-          // Secondary sort by PR number descending (newer first)
+          // Secondary sort by last updated (newer first)
+          const aUpdated = a.lastPolled ? Date.parse(a.lastPolled) : 0;
+          const bUpdated = b.lastPolled ? Date.parse(b.lastPolled) : 0;
+          if (aUpdated !== bUpdated) return bUpdated - aUpdated;
+          // Fallback to PR number descending
           return b.number - a.number;
         }),
       }))
@@ -367,7 +376,9 @@ export class PrStatusHandler {
 
     // Checks indicator
     const checksIcon = this.getChecksIcon(pr.checksStatus);
-    const checksText = `${pr.checksPassed}/${pr.checksTotal}`;
+    const checksText = pr.checksTotal !== undefined && pr.checksPassed !== undefined
+      ? `${pr.checksPassed}/${pr.checksTotal}`
+      : this.getChecksStatusText(pr.checksStatus);
 
     // Comments
     const commentsText = pr.unresolvedComments > 0 
@@ -430,6 +441,19 @@ export class PrStatusHandler {
       case 'pending': return '⏳';
       case 'cancelled': return '⚪';
       case 'skipped': return '⚪';
+    }
+  }
+
+  /**
+   * Get checks status text when counts are not available.
+   */
+  private getChecksStatusText(status: CheckStatus): string {
+    switch (status) {
+      case 'success': return 'pass';
+      case 'failure': return 'fail';
+      case 'pending': return 'running';
+      case 'cancelled': return 'cancelled';
+      case 'skipped': return 'skipped';
     }
   }
 
