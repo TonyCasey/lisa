@@ -258,8 +258,9 @@ export class NotificationService implements INotificationService {
     
     // Check if Lisa icon exists and escape all values for XML
     const iconPath = await this.getIconPath();
+    // Windows toast requires file:/// protocol for local images
     const safeIconPath = iconPath 
-      ? this.escapeForXmlAttribute(iconPath.replace(/\\/g, '/'))
+      ? this.escapeForXmlAttribute('file:///' + iconPath.replace(/\\/g, '/'))
       : '';
     const iconElement = safeIconPath
       ? `<image placement="appLogoOverride" src="${safeIconPath}"/>`
