@@ -42,6 +42,17 @@ export function parseDate(dateStr: string): Date | null {
 
   // Try parsing as ISO date
   try {
+    // Handle date-only ISO strings (YYYY-MM-DD) as local midnight, not UTC
+    // This prevents timezone drift where '2026-01-27' becomes Jan 26 in PST
+    const dateOnlyMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dateOnlyMatch) {
+      const year = Number(dateOnlyMatch[1]);
+      const month = Number(dateOnlyMatch[2]) - 1; // JS months are 0-indexed
+      const day = Number(dateOnlyMatch[3]);
+      return new Date(year, month, day);
+    }
+    
+    // Full ISO datetime strings (with time component) - use standard parsing
     const parsed = new Date(dateStr);
     if (!isNaN(parsed.getTime())) {
       return parsed;

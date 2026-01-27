@@ -55,6 +55,18 @@ lisa tasks list --cache
 
 # With limit
 lisa tasks list --cache --limit 10
+
+# Tasks created today
+lisa tasks list --since today --cache
+
+# Tasks from the last 7 days
+lisa tasks list --since 7d --cache
+
+# Tasks from the last week
+lisa tasks list --since 1w --cache
+
+# Tasks within a date range
+lisa tasks list --since 2026-01-01 --until 2026-01-31 --cache
 ```
 
 ### Update Task

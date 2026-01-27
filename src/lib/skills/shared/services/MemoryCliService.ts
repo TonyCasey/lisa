@@ -73,15 +73,21 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
         const groupIds = hasConfiguredGroup ? [groupId] : getGroupIds();
         logger.debug('Using Neo4j direct mode for load');
         
-        // Parse date filters
+        // Parse date filters - throw error on invalid values
         const loadOptions: IMemoryLoadOptions = {};
         if (since) {
           const parsedSince = parseDate(since);
-          if (parsedSince) loadOptions.since = parsedSince;
+          if (!parsedSince) {
+            throw new Error(`Invalid --since date: "${since}". Use formats like: today, yesterday, 7d, 1w, 1m, or ISO date (2026-01-27)`);
+          }
+          loadOptions.since = parsedSince;
         }
         if (until) {
           const parsedUntil = parseDate(until);
-          if (parsedUntil) loadOptions.until = parsedUntil;
+          if (!parsedUntil) {
+            throw new Error(`Invalid --until date: "${until}". Use formats like: today, yesterday, 7d, 1w, 1m, or ISO date (2026-01-27)`);
+          }
+          loadOptions.until = parsedUntil;
         }
         
         result = await memoryService.load(groupIds, query, limit, loadOptions);

@@ -55,11 +55,14 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
       options?: ITaskLoadOptions
     ): Promise<ITaskListResult> {
       // Always use Neo4j for list (better date ordering)
-      const groupList = groupIds.map((g) => `"${g}"`).join(', ');
+      // Use parameterized query for groupIds to prevent Cypher injection
+      const params: Record<string, unknown> = {
+        groupIds,
+        limit,
+      };
 
       // Build date filter clauses
       const dateFilters: string[] = [];
-      const params: Record<string, unknown> = {};
       
       if (options?.since) {
         dateFilters.push('e.created_at >= datetime($since)');
@@ -76,13 +79,13 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
       try {
         const cypher = `
           MATCH (e:Episodic)
-          WHERE e.group_id IN [${groupList}]
+          WHERE e.group_id IN $groupIds
             AND (e.name STARTS WITH 'TASK:' OR e.content CONTAINS '"type":"task"' OR e.content CONTAINS '"type": "task"')
             ${dateFilterClause}
           RETURN e.uuid AS uuid, e.name AS name, e.group_id AS group_id,
                  e.created_at AS created_at, e.content AS content
           ORDER BY e.created_at DESC
-          LIMIT ${limit}
+          LIMIT $limit
         `;
 
         const records: Neo4jTaskRecord[] = await neo4jClient.query(cypher, params);

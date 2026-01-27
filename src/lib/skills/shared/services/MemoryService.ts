@@ -92,11 +92,14 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
       options?: IMemoryLoadOptions
     ): Promise<IMemoryLoadResult> {
       // Always use Neo4j for load (better date ordering)
-      const groupList = groupIds.map((g) => `"${g}"`).join(', ');
+      // Use parameterized query for groupIds to prevent Cypher injection
+      const params: Record<string, unknown> = {
+        groupIds,
+        limit,
+      };
 
       // Build date filter clauses
       const dateFilters: string[] = [];
-      const params: Record<string, unknown> = {};
       
       if (options?.since) {
         dateFilters.push('r.created_at >= datetime($since)');
@@ -118,7 +121,7 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
           params.query = query;
           cypher = `
             MATCH (s:Entity)-[r]->(t:Entity)
-            WHERE r.group_id IN [${groupList}]
+            WHERE r.group_id IN $groupIds
               AND r.expired_at IS NULL
               AND (r.fact CONTAINS $query OR r.name CONTAINS $query)
               ${dateFilterClause}
@@ -126,20 +129,20 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
                    r.group_id AS group_id, r.created_at AS created_at,
                    r.valid_at AS valid_at, r.expired_at AS expired_at
             ORDER BY r.created_at DESC
-            LIMIT ${limit}
+            LIMIT $limit
           `;
         } else {
           // List mode: return recent facts
           cypher = `
             MATCH (s:Entity)-[r]->(t:Entity)
-            WHERE r.group_id IN [${groupList}]
+            WHERE r.group_id IN $groupIds
               AND r.expired_at IS NULL
               ${dateFilterClause}
             RETURN r.uuid AS uuid, r.name AS name, r.fact AS fact,
                    r.group_id AS group_id, r.created_at AS created_at,
                    r.valid_at AS valid_at, r.expired_at AS expired_at
             ORDER BY r.created_at DESC
-            LIMIT ${limit}
+            LIMIT $limit
           `;
         }
 

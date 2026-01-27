@@ -410,8 +410,21 @@ export class MemoryService implements IMemoryService {
       });
       
       const repo = this.router.getMemoryRepository('search');
-      const result = await repo.findByGroupIds(groupIds, { limit, since: options?.since, until: options?.until });
-      const sorted = [...result.items].sort((a, b) => {
+      const result = await repo.findByGroupIds(groupIds, { limit });
+      
+      // Client-side date filtering for MCP fallback (MCP may not support date params)
+      let items = [...result.items];
+      if (options?.since || options?.until) {
+        items = items.filter(item => {
+          if (!item.created_at) return true;
+          const created = new Date(item.created_at).getTime();
+          if (options.since && created < options.since.getTime()) return false;
+          if (options.until && created > options.until.getTime()) return false;
+          return true;
+        });
+      }
+      
+      const sorted = items.sort((a, b) => {
         const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
         const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
         return dateB - dateA;
