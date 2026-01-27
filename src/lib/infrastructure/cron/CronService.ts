@@ -405,14 +405,40 @@ Find the lisa path with: which lisa (Unix) or where lisa (Windows)
       // No existing crontab, that's fine
     }
 
-    // Remove any existing Lisa entries
-    const lines = existingCrontab.split('\n').filter(line => !line.includes(CRONTAB_MARKER));
+    // Remove any existing Lisa entries and env vars we manage
+    const lines = existingCrontab.split('\n').filter(line => 
+      !line.includes(CRONTAB_MARKER) && 
+      !line.startsWith('PATH=') && 
+      !line.startsWith('GITHUB_TOKEN=')
+    );
     
-    // Add new entry
-    lines.push(cronLine);
-
-    // Install new crontab
-    const newCrontab = lines.join('\n').trim() + '\n';
+    // Build environment variables for cron
+    // Cron runs with minimal PATH, so we need to include common bin directories
+    const envLines: string[] = [];
+    
+    // Add PATH with common bin directories (homebrew, local, system)
+    const pathDirs = [
+      '/opt/homebrew/bin',  // macOS ARM homebrew
+      '/usr/local/bin',     // macOS Intel homebrew / Linux local
+      '/usr/bin',
+      '/bin',
+    ];
+    envLines.push(`PATH=${pathDirs.join(':')}`);
+    
+    // Try to get GITHUB_TOKEN for gh CLI authentication
+    // Cron can't access macOS keyring, so we need the token as env var
+    try {
+      const { stdout: token } = await execAsync('gh auth token', { timeout: 5000 });
+      const trimmedToken = token.trim();
+      if (trimmedToken) {
+        envLines.push(`GITHUB_TOKEN=${trimmedToken}`);
+      }
+    } catch {
+      // gh not authenticated or not installed, skip GITHUB_TOKEN
+    }
+    
+    // Add env vars at the top, then existing entries, then new cron line
+    const newCrontab = [...envLines, ...lines.filter(l => l.trim()), cronLine].join('\n') + '\n';
     
     // Use echo and pipe to crontab
     await execAsync(`echo "${newCrontab.replace(/"/g, '\\"')}" | crontab -`, {
