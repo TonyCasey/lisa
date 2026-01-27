@@ -671,5 +671,164 @@ describe('PrPollHandler', () => {
       assert.strictEqual(result.success, true);
       assert.strictEqual(result.items.length, 1);
     });
+
+    it('should send notifications when notify option is enabled', async () => {
+      const sentNotifications: { type: string; prNumber: number }[] = [];
+
+      const mockNotificationService = {
+        notify: async (notification: { type: string; prNumber: number }) => {
+          sentNotifications.push({ type: notification.type, prNumber: notification.prNumber });
+          return { success: true, method: 'desktop' as const };
+        },
+        notifyBatch: async (notifications: readonly { type: string; prNumber: number }[]) => {
+          for (const n of notifications) {
+            sentNotifications.push({ type: n.type, prNumber: n.prNumber });
+          }
+          return notifications.map(() => ({ success: true, method: 'desktop' as const }));
+        },
+        isDesktopAvailable: async () => true,
+        getPlatform: () => 'windows' as const,
+      };
+
+      mockPrRepository = createMockPrRepository({
+        findWatchedPrs: async () => ({
+          items: [createMockWatchedPr(50, { checksStatus: 'pending' })],
+          hasMore: false,
+        }),
+      });
+      mockGithubClient = createMockGithubClient({
+        getPrChecks: async () => [createMockCheck('build', 'SUCCESS')],
+      });
+      handler = new PrPollHandler(mockGithubClient, mockPrRepository, mockNotificationService);
+
+      const result = await handler.poll({ notify: true, logToFile: false });
+
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(result.totalChanges, 1);
+      assert.strictEqual(sentNotifications.length, 1);
+      assert.strictEqual(sentNotifications[0].type, 'checks_updated');
+      assert.strictEqual(sentNotifications[0].prNumber, 50);
+    });
+
+    it('should not send notifications when notify option is disabled', async () => {
+      const sentNotifications: { type: string }[] = [];
+
+      const mockNotificationService = {
+        notify: async (notification: { type: string }) => {
+          sentNotifications.push({ type: notification.type });
+          return { success: true, method: 'desktop' as const };
+        },
+        notifyBatch: async (notifications: readonly { type: string }[]) => {
+          for (const n of notifications) {
+            sentNotifications.push({ type: n.type });
+          }
+          return notifications.map(() => ({ success: true, method: 'desktop' as const }));
+        },
+        isDesktopAvailable: async () => true,
+        getPlatform: () => 'windows' as const,
+      };
+
+      mockPrRepository = createMockPrRepository({
+        findWatchedPrs: async () => ({
+          items: [createMockWatchedPr(50, { checksStatus: 'pending' })],
+          hasMore: false,
+        }),
+      });
+      mockGithubClient = createMockGithubClient({
+        getPrChecks: async () => [createMockCheck('build', 'SUCCESS')],
+      });
+      handler = new PrPollHandler(mockGithubClient, mockPrRepository, mockNotificationService);
+
+      const result = await handler.poll({ notify: false, logToFile: false });
+
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(result.totalChanges, 1);
+      // Should NOT have sent any notifications
+      assert.strictEqual(sentNotifications.length, 0);
+    });
+
+    it('should not send notifications when no changes detected', async () => {
+      const sentNotifications: { type: string }[] = [];
+
+      const mockNotificationService = {
+        notify: async (notification: { type: string }) => {
+          sentNotifications.push({ type: notification.type });
+          return { success: true, method: 'desktop' as const };
+        },
+        notifyBatch: async (notifications: readonly { type: string }[]) => {
+          for (const n of notifications) {
+            sentNotifications.push({ type: n.type });
+          }
+          return notifications.map(() => ({ success: true, method: 'desktop' as const }));
+        },
+        isDesktopAvailable: async () => true,
+        getPlatform: () => 'windows' as const,
+      };
+
+      mockPrRepository = createMockPrRepository({
+        findWatchedPrs: async () => ({
+          items: [createMockWatchedPr(50, { checksStatus: 'pending', status: 'open' })],
+          hasMore: false,
+        }),
+      });
+      mockGithubClient = createMockGithubClient({
+        getPr: async () => createMockPrResponse({ state: 'OPEN' }),
+        getPrChecks: async () => [], // No checks = pending
+        getPrComments: async () => [],
+      });
+      handler = new PrPollHandler(mockGithubClient, mockPrRepository, mockNotificationService);
+
+      const result = await handler.poll({ notify: true, logToFile: false });
+
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(result.totalChanges, 0);
+      // Should NOT have sent any notifications because no changes
+      assert.strictEqual(sentNotifications.length, 0);
+    });
+
+    it('should send multiple notifications for multiple changes', async () => {
+      const sentNotifications: { type: string; prNumber: number }[] = [];
+
+      const mockNotificationService = {
+        notify: async (notification: { type: string; prNumber: number }) => {
+          sentNotifications.push({ type: notification.type, prNumber: notification.prNumber });
+          return { success: true, method: 'desktop' as const };
+        },
+        notifyBatch: async (notifications: readonly { type: string; prNumber: number }[]) => {
+          for (const n of notifications) {
+            sentNotifications.push({ type: n.type, prNumber: n.prNumber });
+          }
+          return notifications.map(() => ({ success: true, method: 'desktop' as const }));
+        },
+        isDesktopAvailable: async () => true,
+        getPlatform: () => 'windows' as const,
+      };
+
+      mockPrRepository = createMockPrRepository({
+        findWatchedPrs: async () => ({
+          items: [createMockWatchedPr(50, { checksStatus: 'pending', status: 'open' })],
+          hasMore: false,
+        }),
+        findCommentsByPr: async () => [],
+      });
+      mockGithubClient = createMockGithubClient({
+        getPr: async () => createMockPrResponse({ state: 'MERGED' }),
+        getPrChecks: async () => [createMockCheck('build', 'SUCCESS')],
+        getPrComments: async () => [createMockComment(123, 'reviewer', 'file.ts', 10)],
+      });
+      handler = new PrPollHandler(mockGithubClient, mockPrRepository, mockNotificationService);
+
+      const result = await handler.poll({ notify: true, logToFile: false });
+
+      assert.strictEqual(result.success, true);
+      // Should have: checks_updated, pr_merged, new_comment
+      assert.strictEqual(result.totalChanges, 3);
+      assert.strictEqual(sentNotifications.length, 3);
+
+      const types = sentNotifications.map(n => n.type);
+      assert.ok(types.includes('checks_updated'));
+      assert.ok(types.includes('pr_merged'));
+      assert.ok(types.includes('new_comment'));
+    });
   });
 });

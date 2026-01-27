@@ -24,6 +24,8 @@ import type {
 } from '../../../domain/interfaces/types/IPullRequest';
 import type { IGhCheckResponse, IGhReviewCommentResponse } from '../../../infrastructure/github/types';
 import { GithubClientError } from '../../../infrastructure/github/types';
+import type { INotificationService, INotification } from '../../../domain/interfaces/INotificationService';
+import { createNotificationFromStateChange } from '../../../infrastructure/notifications/NotificationService';
 
 /**
  * State change detected during polling.
@@ -88,6 +90,8 @@ export interface IPrPollOptions {
   readonly logToFile?: boolean;
   /** Limit concurrent GitHub API calls (default: 5) */
   readonly concurrency?: number;
+  /** Send desktop notifications for state changes (default: false) */
+  readonly notify?: boolean;
 }
 
 /**
@@ -98,7 +102,8 @@ export class PrPollHandler {
 
   constructor(
     private readonly githubClient: IGithubClient,
-    private readonly prRepository: IPullRequestRepository
+    private readonly prRepository: IPullRequestRepository,
+    private readonly notificationService?: INotificationService
   ) {
     this.logPath = path.join(os.homedir(), '.lisa', 'pr-poll.log');
   }
@@ -110,6 +115,7 @@ export class PrPollHandler {
     const polledAt = new Date().toISOString();
     const autoUnwatch = options?.autoUnwatch ?? true;
     const logToFile = options?.logToFile ?? true;
+    const notify = options?.notify ?? false;
     // Guard against zero/negative concurrency to prevent infinite loops
     const concurrency = Math.max(1, options?.concurrency ?? 5);
 
@@ -164,6 +170,13 @@ export class PrPollHandler {
       // Calculate totals
       const totalChanges = pollResults.reduce((sum, r) => sum + r.changes.length, 0);
       const totalErrors = pollResults.filter(r => r.error).length;
+
+      // Send desktop notifications if enabled
+      if (notify && this.notificationService && totalChanges > 0) {
+        const notifications = this.collectNotifications(pollResults);
+        await this.notificationService.notifyBatch(notifications);
+        log(`Sent ${notifications.length} desktop notification(s).`);
+      }
 
       log(`Poll complete. ${totalChanges} notification(s).`);
 
@@ -508,5 +521,27 @@ export class PrPollHandler {
       batches.push(items.slice(i, i + batchSize) as T[]);
     }
     return batches;
+  }
+
+  /**
+   * Collect notifications from poll results.
+   */
+  private collectNotifications(pollResults: readonly IPrPollItem[]): INotification[] {
+    const notifications: INotification[] = [];
+
+    for (const item of pollResults) {
+      for (const change of item.changes) {
+        const notification = createNotificationFromStateChange(
+          change.type,
+          change.description,
+          change.prNumber,
+          change.repo,
+          item.title
+        );
+        notifications.push(notification);
+      }
+    }
+
+    return notifications;
   }
 }

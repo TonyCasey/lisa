@@ -33,5 +33,8 @@ export * from './utils';
 // GitHub CLI wrapper
 export * from './github';
 
+// Notifications
+export * from './notifications';
+
 // Note: CLI adapters (./adapters/claude/, ./adapters/opencode/)
 // are entry points, not exported from here.

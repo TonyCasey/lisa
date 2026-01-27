@@ -29,6 +29,14 @@ export {
   ILabelInferenceService,
   ILabelRule,
 } from './ILabelInference';
+export {
+  NotificationType,
+  NotificationPriority,
+  INotification,
+  INotificationResult,
+  INotificationOptions,
+  INotificationService,
+} from './INotificationService';
 
 // Event interfaces
 export * from './events';
