@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.7.0] - 2026-01-27
+
+### Added
+
+#### Local AI Code Review Command ([#41](https://github.com/TonyCasey/lisa/issues/41))
+
+New `lisa pr review` command for running local AI code review before creating a PR.
+
+```bash
+lisa pr review                    # Review current branch vs main
+lisa pr review --base dev         # Review against different base
+lisa pr review --block            # Exit non-zero if critical issues found
+lisa pr review --json             # Output as JSON
+```
+
+**Features:**
+- Analyzes git diff between current branch and base (main/master by default)
+- Categorizes issues by severity: Critical, Warning, Suggestion
+- Uses Claude CLI for AI review when available
+- Falls back to heuristic-based review (pattern matching) when AI not available
+- Supports `--block` flag for CI integration (exits non-zero on critical issues)
+- Detects common issues: console.log, TODO comments, hardcoded secrets, `any` types
+
+**Output format:**
+```
+Reviewing changes: main...HEAD (5 files changed)
+
+## Review Summary
+
+### 🔴 Critical (must fix) - 1
+- src/utils.ts:42 - Potential null pointer dereference
+
+### 🟡 Warnings (should fix) - 1
+- src/handler.ts:15 - Missing error handling
+
+### ✅ Passed
+- No security vulnerabilities detected
+
+────────────────────────────────────────────────────────────
+Result: 1 critical, 1 warning, 0 suggestion
+```
+
+### New Files
+
+- `src/lib/application/handlers/pr/PrReviewHandler.ts` - Review handler
+- `tests/unit/src/lib/application/handlers/pr/PrReviewHandler.test.ts` - Tests
+
+---
+
 ## [2.6.2] - 2026-01-27
 
 ### Fixed
