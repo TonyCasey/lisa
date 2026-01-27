@@ -99,7 +99,7 @@ export interface ITaskLinkResult {
     externalLink?: ITaskExternalLink;
   };
   group: string;
-  mode: 'mcp' | 'zep-cloud';
+  mode: 'mcp' | 'zep-cloud' | 'neo4j';
 }
 
 /**

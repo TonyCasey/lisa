@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.6.2] - 2026-01-27
+
+### Fixed
+
+#### Task Writes Now Go Directly to Neo4j ([#48](https://github.com/TonyCasey/lisa/issues/48))
+
+Task operations now write directly to Neo4j instead of going through MCP's async queue, ensuring tasks appear immediately in `lisa tasks list`.
+
+**Problem**: Tasks added via `lisa tasks add` were queued through MCP/Graphiti but never appeared in Neo4j due to silent processing failures.
+
+**Solution**: Changed `TaskService` to write directly to Neo4j:
+- `add()` - Creates Episodic node directly in Neo4j (was already fixed)
+- `update()` - Now creates Episodic node directly instead of using MCP
+- `link()` - Now creates Episodic node directly instead of using MCP  
+- `unlink()` - Now creates Episodic node directly instead of using MCP
+
+**Impact**: 
+- Tasks appear immediately after creation
+- Task updates are reflected instantly
+- External link changes persist immediately
+- Consistent read/write path (both use Neo4j)
+
+### Changed
+
+- `ITaskLinkResult.mode` now includes `'neo4j'` as a valid value
+
+---
+
 ## [2.6.1] - 2026-01-27
 
 ### Added
