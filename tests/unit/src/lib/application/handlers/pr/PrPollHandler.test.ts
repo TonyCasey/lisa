@@ -625,31 +625,21 @@ describe('PrPollHandler', () => {
       assert.strictEqual(upsertedPr.unresolvedComments, 2);
     });
 
-    it('should paginate through all watched PRs', async () => {
-      let queryCount = 0;
-      const allPrs = [
-        createMockWatchedPr(1),
-        createMockWatchedPr(2),
-        createMockWatchedPr(3),
-      ];
+    it('should limit watched PRs to 10', async () => {
+      let requestedLimit: number | undefined;
 
       mockPrRepository = createMockPrRepository({
         findWatchedPrs: async (_userId, options) => {
-          queryCount++;
-          const offset = options?.offset || 0;
-          const limit = options?.limit || 100;
-          const items = allPrs.slice(offset, offset + limit);
-          const hasMore = offset + limit < allPrs.length;
-          return { items, hasMore };
+          requestedLimit = options?.limit;
+          return { items: [], hasMore: false };
         },
       });
       handler = new PrPollHandler(mockGithubClient, mockPrRepository);
 
-      const result = await handler.poll({ logToFile: false });
+      await handler.poll({ logToFile: false });
 
-      // Should have polled all 3 PRs
-      assert.strictEqual(result.totalWatched, 3);
-      assert.strictEqual(result.items.length, 3);
+      // Should request max 10 PRs to avoid rate limiting
+      assert.strictEqual(requestedLimit, 10);
     });
 
     it('should guard against zero concurrency', async () => {

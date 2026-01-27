@@ -123,21 +123,11 @@ export class PrPollHandler {
       // Get user ID
       const userId = await this.prRepository.getUserId();
 
-      // Query all watched PRs with pagination
-      const watchedPrs: IPullRequest[] = [];
-      let offset = 0;
-      const pageSize = 100;
-      let hasMore = true;
-
-      while (hasMore) {
-        const result = await this.prRepository.findWatchedPrs(userId, {
-          limit: pageSize,
-          offset,
-        });
-        watchedPrs.push(...result.items);
-        hasMore = result.hasMore;
-        offset += pageSize;
-      }
+      // Query watched PRs (max 10 to avoid rate limiting)
+      const MAX_WATCHED_PRS = 10;
+      const { items: watchedPrs } = await this.prRepository.findWatchedPrs(userId, {
+        limit: MAX_WATCHED_PRS,
+      });
 
       log(`Polling ${watchedPrs.length} watched PR(s)...`);
 
