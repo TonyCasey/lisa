@@ -1162,10 +1162,11 @@ prCmd
         const prRepository = new Neo4jPullRequestRepository(neo4jConnection);
 
         const handler = new PrPollHandler(githubClient, prRepository);
+        const parsedConcurrency = parseInt(opts.concurrency, 10);
         const result = await handler.poll({
           autoUnwatch: opts.autoUnwatch,
           logToFile: opts.log,
-          concurrency: parseInt(opts.concurrency, 10),
+          concurrency: Number.isFinite(parsedConcurrency) ? parsedConcurrency : 5,
         });
 
         if (opts.json) {

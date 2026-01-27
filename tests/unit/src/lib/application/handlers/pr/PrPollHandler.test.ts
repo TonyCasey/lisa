@@ -391,7 +391,6 @@ describe('PrPollHandler', () => {
     });
 
     it('should handle individual PR errors without failing entire poll', async () => {
-      let prNumber = 0;
       mockPrRepository = createMockPrRepository({
         findWatchedPrs: async () => ({
           items: [
@@ -403,7 +402,6 @@ describe('PrPollHandler', () => {
       });
       mockGithubClient = createMockGithubClient({
         getPr: async (_repo, num) => {
-          prNumber = num;
           if (num === 50) {
             throw new Error('Not found');
           }

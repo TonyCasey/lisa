@@ -303,15 +303,16 @@ export class PrPollHandler {
       });
 
       // Update checks in Neo4j
-      for (const check of ghChecks) {
-        await this.prRepository.upsertCheck(userId, pr.repo, pr.number, {
+      // Update checks in Neo4j (parallel for performance)
+      await Promise.all(ghChecks.map(check =>
+        this.prRepository.upsertCheck(userId, pr.repo, pr.number, {
           checkName: check.name,
           status: this.mapCheckStatus(check.state),
           conclusion: check.conclusion,
           detailsUrl: check.detailsUrl,
           updatedAt: check.completedAt || check.startedAt || new Date().toISOString(),
-        });
-      }
+        })
+      ));
 
       // Update poll timestamp
       await this.prRepository.updateLastPolled(userId, pr.repo, pr.number);
