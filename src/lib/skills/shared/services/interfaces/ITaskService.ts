@@ -80,6 +80,14 @@ export interface ITaskWriteOptions {
 }
 
 /**
+ * Options for loading tasks with date filtering.
+ */
+export interface ITaskLoadOptions {
+  since?: Date;
+  until?: Date;
+}
+
+/**
  * Result of a task link operation.
  */
 export interface ITaskLinkResult {
@@ -106,12 +114,14 @@ export interface ITaskService {
    * @param limit - Maximum number of tasks to return
    * @param defaultRepo - Default repo name for tasks without one
    * @param defaultAssignee - Default assignee for tasks without one
+   * @param options - Optional date filtering options
    */
   list(
     groupIds: string[],
     limit: number,
     defaultRepo: string,
-    defaultAssignee: string
+    defaultAssignee: string,
+    options?: ITaskLoadOptions
   ): Promise<ITaskListResult>;
 
   /**

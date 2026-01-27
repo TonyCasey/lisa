@@ -1,6 +1,16 @@
 import type { IMemoryResult, IMemoryItem } from './types';
 
 /**
+ * Options for date-filtered memory queries.
+ */
+export interface IMemoryDateOptions {
+  /** Filter facts created after this date */
+  since?: Date;
+  /** Filter facts created before this date */
+  until?: Date;
+}
+
+/**
  * Read operations for memory.
  * Separated for Interface Segregation Principle.
  */
@@ -24,10 +34,12 @@ export interface IMemoryReader {
    * Uses DAL router with Neo4j when available for optimal performance.
    * @param groupIds - Group IDs to query
    * @param limit - Maximum number of facts to return
+   * @param options - Optional date filtering options
    */
   loadFactsDateOrdered(
     groupIds: readonly string[],
-    limit?: number
+    limit?: number,
+    options?: IMemoryDateOptions
   ): Promise<IMemoryItem[]>;
 
   /**

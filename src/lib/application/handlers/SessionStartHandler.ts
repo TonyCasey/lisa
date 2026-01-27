@@ -9,6 +9,7 @@ import type {
   ITask,
   ITaskCounts,
   ILogger,
+  IMemoryDateOptions,
 } from '../../domain';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
 import type { IGitHubSyncService } from '../../skills/shared/services/GitHubSyncService';
@@ -30,11 +31,20 @@ interface IMcpNodeResponse {
 }
 
 /**
+ * Git commit summary.
+ */
+interface IGitCommit {
+  hash: string;
+  message: string;
+}
+
+/**
  * Configuration for recent memories display.
  */
 const RECENT_HOURS = 24;
 const MAX_RECENT_MEMORIES = 5;
 const GROUP_WINDOW_MINUTES = 5;
+const MAX_GIT_COMMITS = 10;
 
 /**
  * Low-level relationship types to exclude (system noise).
@@ -162,11 +172,24 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
       }
     }
 
+    // Determine date options based on trigger
+    // For startup: query from start of today for focused context
+    // For resume/compact: query last 24 hours to catch recent work
+    const dateOptions: IMemoryDateOptions = {};
+    const now = new Date();
+    if (request.trigger === 'startup') {
+      // Start of today (midnight local time)
+      dateOptions.since = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    } else {
+      // Last 24 hours for resume/compact/clear
+      dateOptions.since = new Date(now.getTime() - RECENT_HOURS * 60 * 60 * 1000);
+    }
+
     // Load memory - use DAL for date-ordered facts if router is available
     let memories;
     if (this.router && this.router.isBackendAvailable('neo4j')) {
-      // Use DAL with Neo4j for proper date ordering
-      memories = await this.loadMemoryWithDAL(hierarchicalGroupIds, projectAliases, branch);
+      // Use DAL with Neo4j for proper date ordering with date filtering
+      memories = await this.loadMemoryWithDAL(hierarchicalGroupIds, projectAliases, branch, undefined, dateOptions);
     } else {
       // Fall back to MCP-only path
       memories = await this.memory.loadMemory(
@@ -176,6 +199,9 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
         5000 // 5 second timeout
       );
     }
+
+    // Load recent git commits for context
+    const gitCommits = await this.loadGitCommits(dateOptions.since, projectRoot);
 
     // Process tasks from memory
     const tasks = this.processTasks(memories.tasks);
@@ -193,7 +219,9 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
         folderType,
         projectRoot,
         branch,
-      }
+      },
+      gitCommits,
+      dateOptions.since
     );
 
     // Build message
@@ -225,7 +253,8 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
     hierarchicalGroupIds: readonly string[],
     projectAliases: readonly string[],
     branch: string | null,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    dateOptions?: IMemoryDateOptions
   ): Promise<{ facts: IMemoryItem[]; nodes: IMemoryItem[]; tasks: IMemoryItem[]; initReview: string | null; timedOut: boolean }> {
     const memory = this.memory;
     const mcp = this.mcp;
@@ -263,10 +292,11 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
         }
 
         // Load facts using DAL with date ordering (Neo4j preferred)
+        // Use date options if provided, otherwise load all recent facts
         try {
           checkCancellation(abortSignal, 'Memory load cancelled before facts');
 
-          const facts = await memory.loadFactsDateOrdered(allGroupIds, 100);
+          const facts = await memory.loadFactsDateOrdered(allGroupIds, 100, dateOptions);
 
           checkCancellation(abortSignal, 'Memory load cancelled after facts fetch');
 
@@ -443,13 +473,21 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
       folderType: string;
       projectRoot: string;
       branch: string | null;
-    }
+    },
+    gitCommits: readonly IGitCommit[] = [],
+    querySince?: Date
   ): string {
     const { projectName, userName, folderType, projectRoot, branch } = context;
     const lines: string[] = [];
 
     // Trigger message
     lines.push(this.getTriggerMessage(trigger, memories.timedOut));
+
+    // Show query date range if applicable
+    if (querySince) {
+      const rangeDesc = this.formatDateRangeDescription(querySince);
+      lines.push(`Context range: ${rangeDesc}`);
+    }
 
     // Reminders
     const reminders = this.getTriggerReminders(trigger);
@@ -468,12 +506,25 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
       lines.push('');
     }
 
+    // Recent git commits
+    if (gitCommits.length > 0) {
+      lines.push('');
+      lines.push(`Recent commits (${gitCommits.length}):`);
+      gitCommits.slice(0, 5).forEach(c => {
+        lines.push(`  ${c.hash} ${c.message}`);
+      });
+      if (gitCommits.length > 5) {
+        lines.push(`  ... and ${gitCommits.length - 5} more`);
+      }
+    }
+
     // Recent memories
     const items = memories.facts.length ? memories.facts : memories.nodes;
     const recentItems = this.filterRecentMemories(items, RECENT_HOURS);
     const recentFormatted = this.formatMemorySummary(recentItems, MAX_RECENT_MEMORIES);
 
     if (recentFormatted.length) {
+      lines.push('');
       lines.push(`Recent memories (last ${RECENT_HOURS}h):`);
       lines.push(...recentFormatted);
     } else if (items.length) {
@@ -482,6 +533,7 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
 
     // Tasks
     if (tasks.length) {
+      lines.push('');
       const summaryParts: string[] = [];
       if (taskCounts['in-progress']) summaryParts.push(`${taskCounts['in-progress']} in-progress`);
       if (taskCounts.ready) summaryParts.push(`${taskCounts.ready} ready`);
@@ -511,6 +563,42 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
   }
 
   // --- Helper methods extracted from original hook ---
+
+  /**
+   * Load recent git commits for context.
+   * @param since - Date to start from
+   * @param projectRoot - Project root directory
+   * @returns Array of commit summaries
+   */
+  private async loadGitCommits(since: Date | undefined, projectRoot: string): Promise<IGitCommit[]> {
+    if (!since) return [];
+    
+    try {
+      const { execSync } = await import('child_process');
+      const sinceArg = since.toISOString().split('T')[0]; // YYYY-MM-DD format
+      const output = execSync(
+        `git log --since="${sinceArg}" --oneline --format="%h %s" -${MAX_GIT_COMMITS}`,
+        { 
+          encoding: 'utf8',
+          cwd: projectRoot,
+          stdio: ['pipe', 'pipe', 'pipe'],
+        }
+      ).trim();
+      
+      if (!output) return [];
+      
+      return output.split('\n').filter(Boolean).map(line => {
+        const spaceIndex = line.indexOf(' ');
+        return {
+          hash: line.slice(0, spaceIndex),
+          message: line.slice(spaceIndex + 1),
+        };
+      });
+    } catch {
+      // Git not available or not a git repo - that's fine
+      return [];
+    }
+  }
 
   /**
    * Detect the GitHub repository from git remote.
@@ -672,6 +760,27 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
       return `${firstFact.slice(0, 57)}... (+${memories.length - 1} more)`;
     }
     return `${firstFact} (+${memories.length - 1} more)`;
+  }
+
+  /**
+   * Format a date range description for display.
+   */
+  private formatDateRangeDescription(since: Date): string {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const sinceDay = new Date(since.getFullYear(), since.getMonth(), since.getDate());
+    
+    if (sinceDay.getTime() === today.getTime()) {
+      return 'today';
+    }
+    
+    const hoursAgo = Math.round((now.getTime() - since.getTime()) / (1000 * 60 * 60));
+    if (hoursAgo <= 24) {
+      return `last ${hoursAgo}h`;
+    }
+    
+    const daysAgo = Math.round(hoursAgo / 24);
+    return `last ${daysAgo} day${daysAgo > 1 ? 's' : ''}`;
   }
 
   private formatRelativeDate(date: Date): string {

@@ -14,6 +14,7 @@ import type {
   ITaskLinkResult,
   ITaskExternalLink,
   ExternalLinkSource,
+  ITaskLoadOptions,
 } from './interfaces';
 
 /**
@@ -50,24 +51,44 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
       groupIds: string[],
       limit: number,
       defaultRepo: string,
-      defaultAssignee: string
+      defaultAssignee: string,
+      options?: ITaskLoadOptions
     ): Promise<ITaskListResult> {
       // Always use Neo4j for list (better date ordering)
-      const groupList = groupIds.map((g) => `"${g}"`).join(', ');
+      // Use parameterized query for groupIds to prevent Cypher injection
+      const params: Record<string, unknown> = {
+        groupIds,
+        limit,
+      };
+
+      // Build date filter clauses
+      const dateFilters: string[] = [];
+      
+      if (options?.since) {
+        dateFilters.push('e.created_at >= datetime($since)');
+        params.since = options.since.toISOString();
+      }
+      if (options?.until) {
+        dateFilters.push('e.created_at <= datetime($until)');
+        params.until = options.until.toISOString();
+      }
+      
+      const dateFilterClause = dateFilters.length > 0 ? `AND ${dateFilters.join(' AND ')}` : '';
 
       await neo4jClient.connect();
       try {
         const cypher = `
           MATCH (e:Episodic)
-          WHERE e.group_id IN [${groupList}]
+          WHERE e.group_id IN $groupIds
             AND (e.name STARTS WITH 'TASK:' OR e.content CONTAINS '"type":"task"' OR e.content CONTAINS '"type": "task"')
+            ${dateFilterClause}
           RETURN e.uuid AS uuid, e.name AS name, e.group_id AS group_id,
                  e.created_at AS created_at, e.content AS content
           ORDER BY e.created_at DESC
-          LIMIT ${limit}
+          LIMIT $limit
         `;
 
-        const records: Neo4jTaskRecord[] = await neo4jClient.query(cypher);
+        const records: Neo4jTaskRecord[] = await neo4jClient.query(cypher, params);
 
         // Parse tasks from episodic records
         const tasks: ITask[] = records.map((r: Neo4jTaskRecord) => {

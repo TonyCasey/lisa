@@ -42,6 +42,8 @@ async function main(): Promise<void> {
   const notes = popFlag(args, '--notes', '');
   const link = popFlag(args, '--link', null);         // External link (e.g., github#123)
   const linkedSource = popFlag(args, '--linked', null); // Filter source for list-linked
+  const since = popFlag(args, '--since', null);
+  const until = popFlag(args, '--until', null);
   const useCache = hasFlag(args, '--cache');
   const payload = args.join(' ').trim();
 
@@ -59,7 +61,7 @@ async function main(): Promise<void> {
 
   try {
     const result = await cliService.run({
-      command, payload, explicitGroup, limit, status, tag, repo, assignee, notes, link, linkedSource,
+      command, payload, explicitGroup, limit, status, tag, repo, assignee, notes, link, linkedSource, since, until,
     });
     console.log(JSON.stringify(result, null, 2));
   } catch (err: unknown) {

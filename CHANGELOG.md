@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.6.1] - 2026-01-27
+
+### Added
+
+#### Date-Aware Memory and Task Querying ([#53](https://github.com/TonyCasey/lisa/issues/53))
+
+When loading memories or asking "what were we working on?", Lisa now defaults to querying from today backwards, ensuring you see the most relevant recent activity instead of stale data.
+
+- **CLI date filtering** - New `--since` and `--until` options for `lisa memory load` and `lisa tasks list`
+  - Supports relative dates: `today`, `yesterday`, `7d`, `1w`, `1m`, `24h`
+  - Supports ISO dates: `2026-01-27`, `2026-01-27T10:00:00Z`
+  - Example: `lisa memory load --since today` or `lisa tasks list --since 7d`
+
+- **Date parser utility** - New `src/lib/utils/dateParser.ts` module
+  - `parseDate(str)` - Parse relative or ISO date strings
+  - `getStartOfDay(date)` - Get midnight for a date
+  - `getStartOfToday()` - Get midnight today
+  - `hoursAgo(n)` - Get date N hours ago
+  - `formatDateForDisplay(date)` - Format for CLI output
+  - `formatDateRange(since, until)` - Format date range
+
+- **Session start date-aware loading** - `SessionStartHandler` now uses date-based queries
+  - On `startup`: queries from start of today for focused context
+  - On `resume`/`compact`/`clear`: queries last 24 hours
+  - Shows "Context range: today" or "Context range: last 24h" in output
+
+- **Git commit context** - Session start now includes recent git commits
+  - Shows up to 10 commits since the query date
+  - Provides immediate visibility into recent code changes
+  - Example output: "Recent commits (5): abc1234 feat: add X..."
+
+### Changed
+
+- **IMemoryService interface** - `loadFactsDateOrdered()` now accepts optional `IMemoryDateOptions`
+- **Skill services** - `MemoryService` and `TaskService` now support date filtering in Neo4j queries
+- **MemoryCliService/TaskCliService** - Parse and pass date filters from CLI args
+
+### Testing
+
+- 22 new unit tests for dateParser utility
+- All 497 unit tests passing
+
+### New Files
+
+- `src/lib/utils/dateParser.ts` - Date parsing and formatting utilities
+- `src/lib/utils/index.ts` - Utils module exports
+- `tests/unit/src/lib/utils/dateParser.test.ts` - Date parser tests
+
+---
+
 ## [2.6.0] - 2026-01-26
 
 ### Added

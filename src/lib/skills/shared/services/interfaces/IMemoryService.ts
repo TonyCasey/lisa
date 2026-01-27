@@ -53,6 +53,14 @@ export interface IMemoryAddOptions {
 }
 
 /**
+ * Options for loading memories with date filtering.
+ */
+export interface IMemoryLoadOptions {
+  since?: Date;
+  until?: Date;
+}
+
+/**
  * Memory service interface.
  */
 export interface IMemoryService {
@@ -63,11 +71,13 @@ export interface IMemoryService {
    * @param groupIds - Group identifiers to search
    * @param query - Optional search query (empty string or '*' for all)
    * @param limit - Maximum number of facts to return
+   * @param options - Optional date filtering options
    */
   load(
     groupIds: string[],
     query: string,
-    limit: number
+    limit: number,
+    options?: IMemoryLoadOptions
   ): Promise<IMemoryLoadResult>;
 
   /**

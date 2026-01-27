@@ -11,7 +11,9 @@ import type {
   ITaskLinkResult,
   ITaskExternalLink,
   ExternalLinkSource,
+  ITaskLoadOptions,
 } from './interfaces';
+import { parseDate } from '../../../utils/dateParser';
 
 /**
  * Parsed task CLI arguments.
@@ -28,6 +30,8 @@ export interface ITaskCliArgs {
   notes: string;
   link?: string | null;        // External link reference (e.g., "github#123", "jira#PROJ-456")
   linkedSource?: string | null; // Filter by external link source for listLinked
+  since: string | null;
+  until: string | null;
 }
 
 /**
@@ -93,7 +97,7 @@ export function createTaskCliService(deps: ITaskCliDependencies): ITaskCliServic
 
   return {
     async run(args: ITaskCliArgs): Promise<ITaskListResult | ITaskWriteResult | ITaskLinkResult> {
-      const { command, payload, explicitGroup, limit, status, tag, repo, assignee, notes, link, linkedSource } = args;
+      const { command, payload, explicitGroup, limit, status, tag, repo, assignee, notes, link, linkedSource, since, until } = args;
 
       const validCommands = ['add', 'list', 'update', 'link', 'unlink', 'list-linked'];
       if (!validCommands.includes(command)) {
@@ -109,7 +113,25 @@ export function createTaskCliService(deps: ITaskCliDependencies): ITaskCliServic
       if (command === 'list') {
         const groupIds = explicitGroup ? [explicitGroup] : getGroupIds();
         logger.debug('Using Neo4j direct mode for list');
-        result = await taskService.list(groupIds, limit, repo, assignee);
+        
+        // Parse date filters - throw error on invalid values
+        const loadOptions: ITaskLoadOptions = {};
+        if (since) {
+          const parsedSince = parseDate(since);
+          if (!parsedSince) {
+            throw new Error(`Invalid --since date: "${since}". Use formats like: today, yesterday, 7d, 1w, 1m, or ISO date (2026-01-27)`);
+          }
+          loadOptions.since = parsedSince;
+        }
+        if (until) {
+          const parsedUntil = parseDate(until);
+          if (!parsedUntil) {
+            throw new Error(`Invalid --until date: "${until}". Use formats like: today, yesterday, 7d, 1w, 1m, or ISO date (2026-01-27)`);
+          }
+          loadOptions.until = parsedUntil;
+        }
+        
+        result = await taskService.list(groupIds, limit, repo, assignee, loadOptions);
       } else if (command === 'list-linked') {
         // List tasks with external links
         const groupIds = explicitGroup ? [explicitGroup] : getGroupIds();
