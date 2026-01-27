@@ -340,10 +340,10 @@ export class Neo4jPullRequestRepository implements IPullRequestRepository {
       watchingSince: existing?.watchingSince ?? ((input.watching !== false) ? now : undefined),
       // Preserve lastPolled from existing
       lastPolled: existing?.lastPolled,
-      // Preserve checksStatus from existing (updated via separate methods)
-      checksStatus: existing?.checksStatus ?? 'pending',
-      // Preserve unresolvedComments from existing (updated via separate methods)
-      unresolvedComments: existing?.unresolvedComments ?? 0,
+      // Use input checksStatus if provided, otherwise preserve existing
+      checksStatus: input.checksStatus ?? existing?.checksStatus ?? 'pending',
+      // Use input unresolvedComments if provided, otherwise preserve existing
+      unresolvedComments: input.unresolvedComments ?? existing?.unresolvedComments ?? 0,
       uuid,
       created_at: existing?.created_at ?? now,
     };

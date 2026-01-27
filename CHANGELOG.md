@@ -7,6 +7,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.8.0] - 2026-01-27
+
+### Added
+
+#### Cron-Based PR Polling Command ([#35](https://github.com/TonyCasey/lisa/issues/35))
+
+New `lisa pr poll` command for automated monitoring of watched PRs. Designed to be invoked by cron every 5 minutes.
+
+```bash
+lisa pr poll                      # Poll all watched PRs
+lisa pr poll --no-auto-unwatch    # Don't auto-unwatch merged/closed PRs
+lisa pr poll --no-log             # Don't write to log file
+lisa pr poll -c 3                 # Limit to 3 concurrent API calls
+lisa pr poll --json               # Output as JSON
+```
+
+**Features:**
+- User-scoped polling: polls ALL watched PRs across all repos in a single invocation
+- Detects state changes:
+  - Check status changes (pending → success/failure)
+  - New review comments
+  - Replies to your comment responses
+  - PR merged or closed
+- Auto-unwatches merged/closed PRs (configurable)
+- Writes timestamped logs to `~/.lisa/pr-poll.log`
+- Handles GitHub API rate limits gracefully
+- Controlled concurrency to avoid rate limiting (default: 5 parallel requests)
+- Updates Neo4j with new state and `lastPolled` timestamp
+- Exit code 1 on errors (suitable for cron monitoring)
+
+**Output format (terminal):**
+```
+Polled 3 PR(s), 2 change(s) detected
+
+  📢 owner/repo#50: checks pending → success ✅
+  📢 owner/repo#50: new comment from @reviewer on src/file.ts:42
+  ✓ owner/repo#51: no changes
+  📢 acme/project#42: PR merged
+     (unwatched)
+
+Log: ~/.lisa/pr-poll.log
+```
+
+**Log format:**
+```
+[2026-01-27T10:05:00Z] Polling 3 watched PR(s)...
+[2026-01-27T10:05:01Z] owner/repo#50: checks pending → success ✅
+[2026-01-27T10:05:01Z] owner/repo#50: new comment from @reviewer on src/file.ts:42
+[2026-01-27T10:05:02Z] owner/repo#51: no changes
+[2026-01-27T10:05:02Z] acme/project#42: PR merged, unwatching
+[2026-01-27T10:05:02Z] Poll complete. 2 notification(s).
+```
+
+### New Files
+
+- `src/lib/application/handlers/pr/PrPollHandler.ts` - Poll handler
+- `tests/unit/src/lib/application/handlers/pr/PrPollHandler.test.ts` - Tests
+
+---
+
 ## [2.7.0] - 2026-01-27
 
 ### Added

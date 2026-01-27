@@ -95,6 +95,8 @@ export interface IPullRequestInput {
   readonly title: string;
   readonly status?: PullRequestStatus;
   readonly watching?: boolean;
+  readonly checksStatus?: CheckStatus;
+  readonly unresolvedComments?: number;
 }
 
 /**
@@ -130,8 +132,8 @@ export function createPullRequest(input: IPullRequestInput): IPullRequest {
     status: input.status ?? 'open',
     watching: input.watching ?? true,
     watchingSince: input.watching !== false ? new Date().toISOString() : undefined,
-    checksStatus: 'pending',
-    unresolvedComments: 0,
+    checksStatus: input.checksStatus ?? 'pending',
+    unresolvedComments: input.unresolvedComments ?? 0,
   };
 }
 
