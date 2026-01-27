@@ -206,6 +206,7 @@ export class NotificationService implements INotificationService {
 
   /**
    * Send Windows toast notification via PowerShell.
+   * Uses -EncodedCommand to avoid shell escaping issues with quotes.
    */
   private async sendWindowsNotification(title: string, body: string): Promise<void> {
     // Use BurntToast if available, otherwise use basic Windows notification
@@ -238,16 +239,25 @@ export class NotificationService implements INotificationService {
       }
     `;
 
-    await execAsync(`powershell -NoProfile -Command "${script.replace(/"/g, '\\"')}"`, {
+    // Use -EncodedCommand to avoid escaping issues with quotes
+    const base64Script = Buffer.from(script, 'utf16le').toString('base64');
+    await execAsync(`powershell -NoProfile -EncodedCommand ${base64Script}`, {
       timeout: 10000,
     });
   }
 
   /**
    * Send macOS notification via osascript.
+   * Uses proper AppleScript escaping for single quotes.
    */
   private async sendMacOSNotification(title: string, body: string): Promise<void> {
-    const script = `display notification "${body}" with title "${title}"`;
+    // Escape single quotes for AppleScript by replacing ' with '"'"'
+    // This ends the single-quoted string, adds a double-quoted apostrophe, then continues
+    const escapeForAppleScript = (s: string): string =>
+      s.replace(/'/g, "'\"'\"'");
+    const safeTitle = escapeForAppleScript(title);
+    const safeBody = escapeForAppleScript(body);
+    const script = `display notification "${safeBody}" with title "${safeTitle}"`;
     await execAsync(`osascript -e '${script}'`, { timeout: 10000 });
   }
 
@@ -310,13 +320,14 @@ export class NotificationService implements INotificationService {
   }
 
   /**
-   * Escape string for shell commands.
+   * Escape string for shell commands (double-quoted contexts).
+   * Platform-specific escaping is handled in each notification method.
    */
   private escapeForShell(str: string): string {
-    // Remove or escape problematic characters
+    // Escape characters that are special in double-quoted shell strings
     return str
+      .replace(/\\/g, '\\\\')
       .replace(/"/g, '\\"')
-      .replace(/'/g, "\\'")
       .replace(/`/g, '\\`')
       .replace(/\$/g, '\\$')
       .replace(/\n/g, ' ')

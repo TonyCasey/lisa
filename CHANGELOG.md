@@ -33,7 +33,7 @@ lisa pr poll --notify --json      # Also output JSON
 - All notifications logged to `~/.lisa/notifications.log`
 
 **Notification Format:**
-```
+```text
 PR #42: All checks passed
 repo-name: checks pending -> success
 
