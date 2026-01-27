@@ -331,7 +331,7 @@ export class NotificationService implements INotificationService {
         const safeTitle = title.replace(/"/g, '\\"');
         const safeBody = body.replace(/"/g, '\\"');
         await execAsync(
-          `terminal-notifier -title "${safeTitle}" -message "${safeBody}" -contentImage "${iconPath}" -sender com.apple.Terminal`,
+          `terminal-notifier -title "${safeTitle}" -message "${safeBody}" -contentImage "${iconPath}"`,
           { timeout: 10000 }
         );
         return;

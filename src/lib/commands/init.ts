@@ -6,6 +6,7 @@
  */
 
 import path from 'path';
+import os from 'os';
 import fs from 'fs-extra';
 import chalk from 'chalk';
 import { checkbox, confirm, input, password, select } from '@inquirer/prompts';
@@ -499,11 +500,15 @@ export async function initCommand(opts: IInitOptions, services: IServices): Prom
   }));
 
   // Assets scaffolding (notification icons, etc.)
+  // Copy to both project-local .lisa/assets/ and global ~/.lisa/assets/
   const assetsSrc = path.join(TEMPLATE_ROOT, '.lisa', 'assets');
   const assetsDir = path.join(lisaDir, 'assets');
+  const globalAssetsDir = path.join(os.homedir(), '.lisa', 'assets');
   if (await fs.pathExists(assetsSrc)) {
     await fs.ensureDir(assetsDir);
+    await fs.ensureDir(globalAssetsDir);
     copies.push(fs.copy(assetsSrc, assetsDir, { overwrite: force }));
+    copies.push(fs.copy(assetsSrc, globalAssetsDir, { overwrite: force }));
   }
 
   // Rules scaffolding
