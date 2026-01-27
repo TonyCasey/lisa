@@ -242,25 +242,40 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
         };
       }
 
-      // Use MCP
-      await mcpClient.initialize();
-      const params = {
-        name: `TASK UPDATE: ${title.slice(0, 60)}`,
-        episode_body: JSON.stringify({ ...storageObj, updated: true }),
-        source: 'json',
-        group_id: groupId,
-        tags: options.tag ? [options.tag] : undefined,
-      };
-      const result = await mcpClient.rpcCall<unknown>('add_memory', params);
+      // Write directly to Neo4j for immediate persistence
+      // Update creates a new episodic node (append-only pattern)
+      const uuid = `task-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      const name = `TASK: ${title.slice(0, 60)}`;
+      const content = JSON.stringify({ ...storageObj, updated: true });
+      const createdAt = new Date().toISOString();
 
-      return {
-        status: 'ok',
-        action: 'update',
-        task: taskObj,
-        group: groupId,
-        result,
-        mode: 'mcp',
-      };
+      await neo4jClient.connect();
+      try {
+        const cypher = `
+          CREATE (e:Episodic {
+            uuid: $uuid,
+            name: $name,
+            content: $content,
+            group_id: $groupId,
+            created_at: datetime($createdAt),
+            source: 'lisa-cli',
+            source_description: 'Task updated via lisa tasks update'
+          })
+          RETURN e.uuid AS uuid
+        `;
+        await neo4jClient.query(cypher, { uuid, name, content, groupId, createdAt });
+
+        return {
+          status: 'ok',
+          action: 'update',
+          task: taskObj,
+          group: groupId,
+          result: { uuid, message: `Task updated with uuid ${uuid}` },
+          mode: 'neo4j',
+        };
+      } finally {
+        await neo4jClient.disconnect();
+      }
     },
 
     async link(
@@ -319,15 +334,26 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
           };
         }
 
-        // Use MCP
-        await mcpClient.initialize();
-        const params = {
-          name: `TASK LINK: ${String(taskObj.title).slice(0, 50)} -> ${externalLink.source}#${externalLink.id}`,
-          episode_body: JSON.stringify({ ...taskObj, linked: true }),
-          source: 'json',
-          group_id: groupId,
-        };
-        await mcpClient.rpcCall<unknown>('add_memory', params);
+        // Write directly to Neo4j for immediate persistence
+        // Link creates a new episodic node with the updated link info
+        const newUuid = `task-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+        const name = `TASK: ${String(taskObj.title).slice(0, 60)}`;
+        const content = JSON.stringify({ ...taskObj, linked: true });
+        const createdAt = new Date().toISOString();
+
+        const createCypher = `
+          CREATE (e:Episodic {
+            uuid: $uuid,
+            name: $name,
+            content: $content,
+            group_id: $groupId,
+            created_at: datetime($createdAt),
+            source: 'lisa-cli',
+            source_description: 'Task linked via lisa tasks link'
+          })
+          RETURN e.uuid AS uuid
+        `;
+        await neo4jClient.query(createCypher, { uuid: newUuid, name, content, groupId, createdAt });
 
         return {
           status: 'ok',
@@ -338,7 +364,7 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
             externalLink: taskObj.externalLink as ITaskExternalLink,
           },
           group: groupId,
-          mode: 'mcp',
+          mode: 'neo4j',
         };
       } finally {
         await neo4jClient.disconnect();
@@ -395,15 +421,26 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
           };
         }
 
-        // Use MCP
-        await mcpClient.initialize();
-        const params = {
-          name: `TASK UNLINK: ${String(taskObj.title).slice(0, 60)}`,
-          episode_body: JSON.stringify({ ...taskObj, unlinked: true }),
-          source: 'json',
-          group_id: groupId,
-        };
-        await mcpClient.rpcCall<unknown>('add_memory', params);
+        // Write directly to Neo4j for immediate persistence
+        // Unlink creates a new episodic node with the link removed
+        const newUuid = `task-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+        const name = `TASK: ${String(taskObj.title).slice(0, 60)}`;
+        const content = JSON.stringify({ ...taskObj, unlinked: true });
+        const createdAt = new Date().toISOString();
+
+        const createCypher = `
+          CREATE (e:Episodic {
+            uuid: $uuid,
+            name: $name,
+            content: $content,
+            group_id: $groupId,
+            created_at: datetime($createdAt),
+            source: 'lisa-cli',
+            source_description: 'Task unlinked via lisa tasks unlink'
+          })
+          RETURN e.uuid AS uuid
+        `;
+        await neo4jClient.query(createCypher, { uuid: newUuid, name, content, groupId, createdAt });
 
         return {
           status: 'ok',
@@ -413,7 +450,7 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
             uuid: taskUuid,
           },
           group: groupId,
-          mode: 'mcp',
+          mode: 'neo4j',
         };
       } finally {
         await neo4jClient.disconnect();
