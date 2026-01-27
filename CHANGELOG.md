@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 New automated cron job setup during `lisa init` for PR polling. Also available via `lisa pr cron` commands.
 
 **During `lisa init`:**
-```
+```text
 ? Enable PR monitoring? (polls GitHub every 5 minutes for all your PRs)
 > Yes - set up cron job
 

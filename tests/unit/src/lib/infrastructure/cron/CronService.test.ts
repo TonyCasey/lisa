@@ -15,7 +15,7 @@ import assert from 'node:assert';
 import fs from 'fs-extra';
 import path from 'path';
 import os from 'os';
-import { CronService, createCronService } from '../../../../../../src/lib/infrastructure/cron/CronService';
+import { CronService, createCronService, clearLisaPathCache } from '../../../../../../src/lib/infrastructure/cron/CronService';
 import type {
   ICronConfig,
   ILisaGlobalConfig,
@@ -293,6 +293,55 @@ describe('CronService', () => {
       assert.ok('success' in result);
       assert.ok('status' in result);
       assert.ok('platform' in result);
+    });
+  });
+
+  describe('lisa path resolution', () => {
+    beforeEach(() => {
+      // Clear cache before each test
+      clearLisaPathCache();
+    });
+
+    it('should export clearLisaPathCache function', () => {
+      assert.strictEqual(typeof clearLisaPathCache, 'function');
+    });
+
+    it('should not throw when clearing cache multiple times', () => {
+      assert.doesNotThrow(() => {
+        clearLisaPathCache();
+        clearLisaPathCache();
+        clearLisaPathCache();
+      });
+    });
+  });
+
+  describe('manual instructions include path guidance', () => {
+    it('should mention absolute path for crontab platform', () => {
+      const instructions = cronService.getManualInstructions({
+        name: 'test',
+        command: 'lisa pr poll',
+        intervalMinutes: 5,
+        notify: false,
+      });
+
+      if (cronService.getPlatform() === 'crontab') {
+        assert.ok(instructions.includes('which lisa'), 'Should mention which command');
+        assert.ok(instructions.includes('absolute path') || instructions.includes('/path/to/lisa'), 'Should mention path');
+      }
+    });
+
+    it('should mention absolute path for windows-scheduler platform', () => {
+      const instructions = cronService.getManualInstructions({
+        name: 'test',
+        command: 'lisa pr poll',
+        intervalMinutes: 5,
+        notify: false,
+      });
+
+      if (cronService.getPlatform() === 'windows-scheduler') {
+        assert.ok(instructions.includes('where lisa'), 'Should mention where command');
+        assert.ok(instructions.includes('full path') || instructions.includes('C:\\'), 'Should mention path');
+      }
     });
   });
 

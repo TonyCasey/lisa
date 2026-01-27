@@ -30,6 +30,70 @@ const WINDOWS_TASK_NAME = 'LisaPrPoll';
 /** Marker comment for crontab entries */
 const CRONTAB_MARKER = '# LISA_PR_POLL';
 
+/** Cached absolute path to lisa binary */
+let cachedLisaPath: string | null = null;
+
+/**
+ * Resolve the absolute path to the lisa binary.
+ * Cron jobs run with minimal PATH, so we need the full path.
+ * 
+ * @returns The absolute path to lisa, or 'lisa' as fallback
+ */
+async function resolveLisaPath(): Promise<string> {
+  if (cachedLisaPath) {
+    return cachedLisaPath;
+  }
+
+  try {
+    if (process.platform === 'win32') {
+      // Windows: use 'where' command
+      const { stdout } = await execAsync('where lisa', { timeout: 5000 });
+      // 'where' can return multiple lines, take the first
+      const lisaPath = stdout.trim().split(/\r?\n/)[0];
+      if (lisaPath && await fs.pathExists(lisaPath)) {
+        cachedLisaPath = lisaPath;
+        return lisaPath;
+      }
+    } else {
+      // Unix: use 'which' command
+      const { stdout } = await execAsync('which lisa', { timeout: 5000 });
+      const lisaPath = stdout.trim();
+      if (lisaPath && await fs.pathExists(lisaPath)) {
+        cachedLisaPath = lisaPath;
+        return lisaPath;
+      }
+    }
+  } catch {
+    // Command failed, try npm global bin
+  }
+
+  // Fallback: try to find via npm global prefix
+  try {
+    const { stdout } = await execAsync('npm prefix -g', { timeout: 5000 });
+    const npmPrefix = stdout.trim();
+    const lisaBin = process.platform === 'win32'
+      ? path.join(npmPrefix, 'lisa.cmd')
+      : path.join(npmPrefix, 'bin', 'lisa');
+    
+    if (await fs.pathExists(lisaBin)) {
+      cachedLisaPath = lisaBin;
+      return lisaBin;
+    }
+  } catch {
+    // npm command failed
+  }
+
+  // Last resort: return 'lisa' and hope PATH is configured
+  return 'lisa';
+}
+
+/**
+ * Clear the cached lisa path (for testing).
+ */
+export function clearLisaPathCache(): void {
+  cachedLisaPath = null;
+}
+
 /**
  * Get the default log path.
  */
@@ -255,9 +319,13 @@ To manually set up PR polling, add this line to your crontab:
   
   crontab -e
   
-Then add:
-  */${config.intervalMinutes} * * * * lisa pr poll${notifyFlag} >> ${logPath} 2>&1
+Then add (use absolute path from 'which lisa'):
+  */${config.intervalMinutes} * * * * $(which lisa) pr poll${notifyFlag} >> ${logPath} 2>&1
 
+Or with explicit path (e.g., /usr/local/bin/lisa or ~/.nvm/.../bin/lisa):
+  */${config.intervalMinutes} * * * * /path/to/lisa pr poll${notifyFlag} >> ${logPath} 2>&1
+
+Note: Cron runs with minimal PATH, so using the absolute path is recommended.
 Save and exit. The cron job will run every ${config.intervalMinutes} minutes.
 `.trim();
 
@@ -265,7 +333,11 @@ Save and exit. The cron job will run every ${config.intervalMinutes} minutes.
         return `
 To manually set up PR polling, run this in PowerShell (as Administrator):
 
-  schtasks /create /tn "${WINDOWS_TASK_NAME}" /tr "lisa pr poll${notifyFlag}" /sc minute /mo ${config.intervalMinutes} /f
+First, find the lisa path:
+  where lisa
+
+Then create the task with the full path:
+  schtasks /create /tn "${WINDOWS_TASK_NAME}" /tr "C:\\path\\to\\lisa.cmd pr poll${notifyFlag}" /sc minute /mo ${config.intervalMinutes} /f
 
 To remove later:
   schtasks /delete /tn "${WINDOWS_TASK_NAME}" /f
@@ -275,8 +347,10 @@ To remove later:
         return `
 PR polling is not automatically supported on this platform.
 Please set up a scheduled task manually to run:
-  lisa pr poll${notifyFlag}
+  /full/path/to/lisa pr poll${notifyFlag}
 every ${config.intervalMinutes} minutes.
+
+Find the lisa path with: which lisa (Unix) or where lisa (Windows)
 `.trim();
     }
   }
@@ -309,7 +383,10 @@ every ${config.intervalMinutes} minutes.
   private async installCrontab(config: ICronJobConfig): Promise<ICronResult> {
     const logPath = config.logPath ?? getDefaultLogPath();
     const notifyFlag = config.notify ? ' --notify' : '';
-    const cronLine = `*/${config.intervalMinutes} * * * * lisa pr poll${notifyFlag} >> ${logPath} 2>&1 ${CRONTAB_MARKER}`;
+    
+    // Resolve absolute path to lisa binary (cron runs with minimal PATH)
+    const lisaPath = await resolveLisaPath();
+    const cronLine = `*/${config.intervalMinutes} * * * * ${lisaPath} pr poll${notifyFlag} >> ${logPath} 2>&1 ${CRONTAB_MARKER}`;
 
     // Get existing crontab (or empty if none)
     let existingCrontab = '';
@@ -428,7 +505,10 @@ every ${config.intervalMinutes} minutes.
    */
   private async installWindowsTask(config: ICronJobConfig): Promise<ICronResult> {
     const notifyFlag = config.notify ? ' --notify' : '';
-    const command = `lisa pr poll${notifyFlag}`;
+    
+    // Resolve absolute path to lisa binary (Task Scheduler may not have full PATH)
+    const lisaPath = await resolveLisaPath();
+    const command = `"${lisaPath}" pr poll${notifyFlag}`;
 
     // Create scheduled task
     // /f forces overwrite if exists
