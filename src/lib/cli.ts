@@ -1002,6 +1002,53 @@ prCmd
   });
 
 prCmd
+  .command('address <pr-number>')
+  .description('Fetch pending comments and prepare them for addressing')
+  .option('-r, --repo <repo>', 'Repository (owner/repo format)')
+  .option('--include-resolved', 'Include already resolved comments')
+  .option('-c, --context <lines>', 'Lines of code context (default: 10)', '10')
+  .option('--json', 'Output as JSON')
+  .action(async (prNumber: string, opts) => {
+    await withCorrelation(async () => {
+      const log = cliLogger.child({ command: 'pr address' });
+      log.info('Preparing PR comments for addressing', { prNumber, repo: opts.repo });
+
+      let neo4jConnection: Neo4jConnectionManager | undefined;
+      try {
+        const { GithubClient, Neo4jPullRequestRepository, createNeo4jConnectionManager } = await import('./infrastructure');
+        const { PrAddressHandler } = await import('./application/handlers');
+
+        const githubClient = new GithubClient();
+        neo4jConnection = createNeo4jConnectionManager();
+        const prRepository = new Neo4jPullRequestRepository(neo4jConnection);
+
+        const handler = new PrAddressHandler(githubClient, prRepository);
+        const result = await handler.execute({
+          prNumber: parseInt(prNumber, 10),
+          repo: opts.repo,
+          includeResolved: opts.includeResolved,
+          codeContextLines: parseInt(opts.context, 10),
+        });
+
+        if (opts.json) {
+          console.log(JSON.stringify(result, null, 2));
+        } else {
+          console.log(result.formattedOutput);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        log.error('Failed to prepare PR comments', { error: message });
+        console.error(chalk.red(`Failed to prepare comments: ${message}`));
+        process.exit(1);
+      } finally {
+        if (neo4jConnection) {
+          await neo4jConnection.disconnect();
+        }
+      }
+    });
+  });
+
+prCmd
   .command('watch <pr-number>')
   .description('Start watching a PR for updates')
   .option('-r, --repo <repo>', 'Repository (owner/repo format)')
