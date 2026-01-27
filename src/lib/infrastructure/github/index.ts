@@ -11,6 +11,7 @@ export {
   type IGhCheckResponse,
   type IGhReviewResponse,
   type IGhReviewCommentResponse,
+  type IGhReviewThreadResponse,
   type IGhIssueResponse,
   type IGhUserResponse,
   type IGithubClientOptions,

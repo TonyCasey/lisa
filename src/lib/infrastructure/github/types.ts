@@ -111,6 +111,27 @@ export interface IGhUserResponse {
 }
 
 /**
+ * Review thread with resolution status from GraphQL API.
+ */
+export interface IGhReviewThreadResponse {
+  readonly id: string;
+  readonly isResolved: boolean;
+  readonly isOutdated: boolean;
+  readonly comments: {
+    readonly nodes: readonly {
+      readonly id: string;
+      readonly databaseId: number;
+      readonly body: string;
+      readonly author: {
+        readonly login: string;
+      } | null;
+      readonly path: string;
+      readonly line: number | null;
+    }[];
+  };
+}
+
+/**
  * Error thrown when gh CLI is not installed or not authenticated.
  */
 export class GithubClientError extends Error {
