@@ -92,7 +92,12 @@ export class PrAddressHandler {
   async execute(options: IPrAddressOptions): Promise<IPrAddressResult> {
     // Resolve repo
     const repo = options.repo || await this.githubClient.getCurrentRepo();
-    const contextLines = options.codeContextLines ?? 10;
+    // Validate contextLines - must be a non-negative integer
+    const rawContextLines = options.codeContextLines;
+    const contextLines =
+      Number.isFinite(rawContextLines) && rawContextLines! >= 0
+        ? Math.floor(rawContextLines!)
+        : 10;
 
     // Fetch PR details
     const pr = await this.githubClient.getPr(repo, options.prNumber);
@@ -118,18 +123,19 @@ export class PrAddressHandler {
     // Enrich comments with context
     const commentsToAddress: ICommentToAddress[] = [];
     for (const comment of topLevelComments) {
-      const status = existingStatuses.get(String(comment.id)) || 'pending';
-      const commentType = this.categorizeComment(comment.body);
-      const codeContext = await this.getCodeContext(comment.path, comment.line || comment.original_line, contextLines);
+      const status = existingStatuses.get(String(comment.id)) ?? 'pending';
+      const line = comment.line ?? comment.original_line;
+      const commentType = this.categorizeComment(comment.body ?? '');
+      const codeContext = await this.getCodeContext(comment.path ?? '', line, contextLines);
 
       commentsToAddress.push({
         id: comment.id,
-        file: comment.path,
-        line: comment.line || comment.original_line,
-        author: comment.user.login,
-        body: comment.body,
+        file: comment.path ?? '',
+        line,
+        author: comment.user?.login ?? 'unknown',
+        body: comment.body ?? '',
         status,
-        htmlUrl: comment.html_url,
+        htmlUrl: comment.html_url ?? '',
         codeContext,
         diffHunk: comment.diff_hunk,
         commentType,
@@ -193,18 +199,7 @@ export class PrAddressHandler {
   private categorizeComment(body: string): CommentType {
     const lowerBody = body.toLowerCase();
 
-    // Check for approval/positive feedback
-    if (
-      lowerBody.includes('lgtm') ||
-      lowerBody.includes('looks good') ||
-      lowerBody.includes('great work') ||
-      lowerBody.includes('nice!') ||
-      lowerBody.includes('👍')
-    ) {
-      return 'approval';
-    }
-
-    // Check for questions
+    // Check for questions first (most specific)
     if (
       body.includes('?') ||
       lowerBody.includes('why') ||
@@ -257,6 +252,18 @@ export class PrAddressHandler {
       lowerBody.includes('⚠️')
     ) {
       return 'code_change';
+    }
+
+    // Check for approval/positive feedback LAST
+    // This prevents "LGTM, but fix X" from being classified as approval
+    if (
+      lowerBody.includes('lgtm') ||
+      lowerBody.includes('looks good') ||
+      lowerBody.includes('great work') ||
+      lowerBody.includes('nice!') ||
+      lowerBody.includes('👍')
+    ) {
+      return 'approval';
     }
 
     return 'unknown';
@@ -339,6 +346,21 @@ export class PrAddressHandler {
   }
 
   /**
+   * Wrap content in a safe fenced code block.
+   * Handles content that contains backticks by using a longer fence.
+   */
+  private wrapFence(content: string | undefined, lang = ''): string {
+    if (!content) return '```\n```';
+    
+    // Find the longest run of backticks in the content
+    const backtickRuns = content.match(/`+/g) ?? [];
+    const maxTicks = Math.max(2, ...backtickRuns.map(t => t.length)) + 1;
+    const fence = '`'.repeat(maxTicks);
+    
+    return `${fence}${lang}\n${content}\n${fence}`;
+  }
+
+  /**
    * Format output for display.
    */
   private formatOutput(
@@ -397,16 +419,12 @@ export class PrAddressHandler {
       lines.push(`**URL:** ${comment.htmlUrl}`);
       lines.push('');
       lines.push('**Comment:**');
-      lines.push('```');
-      lines.push(comment.body);
-      lines.push('```');
+      lines.push(this.wrapFence(comment.body));
       lines.push('');
 
       if (comment.codeContext) {
         lines.push('**Code context:**');
-        lines.push('```');
-        lines.push(comment.codeContext);
-        lines.push('```');
+        lines.push(this.wrapFence(comment.codeContext));
         lines.push('');
       }
 
@@ -414,9 +432,7 @@ export class PrAddressHandler {
         lines.push('<details>');
         lines.push('<summary>Diff hunk</summary>');
         lines.push('');
-        lines.push('```diff');
-        lines.push(comment.diffHunk);
-        lines.push('```');
+        lines.push(this.wrapFence(comment.diffHunk, 'diff'));
         lines.push('</details>');
         lines.push('');
       }
