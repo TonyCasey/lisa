@@ -516,12 +516,22 @@ Find the lisa path with: which lisa (Unix) or where lisa (Windows)
     
     // Resolve absolute path to lisa binary (Task Scheduler may not have full PATH)
     const lisaPath = await resolveLisaPath();
-    const command = `"${lisaPath}" pr poll${notifyFlag}`;
+    
+    // Create a VBScript wrapper to run the command hidden
+    // This is the most reliable way to hide console windows from Task Scheduler
+    const vbsPath = path.join(os.homedir(), '.lisa', 'pr-poll.vbs');
+    const vbsContent = `Set WshShell = CreateObject("WScript.Shell")
+WshShell.Run """${lisaPath}"" pr poll${notifyFlag}", 0, False`;
+    
+    await fs.ensureDir(path.dirname(vbsPath));
+    await fs.writeFile(vbsPath, vbsContent, 'utf8');
+    
+    // Task runs the VBScript with wscript (hidden by default)
+    const command = `wscript.exe "${vbsPath}"`;
 
     // Create scheduled task
     // /f forces overwrite if exists
     // /sc minute /mo N = every N minutes
-    // /ru "" = run as current user
     const createCmd = `schtasks /create /tn "${WINDOWS_TASK_NAME}" /tr "${command}" /sc minute /mo ${config.intervalMinutes} /f`;
 
     try {
