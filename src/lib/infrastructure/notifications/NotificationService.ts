@@ -256,11 +256,18 @@ export class NotificationService implements INotificationService {
     // Build launch attribute for clickable notifications (escape URL for XML safety)
     const launchAttr = url ? ` launch="${this.escapeForXmlAttribute(url)}" activationType="protocol"` : '';
     
-    // Check if Lisa icon exists
+    // Check if Lisa icon exists and escape all values for XML
     const iconPath = await this.getIconPath();
-    const iconElement = iconPath 
-      ? `<image placement="appLogoOverride" src="${iconPath.replace(/\\/g, '/')}"/>` 
+    const safeIconPath = iconPath 
+      ? this.escapeForXmlAttribute(iconPath.replace(/\\/g, '/'))
       : '';
+    const iconElement = safeIconPath
+      ? `<image placement="appLogoOverride" src="${safeIconPath}"/>`
+      : '';
+    
+    // Escape title and body for XML text content (& < > can break LoadXml)
+    const safeTitleXml = this.escapeForXmlAttribute(title);
+    const safeBodyXml = this.escapeForXmlAttribute(body);
     
     // Use BurntToast if available, otherwise use basic Windows notification
     const script = `
@@ -285,8 +292,8 @@ export class NotificationService implements INotificationService {
   <visual>
     <binding template="ToastGeneric">
       ${iconElement}
-      <text id="1">${title}</text>
-      <text id="2">${body}</text>
+      <text id="1">${safeTitleXml}</text>
+      <text id="2">${safeBodyXml}</text>
     </binding>
   </visual>
   <audio src="ms-winsoundevent:Notification.Default"/>
