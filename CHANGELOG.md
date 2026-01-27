@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.10.0] - 2026-01-27
+
+### Added
+
+#### Cron Job Setup for PR Polling ([#38](https://github.com/TonyCasey/lisa/issues/38))
+
+New automated cron job setup during `lisa init` for PR polling. Also available via `lisa pr cron` commands.
+
+**During `lisa init`:**
+```
+? Enable PR monitoring? (polls GitHub every 5 minutes for all your PRs)
+> Yes - set up cron job
+
+? Enable desktop notifications for PR changes?
+> Yes
+
+Setting up PR polling...
+  Installed crontab job: lisa pr poll --notify
+  PR monitoring is now active. Use `lisa pr watch <number>` to start tracking PRs.
+```
+
+**Manual Commands:**
+```bash
+lisa pr cron install              # Install cron job
+lisa pr cron install --no-notify  # Without notifications
+lisa pr cron install -i 10        # Custom interval (10 minutes)
+lisa pr cron uninstall            # Remove cron job
+lisa pr cron status               # Check cron job status
+lisa pr cron status --json        # JSON output
+```
+
+**Platform Support:**
+- **Linux/macOS**: crontab (runs `*/5 * * * * lisa pr poll --notify`)
+- **Windows**: Task Scheduler (`schtasks /create /tn "LisaPrPoll" /tr "lisa pr poll --notify" /sc minute /mo 5`)
+- **Fallback**: Manual instructions if automated setup fails
+
+**CLI Options:**
+- `lisa init --skip-pr-polling` - Skip PR polling prompt
+- `lisa init -y --enable-pr-polling` - Enable in non-interactive mode
+- `lisa init -y --enable-pr-polling --pr-polling-notify` - With notifications
+
+**Configuration:**
+Cron status stored in `~/.lisa/config.json`:
+```json
+{
+  "prPolling": {
+    "enabled": true,
+    "setupAt": "2026-01-27T12:00:00Z",
+    "platform": "crontab",
+    "intervalMinutes": 5,
+    "notify": true
+  }
+}
+```
+
+### New Files
+
+- `src/lib/domain/interfaces/ICronService.ts` - Cron service interface
+- `src/lib/infrastructure/cron/CronService.ts` - Cross-platform implementation
+- `tests/unit/src/lib/infrastructure/cron/CronService.test.ts` - Tests
+
+---
+
 ## [2.9.0] - 2026-01-27
 
 ### Added
