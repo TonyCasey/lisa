@@ -18,5 +18,5 @@ export { PrChecksHandler, type IPrChecksResult } from './PrChecksHandler';
 export { PrCommentsHandler, type IPrCommentsResult } from './PrCommentsHandler';
 export { PrAddressHandler, type IPrAddressResult, type IPrAddressOptions, type ICommentToAddress, type CommentType } from './PrAddressHandler';
 export { PrWatchHandler, type IPrWatchResult } from './PrWatchHandler';
-export { PrPollHandler, type IPrPollResult, type IPrPollOptions, type IPrPollItem, type IStateChange } from './PrPollHandler';
+export { PrPollHandler, type IPrPollResult, type IPrPollOptions, type IPrPollItem, type IStateChange, type IAutoAddressOutput } from './PrPollHandler';
 export { PrStatusHandler, type IPrStatusResult, type IPrStatusOptions, type IPrStatusItem, type IPrsByRepo, type IPrStatusSummary, type ReadyState } from './PrStatusHandler';

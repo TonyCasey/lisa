@@ -26,6 +26,7 @@ import type { IGhCheckResponse, IGhReviewCommentResponse } from '../../../infras
 import { GithubClientError } from '../../../infrastructure/github/types';
 import type { INotificationService, INotification } from '../../../domain/interfaces/INotificationService';
 import { createNotificationFromStateChange } from '../../../infrastructure/notifications/NotificationService';
+import { PrAddressHandler } from './PrAddressHandler';
 
 /**
  * State change detected during polling.
@@ -78,6 +79,17 @@ export interface IPrPollResult {
   readonly totalErrors: number;
   readonly items: readonly IPrPollItem[];
   readonly logPath?: string;
+  /** Auto-address output for PRs with new comments (when autoAddress is enabled) */
+  readonly addressOutput?: readonly IAutoAddressOutput[];
+}
+
+/**
+ * Auto-address output for a single PR.
+ */
+export interface IAutoAddressOutput {
+  readonly prNumber: number;
+  readonly repo: string;
+  readonly formattedOutput: string;
 }
 
 /**
@@ -92,6 +104,8 @@ export interface IPrPollOptions {
   readonly concurrency?: number;
   /** Send desktop notifications for state changes (default: false) */
   readonly notify?: boolean;
+  /** Auto-address new comments by outputting formatted instructions (default: true) */
+  readonly autoAddress?: boolean;
 }
 
 /**
@@ -116,6 +130,7 @@ export class PrPollHandler {
     const autoUnwatch = options?.autoUnwatch ?? true;
     const logToFile = options?.logToFile ?? true;
     const notify = options?.notify ?? false;
+    const autoAddress = options?.autoAddress ?? true;
     // Guard against zero/negative concurrency to prevent infinite loops
     const concurrency = Math.max(1, options?.concurrency ?? 5);
 
@@ -178,6 +193,40 @@ export class PrPollHandler {
         log(`Sent ${notifications.length} desktop notification(s).`);
       }
 
+      // Auto-address PRs with new comments
+      let addressOutput: IAutoAddressOutput[] | undefined;
+      if (autoAddress) {
+        const prsWithNewComments = pollResults.filter(item =>
+          item.changes.some(c => c.type === 'new_comment' || c.type === 'new_reply')
+        );
+
+        if (prsWithNewComments.length > 0) {
+          addressOutput = [];
+          const addressHandler = new PrAddressHandler(this.githubClient, this.prRepository);
+
+          for (const item of prsWithNewComments) {
+            try {
+              const addressResult = await addressHandler.execute({
+                repo: item.repo,
+                prNumber: item.number,
+              });
+
+              if (addressResult.commentsToAddress.length > 0) {
+                addressOutput.push({
+                  prNumber: item.number,
+                  repo: item.repo,
+                  formattedOutput: addressResult.formattedOutput,
+                });
+                log(`Auto-address: ${item.repo}#${item.number} has ${addressResult.commentsToAddress.length} comment(s) to address`);
+              }
+            } catch (err) {
+              const errMsg = err instanceof Error ? err.message : String(err);
+              log(`Auto-address failed for ${item.repo}#${item.number}: ${errMsg}`);
+            }
+          }
+        }
+      }
+
       log(`Poll complete. ${totalChanges} notification(s).`);
 
       // Write to log file
@@ -198,6 +247,7 @@ export class PrPollHandler {
         totalErrors,
         items: pollResults,
         logPath,
+        addressOutput: addressOutput && addressOutput.length > 0 ? addressOutput : undefined,
       };
     } catch (error) {
       const message = this.getErrorMessage(error);
