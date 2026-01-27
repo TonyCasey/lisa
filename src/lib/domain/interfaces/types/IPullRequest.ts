@@ -95,6 +95,8 @@ export interface IPullRequestInput {
   readonly title: string;
   readonly status?: PullRequestStatus;
   readonly watching?: boolean;
+  readonly checksStatus?: CheckStatus;
+  readonly unresolvedComments?: number;
 }
 
 /**

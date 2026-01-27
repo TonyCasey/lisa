@@ -586,5 +586,102 @@ describe('PrPollHandler', () => {
       assert.strictEqual(result.totalChanges, 0);
       assert.strictEqual(result.items[0].changes.length, 0);
     });
+
+    it('should persist checksStatus and unresolvedComments to Neo4j', async () => {
+      let upsertedPr: { checksStatus?: string; unresolvedComments?: number } | undefined;
+
+      mockPrRepository = createMockPrRepository({
+        findWatchedPrs: async () => ({
+          items: [createMockWatchedPr(50, { checksStatus: 'pending' })],
+          hasMore: false,
+        }),
+        upsertPr: async (_userId, pr) => {
+          upsertedPr = { checksStatus: pr.checksStatus, unresolvedComments: pr.unresolvedComments };
+          return {
+            type: 'pull_request',
+            number: pr.number,
+            repo: pr.repo,
+            title: pr.title,
+            status: pr.status || 'open',
+            watching: true,
+            checksStatus: pr.checksStatus || 'pending',
+            unresolvedComments: pr.unresolvedComments || 0,
+          };
+        },
+      });
+      mockGithubClient = createMockGithubClient({
+        getPrChecks: async () => [createMockCheck('build', 'SUCCESS')],
+        getPrComments: async () => [
+          createMockComment(1, 'reviewer', 'file.ts', 10),
+          createMockComment(2, 'reviewer', 'file.ts', 20),
+        ],
+      });
+      handler = new PrPollHandler(mockGithubClient, mockPrRepository);
+
+      await handler.poll({ logToFile: false });
+
+      assert.ok(upsertedPr);
+      assert.strictEqual(upsertedPr.checksStatus, 'success');
+      assert.strictEqual(upsertedPr.unresolvedComments, 2);
+    });
+
+    it('should paginate through all watched PRs', async () => {
+      let queryCount = 0;
+      const allPrs = [
+        createMockWatchedPr(1),
+        createMockWatchedPr(2),
+        createMockWatchedPr(3),
+      ];
+
+      mockPrRepository = createMockPrRepository({
+        findWatchedPrs: async (_userId, options) => {
+          queryCount++;
+          const offset = options?.offset || 0;
+          const limit = options?.limit || 100;
+          const items = allPrs.slice(offset, offset + limit);
+          const hasMore = offset + limit < allPrs.length;
+          return { items, hasMore };
+        },
+      });
+      handler = new PrPollHandler(mockGithubClient, mockPrRepository);
+
+      const result = await handler.poll({ logToFile: false });
+
+      // Should have polled all 3 PRs
+      assert.strictEqual(result.totalWatched, 3);
+      assert.strictEqual(result.items.length, 3);
+    });
+
+    it('should guard against zero concurrency', async () => {
+      mockPrRepository = createMockPrRepository({
+        findWatchedPrs: async () => ({
+          items: [createMockWatchedPr(50)],
+          hasMore: false,
+        }),
+      });
+      handler = new PrPollHandler(mockGithubClient, mockPrRepository);
+
+      // Should not hang with concurrency 0 - should use minimum of 1
+      const result = await handler.poll({ concurrency: 0, logToFile: false });
+
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(result.items.length, 1);
+    });
+
+    it('should guard against negative concurrency', async () => {
+      mockPrRepository = createMockPrRepository({
+        findWatchedPrs: async () => ({
+          items: [createMockWatchedPr(50)],
+          hasMore: false,
+        }),
+      });
+      handler = new PrPollHandler(mockGithubClient, mockPrRepository);
+
+      // Should not hang with negative concurrency - should use minimum of 1
+      const result = await handler.poll({ concurrency: -5, logToFile: false });
+
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(result.items.length, 1);
+    });
   });
 });

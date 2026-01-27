@@ -110,7 +110,8 @@ export class PrPollHandler {
     const polledAt = new Date().toISOString();
     const autoUnwatch = options?.autoUnwatch ?? true;
     const logToFile = options?.logToFile ?? true;
-    const concurrency = options?.concurrency ?? 5;
+    // Guard against zero/negative concurrency to prevent infinite loops
+    const concurrency = Math.max(1, options?.concurrency ?? 5);
 
     const logs: string[] = [];
     const log = (message: string) => {
@@ -122,10 +123,21 @@ export class PrPollHandler {
       // Get user ID
       const userId = await this.prRepository.getUserId();
 
-      // Query all watched PRs
-      const { items: watchedPrs } = await this.prRepository.findWatchedPrs(userId, {
-        limit: 100, // Reasonable upper bound
-      });
+      // Query all watched PRs with pagination
+      const watchedPrs: IPullRequest[] = [];
+      let offset = 0;
+      const pageSize = 100;
+      let hasMore = true;
+
+      while (hasMore) {
+        const result = await this.prRepository.findWatchedPrs(userId, {
+          limit: pageSize,
+          offset,
+        });
+        watchedPrs.push(...result.items);
+        hasMore = result.hasMore;
+        offset += pageSize;
+      }
 
       log(`Polling ${watchedPrs.length} watched PR(s)...`);
 
@@ -289,13 +301,15 @@ export class PrPollHandler {
       );
       changes.push(...newCommentChanges);
 
-      // Update Neo4j with new state
+      // Update Neo4j with new state (including checksStatus and unresolvedComments)
       await this.prRepository.upsertPr(userId, {
         number: pr.number,
         repo: pr.repo,
         title: ghPr.title,
         status: newStatus,
         watching: true,
+        checksStatus: newChecksStatus,
+        unresolvedComments: newUnresolvedComments,
       });
 
       // Update checks in Neo4j
