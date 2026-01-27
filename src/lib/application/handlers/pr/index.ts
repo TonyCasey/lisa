@@ -9,6 +9,7 @@
  * - watch/unwatch: Manage PR watch list
  * - watching: List all watched PRs
  * - poll: Cron-based polling for state changes
+ * - status: Multi-PR summary dashboard
  */
 
 export { PrCreateHandler, type IPrCreateResult, type IPrCreateOptions } from './PrCreateHandler';
@@ -17,3 +18,4 @@ export { PrChecksHandler, type IPrChecksResult } from './PrChecksHandler';
 export { PrCommentsHandler, type IPrCommentsResult } from './PrCommentsHandler';
 export { PrWatchHandler, type IPrWatchResult } from './PrWatchHandler';
 export { PrPollHandler, type IPrPollResult, type IPrPollOptions, type IPrPollItem, type IStateChange } from './PrPollHandler';
+export { PrStatusHandler, type IPrStatusResult, type IPrStatusOptions, type IPrStatusItem, type IPrsByRepo, type IPrStatusSummary, type ReadyState } from './PrStatusHandler';

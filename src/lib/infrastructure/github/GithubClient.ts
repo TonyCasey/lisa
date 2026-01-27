@@ -263,7 +263,7 @@ export class GithubClient {
       'updatedAt',
       'closingIssuesReferences',
       'author',
-      'repository',
+      'headRepository',
     ].join(',');
 
     return this.execGh<IGhPrResponse>(['pr', 'view', String(prNumber), '--repo', repo, '--json', fields]);

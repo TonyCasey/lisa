@@ -1153,6 +1153,53 @@ prCmd
   });
 
 prCmd
+  .command('status')
+  .description('Show status summary of all watched PRs')
+  .option('-r, --repo <repo>', 'Filter by repository (owner/repo format)')
+  .option('--json', 'Output as JSON')
+  .action(async (opts) => {
+    await withCorrelation(async () => {
+      const log = cliLogger.child({ command: 'pr status' });
+      log.info('Getting PR status summary', { repo: opts.repo });
+
+      let neo4jConnection: Neo4jConnectionManager | undefined;
+      try {
+        const { Neo4jPullRequestRepository, createNeo4jConnectionManager } = await import('./infrastructure');
+        const { PrStatusHandler } = await import('./application/handlers');
+
+        neo4jConnection = createNeo4jConnectionManager();
+        const prRepository = new Neo4jPullRequestRepository(neo4jConnection);
+
+        const handler = new PrStatusHandler(prRepository);
+        const result = await handler.execute({
+          repo: opts.repo,
+        });
+
+        if (opts.json) {
+          console.log(JSON.stringify(result, null, 2));
+          if (!result.success) {
+            process.exit(1);
+          }
+        } else if (result.success) {
+          console.log(result.formattedOutput);
+        } else {
+          console.error(chalk.red(result.message));
+          process.exit(1);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        log.error('Failed to get PR status', { error: message });
+        console.error(chalk.red(`Failed to get PR status: ${message}`));
+        process.exit(1);
+      } finally {
+        if (neo4jConnection) {
+          await neo4jConnection.disconnect();
+        }
+      }
+    });
+  });
+
+prCmd
   .command('poll')
   .description('Poll all watched PRs for state changes (for cron)')
   .option('--no-auto-unwatch', 'Do not auto-unwatch merged/closed PRs')

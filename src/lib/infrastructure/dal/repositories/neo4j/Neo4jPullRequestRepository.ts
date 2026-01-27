@@ -11,6 +11,7 @@
  */
 
 import { execSync } from 'child_process';
+import neo4j from 'neo4j-driver';
 import type {
   IPullRequest,
   IGitHubIssue,
@@ -171,10 +172,11 @@ export class Neo4jPullRequestRepository implements IPullRequestRepository {
     `;
 
     // Build params with proper parameterization to prevent Cypher injection
+    // Note: Neo4j requires integer types for LIMIT/SKIP, using neo4j.int() for safety
     const params: Record<string, unknown> = {
       userId,
-      offset,
-      fetchLimit: limit + 1,
+      offset: neo4j.int(offset),
+      fetchLimit: neo4j.int(limit + 1),
     };
 
     if (repo) {
