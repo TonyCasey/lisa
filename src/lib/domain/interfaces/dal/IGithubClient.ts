@@ -12,6 +12,7 @@ import type {
   IGhPrResponse,
   IGhCheckResponse,
   IGhReviewCommentResponse,
+  IGhReviewThreadResponse,
   IGhIssueResponse,
   IGhUserResponse,
 } from '../../../infrastructure/github/types';
@@ -24,6 +25,7 @@ export interface IGithubClient {
   getPr(repo: string, prNumber: number): Promise<IGhPrResponse>;
   getPrChecks(repo: string, prNumber: number): Promise<readonly IGhCheckResponse[]>;
   getPrComments(repo: string, prNumber: number): Promise<readonly IGhReviewCommentResponse[]>;
+  getPrReviewThreads(repo: string, prNumber: number): Promise<readonly IGhReviewThreadResponse[]>;
   getPrDiff(repo: string, prNumber: number): Promise<string>;
 
   // Issue Operations

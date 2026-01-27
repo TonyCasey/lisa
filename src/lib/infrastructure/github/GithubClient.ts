@@ -13,6 +13,7 @@ import type {
   IGhCheckResponse,
   IGhReviewResponse,
   IGhReviewCommentResponse,
+  IGhReviewThreadResponse,
   IGhIssueResponse,
   IGhUserResponse,
   IGithubClientOptions,
@@ -319,6 +320,69 @@ export class GithubClient {
   async getPrComments(repo: string, prNumber: number): Promise<readonly IGhReviewCommentResponse[]> {
     const [owner, repoName] = repo.split('/');
     return this.execGhApi<IGhReviewCommentResponse[]>(`repos/${owner}/${repoName}/pulls/${prNumber}/comments`);
+  }
+
+  /**
+   * Get PR review threads with resolution status via GraphQL.
+   * This provides the isResolved flag which is not available in the REST API.
+   */
+  async getPrReviewThreads(repo: string, prNumber: number): Promise<readonly IGhReviewThreadResponse[]> {
+    const [owner, repoName] = repo.split('/');
+    
+    const query = `
+      query($owner: String!, $repo: String!, $pr: Int!) {
+        repository(owner: $owner, name: $repo) {
+          pullRequest(number: $pr) {
+            reviewThreads(first: 100) {
+              nodes {
+                id
+                isResolved
+                isOutdated
+                comments(first: 10) {
+                  nodes {
+                    id
+                    databaseId
+                    body
+                    author { login }
+                    path
+                    line
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    interface GraphQLResponse {
+      data: {
+        repository: {
+          pullRequest: {
+            reviewThreads: {
+              nodes: IGhReviewThreadResponse[];
+            };
+          } | null;
+        } | null;
+      };
+    }
+
+    const result = await this.execGh<GraphQLResponse>([
+      'api', 'graphql',
+      '-f', `query=${query}`,
+      '-f', `owner=${owner}`,
+      '-f', `repo=${repoName}`,
+      '-F', `pr=${prNumber}`,
+    ]);
+
+    if (!result.data.repository?.pullRequest) {
+      throw new GithubClientError(
+        `PR #${prNumber} not found in ${repo}`,
+        'NOT_FOUND'
+      );
+    }
+
+    return result.data.repository.pullRequest.reviewThreads.nodes;
   }
 
   /**

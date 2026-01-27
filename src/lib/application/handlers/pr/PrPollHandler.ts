@@ -304,6 +304,15 @@ export class PrPollHandler {
       );
       changes.push(...newCommentChanges);
 
+      // Check for comment resolution changes via GraphQL review threads
+      const resolutionChanges = await this.detectCommentResolution(
+        pr,
+        previousComments,
+        userId,
+        log
+      );
+      changes.push(...resolutionChanges);
+
       // Update Neo4j with new state (including checksStatus and unresolvedComments)
       await this.prRepository.upsertPr(userId, {
         number: pr.number,
@@ -418,6 +427,103 @@ export class PrPollHandler {
           updatedAt: ghComment.updated_at,
         });
       }
+    }
+
+    return changes;
+  }
+
+  /**
+   * Detect comment resolution changes via GraphQL review threads.
+   * Updates stored comments and returns state changes for newly resolved threads.
+   */
+  private async detectCommentResolution(
+    pr: IPullRequest,
+    previousComments: readonly IPrComment[],
+    userId: string,
+    log: (message: string) => void
+  ): Promise<IStateChange[]> {
+    const changes: IStateChange[] = [];
+
+    try {
+      // Fetch review threads with resolution status from GraphQL
+      const reviewThreads = await this.githubClient.getPrReviewThreads(pr.repo, pr.number);
+
+      // Build a map of comment database IDs to resolution status
+      const threadResolutionMap = new Map<string, boolean>();
+      for (const thread of reviewThreads) {
+        for (const comment of thread.comments.nodes) {
+          // Use databaseId which matches the REST API id
+          threadResolutionMap.set(String(comment.databaseId), thread.isResolved);
+        }
+      }
+
+      // Check each stored comment for resolution status changes
+      let resolvedCount = 0;
+      let unresolvedCount = 0;
+      for (const comment of previousComments) {
+        const isNowResolved = threadResolutionMap.get(comment.commentId);
+        
+        // If the comment was pending/addressed but is now resolved, update it
+        if (isNowResolved === true && comment.status !== 'resolved') {
+          resolvedCount++;
+          
+          // Update the comment status in Neo4j
+          await this.prRepository.upsertComment(userId, pr.repo, pr.number, {
+            ...comment,
+            status: 'resolved',
+          });
+
+          log(`${pr.repo}#${pr.number}: comment ${comment.commentId} resolved`);
+        }
+        // If the comment was resolved but is now un-resolved (reviewer reopened), update it
+        else if (isNowResolved === false && comment.status === 'resolved') {
+          unresolvedCount++;
+          
+          // Reset to addressed (we had replied) or pending
+          const newStatus = comment.ourReplyId ? 'addressed' : 'pending';
+          await this.prRepository.upsertComment(userId, pr.repo, pr.number, {
+            ...comment,
+            status: newStatus,
+          });
+
+          log(`${pr.repo}#${pr.number}: comment ${comment.commentId} un-resolved → ${newStatus}`);
+        }
+      }
+
+      // If any comments were resolved, create a state change
+      if (resolvedCount > 0) {
+        const change: IStateChange = {
+          type: 'comment_resolved',
+          description: `${resolvedCount} comment${resolvedCount > 1 ? 's' : ''} resolved`,
+          prNumber: pr.number,
+          repo: pr.repo,
+        };
+        changes.push(change);
+
+        // Check if ALL comments are now resolved
+        const remainingUnresolved = previousComments.filter(
+          c => c.status !== 'resolved' && threadResolutionMap.get(c.commentId) !== true
+        ).length;
+
+        if (remainingUnresolved === 0 && previousComments.length > 0) {
+          log(`${pr.repo}#${pr.number}: all comments resolved! 🎉`);
+        }
+      }
+
+      // If any comments were un-resolved, notify (needs attention!)
+      if (unresolvedCount > 0) {
+        const change: IStateChange = {
+          type: 'new_comment', // Reuse new_comment type since it needs attention
+          description: `${unresolvedCount} comment${unresolvedCount > 1 ? 's' : ''} re-opened by reviewer`,
+          prNumber: pr.number,
+          repo: pr.repo,
+        };
+        changes.push(change);
+      }
+    } catch (err) {
+      // GraphQL query failed - log but don't fail the poll
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      log(`${pr.repo}#${pr.number}: failed to check comment resolution: ${errorMsg}`);
     }
 
     return changes;
