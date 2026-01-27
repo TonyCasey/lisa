@@ -14,6 +14,7 @@ export {
   PrChecksHandler,
   PrCommentsHandler,
   PrWatchHandler,
+  PrPollHandler,
   type IPrCreateResult,
   type IPrCreateOptions,
   type IPrReviewResult,
@@ -22,4 +23,8 @@ export {
   type IPrChecksResult,
   type IPrCommentsResult,
   type IPrWatchResult,
+  type IPrPollResult,
+  type IPrPollOptions,
+  type IPrPollItem,
+  type IStateChange,
 } from './pr';

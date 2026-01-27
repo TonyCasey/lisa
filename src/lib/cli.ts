@@ -1140,6 +1140,80 @@ prCmd
     });
   });
 
+prCmd
+  .command('poll')
+  .description('Poll all watched PRs for state changes (for cron)')
+  .option('--no-auto-unwatch', 'Do not auto-unwatch merged/closed PRs')
+  .option('--no-log', 'Do not write to log file')
+  .option('-c, --concurrency <n>', 'Max concurrent GitHub API calls', '5')
+  .option('--json', 'Output as JSON')
+  .action(async (opts) => {
+    await withCorrelation(async () => {
+      const log = cliLogger.child({ command: 'pr poll' });
+      log.info('Polling watched PRs');
+
+      let neo4jConnection: Neo4jConnectionManager | undefined;
+      try {
+        const { GithubClient, Neo4jPullRequestRepository, createNeo4jConnectionManager } = await import('./infrastructure');
+        const { PrPollHandler } = await import('./application/handlers');
+
+        const githubClient = new GithubClient();
+        neo4jConnection = createNeo4jConnectionManager();
+        const prRepository = new Neo4jPullRequestRepository(neo4jConnection);
+
+        const handler = new PrPollHandler(githubClient, prRepository);
+        const result = await handler.poll({
+          autoUnwatch: opts.autoUnwatch,
+          logToFile: opts.log,
+          concurrency: parseInt(opts.concurrency, 10),
+        });
+
+        if (opts.json) {
+          console.log(JSON.stringify(result, null, 2));
+        } else {
+          console.log(chalk.bold(result.message));
+
+          if (result.items.length > 0) {
+            console.log('');
+            for (const item of result.items) {
+              if (item.error) {
+                console.log(chalk.red(`  ❌ ${item.repo}#${item.number}: ${item.error}`));
+              } else if (item.changes.length > 0) {
+                for (const change of item.changes) {
+                  console.log(chalk.yellow(`  📢 ${item.repo}#${item.number}: ${change.description}`));
+                }
+                if (item.unwatched) {
+                  console.log(chalk.dim(`     (unwatched)`));
+                }
+              } else {
+                console.log(chalk.dim(`  ✓ ${item.repo}#${item.number}: no changes`));
+              }
+            }
+          }
+
+          if (result.logPath) {
+            console.log('');
+            console.log(chalk.dim(`Log: ${result.logPath}`));
+          }
+        }
+
+        // Exit with error code if there were errors
+        if (!result.success) {
+          process.exit(1);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        log.error('Failed to poll PRs', { error: message });
+        console.error(chalk.red(`Failed to poll PRs: ${message}`));
+        process.exit(1);
+      } finally {
+        if (neo4jConnection) {
+          await neo4jConnection.disconnect();
+        }
+      }
+    });
+  });
+
 // Subcommand: lisa hook
 // These commands are called by Claude Code via settings.json hooks
 const hookCmd = program
