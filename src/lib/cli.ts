@@ -71,6 +71,9 @@ program
   .option('--isolated', 'Install to .claude/lib for non-npm projects (Python, Go, etc.)')
   .option('--claude-only', 'Only scaffold for Claude Code')
   .option('--opencode-only', 'Only scaffold for OpenCode')
+  .option('--skip-pr-polling', 'Skip PR polling setup')
+  .option('--enable-pr-polling', 'Enable PR polling (for -y mode)')
+  .option('--pr-polling-notify', 'Enable desktop notifications for PR polling')
   .option('-v, --verbose', 'Show detailed logging (default: true)', true)
   .option('-q, --quiet', 'Suppress detailed logging')
   .action(async (cmd) => {
@@ -110,6 +113,9 @@ program
         isolated: cmd.isolated,
         cliSupport,
         verbose,
+        skipPrPolling: cmd.skipPrPolling,
+        enablePrPolling: cmd.enablePrPolling,
+        prPollingNotify: cmd.prPollingNotify,
       }, services);
       
       log.info('Init command completed');
@@ -129,6 +135,9 @@ program
   .option('--isolated', 'Install to .claude/lib for non-npm projects (Python, Go, etc.)')
   .option('--claude-only', 'Only scaffold for Claude Code')
   .option('--opencode-only', 'Only scaffold for OpenCode')
+  .option('--skip-pr-polling', 'Skip PR polling setup')
+  .option('--enable-pr-polling', 'Enable PR polling (for -y mode)')
+  .option('--pr-polling-notify', 'Enable desktop notifications for PR polling')
   .option('-v, --verbose', 'Show detailed logging (default: true)', true)
   .option('-q, --quiet', 'Suppress detailed logging')
   .action(async (cmd) => {
@@ -158,6 +167,9 @@ program
       isolated: cmd.isolated,
       cliSupport,
       verbose,
+      skipPrPolling: cmd.skipPrPolling,
+      enablePrPolling: cmd.enablePrPolling,
+      prPollingNotify: cmd.prPollingNotify,
     }, services);
   });
 
@@ -1216,6 +1228,131 @@ prCmd
         if (neo4jConnection) {
           await neo4jConnection.disconnect();
         }
+      }
+    });
+  });
+
+// Subcommand: lisa pr cron
+const prCronCmd = prCmd
+  .command('cron')
+  .description('Manage PR polling cron job');
+
+prCronCmd
+  .command('install')
+  .description('Install cron job for PR polling')
+  .option('--notify', 'Enable desktop notifications', true)
+  .option('--no-notify', 'Disable desktop notifications')
+  .option('-i, --interval <minutes>', 'Polling interval in minutes', '5')
+  .action(async (opts) => {
+    await withCorrelation(async () => {
+      const log = cliLogger.child({ command: 'pr cron install' });
+      log.info('Installing PR polling cron job');
+
+      try {
+        const { CronService } = await import('./infrastructure/cron');
+        const cronService = new CronService();
+
+        const intervalMinutes = parseInt(opts.interval, 10);
+        if (!Number.isFinite(intervalMinutes) || intervalMinutes < 1) {
+          console.error(chalk.red('Invalid interval. Must be at least 1 minute.'));
+          process.exit(1);
+        }
+
+        const result = await cronService.install({
+          name: 'lisa-pr-poll',
+          command: 'lisa pr poll',
+          intervalMinutes,
+          notify: opts.notify,
+        });
+
+        if (result.success) {
+          const notifyStr = opts.notify ? ' --notify' : '';
+          console.log(chalk.green(`Installed ${result.platform} job: lisa pr poll${notifyStr}`));
+          console.log(chalk.green(`Polling every ${intervalMinutes} minute(s).`));
+          console.log('');
+          console.log(chalk.cyan('PR monitoring is now active.'));
+          console.log(chalk.cyan('Use `lisa pr watch <number>` to start tracking PRs.'));
+        } else {
+          console.error(chalk.red(`Failed to install: ${result.error}`));
+          if (result.manualInstructions) {
+            console.log('');
+            console.log(chalk.cyan('Manual installation:'));
+            console.log(result.manualInstructions);
+          }
+          process.exit(1);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        log.error('Failed to install cron job', { error: message });
+        console.error(chalk.red(`Failed to install: ${message}`));
+        process.exit(1);
+      }
+    });
+  });
+
+prCronCmd
+  .command('uninstall')
+  .description('Remove PR polling cron job')
+  .action(async () => {
+    await withCorrelation(async () => {
+      const log = cliLogger.child({ command: 'pr cron uninstall' });
+      log.info('Uninstalling PR polling cron job');
+
+      try {
+        const { CronService } = await import('./infrastructure/cron');
+        const cronService = new CronService();
+
+        const result = await cronService.uninstall();
+
+        if (result.success) {
+          console.log(chalk.green('PR polling cron job removed.'));
+        } else {
+          console.error(chalk.red(`Failed to uninstall: ${result.error}`));
+          process.exit(1);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        log.error('Failed to uninstall cron job', { error: message });
+        console.error(chalk.red(`Failed to uninstall: ${message}`));
+        process.exit(1);
+      }
+    });
+  });
+
+prCronCmd
+  .command('status')
+  .description('Check PR polling cron job status')
+  .option('--json', 'Output as JSON')
+  .action(async (opts) => {
+    await withCorrelation(async () => {
+      const log = cliLogger.child({ command: 'pr cron status' });
+      log.info('Checking PR polling cron job status');
+
+      try {
+        const { CronService } = await import('./infrastructure/cron');
+        const cronService = new CronService();
+
+        const platform = cronService.getPlatform();
+        const status = await cronService.isInstalled();
+        const config = await cronService.getConfig();
+
+        if (opts.json) {
+          console.log(JSON.stringify({ platform, status, config }, null, 2));
+        } else {
+          console.log(`Platform: ${platform}`);
+          console.log(`Status: ${status}`);
+          if (config) {
+            console.log(`Enabled: ${config.enabled}`);
+            console.log(`Interval: ${config.intervalMinutes} minutes`);
+            console.log(`Notifications: ${config.notify ? 'enabled' : 'disabled'}`);
+            console.log(`Setup: ${config.setupAt}`);
+          }
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        log.error('Failed to check status', { error: message });
+        console.error(chalk.red(`Failed to check status: ${message}`));
+        process.exit(1);
       }
     });
   });

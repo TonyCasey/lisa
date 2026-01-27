@@ -37,6 +37,15 @@ export {
   INotificationOptions,
   INotificationService,
 } from './INotificationService';
+export {
+  CronPlatform,
+  CronStatus,
+  ICronJobConfig,
+  ICronConfig,
+  ILisaGlobalConfig,
+  ICronResult,
+  ICronService,
+} from './ICronService';
 
 // Event interfaces
 export * from './events';

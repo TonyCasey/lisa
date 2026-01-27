@@ -36,5 +36,8 @@ export * from './github';
 // Notifications
 export * from './notifications';
 
+// Cron service for scheduled tasks
+export * from './cron';
+
 // Note: CLI adapters (./adapters/claude/, ./adapters/opencode/)
 // are entry points, not exported from here.

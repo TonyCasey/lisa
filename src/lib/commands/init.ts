@@ -8,7 +8,7 @@
 import path from 'path';
 import fs from 'fs-extra';
 import chalk from 'chalk';
-import { checkbox, input, password, select } from '@inquirer/prompts';
+import { checkbox, confirm, input, password, select } from '@inquirer/prompts';
 import type { IServices } from '../interfaces/IServices';
 import {
   TEMPLATE_ROOT,
@@ -20,6 +20,7 @@ import {
   type CliSupport,
   type IGraphitiConfig,
 } from './shared';
+import { CronService } from '../infrastructure/cron';
 
 // ============================================================================
 // Symlink Utilities
@@ -289,6 +290,88 @@ async function cleanupOldClaudeFiles(claudeDir: string, verbose: boolean): Promi
 }
 
 // ============================================================================
+// PR Polling Setup
+// ============================================================================
+
+interface IPrPollingConfig {
+  enabled: boolean;
+  notify: boolean;
+}
+
+/**
+ * Prompt user for PR polling setup.
+ */
+async function promptPrPolling(): Promise<IPrPollingConfig> {
+  const enable = await confirm({
+    message: 'Enable PR monitoring? (polls GitHub every 5 minutes for all your PRs)',
+    default: true,
+  });
+
+  if (!enable) {
+    return { enabled: false, notify: false };
+  }
+
+  const notify = await confirm({
+    message: 'Enable desktop notifications for PR changes?',
+    default: true,
+  });
+
+  return { enabled: true, notify };
+}
+
+/**
+ * Set up PR polling cron job.
+ */
+async function setupPrPolling(config: IPrPollingConfig, verbose: boolean): Promise<void> {
+  if (!config.enabled) {
+    return;
+  }
+
+  const cronService = new CronService();
+  const platform = cronService.getPlatform();
+
+  if (platform === 'unsupported') {
+    console.log(chalk.yellow('\nPR polling: Unsupported platform for automated setup.'));
+    console.log(chalk.cyan(cronService.getManualInstructions({
+      name: 'lisa-pr-poll',
+      command: 'lisa pr poll',
+      intervalMinutes: 5,
+      notify: config.notify,
+    })));
+    return;
+  }
+
+  // Check if already installed
+  const existingConfig = await cronService.getConfig();
+  if (existingConfig?.enabled) {
+    if (verbose) {
+      console.log(chalk.cyan('\nPR polling already configured, updating...'));
+    }
+  }
+
+  console.log(chalk.cyan('\nSetting up PR polling...'));
+
+  const result = await cronService.install({
+    name: 'lisa-pr-poll',
+    command: 'lisa pr poll',
+    intervalMinutes: 5,
+    notify: config.notify,
+  });
+
+  if (result.success) {
+    const notifyStr = config.notify ? ' with desktop notifications' : '';
+    console.log(chalk.green(`  Installed ${result.platform} job: lisa pr poll${notifyStr}`));
+    console.log(chalk.green('  PR monitoring is now active. Use `lisa pr watch <number>` to start tracking PRs.'));
+  } else {
+    console.log(chalk.yellow(`  Automated setup failed: ${result.error}`));
+    if (result.manualInstructions) {
+      console.log(chalk.cyan('\nManual setup instructions:'));
+      console.log(result.manualInstructions);
+    }
+  }
+}
+
+// ============================================================================
 // Init Command Options
 // ============================================================================
 
@@ -305,6 +388,12 @@ export interface IInitOptions {
   isolated?: boolean;
   cliSupport?: CliSupport[];
   verbose?: boolean;
+  /** Skip PR polling setup prompt */
+  skipPrPolling?: boolean;
+  /** Enable PR polling (for -y mode) */
+  enablePrPolling?: boolean;
+  /** Enable desktop notifications for PR polling */
+  prPollingNotify?: boolean;
 }
 
 // ============================================================================
@@ -567,5 +656,23 @@ export async function initCommand(opts: IInitOptions, services: IServices): Prom
     console.log('');
     console.log(chalk.cyan('Isolated mode: Lisa installed to .claude/lib/'));
     console.log(chalk.cyan('Your project root stays clean (no package.json or node_modules).'));
+  }
+
+  // PR Polling setup (global, not per-project)
+  if (!opts.skipPrPolling) {
+    let prPollingConfig: IPrPollingConfig;
+
+    if (skipPrompts) {
+      // Non-interactive mode: use enablePrPolling flag (default: false to avoid surprises)
+      prPollingConfig = {
+        enabled: opts.enablePrPolling ?? false,
+        notify: opts.prPollingNotify ?? true,
+      };
+    } else {
+      // Interactive mode: prompt user
+      prPollingConfig = await promptPrPolling();
+    }
+
+    await setupPrPolling(prPollingConfig, verbose);
   }
 }
