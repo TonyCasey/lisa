@@ -8,7 +8,9 @@ import type {
   IMemoryService,
   IMemoryLoadResult,
   IMemoryAddResult,
+  IMemoryLoadOptions,
 } from './interfaces';
+import { parseDate } from '../../../utils/dateParser';
 
 /**
  * Parsed memory CLI arguments.
@@ -23,6 +25,8 @@ export interface IMemoryCliArgs {
   explicitTag: string | null;
   entityType: string | null;
   source: string;
+  since: string | null;
+  until: string | null;
 }
 
 /**
@@ -53,7 +57,7 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
 
   return {
     async run(args: IMemoryCliArgs): Promise<IMemoryLoadResult | IMemoryAddResult> {
-      const { command, payload, explicitGroup, hasConfiguredGroup, query, limit, explicitTag, entityType, source } = args;
+      const { command, payload, explicitGroup, hasConfiguredGroup, query, limit, explicitTag, entityType, source, since, until } = args;
 
       if (!['add', 'load'].includes(command)) {
         throw new Error('command must be add|load');
@@ -68,7 +72,19 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
       if (command === 'load') {
         const groupIds = hasConfiguredGroup ? [groupId] : getGroupIds();
         logger.debug('Using Neo4j direct mode for load');
-        result = await memoryService.load(groupIds, query, limit);
+        
+        // Parse date filters
+        const loadOptions: IMemoryLoadOptions = {};
+        if (since) {
+          const parsedSince = parseDate(since);
+          if (parsedSince) loadOptions.since = parsedSince;
+        }
+        if (until) {
+          const parsedUntil = parseDate(until);
+          if (parsedUntil) loadOptions.until = parsedUntil;
+        }
+        
+        result = await memoryService.load(groupIds, query, limit, loadOptions);
       } else {
         if (!payload) throw new Error('add requires text payload');
         const tag = resolveTag(payload, explicitTag, entityType);

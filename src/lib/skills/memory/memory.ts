@@ -36,6 +36,8 @@ async function main(): Promise<void> {
   const explicitTag = popFlag(args, '--tag', null);
   const entityType = popFlag(args, '--type', null);
   const source = popFlag(args, '--source', 'skill:load-memory');
+  const since = popFlag(args, '--since', null);
+  const until = popFlag(args, '--until', null);
   const useCache = hasFlag(args, '--cache');
   const payload = args.join(' ').trim();
 
@@ -53,7 +55,7 @@ async function main(): Promise<void> {
 
   try {
     const result = await cliService.run({
-      command, payload, explicitGroup, hasConfiguredGroup, query, limit, explicitTag, entityType, source,
+      command, payload, explicitGroup, hasConfiguredGroup, query, limit, explicitTag, entityType, source, since, until,
     });
     console.log(JSON.stringify(result, null, 2));
   } catch (err: unknown) {

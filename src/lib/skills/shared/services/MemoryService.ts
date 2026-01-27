@@ -11,6 +11,7 @@ import type {
   IMemoryLoadResult,
   IMemoryAddResult,
   IMemoryAddOptions,
+  IMemoryLoadOptions,
 } from './interfaces';
 
 /**
@@ -87,10 +88,26 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
     async load(
       groupIds: string[],
       query: string,
-      limit: number
+      limit: number,
+      options?: IMemoryLoadOptions
     ): Promise<IMemoryLoadResult> {
       // Always use Neo4j for load (better date ordering)
       const groupList = groupIds.map((g) => `"${g}"`).join(', ');
+
+      // Build date filter clauses
+      const dateFilters: string[] = [];
+      const params: Record<string, unknown> = {};
+      
+      if (options?.since) {
+        dateFilters.push('r.created_at >= datetime($since)');
+        params.since = options.since.toISOString();
+      }
+      if (options?.until) {
+        dateFilters.push('r.created_at <= datetime($until)');
+        params.until = options.until.toISOString();
+      }
+      
+      const dateFilterClause = dateFilters.length > 0 ? `AND ${dateFilters.join(' AND ')}` : '';
 
       await neo4jClient.connect();
       try {
@@ -98,11 +115,13 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
 
         if (query && query !== '*') {
           // Search mode: filter by query in fact text
+          params.query = query;
           cypher = `
             MATCH (s:Entity)-[r]->(t:Entity)
             WHERE r.group_id IN [${groupList}]
               AND r.expired_at IS NULL
               AND (r.fact CONTAINS $query OR r.name CONTAINS $query)
+              ${dateFilterClause}
             RETURN r.uuid AS uuid, r.name AS name, r.fact AS fact,
                    r.group_id AS group_id, r.created_at AS created_at,
                    r.valid_at AS valid_at, r.expired_at AS expired_at
@@ -115,6 +134,7 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
             MATCH (s:Entity)-[r]->(t:Entity)
             WHERE r.group_id IN [${groupList}]
               AND r.expired_at IS NULL
+              ${dateFilterClause}
             RETURN r.uuid AS uuid, r.name AS name, r.fact AS fact,
                    r.group_id AS group_id, r.created_at AS created_at,
                    r.valid_at AS valid_at, r.expired_at AS expired_at
@@ -123,10 +143,7 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
           `;
         }
 
-        const records: Neo4jFactRecord[] = await neo4jClient.query(
-          cypher,
-          query && query !== '*' ? { query } : {}
-        );
+        const records: Neo4jFactRecord[] = await neo4jClient.query(cypher, params);
 
         // Transform to standard fact format
         const facts: IFact[] = records.map((r: Neo4jFactRecord) => ({

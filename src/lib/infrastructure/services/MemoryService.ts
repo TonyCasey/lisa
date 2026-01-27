@@ -345,10 +345,12 @@ export class MemoryService implements IMemoryService {
    *
    * @param groupIds - Group IDs to query
    * @param limit - Maximum number of facts to return
+   * @param options - Optional date filtering options
    */
   async loadFactsDateOrdered(
     groupIds: readonly string[],
-    limit: number = 50
+    limit: number = 50,
+    options?: { since?: Date; until?: Date }
   ): Promise<IMemoryItem[]> {
     const logContext = this.createLogContext(groupIds, 'loadFactsDateOrdered');
     const completeOperation = this.structuredLogger.startOperation(
@@ -364,7 +366,19 @@ export class MemoryService implements IMemoryService {
         order: 'desc',
         group_ids: [...groupIds],
       });
-      const facts = response?.result?.facts || response?.facts || [];
+      let facts = response?.result?.facts || response?.facts || [];
+      
+      // Client-side date filtering for MCP fallback
+      if (options?.since || options?.until) {
+        facts = facts.filter(f => {
+          if (!f.created_at) return true;
+          const created = new Date(f.created_at).getTime();
+          if (options.since && created < options.since.getTime()) return false;
+          if (options.until && created > options.until.getTime()) return false;
+          return true;
+        });
+      }
+      
       // Client-side sort since MCP may not honor order
       const sorted = [...facts].sort((a, b) => {
         const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
@@ -381,6 +395,8 @@ export class MemoryService implements IMemoryService {
       const result = await repo.findByGroupIds(groupIds, {
         sort: { field: 'created_at', order: 'desc' },
         limit,
+        since: options?.since,
+        until: options?.until,
       });
       completeOperation({ data: { backend: 'neo4j', count: result.items.length } });
       return [...result.items];
@@ -394,7 +410,7 @@ export class MemoryService implements IMemoryService {
       });
       
       const repo = this.router.getMemoryRepository('search');
-      const result = await repo.findByGroupIds(groupIds, { limit });
+      const result = await repo.findByGroupIds(groupIds, { limit, since: options?.since, until: options?.until });
       const sorted = [...result.items].sort((a, b) => {
         const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
         const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
