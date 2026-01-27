@@ -1146,6 +1146,7 @@ prCmd
   .option('--no-auto-unwatch', 'Do not auto-unwatch merged/closed PRs')
   .option('--no-log', 'Do not write to log file')
   .option('-c, --concurrency <n>', 'Max concurrent GitHub API calls', '5')
+  .option('--notify', 'Send desktop notifications for state changes')
   .option('--json', 'Output as JSON')
   .action(async (opts) => {
     await withCorrelation(async () => {
@@ -1156,17 +1157,21 @@ prCmd
       try {
         const { GithubClient, Neo4jPullRequestRepository, createNeo4jConnectionManager } = await import('./infrastructure');
         const { PrPollHandler } = await import('./application/handlers');
+        const { NotificationService } = await import('./infrastructure/notifications');
 
         const githubClient = new GithubClient();
         neo4jConnection = createNeo4jConnectionManager();
         const prRepository = new Neo4jPullRequestRepository(neo4jConnection);
 
-        const handler = new PrPollHandler(githubClient, prRepository);
+        // Create notification service if --notify flag is set
+        const notificationService = opts.notify ? new NotificationService() : undefined;
+        const handler = new PrPollHandler(githubClient, prRepository, notificationService);
         const parsedConcurrency = parseInt(opts.concurrency, 10);
         const result = await handler.poll({
           autoUnwatch: opts.autoUnwatch,
           logToFile: opts.log,
           concurrency: Number.isFinite(parsedConcurrency) ? parsedConcurrency : 5,
+          notify: opts.notify,
         });
 
         if (opts.json) {

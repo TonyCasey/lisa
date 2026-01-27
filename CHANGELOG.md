@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.9.0] - 2026-01-27
+
+### Added
+
+#### Cross-Platform Desktop Notifications ([#37](https://github.com/TonyCasey/lisa/issues/37))
+
+New `--notify` flag for `lisa pr poll` to send desktop notifications when PR state changes are detected.
+
+```bash
+lisa pr poll --notify             # Send desktop notifications for state changes
+lisa pr poll --notify --json      # Also output JSON
+```
+
+**Supported Platforms:**
+- **Windows**: PowerShell toast notifications (BurntToast if available, fallback to native)
+- **macOS**: osascript notifications
+- **Linux**: notify-send (libnotify)
+- **Fallback**: Terminal bell + log file when desktop unavailable
+
+**Features:**
+- Notification types with emojis: checks updated, new comment, new reply, PR approved/merged/closed
+- Priority-based urgency (high priority for failures, replies, approvals)
+- Debouncing (5 second default) to prevent notification spam
+- All notifications logged to `~/.lisa/notifications.log`
+
+**Notification Format:**
+```
+PR #42: All checks passed
+repo-name: checks pending -> success
+
+PR #42: New reply
+new reply from @reviewer on file.ts:10
+```
+
+### New Files
+
+- `src/lib/domain/interfaces/INotificationService.ts` - Notification service interface
+- `src/lib/infrastructure/notifications/NotificationService.ts` - Cross-platform implementation
+- `tests/unit/src/lib/infrastructure/notifications/NotificationService.test.ts` - Tests
+
+---
+
 ## [2.8.0] - 2026-01-27
 
 ### Added

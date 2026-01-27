@@ -1,6 +1,6 @@
 {
   "name": "@tonycasey/lisa",
-  "version": "2.8.0",
+  "version": "2.9.0",
   "description": "Long-term memory for AI coding assistants. Automatic context persistence, task tracking, and knowledge capture across coding sessions. Supports Claude Code and OpenCode.",
   "bin": {
     "lisa": "dist/lib/cli.js",
