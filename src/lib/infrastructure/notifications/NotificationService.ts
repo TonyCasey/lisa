@@ -228,7 +228,7 @@ export class NotificationService implements INotificationService {
         [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
         
         $template = @"
-<toast${launchAttr}>
+<toast${launchAttr} duration="long">
   <visual>
     <binding template="ToastText02">
       <text id="1">${title}</text>
