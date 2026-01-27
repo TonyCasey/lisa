@@ -498,6 +498,14 @@ export async function initCommand(opts: IInitOptions, services: IServices): Prom
     }
   }));
 
+  // Assets scaffolding (notification icons, etc.)
+  const assetsSrc = path.join(TEMPLATE_ROOT, '.lisa', 'assets');
+  const assetsDir = path.join(lisaDir, 'assets');
+  if (await fs.pathExists(assetsSrc)) {
+    await fs.ensureDir(assetsDir);
+    copies.push(fs.copy(assetsSrc, assetsDir, { overwrite: force }));
+  }
+
   // Rules scaffolding
   copies.push(services.templateCopier.copy('.lisa/rules/shared/clean-architecture.md', path.join(rulesDir, 'shared', 'clean-architecture.md'), replacements, force));
   copies.push(services.templateCopier.copy('.lisa/rules/shared/code-quality-rules.md', path.join(rulesDir, 'shared', 'code-quality-rules.md'), replacements, force));

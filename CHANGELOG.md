@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.11.0] - 2026-01-27
+
+### Added
+
+#### Multi-PR Status Dashboard ([#42](https://github.com/TonyCasey/lisa/issues/42))
+
+New `lisa pr status` command shows a summary of all watched PRs grouped by repository with ready-for-merge analysis.
+
+**Usage:**
+```bash
+lisa pr status                    # Summary of all watched PRs
+lisa pr status --repo owner/repo  # Filter to specific repo
+lisa pr status --json             # JSON output
+```
+
+**Output Example:**
+```
+PR Status Summary (user:tonycasey)
+════════════════════════════════════════════════════════════════════════════
+
+ tonycasey/lisa
+ ──────────────────────────────────────────────────────────────────────────
+ #28  Add memory feature           open     ✅ 3/3   2 comments   🟢 Ready
+ #25  Fix auth bug                 open     ⏳ 1/3   0 comments   🟡 Pending
+
+ tonycasey/other-repo  
+ ──────────────────────────────────────────────────────────────────────────
+ #15  Update dependencies          open     ❌ 2/3   1 comment    🔴 Blocked
+
+════════════════════════════════════════════════════════════════════════════
+Summary: 3 PRs watched | 1 ready | 1 blocked | 1 pending
+```
+
+**Ready-for-Merge Logic:**
+- 🟢 **Ready**: All checks passed, no unresolved comments
+- 🔴 **Blocked**: Failed checks OR unresolved comments
+- 🟡 **Pending**: Checks still running
+- 🟣 **Merged**: PR merged
+- ⚪ **Closed/Draft**: PR closed or in draft
+
+**Features:**
+- Groups PRs by repository
+- Sorts by priority (needs attention first)
+- Shows checks status with pass/total count
+- Shows unresolved comment count
+- Truncates long titles for clean display
+
+### New Files
+
+- `src/lib/application/handlers/pr/PrStatusHandler.ts` - Status handler
+- `tests/unit/src/lib/application/handlers/pr/PrStatusHandler.test.ts` - 19 tests
+
+---
+
 ## [2.10.0] - 2026-01-27
 
 ### Added

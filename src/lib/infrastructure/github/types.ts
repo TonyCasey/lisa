@@ -30,7 +30,7 @@ export interface IGhPrResponse {
   readonly author: {
     readonly login: string;
   };
-  readonly repository: {
+  readonly headRepository: {
     readonly nameWithOwner: string;
   };
 }
