@@ -40,6 +40,8 @@ export interface INotification {
   readonly priority: NotificationPriority;
   /** Timestamp */
   readonly timestamp: string;
+  /** URL to open when notification is clicked (optional) */
+  readonly url?: string;
 }
 
 /**

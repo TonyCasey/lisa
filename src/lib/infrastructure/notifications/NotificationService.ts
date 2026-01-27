@@ -185,10 +185,11 @@ export class NotificationService implements INotificationService {
     const icon = NOTIFICATION_ICONS[notification.type];
     const title = this.escapeForShell(`${icon} ${notification.title}`);
     const body = this.escapeForShell(notification.body);
+    const url = notification.url;
 
     switch (platform) {
       case 'windows':
-        await this.sendWindowsNotification(title, body);
+        await this.sendWindowsNotification(title, body, url);
         break;
 
       case 'macos':
@@ -207,8 +208,12 @@ export class NotificationService implements INotificationService {
   /**
    * Send Windows toast notification via PowerShell.
    * Uses -EncodedCommand to avoid shell escaping issues with quotes.
+   * If URL is provided, clicking the notification opens the URL.
    */
-  private async sendWindowsNotification(title: string, body: string): Promise<void> {
+  private async sendWindowsNotification(title: string, body: string, url?: string): Promise<void> {
+    // Build launch attribute for clickable notifications
+    const launchAttr = url ? ` launch="${url}" activationType="protocol"` : '';
+    
     // Use BurntToast if available, otherwise use basic Windows notification
     const script = `
       $ErrorActionPreference = 'Stop'
@@ -218,18 +223,19 @@ export class NotificationService implements INotificationService {
         Import-Module BurntToast
         New-BurntToastNotification -Text "${title}", "${body}" -AppLogo $null
       } else {
-        # Fallback to basic Windows notification
+        # Fallback to basic Windows notification with clickable URL support
         [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
         [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
         
         $template = @"
-<toast>
+<toast${launchAttr}>
   <visual>
     <binding template="ToastText02">
       <text id="1">${title}</text>
       <text id="2">${body}</text>
     </binding>
   </visual>
+  <audio src="ms-winsoundevent:Notification.Default"/>
 </toast>
 "@
         $xml = New-Object Windows.Data.Xml.Dom.XmlDocument
@@ -409,6 +415,9 @@ export function createNotificationFromStateChange(
       priority = 'normal';
   }
 
+  // Generate PR URL
+  const url = `https://github.com/${repo}/pull/${prNumber}`;
+
   return {
     type,
     title,
@@ -417,5 +426,6 @@ export function createNotificationFromStateChange(
     repo,
     priority,
     timestamp: new Date().toISOString(),
+    url,
   };
 }

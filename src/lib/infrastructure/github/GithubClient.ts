@@ -275,10 +275,19 @@ export class GithubClient {
    * Throws NOT_FOUND if the PR itself doesn't exist.
    */
   async getPrChecks(repo: string, prNumber: number): Promise<readonly IGhCheckResponse[]> {
-    const fields = ['name', 'state', 'conclusion', 'detailsUrl', 'startedAt', 'completedAt'].join(',');
+    // Note: gh CLI changed field names - 'conclusion' removed, 'detailsUrl' -> 'link'
+    const fields = ['name', 'state', 'link', 'startedAt', 'completedAt'].join(',');
 
     try {
-      return await this.execGh<IGhCheckResponse[]>(['pr', 'checks', String(prNumber), '--repo', repo, '--json', fields]);
+      const results = await this.execGh<Array<{ name: string; state: string; link?: string; startedAt?: string; completedAt?: string }>>(['pr', 'checks', String(prNumber), '--repo', repo, '--json', fields]);
+      // Map 'link' back to 'detailsUrl' for interface compatibility
+      return results.map(check => ({
+        name: check.name,
+        state: check.state as IGhCheckResponse['state'],
+        detailsUrl: check.link,
+        startedAt: check.startedAt,
+        completedAt: check.completedAt,
+      }));
     } catch (error) {
       if (error instanceof GithubClientError && error.code === 'NOT_FOUND') {
         // Distinguish between "PR not found" vs "PR has no checks"
