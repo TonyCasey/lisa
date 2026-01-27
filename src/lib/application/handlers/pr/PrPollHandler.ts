@@ -457,8 +457,9 @@ export class PrPollHandler {
         }
       }
 
-      // Check each stored comment to see if it was resolved
+      // Check each stored comment for resolution status changes
       let resolvedCount = 0;
+      let unresolvedCount = 0;
       for (const comment of previousComments) {
         const isNowResolved = threadResolutionMap.get(comment.commentId);
         
@@ -473,6 +474,19 @@ export class PrPollHandler {
           });
 
           log(`${pr.repo}#${pr.number}: comment ${comment.commentId} resolved`);
+        }
+        // If the comment was resolved but is now un-resolved (reviewer reopened), update it
+        else if (isNowResolved === false && comment.status === 'resolved') {
+          unresolvedCount++;
+          
+          // Reset to addressed (we had replied) or pending
+          const newStatus = comment.ourReplyId ? 'addressed' : 'pending';
+          await this.prRepository.upsertComment(userId, pr.repo, pr.number, {
+            ...comment,
+            status: newStatus,
+          });
+
+          log(`${pr.repo}#${pr.number}: comment ${comment.commentId} un-resolved → ${newStatus}`);
         }
       }
 
@@ -494,6 +508,17 @@ export class PrPollHandler {
         if (remainingUnresolved === 0 && previousComments.length > 0) {
           log(`${pr.repo}#${pr.number}: all comments resolved! 🎉`);
         }
+      }
+
+      // If any comments were un-resolved, notify (needs attention!)
+      if (unresolvedCount > 0) {
+        const change: IStateChange = {
+          type: 'new_comment', // Reuse new_comment type since it needs attention
+          description: `${unresolvedCount} comment${unresolvedCount > 1 ? 's' : ''} re-opened by reviewer`,
+          prNumber: pr.number,
+          repo: pr.repo,
+        };
+        changes.push(change);
       }
     } catch (err) {
       // GraphQL query failed - log but don't fail the poll
