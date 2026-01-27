@@ -48,8 +48,16 @@ async function resolveLisaPath(): Promise<string> {
     if (process.platform === 'win32') {
       // Windows: use 'where' command
       const { stdout } = await execAsync('where lisa', { timeout: 5000 });
-      // 'where' can return multiple lines, take the first
-      const lisaPath = stdout.trim().split(/\r?\n/)[0];
+      // 'where' can return multiple lines, prefer .cmd extension for Task Scheduler compatibility
+      const paths = stdout.trim().split(/\r?\n/);
+      // First look for .cmd version (required for Task Scheduler)
+      const cmdPath = paths.find(p => p.endsWith('.cmd'));
+      if (cmdPath && await fs.pathExists(cmdPath)) {
+        cachedLisaPath = cmdPath;
+        return cmdPath;
+      }
+      // Fall back to first path
+      const lisaPath = paths[0];
       if (lisaPath && await fs.pathExists(lisaPath)) {
         cachedLisaPath = lisaPath;
         return lisaPath;
