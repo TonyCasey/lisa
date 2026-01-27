@@ -23,6 +23,11 @@ import type {
 const execAsync = promisify(exec);
 
 /**
+ * Lisa icon filename for toast notifications.
+ */
+const LISA_ICON_FILENAME = 'lisa-toast.png';
+
+/**
  * Notification emoji/icon mapping.
  */
 const NOTIFICATION_ICONS: Record<NotificationType, string> = {
@@ -51,6 +56,7 @@ const DEFAULT_OPTIONS: Required<INotificationOptions> = {
 export class NotificationService implements INotificationService {
   private readonly options: Required<INotificationOptions>;
   private readonly logPath: string;
+  private readonly iconPaths: string[];
   private desktopAvailable: boolean | null = null;
   private lastNotificationKey: string | null = null;
   private lastNotificationTime: number = 0;
@@ -58,6 +64,30 @@ export class NotificationService implements INotificationService {
   constructor(options?: INotificationOptions) {
     this.options = { ...DEFAULT_OPTIONS, ...options };
     this.logPath = path.join(os.homedir(), '.lisa', 'notifications.log');
+    // Check multiple locations for the icon:
+    // 1. Global ~/.lisa/assets/ (user's home directory)
+    // 2. Project-local .lisa/assets/ (current working directory)
+    this.iconPaths = [
+      path.join(os.homedir(), '.lisa', 'assets', LISA_ICON_FILENAME),
+      path.join(process.cwd(), '.lisa', 'assets', LISA_ICON_FILENAME),
+    ];
+  }
+
+  /**
+   * Get the path to the Lisa icon for notifications.
+   * Checks multiple locations and returns the first existing path.
+   * Returns undefined if no icon is found.
+   */
+  async getIconPath(): Promise<string | undefined> {
+    for (const iconPath of this.iconPaths) {
+      try {
+        await fs.access(iconPath);
+        return iconPath;
+      } catch {
+        // Icon not found at this path, try next
+      }
+    }
+    return undefined;
   }
 
   /**
@@ -209,10 +239,17 @@ export class NotificationService implements INotificationService {
    * Send Windows toast notification via PowerShell.
    * Uses -EncodedCommand to avoid shell escaping issues with quotes.
    * If URL is provided, clicking the notification opens the URL.
+   * Includes Lisa icon if available.
    */
   private async sendWindowsNotification(title: string, body: string, url?: string): Promise<void> {
     // Build launch attribute for clickable notifications
     const launchAttr = url ? ` launch="${url}" activationType="protocol"` : '';
+    
+    // Check if Lisa icon exists
+    const iconPath = await this.getIconPath();
+    const iconElement = iconPath 
+      ? `<image placement="appLogoOverride" src="${iconPath.replace(/\\/g, '/')}"/>` 
+      : '';
     
     // Use BurntToast if available, otherwise use basic Windows notification
     const script = `
@@ -221,7 +258,12 @@ export class NotificationService implements INotificationService {
       # Try BurntToast first (more features)
       if (Get-Module -ListAvailable -Name BurntToast) {
         Import-Module BurntToast
-        New-BurntToastNotification -Text "${title}", "${body}" -AppLogo $null
+        $iconPath = "${iconPath ? iconPath.replace(/\\/g, '\\\\') : ''}"
+        if ($iconPath -and (Test-Path $iconPath)) {
+          New-BurntToastNotification -Text "${title}", "${body}" -AppLogo $iconPath
+        } else {
+          New-BurntToastNotification -Text "${title}", "${body}" -AppLogo $null
+        }
       } else {
         # Fallback to basic Windows notification with clickable URL support
         [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
@@ -230,7 +272,8 @@ export class NotificationService implements INotificationService {
         $template = @"
 <toast${launchAttr} duration="long">
   <visual>
-    <binding template="ToastText02">
+    <binding template="ToastGeneric">
+      ${iconElement}
       <text id="1">${title}</text>
       <text id="2">${body}</text>
     </binding>
@@ -255,8 +298,30 @@ export class NotificationService implements INotificationService {
   /**
    * Send macOS notification via osascript.
    * Uses proper AppleScript escaping for single quotes.
+   * Note: macOS terminal-notifier could be used for icon support,
+   * but osascript is available by default on all Macs.
    */
   private async sendMacOSNotification(title: string, body: string): Promise<void> {
+    // Check if terminal-notifier is available (supports custom icons)
+    const iconPath = await this.getIconPath();
+    
+    try {
+      if (iconPath) {
+        // Try terminal-notifier first (supports custom icons)
+        await execAsync('which terminal-notifier', { timeout: 2000 });
+        const safeTitle = title.replace(/"/g, '\\"');
+        const safeBody = body.replace(/"/g, '\\"');
+        await execAsync(
+          `terminal-notifier -title "${safeTitle}" -message "${safeBody}" -contentImage "${iconPath}" -sender com.apple.Terminal`,
+          { timeout: 10000 }
+        );
+        return;
+      }
+    } catch {
+      // terminal-notifier not available, fall through to osascript
+    }
+
+    // Fallback to osascript (no icon support, but always available)
     // Escape single quotes for AppleScript by replacing ' with '"'"'
     // This ends the single-quoted string, adds a double-quoted apostrophe, then continues
     const escapeForAppleScript = (s: string): string =>
@@ -269,6 +334,7 @@ export class NotificationService implements INotificationService {
 
   /**
    * Send Linux notification via notify-send.
+   * Includes Lisa icon if available.
    */
   private async sendLinuxNotification(
     title: string,
@@ -276,7 +342,9 @@ export class NotificationService implements INotificationService {
     priority: NotificationPriority
   ): Promise<void> {
     const urgency = this.mapPriorityToUrgency(priority);
-    await execAsync(`notify-send -u ${urgency} "${title}" "${body}"`, { timeout: 10000 });
+    const iconPath = await this.getIconPath();
+    const iconFlag = iconPath ? `-i "${iconPath}"` : '';
+    await execAsync(`notify-send -u ${urgency} ${iconFlag} "${title}" "${body}"`, { timeout: 10000 });
   }
 
   /**

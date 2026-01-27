@@ -5,10 +5,11 @@ const { glob } = require('glob');
 // New structure: dist/project/.lisa/, dist/project/.claude/, dist/project/.opencode/
 const distProject = path.resolve(__dirname, '..', 'dist', 'project');
 
-// Lisa templates (skills, rules)
+// Lisa templates (skills, rules, assets)
 const distLisa = path.join(distProject, '.lisa');
 const distLisaSkills = path.join(distLisa, 'skills');
 const distLisaRules = path.join(distLisa, 'rules');
+const distLisaAssets = path.join(distLisa, 'assets');
 const targetLisa = path.resolve(__dirname, '..', '.lisa');
 
 // Legacy paths (for backward compatibility)
@@ -393,6 +394,12 @@ async function main() {
   if (await fs.pathExists(sourceRules)) {
     await fs.copy(sourceRules, path.join(targetLisa, 'rules'), { overwrite: true, errorOnExist: false, filter: deployFilter });
     console.log(`Deployed rules templates to ${path.join(targetLisa, 'rules')}`);
+  }
+
+  // Deploy assets (notification icons, etc.)
+  if (await fs.pathExists(distLisaAssets)) {
+    await fs.copy(distLisaAssets, path.join(targetLisa, 'assets'), { overwrite: true, errorOnExist: false });
+    console.log(`Deployed assets to ${path.join(targetLisa, 'assets')}`);
   }
 
   // Note: The DEPLOY_AGENTS_LOCAL block was removed as it referenced an undefined
