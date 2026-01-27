@@ -772,6 +772,112 @@ prCmd
   });
 
 prCmd
+  .command('review')
+  .description('Run local AI code review on current branch diff')
+  .option('-b, --base <branch>', 'Base branch to diff against (default: main/master)')
+  .option('--block', 'Exit non-zero if critical issues found')
+  .option('--json', 'Output as JSON')
+  .action(async (opts) => {
+    await withCorrelation(async () => {
+      const log = cliLogger.child({ command: 'pr review' });
+      log.info('Running PR review', { base: opts.base, block: opts.block });
+
+      try {
+        const { PrReviewHandler } = await import('./application/handlers');
+        
+        const handler = new PrReviewHandler();
+        const result = await handler.execute({
+          base: opts.base,
+          block: opts.block,
+          json: opts.json,
+        });
+
+        if (opts.json) {
+          console.log(JSON.stringify(result, null, 2));
+          if (result.shouldBlock) {
+            process.exit(1);
+          }
+        } else {
+          // Header
+          console.log('');
+          console.log(chalk.bold(`Reviewing changes: ${result.base}...HEAD (${result.filesChanged} files changed)`));
+          console.log('');
+
+          if (result.reviewError) {
+            console.log(chalk.yellow(`⚠ ${result.reviewError}`));
+            console.log(chalk.dim('Using fallback heuristic review...'));
+            console.log('');
+          }
+
+          if (result.issues.length === 0 && result.passed.length === 0) {
+            console.log(chalk.green('✓ No issues found'));
+          } else {
+            console.log(chalk.bold('## Review Summary'));
+            console.log('');
+
+            // Critical issues
+            const critical = result.issues.filter((i: { severity: string }) => i.severity === 'critical');
+            if (critical.length > 0) {
+              console.log(chalk.red.bold(`### 🔴 Critical (must fix) - ${critical.length}`));
+              for (const issue of critical) {
+                const location = issue.line ? `${issue.file}:${issue.line}` : issue.file;
+                console.log(chalk.red(`- ${location} - ${issue.message}`));
+              }
+              console.log('');
+            }
+
+            // Warnings
+            const warnings = result.issues.filter((i: { severity: string }) => i.severity === 'warning');
+            if (warnings.length > 0) {
+              console.log(chalk.yellow.bold(`### 🟡 Warnings (should fix) - ${warnings.length}`));
+              for (const issue of warnings) {
+                const location = issue.line ? `${issue.file}:${issue.line}` : issue.file;
+                console.log(chalk.yellow(`- ${location} - ${issue.message}`));
+              }
+              console.log('');
+            }
+
+            // Suggestions
+            const suggestions = result.issues.filter((i: { severity: string }) => i.severity === 'suggestion');
+            if (suggestions.length > 0) {
+              console.log(chalk.cyan.bold(`### 🟢 Suggestions (nice to have) - ${suggestions.length}`));
+              for (const issue of suggestions) {
+                const location = issue.line ? `${issue.file}:${issue.line}` : issue.file;
+                console.log(chalk.cyan(`- ${location} - ${issue.message}`));
+              }
+              console.log('');
+            }
+
+            // Passed checks
+            if (result.passed.length > 0) {
+              console.log(chalk.green.bold('### ✅ Passed'));
+              for (const check of result.passed) {
+                console.log(chalk.green(`- ${check}`));
+              }
+              console.log('');
+            }
+          }
+
+          // Summary line
+          console.log(chalk.dim('─'.repeat(60)));
+          console.log(`Result: ${chalk.red(`${result.counts.critical} critical`)}, ${chalk.yellow(`${result.counts.warning} warning`)}, ${chalk.cyan(`${result.counts.suggestion} suggestion`)}`);
+
+          if (result.shouldBlock) {
+            console.log('');
+            console.log(chalk.red.bold('✗ Review failed: critical issues must be fixed before merge'));
+            process.exit(1);
+          }
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        log.error('Failed to run review', { error: message });
+        console.error(chalk.red(`Failed to run review: ${message}`));
+        process.exit(1);
+      }
+    });
+  });
+
+prCmd
   .command('checks <pr-number>')
   .description('Get CI check status for a PR')
   .option('-r, --repo <repo>', 'Repository (owner/repo format)')
