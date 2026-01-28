@@ -1,13 +1,13 @@
 ---
 name: pr
-description: "PR workflow operations: create PRs, check status, view comments, watch PRs. Triggers on 'pr create', 'pr checks', 'pr comments', 'watch pr', 'watching'."
+description: "PR workflow operations: create PRs, check status, poll for comments, address feedback, watch PRs. Triggers on 'pr create', 'pr checks', 'pr poll', 'pr address', 'pr comments', 'watch pr', 'watching'."
 ---
 
 ## Purpose
-Model-neutral helper for GitHub PR workflow operations including creating PRs with auto-generated content, checking CI status, viewing and addressing review comments, and tracking PRs you're working on.
+Model-neutral helper for GitHub PR workflow operations including creating PRs with auto-generated content, checking CI status, polling for and addressing review comments, and tracking PRs you're working on.
 
 ## Triggers
-Use when the user says: "create pr", "pr create", "pr checks", "check pr", "pr comments", "view comments", "watch pr", "unwatch pr", "watching", "what prs am i watching", "pr status".
+Use when the user says: "create pr", "pr create", "pr checks", "check pr", "pr poll", "poll pr", "pr address", "address comments", "pr comments", "view comments", "watch pr", "unwatch pr", "watching", "what prs am i watching", "pr status".
 
 ## How to use
 
@@ -133,6 +133,41 @@ Stop tracking a PR:
 lisa pr unwatch <PR_NUMBER>
 ```
 
+### Link PR to Issue
+Create a CLOSES relationship between a PR and an issue:
+
+```bash
+# Link PR to issue in current repo
+lisa pr link <PR_NUMBER> <ISSUE_NUMBER>
+
+# Link in specific repo
+lisa pr link <PR_NUMBER> <ISSUE_NUMBER> --repo owner/repo
+
+# Skip commenting on the GitHub issue
+lisa pr link <PR_NUMBER> <ISSUE_NUMBER> --no-comment
+
+# Output as JSON
+lisa pr link <PR_NUMBER> <ISSUE_NUMBER> --json
+```
+
+**Features:**
+- Creates `CLOSES` relationship in Neo4j
+- Comments on the GitHub issue with PR link (unless `--no-comment`)
+- Idempotent - running twice returns `alreadyLinked: true`
+- Creates PR and Issue nodes if they don't exist
+
+**Output:**
+```text
+✓ Linked PR #28 to Issue #15
+  PR: https://github.com/owner/repo/pull/28
+  Issue: https://github.com/owner/repo/issues/15
+```
+
+**Already linked:**
+```text
+⚠ PR #28 is already linked to Issue #15
+```
+
 ### List Watched PRs
 See all PRs you're currently watching:
 
@@ -169,32 +204,109 @@ Watching 3 PR(s)
 - :x: Failures
 - :hourglass: Pending
 
-## Addressing Comments Workflow
+### Poll PR for Updates
+Monitor a PR for new review comments with auto-address support:
 
-When you need to address PR review comments:
+```bash
+# Poll a PR (auto-address enabled by default)
+lisa pr poll <PR_NUMBER>
 
-1. **View the comments:**
-   ```bash
-   lisa pr comments 50 --filter pending
-   ```
+# Poll without auto-address output
+lisa pr poll <PR_NUMBER> --no-auto-address
 
-2. **Make the code fixes** based on feedback
+# Output as JSON
+lisa pr poll <PR_NUMBER> --json
+```
 
-3. **Reply to the comment** on GitHub (include commit hash):
-   ```bash
-   gh api repos/owner/repo/pulls/comments/COMMENT_ID/replies -X POST -f body="Fixed in commit abc123"
-   ```
+**Features:**
+- Detects new comments since last poll
+- Auto-address outputs formatted comment details when new comments found
+- Tracks comment resolution status
+- Shows which comments need attention
 
-4. **Or add a summary comment** to the PR:
-   ```bash
-   gh pr comment 50 --body "Addressed review comments in commit abc123"
-   ```
+**Output:**
+```text
+PR #50: fix(github): prevent shell injection
+New comments: 2
 
-5. **Push and re-check:**
-   ```bash
-   git push
-   lisa pr checks 50
-   ```
+src/lib/GithubClient.ts:365
+  @coderabbitai: "Shell injection risk in command argument..."
+```
+
+### Address PR Comments
+Get formatted instructions for addressing specific comments:
+
+```bash
+# Get address instructions for a PR
+lisa pr address <PR_NUMBER>
+
+# Include more context lines around the code
+lisa pr address <PR_NUMBER> --context 10
+```
+
+## PR Review Workflow
+
+The recommended workflow for handling PR review comments:
+
+### 1. Poll for new comments
+```bash
+lisa pr poll 50
+```
+
+### 2. Acknowledge the comment
+Add an 👀 (eyes) emoji reaction to show you've seen the comment:
+```bash
+gh api repos/owner/repo/pulls/comments/COMMENT_ID/reactions -X POST -f content="eyes"
+```
+
+### 3. Address the feedback
+- Read and understand the suggestion
+- Make the requested code changes
+- Commit with a descriptive message
+
+### 4. Reply to the comment
+Reply inline explaining what was done:
+```bash
+gh api repos/owner/repo/pulls/comments/COMMENT_ID/replies -X POST -f body="Fixed in commit abc123 - added try/catch with proper error logging"
+```
+
+### 5. Push and poll again
+```bash
+git push
+lisa pr poll 50
+```
+
+### 6. Repeat
+Continue polling and addressing comments until:
+- All comments are resolved
+- Reviewer approves the PR
+- Any disagreements are discussed and concluded
+
+**Example session:**
+```bash
+# Create PR and start watching
+lisa pr create
+# -> Created PR #50
+
+# Poll for review comments
+lisa pr poll 50
+# -> New comment from @reviewer on line 42
+
+# Acknowledge with eyes emoji
+gh api repos/owner/repo/pulls/comments/12345/reactions -X POST -f content="eyes"
+
+# Fix the code
+vim src/file.ts
+git add . && git commit -m "fix: add error handling per review"
+git push
+
+# Reply to the comment
+gh api repos/owner/repo/pulls/comments/12345/replies -X POST -f body="Added try/catch - fixed in abc123"
+
+# Poll again for response
+lisa pr poll 50
+# -> Comment resolved by reviewer
+```
 
 ## I/O Contract
 
@@ -266,6 +378,73 @@ When you need to address PR review comments:
       "watchingSince": "2026-01-26T10:00:00Z"
     }
   ]
+}
+```
+
+### lisa pr poll
+```json
+{
+  "action": "poll",
+  "success": true,
+  "repo": "owner/repo",
+  "prNumber": 50,
+  "title": "PR title",
+  "hasNewComments": true,
+  "newCommentCount": 2,
+  "comments": [
+    {
+      "id": 12345,
+      "file": "src/file.ts",
+      "line": 42,
+      "author": "reviewer",
+      "body": "Comment text",
+      "status": "pending"
+    }
+  ],
+  "addressOutput": "## PR #50 Comments\n\n### src/file.ts:42\n..."
+}
+```
+
+### lisa pr address
+```json
+{
+  "action": "address",
+  "success": true,
+  "repo": "owner/repo",
+  "prNumber": 50,
+  "title": "PR title",
+  "pendingComments": [
+    {
+      "id": 12345,
+      "file": "src/file.ts",
+      "line": 42,
+      "author": "reviewer",
+      "body": "Comment text",
+      "codeContext": "function example() {\n  // line 42\n}"
+    }
+  ],
+  "formattedOutput": "..."
+}
+```
+
+### lisa pr link
+```json
+{
+  "success": true,
+  "message": "Linked PR #28 to Issue #15",
+  "pr": {
+    "number": 28,
+    "repo": "owner/repo",
+    "title": "Fix authentication bug",
+    "url": "https://github.com/owner/repo/pull/28"
+  },
+  "issue": {
+    "number": 15,
+    "repo": "owner/repo",
+    "title": "Authentication fails on mobile",
+    "url": "https://github.com/owner/repo/issues/15"
+  },
+  "alreadyLinked": false
 }
 ```
 
