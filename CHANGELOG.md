@@ -11,6 +11,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### PR Link Command ([#46](https://github.com/TonyCasey/lisa/issues/46))
+
+New `lisa pr link` command creates bidirectional links between PRs and issues.
+
+**Usage:**
+```bash
+lisa pr link 28 15                    # Link PR #28 to Issue #15
+lisa pr link 28 15 --repo owner/repo  # Specify repository
+lisa pr link 28 15 --no-comment       # Skip GitHub comment
+lisa pr link 28 15 --json             # JSON output
+```
+
+**Features:**
+- Creates `CLOSES` relationship in Neo4j
+- Comments on the GitHub issue with PR link
+- Idempotent - safe to run multiple times
+- Preserves existing issue links when adding new ones
+
 #### Auto-Address Flag for PR Poll ([#64](https://github.com/TonyCasey/lisa/issues/64))
 
 The `lisa pr poll` command now automatically outputs formatted instructions for addressing new comments when detected. This is enabled by default.

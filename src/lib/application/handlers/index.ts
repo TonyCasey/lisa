@@ -17,6 +17,7 @@ export {
   PrWatchHandler,
   PrPollHandler,
   PrStatusHandler,
+  PrLinkHandler,
   type IPrCreateResult,
   type IPrCreateOptions,
   type IPrReviewResult,
@@ -39,4 +40,6 @@ export {
   type IPrsByRepo,
   type IPrStatusSummary,
   type ReadyState,
+  type IPrLinkResult,
+  type IPrLinkOptions,
 } from './pr';
