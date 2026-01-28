@@ -190,6 +190,7 @@ describe('SessionStartHandler', () => {
       assert.ok(result.message.includes('clear'));
       assert.ok(result.contextContent.includes('Fresh session started'));
       assert.ok(result.contextContent.includes('Available skills'));
+      assert.ok(result.contextContent.includes('.lisa/rules/'));
     });
   });
 

@@ -414,6 +414,9 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
       reminders.push(
         'Fresh session started. Available skills: /memory, /tasks, /lisa, /jira, /git, /pr',
       );
+      reminders.push(
+        'Rules loaded from .lisa/rules/ (coding standards, clean architecture, git workflow, testing)',
+      );
       reminders.push('Use /memory to recall prior work or /lisa for context');
     }
     return reminders;
