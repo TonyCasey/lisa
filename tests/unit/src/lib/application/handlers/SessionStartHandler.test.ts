@@ -172,7 +172,8 @@ describe('SessionStartHandler', () => {
       const result = await handler.handle(request);
 
       assert.ok(result.message.includes('compact'));
-      assert.ok(result.contextContent.includes('compacted'));
+      assert.ok(result.contextContent.includes('Available skills'));
+      assert.ok(result.contextContent.includes('.lisa/rules/'));
     });
 
     it('handle_givenClearTrigger_shouldReturnClearMessageAndContext', async () => {
@@ -187,7 +188,9 @@ describe('SessionStartHandler', () => {
       const result = await handler.handle(request);
 
       assert.ok(result.message.includes('clear'));
-      assert.ok(result.contextContent.includes('cleared'));
+      assert.ok(result.contextContent.includes('Fresh session started'));
+      assert.ok(result.contextContent.includes('Available skills'));
+      assert.ok(result.contextContent.includes('.lisa/rules/'));
     });
   });
 
