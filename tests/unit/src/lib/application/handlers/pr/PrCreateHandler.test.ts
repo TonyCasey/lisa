@@ -17,6 +17,7 @@ import type { IGhPrResponse, IGhIssueResponse } from '../../../../../../../src/l
 function createMockGithubClient(overrides: Partial<IGithubClient> = {}): IGithubClient {
   return {
     getCurrentRepo: async () => 'owner/repo',
+    getCurrentPrNumber: async () => 40,
     getCurrentBranch: async () => 'feature/40-pr-create',
     getDefaultBranch: async () => 'main',
     getCommitMessages: async () => ['feat: add pr create command', 'fix: handle edge case'],
@@ -24,6 +25,7 @@ function createMockGithubClient(overrides: Partial<IGithubClient> = {}): IGithub
     getPr: async () => createMockPrResponse(),
     getPrChecks: async () => [],
     getPrComments: async () => [],
+    getPrReviewThreads: async () => [],
     getPrDiff: async () => '',
     getIssue: async () => createMockIssueResponse(40),
     replyToComment: async () => ({ id: 1, user: { login: 'user' }, body: '', path: '', diff_hunk: '', created_at: '', updated_at: '', html_url: '' }),
@@ -76,7 +78,7 @@ function createMockPrResponse(overrides: Partial<IGhPrResponse> = {}): IGhPrResp
     createdAt: '2026-01-26T10:00:00Z',
     updatedAt: '2026-01-26T10:00:00Z',
     author: { login: 'user' },
-    repository: { nameWithOwner: 'owner/repo' },
+    headRepository: { nameWithOwner: 'owner/repo' },
     ...overrides,
   };
 }

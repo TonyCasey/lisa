@@ -19,10 +19,11 @@ import { GithubClientError } from '../../../../../../../src/lib/infrastructure/g
 function createMockGithubClient(overrides: Partial<GithubClient> = {}): GithubClient {
   return {
     getCurrentRepo: async () => 'owner/repo',
+    getCurrentPrNumber: async () => 50,
     getPr: async () => createMockPrResponse(),
     getPrChecks: async () => [],
     getPrComments: async () => [],
-    getPrReviews: async () => [],
+    getPrReviewThreads: async () => [],
     getPrDiff: async () => '',
     getIssue: async () => ({ number: 1, title: 'Issue', state: 'OPEN', body: '', url: '', createdAt: '', updatedAt: '', labels: [], author: { login: 'user' } }),
     replyToComment: async () => ({ id: 1, user: { login: 'user' }, body: '', path: '', diff_hunk: '', created_at: '', updated_at: '', html_url: '' }),
@@ -74,7 +75,7 @@ function createMockPrResponse(overrides: Partial<IGhPrResponse> = {}): IGhPrResp
     createdAt: '2026-01-26T10:00:00Z',
     updatedAt: '2026-01-26T10:00:00Z',
     author: { login: 'user' },
-    repository: { nameWithOwner: 'owner/repo' },
+    headRepository: { nameWithOwner: 'owner/repo' },
     ...overrides,
   };
 }

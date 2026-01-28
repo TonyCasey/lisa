@@ -138,7 +138,7 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
     const { hierarchicalGroupIds, projectAliases, branch, projectName, userName, folderType, projectRoot } = this.context;
 
     // Sync GitHub issues on startup (non-blocking, fire-and-forget for speed)
-    let githubSyncResult: { imported: number; updated: number } | undefined;
+    let _githubSyncResult: { imported: number; updated: number } | undefined;
     if (this.githubSync && request.trigger === 'startup') {
       try {
         // Get repo from context (format: owner/repo or just repo name)
@@ -155,7 +155,7 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
             dryRun: false,
           });
           
-          githubSyncResult = {
+          _githubSyncResult = {
             imported: result.imported,
             updated: result.updated,
           };

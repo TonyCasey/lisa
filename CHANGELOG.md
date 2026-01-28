@@ -70,6 +70,30 @@ lisa pr poll --no-auto-address  # Disable auto-address
 
 When new comments are detected on watched PRs, the poll command will automatically call `lisa pr address` and output the formatted comment details with instructions for addressing them.
 
+#### Foreground PR Polling Watch ([#72](https://github.com/TonyCasey/lisa/issues/72))
+
+The `lisa pr poll` command now supports foreground watch mode for proactive review comment handling in the current terminal session.
+
+**Usage:**
+```bash
+lisa pr poll --watch --pr 72                    # poll every 1 minute (default)
+lisa pr poll --watch --current --interval 2     # poll current branch PR every 2 minutes
+lisa pr poll --watch --pr 72 --no-auto-address  # disable auto-address output
+```
+
+**Flags:**
+- `--watch` — run in foreground watch mode (requires `--pr` or `--current`)
+- `--pr <number>` — target a specific PR by number
+- `--current` — target the PR for the current branch
+- `--interval <minutes>` — polling interval in minutes (default: `1`, minimum: `1`)
+
+**Features:**
+- Foreground watch loop with heartbeat output
+- `lisa pr create` now starts polling every minute by default (use `--no-poll` to skip)
+- `--pr` and `--current` targeting for single-PR polling
+- Local cache for last-seen comment IDs (no Neo4j dependency for comment tracking)
+- Auto-address output continues to reuse `lisa pr address` formatting
+
 ---
 
 ## [2.11.0] - 2026-01-27

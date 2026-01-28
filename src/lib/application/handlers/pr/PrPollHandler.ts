@@ -19,10 +19,10 @@ import type {
   IPullRequest,
   CheckStatus,
   PullRequestStatus,
-  IPrCheck,
   IPrComment,
 } from '../../../domain/interfaces/types/IPullRequest';
-import type { IGhCheckResponse, IGhReviewCommentResponse } from '../../../infrastructure/github/types';
+import { createPullRequest } from '../../../domain/interfaces/types/IPullRequest';
+import type { IGhCheckResponse, IGhReviewCommentResponse, IGhReviewThreadResponse } from '../../../infrastructure/github/types';
 import { GithubClientError } from '../../../infrastructure/github/types';
 import type { INotificationService, INotification } from '../../../domain/interfaces/INotificationService';
 import type { IMemoryWriter } from '../../../domain/interfaces/IMemoryService';
@@ -93,6 +93,23 @@ export interface IAutoAddressOutput {
   readonly formattedOutput: string;
 }
 
+interface IPrPollCacheEntry {
+  readonly repo: string;
+  readonly prNumber: number;
+  readonly seenCommentIds: readonly string[];
+  readonly lastState?: {
+    readonly status: PullRequestStatus;
+    readonly checksStatus: CheckStatus;
+    readonly unresolvedComments: number;
+  };
+  readonly updatedAt: string;
+}
+
+interface IPrPollCache {
+  readonly version: number;
+  entries: Record<string, IPrPollCacheEntry>;
+}
+
 /**
  * Options for poll command.
  */
@@ -107,6 +124,14 @@ export interface IPrPollOptions {
   readonly notify?: boolean;
   /** Auto-address new comments by outputting formatted instructions (default: true) */
   readonly autoAddress?: boolean;
+  /** Poll a specific PR number instead of watched PRs */
+  readonly prNumber?: number;
+  /** Repository for the target PR (owner/repo). Defaults to current repo. */
+  readonly repo?: string;
+  /** Use current PR from branch (foreground watch). */
+  readonly current?: boolean;
+  /** Use local cache for comment detection (no Neo4j). */
+  readonly useLocalCache?: boolean;
 }
 
 /**
@@ -114,6 +139,7 @@ export interface IPrPollOptions {
  */
 export class PrPollHandler {
   private readonly logPath: string;
+  private readonly cachePath: string;
 
   constructor(
     private readonly githubClient: IGithubClient,
@@ -123,6 +149,7 @@ export class PrPollHandler {
     private readonly groupId?: string
   ) {
     this.logPath = path.join(os.homedir(), '.lisa', 'pr-poll.log');
+    this.cachePath = path.join(os.homedir(), '.lisa', 'pr-poll-cache.json');
   }
 
   /**
@@ -134,6 +161,7 @@ export class PrPollHandler {
     const logToFile = options?.logToFile ?? true;
     const notify = options?.notify ?? false;
     const autoAddress = options?.autoAddress ?? true;
+    const useLocalCache = options?.useLocalCache ?? false;
     // Guard against zero/negative concurrency to prevent infinite loops
     const concurrency = Math.max(1, options?.concurrency ?? 5);
 
@@ -144,43 +172,70 @@ export class PrPollHandler {
     };
 
     try {
-      // Get user ID
-      const userId = await this.prRepository.getUserId();
+      const target = await this.resolveTarget(options);
+      const localCache = useLocalCache ? await this.loadCache() : undefined;
+      const needsUserId = !useLocalCache || !target;
+      const userId = needsUserId
+        ? await this.prRepository.getUserId()
+        : undefined;
 
-      // Query watched PRs (max 10 to avoid rate limiting)
-      const MAX_WATCHED_PRS = 10;
-      const { items: watchedPrs } = await this.prRepository.findWatchedPrs(userId, {
-        limit: MAX_WATCHED_PRS,
-      });
+      let prsToPoll: readonly IPullRequest[] = [];
 
-      log(`Polling ${watchedPrs.length} watched PR(s)...`);
+      if (target) {
+        const existingPr = userId
+          ? await this.prRepository.findPr(userId, target.repo, target.prNumber)
+          : null;
+        const cachedState = this.getCachedState(localCache, target.repo, target.prNumber);
+        const fallbackPr = createPullRequest({
+          number: target.prNumber,
+          repo: target.repo,
+          title: `PR #${target.prNumber}`,
+          status: cachedState?.status,
+          checksStatus: cachedState?.checksStatus,
+          unresolvedComments: cachedState?.unresolvedComments,
+        });
+        prsToPoll = [existingPr ?? fallbackPr];
+        log(`Polling ${target.repo}#${target.prNumber}...`);
+      } else {
+        // Query watched PRs (max 10 to avoid rate limiting)
+        const MAX_WATCHED_PRS = 10;
+        const { items: watchedPrs } = await this.prRepository.findWatchedPrs(userId as string, {
+          limit: MAX_WATCHED_PRS,
+        });
 
-      if (watchedPrs.length === 0) {
-        log('Poll complete. 0 notifications.');
+        log(`Polling ${watchedPrs.length} watched PR(s)...`);
 
-        if (logToFile) {
-          await this.writeLog(logs);
+        if (watchedPrs.length === 0) {
+          log('Poll complete. 0 notifications.');
+
+          if (logToFile) {
+            await this.writeLog(logs);
+          }
+
+          return {
+            success: true,
+            message: 'No PRs being watched',
+            polledAt,
+            totalWatched: 0,
+            totalChanges: 0,
+            totalErrors: 0,
+            items: [],
+            logPath: logToFile ? this.logPath : undefined,
+          };
         }
-
-        return {
-          success: true,
-          message: 'No PRs being watched',
-          polledAt,
-          totalWatched: 0,
-          totalChanges: 0,
-          totalErrors: 0,
-          items: [],
-          logPath: logToFile ? this.logPath : undefined,
-        };
+        prsToPoll = watchedPrs;
       }
 
       // Poll PRs with controlled concurrency
       const pollResults: IPrPollItem[] = [];
-      const batches = this.batchArray(watchedPrs, concurrency);
+      const batches = this.batchArray(prsToPoll, concurrency);
 
       for (const batch of batches) {
         const batchResults = await Promise.all(
-          batch.map(pr => this.pollSinglePr(pr, userId, autoUnwatch, log))
+          batch.map(pr => this.pollSinglePr(pr, userId, autoUnwatch, log, {
+            useLocalCache,
+            localCache,
+          }))
         );
         pollResults.push(...batchResults);
       }
@@ -239,13 +294,17 @@ export class PrPollHandler {
         logPath = this.logPath;
       }
 
+      if (useLocalCache && localCache) {
+        await this.writeCache(localCache);
+      }
+
       return {
         success: totalErrors === 0,
         message: totalErrors > 0
-          ? `Polled ${watchedPrs.length} PR(s) with ${totalErrors} error(s)`
-          : `Polled ${watchedPrs.length} PR(s), ${totalChanges} change(s) detected`,
+          ? `Polled ${prsToPoll.length} PR(s) with ${totalErrors} error(s)`
+          : `Polled ${prsToPoll.length} PR(s), ${totalChanges} change(s) detected`,
         polledAt,
-        totalWatched: watchedPrs.length,
+        totalWatched: prsToPoll.length,
         totalChanges,
         totalErrors,
         items: pollResults,
@@ -278,18 +337,27 @@ export class PrPollHandler {
    */
   private async pollSinglePr(
     pr: IPullRequest,
-    userId: string,
+    userId: string | undefined,
     autoUnwatch: boolean,
-    log: (message: string) => void
+    log: (message: string) => void,
+    options?: {
+      readonly useLocalCache?: boolean;
+      readonly localCache?: IPrPollCache;
+    }
   ): Promise<IPrPollItem> {
     const changes: IStateChange[] = [];
     let unwatched = false;
     let error: string | undefined;
+    let resolvedTitle = pr.title;
+    const useLocalCache = options?.useLocalCache ?? false;
+    const localCache = options?.localCache;
+    const cacheKey = useLocalCache ? this.getCacheKey(pr.repo, pr.number) : undefined;
+    const cacheEntry = cacheKey && localCache ? localCache.entries[cacheKey] : undefined;
 
-    const previousState = {
-      status: pr.status,
-      checksStatus: pr.checksStatus,
-      unresolvedComments: pr.unresolvedComments,
+    let previousState = {
+      status: cacheEntry?.lastState?.status ?? pr.status,
+      checksStatus: cacheEntry?.lastState?.checksStatus ?? pr.checksStatus,
+      unresolvedComments: cacheEntry?.lastState?.unresolvedComments ?? pr.unresolvedComments,
     };
 
     let currentState = { ...previousState };
@@ -297,19 +365,35 @@ export class PrPollHandler {
     try {
       // Fetch current state from GitHub
       const ghPr = await this.githubClient.getPr(pr.repo, pr.number);
+      resolvedTitle = ghPr.title;
       const ghChecks = await this.githubClient.getPrChecks(pr.repo, pr.number);
       const ghComments = await this.githubClient.getPrComments(pr.repo, pr.number);
+      let reviewThreads: readonly IGhReviewThreadResponse[] | undefined;
+      if (useLocalCache) {
+        try {
+          reviewThreads = await this.githubClient.getPrReviewThreads(pr.repo, pr.number);
+        } catch (err) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          log(`${pr.repo}#${pr.number}: failed to fetch review threads: ${errMsg}`);
+        }
+      }
 
       // Map GitHub state to domain
       const newStatus = this.mapPrStatus(ghPr.state);
       const newChecksStatus = this.calculateOverallCheckStatus(ghChecks);
-      const newUnresolvedComments = this.countUnresolvedComments(ghComments);
+      const newUnresolvedComments = reviewThreads
+        ? this.countUnresolvedThreads(reviewThreads)
+        : this.countUnresolvedComments(ghComments);
 
       currentState = {
         status: newStatus,
         checksStatus: newChecksStatus,
         unresolvedComments: newUnresolvedComments,
       };
+
+      if (useLocalCache && !cacheEntry?.lastState) {
+        previousState = { ...currentState };
+      }
 
       // Detect state changes
       if (previousState.checksStatus !== newChecksStatus) {
@@ -360,56 +444,77 @@ export class PrPollHandler {
       }
 
       // Check for new comments
-      const previousComments = await this.prRepository.findCommentsByPr(userId, pr.repo, pr.number);
-      const newCommentChanges = await this.detectNewComments(
-        pr,
-        previousComments,
-        ghComments,
-        userId,
-        log
-      );
-      changes.push(...newCommentChanges);
+      if (useLocalCache) {
+        const seenIds = new Set(cacheEntry?.seenCommentIds ?? []);
+        const newCommentChanges = this.detectNewCommentsFromCache(pr, ghComments, seenIds, log);
+        changes.push(...newCommentChanges);
 
-      // Check for comment resolution changes via GraphQL review threads
-      const resolutionChanges = await this.detectCommentResolution(
-        pr,
-        previousComments,
-        userId,
-        log
-      );
-      changes.push(...resolutionChanges);
+        if (cacheKey && localCache) {
+          const updatedSeenIds = new Set(seenIds);
+          for (const comment of ghComments) {
+            updatedSeenIds.add(String(comment.id));
+          }
+          localCache.entries[cacheKey] = {
+            repo: pr.repo,
+            prNumber: pr.number,
+            seenCommentIds: Array.from(updatedSeenIds),
+            lastState: currentState,
+            updatedAt: new Date().toISOString(),
+          };
+        }
+      } else if (userId) {
+        const previousComments = await this.prRepository.findCommentsByPr(userId, pr.repo, pr.number);
+        const newCommentChanges = await this.detectNewComments(
+          pr,
+          previousComments,
+          ghComments,
+          userId,
+          log
+        );
+        changes.push(...newCommentChanges);
 
-      // Update Neo4j with new state (including checksStatus and unresolvedComments)
-      await this.prRepository.upsertPr(userId, {
-        number: pr.number,
-        repo: pr.repo,
-        title: ghPr.title,
-        status: newStatus,
-        watching: true,
-        checksStatus: newChecksStatus,
-        unresolvedComments: newUnresolvedComments,
-      });
+        // Check for comment resolution changes via GraphQL review threads
+        const resolutionChanges = await this.detectCommentResolution(
+          pr,
+          previousComments,
+          userId,
+          log
+        );
+        changes.push(...resolutionChanges);
 
-      // Update checks in Neo4j
-      // Update checks in Neo4j (parallel for performance)
-      await Promise.all(ghChecks.map(check =>
-        this.prRepository.upsertCheck(userId, pr.repo, pr.number, {
-          checkName: check.name,
-          status: this.mapCheckStatus(check.state),
-          conclusion: check.conclusion,
-          detailsUrl: check.detailsUrl,
-          updatedAt: check.completedAt || check.startedAt || new Date().toISOString(),
-        })
-      ));
+        // Update Neo4j with new state (including checksStatus and unresolvedComments)
+        await this.prRepository.upsertPr(userId, {
+          number: pr.number,
+          repo: pr.repo,
+          title: ghPr.title,
+          status: newStatus,
+          watching: true,
+          checksStatus: newChecksStatus,
+          unresolvedComments: newUnresolvedComments,
+        });
 
-      // Update poll timestamp
-      await this.prRepository.updateLastPolled(userId, pr.repo, pr.number);
+        // Update checks in Neo4j (parallel for performance)
+        await Promise.all(ghChecks.map(check =>
+          this.prRepository.upsertCheck(userId, pr.repo, pr.number, {
+            checkName: check.name,
+            status: this.mapCheckStatus(check.state),
+            conclusion: check.conclusion,
+            detailsUrl: check.detailsUrl,
+            updatedAt: check.completedAt || check.startedAt || new Date().toISOString(),
+          })
+        ));
 
-      // Auto-unwatch if merged/closed
-      if (autoUnwatch && (newStatus === 'merged' || newStatus === 'closed')) {
-        await this.prRepository.setWatching(userId, pr.repo, pr.number, false);
-        unwatched = true;
-        log(`${pr.repo}#${pr.number}: PR ${newStatus}, unwatching`);
+        // Update poll timestamp
+        await this.prRepository.updateLastPolled(userId, pr.repo, pr.number);
+
+        // Auto-unwatch if merged/closed
+        if (autoUnwatch && (newStatus === 'merged' || newStatus === 'closed')) {
+          await this.prRepository.setWatching(userId, pr.repo, pr.number, false);
+          unwatched = true;
+          log(`${pr.repo}#${pr.number}: PR ${newStatus}, unwatching`);
+        } else if (changes.length === 0) {
+          log(`${pr.repo}#${pr.number}: no changes`);
+        }
       } else if (changes.length === 0) {
         log(`${pr.repo}#${pr.number}: no changes`);
       }
@@ -427,7 +532,7 @@ export class PrPollHandler {
     return {
       number: pr.number,
       repo: pr.repo,
-      title: pr.title,
+      title: resolvedTitle,
       previousState,
       currentState,
       changes,
@@ -693,6 +798,94 @@ export class PrPollHandler {
       batches.push(items.slice(i, i + batchSize) as T[]);
     }
     return batches;
+  }
+
+  private async resolveTarget(options?: IPrPollOptions): Promise<{ repo: string; prNumber: number } | undefined> {
+    if (!options?.prNumber && !options?.current) {
+      return undefined;
+    }
+
+    if (options.prNumber && options.current) {
+      throw new Error('Cannot use both prNumber and current');
+    }
+
+    const repo = options.repo ?? await this.githubClient.getCurrentRepo();
+    const prNumber = options.prNumber ?? await this.githubClient.getCurrentPrNumber();
+    return { repo, prNumber };
+  }
+
+  private getCacheKey(repo: string, prNumber: number): string {
+    return `${repo}#${prNumber}`;
+  }
+
+  private getCachedState(
+    localCache: IPrPollCache | undefined,
+    repo: string,
+    prNumber: number
+  ): IPrPollCacheEntry['lastState'] | undefined {
+    if (!localCache) {
+      return undefined;
+    }
+    const key = this.getCacheKey(repo, prNumber);
+    return localCache.entries[key]?.lastState;
+  }
+
+  private async loadCache(): Promise<IPrPollCache> {
+    try {
+      if (!(await fs.pathExists(this.cachePath))) {
+        return { version: 1, entries: {} };
+      }
+      const raw = await fs.readFile(this.cachePath, 'utf8');
+      const parsed = JSON.parse(raw) as IPrPollCache;
+      if (!parsed.entries || typeof parsed.entries !== 'object') {
+        return { version: 1, entries: {} };
+      }
+      return parsed;
+    } catch {
+      return { version: 1, entries: {} };
+    }
+  }
+
+  private async writeCache(cache: IPrPollCache): Promise<void> {
+    try {
+      const cacheDir = path.dirname(this.cachePath);
+      await fs.ensureDir(cacheDir);
+      await fs.writeFile(this.cachePath, JSON.stringify(cache, null, 2));
+    } catch {
+      // Silently ignore cache write failures
+    }
+  }
+
+  private countUnresolvedThreads(reviewThreads: readonly IGhReviewThreadResponse[]): number {
+    return reviewThreads.filter(thread => !thread.isResolved).length;
+  }
+
+  private detectNewCommentsFromCache(
+    pr: IPullRequest,
+    ghComments: readonly IGhReviewCommentResponse[],
+    seenIds: Set<string>,
+    log: (message: string) => void
+  ): IStateChange[] {
+    const changes: IStateChange[] = [];
+
+    for (const ghComment of ghComments) {
+      const commentId = String(ghComment.id);
+      if (seenIds.has(commentId)) {
+        continue;
+      }
+
+      const isReply = Boolean(ghComment.in_reply_to_id);
+      const change: IStateChange = {
+        type: 'new_comment',
+        description: `new ${isReply ? 'reply' : 'comment'} from @${ghComment.user.login} on ${ghComment.path}:${ghComment.line || ghComment.original_line || '?'}`,
+        prNumber: pr.number,
+        repo: pr.repo,
+      };
+      changes.push(change);
+      log(`${pr.repo}#${pr.number}: ${change.description}`);
+    }
+
+    return changes;
   }
 
   /**
