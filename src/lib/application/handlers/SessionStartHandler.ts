@@ -404,10 +404,17 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
   private getTriggerReminders(trigger: SessionTrigger): string[] {
     const reminders: string[] = [];
     if (trigger === 'compact') {
-      reminders.push('Note: Context was compacted. Previously loaded skills may need to be re-invoked if needed.');
+      reminders.push('Available skills: /memory, /tasks, /lisa, /jira, /git, /pr');
+      reminders.push(
+        'Rules loaded from .lisa/rules/ (coding standards, clean architecture, git workflow, testing)',
+      );
+      reminders.push('Use /memory to recall topics or ask Lisa for help');
     }
     if (trigger === 'clear') {
-      reminders.push('Note: Context was cleared. Start fresh or use /memory to recall prior work.');
+      reminders.push(
+        'Fresh session started. Available skills: /memory, /tasks, /lisa, /jira, /git, /pr',
+      );
+      reminders.push('Use /memory to recall prior work or /lisa for context');
     }
     return reminders;
   }
