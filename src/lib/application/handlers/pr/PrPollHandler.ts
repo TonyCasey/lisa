@@ -339,7 +339,7 @@ export class PrPollHandler {
           if (this.memoryService && this.groupId) {
             try {
               const fact = `PR MERGED: #${pr.number} ${ghPr.title}`;
-              const tags = ['github:pr-merged', `github:pr:${pr.number}`];
+              const tags = ['github:pr', 'github:pr-merged', `github:pr:${pr.number}`];
               await this.memoryService.addFact(this.groupId, fact, tags);
               log(`${pr.repo}#${pr.number}: saved to memory`);
             } catch (memError) {
