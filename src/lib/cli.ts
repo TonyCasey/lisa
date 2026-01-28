@@ -1143,7 +1143,17 @@ prCmd
   .action(async (prNumber: string, issueNumber: string, opts) => {
     await withCorrelation(async () => {
       const log = cliLogger.child({ command: 'pr link' });
-      log.info('Linking PR to issue', { prNumber, issueNumber, repo: opts.repo });
+
+      // Validate PR and issue numbers before proceeding
+      const parsedPrNumber = parseInt(prNumber, 10);
+      const parsedIssueNumber = parseInt(issueNumber, 10);
+      if (!Number.isFinite(parsedPrNumber) || parsedPrNumber <= 0 ||
+          !Number.isFinite(parsedIssueNumber) || parsedIssueNumber <= 0) {
+        console.error(chalk.red('PR and Issue numbers must be positive integers.'));
+        process.exit(1);
+      }
+
+      log.info('Linking PR to issue', { prNumber: parsedPrNumber, issueNumber: parsedIssueNumber, repo: opts.repo });
 
       let neo4jConnection: Neo4jConnectionManager | undefined;
       try {
@@ -1156,8 +1166,8 @@ prCmd
 
         const handler = new PrLinkHandler(githubClient, prRepository);
         const result = await handler.execute({
-          prNumber: parseInt(prNumber, 10),
-          issueNumber: parseInt(issueNumber, 10),
+          prNumber: parsedPrNumber,
+          issueNumber: parsedIssueNumber,
           repo: opts.repo,
           noComment: opts.comment === false,
         });

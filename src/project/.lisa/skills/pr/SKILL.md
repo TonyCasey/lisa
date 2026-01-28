@@ -1,13 +1,13 @@
 ---
 name: pr
-description: "PR workflow operations: create PRs, check status, poll for comments, address feedback, watch PRs. Triggers on 'pr create', 'pr checks', 'pr poll', 'pr address', 'pr comments', 'watch pr', 'watching'."
+description: "PR workflow operations: create PRs, check status, link PRs to issues, poll for comments, address feedback, watch PRs. Triggers on 'pr create', 'pr checks', 'pr link', 'pr poll', 'pr address', 'pr comments', 'watch pr', 'watching'."
 ---
 
 ## Purpose
-Model-neutral helper for GitHub PR workflow operations including creating PRs with auto-generated content, checking CI status, polling for and addressing review comments, and tracking PRs you're working on.
+Model-neutral helper for GitHub PR workflow operations including creating PRs with auto-generated content, checking CI status, linking PRs to issues, polling for and addressing review comments, and tracking PRs you're working on.
 
 ## Triggers
-Use when the user says: "create pr", "pr create", "pr checks", "check pr", "pr poll", "poll pr", "pr address", "address comments", "pr comments", "view comments", "watch pr", "unwatch pr", "watching", "what prs am i watching", "pr status".
+Use when the user says: "create pr", "pr create", "pr checks", "check pr", "pr link", "link pr", "link pr to issue", "pr poll", "poll pr", "pr address", "address comments", "pr comments", "view comments", "watch pr", "unwatch pr", "watching", "what prs am i watching", "pr status".
 
 ## How to use
 
@@ -221,7 +221,7 @@ lisa pr poll <PR_NUMBER> --json
 **Features:**
 - Detects new comments since last poll
 - Auto-address outputs formatted comment details when new comments found
-- Tracks comment resolution status
+- Tracks comment resolution status when available (resolution detection pending)
 - Shows which comments need attention
 
 **Output:**
