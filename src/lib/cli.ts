@@ -26,6 +26,7 @@ import {
   type IHookOutput,
 } from './infrastructure/cli';
 import {toISOTimestamp, type PermissionMode} from './domain';
+import type { IPrPollOptions, IPrPollResult } from './application/handlers';
 import {createLabelInferenceService} from './infrastructure/services';
 import {
   doctorCommand,
@@ -57,6 +58,67 @@ program
   .name('lisa')
   .description('Lisa remembers everything. Memory for Claude Code and AI assistants.')
   .version(VERSION);
+
+interface IPrWatchLoopOptions {
+  handler: { poll: (options: IPrPollOptions) => Promise<IPrPollResult> };
+  pollOptions: IPrPollOptions;
+  intervalMinutes: number;
+  json: boolean;
+  printResult: (result: IPrPollResult) => void;
+  stopOnResolved: boolean;
+}
+
+async function runPrWatchLoop(options: IPrWatchLoopOptions): Promise<void> {
+  const { handler, pollOptions, intervalMinutes, json, printResult, stopOnResolved } = options;
+  let interrupted = false;
+  let lastResultMessage: string | undefined;
+  const intervalMs = intervalMinutes * 60 * 1000;
+  const handleSigint = () => {
+    interrupted = true;
+  };
+  process.on('SIGINT', handleSigint);
+
+  try {
+    while (!interrupted) {
+      const result = await handler.poll(pollOptions);
+      lastResultMessage = result.message;
+
+      if (json) {
+        console.log(JSON.stringify(result, null, 2));
+      } else if (result.totalChanges === 0 && result.totalErrors === 0) {
+        console.log(chalk.dim(`⏱ no changes (next check in ${intervalMinutes} min)`));
+      } else {
+        printResult(result);
+      }
+
+      if (!result.success) {
+        process.exit(1);
+      }
+
+      if (stopOnResolved) {
+        const allResolved = result.items.length > 0
+          && result.items.every(item => item.currentState.unresolvedComments === 0);
+        if (allResolved && result.totalChanges === 0) {
+          if (!json) {
+            console.log(chalk.green('All review threads resolved. Stopping watch.'));
+          }
+          break;
+        }
+      }
+
+      if (interrupted) {
+        break;
+      }
+
+      await new Promise(resolve => setTimeout(resolve, intervalMs));
+    }
+  } finally {
+    process.off('SIGINT', handleSigint);
+    if (interrupted && lastResultMessage && !json) {
+      console.log(chalk.bold(`Final summary: ${lastResultMessage}`));
+    }
+  }
+}
 
 program
   .command('init')
@@ -716,6 +778,7 @@ prCmd
   .option('-d, --draft', 'Create as draft PR')
   .option('--no-watch', 'Skip auto-watching the PR')
   .option('--no-comment', 'Skip commenting on linked issues')
+  .option('--no-poll', 'Skip auto polling after PR creation')
   .option('--json', 'Output as JSON')
   .action(async (opts) => {
     await withCorrelation(async () => {
@@ -724,8 +787,8 @@ prCmd
 
       let neo4jConnection: Neo4jConnectionManager | undefined;
       try {
-        const { GithubClient, Neo4jPullRequestRepository, createNeo4jConnectionManager } = await import('./infrastructure');
-        const { PrCreateHandler } = await import('./application/handlers');
+        const { GithubClient, Neo4jPullRequestRepository, createNeo4jConnectionManager, McpClient, MemoryService } = await import('./infrastructure');
+        const { PrCreateHandler, PrPollHandler } = await import('./application/handlers');
 
         const githubClient = new GithubClient();
         neo4jConnection = createNeo4jConnectionManager();
@@ -769,6 +832,77 @@ prCmd
         } else {
           console.error(chalk.red(`✗ ${result.message}`));
           process.exit(1);
+        }
+
+        const shouldPoll = result.success
+          && result.pr
+          && opts.poll !== false
+          && opts.watch !== false;
+
+        if (shouldPoll && result.pr) {
+          const { getCurrentGroupId } = await import('./skills/common/group-id');
+          const mcpEndpoint = process.env.MCP_ENDPOINT || process.env.GRAPHITI_ENDPOINT || 'http://localhost:8000/mcp/';
+          const mcpClient = new McpClient(mcpEndpoint, process.env.GRAPHITI_API_KEY);
+          const memoryService = new MemoryService(mcpClient);
+          const groupId = getCurrentGroupId();
+          const pollHandler = new PrPollHandler(githubClient, prRepository, undefined, memoryService, groupId);
+          const pollOptions: IPrPollOptions = {
+            autoUnwatch: true,
+            logToFile: true,
+            autoAddress: true,
+            prNumber: result.pr.number,
+            repo: result.pr.repo,
+            useLocalCache: true,
+          };
+
+          const printPollResult = (pollResult: IPrPollResult): void => {
+            console.log(chalk.bold(pollResult.message));
+
+            if (pollResult.items.length > 0) {
+              console.log('');
+              for (const item of pollResult.items) {
+                if (item.error) {
+                  console.log(chalk.red(`  ❌ ${item.repo}#${item.number}: ${item.error}`));
+                } else if (item.changes.length > 0) {
+                  for (const change of item.changes) {
+                    console.log(chalk.yellow(`  📢 ${item.repo}#${item.number}: ${change.description}`));
+                  }
+                  if (item.unwatched) {
+                    console.log(chalk.dim('     (unwatched)'));
+                  }
+                } else {
+                  console.log(chalk.dim(`  ✓ ${item.repo}#${item.number}: no changes`));
+                }
+              }
+            }
+
+            if (pollResult.logPath) {
+              console.log('');
+              console.log(chalk.dim(`Log: ${pollResult.logPath}`));
+            }
+
+            if (pollResult.addressOutput && pollResult.addressOutput.length > 0) {
+              console.log('');
+              console.log(chalk.bold.cyan('--- Auto-Address Output ---'));
+              for (const addr of pollResult.addressOutput) {
+                console.log('');
+                console.log(addr.formattedOutput);
+              }
+            }
+          };
+
+          if (!opts.json) {
+            console.log(chalk.cyan(`Starting PR watch for ${result.pr.repo}#${result.pr.number}...`));
+          }
+
+          await runPrWatchLoop({
+            handler: pollHandler,
+            pollOptions,
+            intervalMinutes: 1,
+            json: opts.json,
+            printResult: printPollResult,
+            stopOnResolved: false,
+          });
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -1495,51 +1629,14 @@ prCmd
         };
 
         if (opts.watch) {
-          let interrupted = false;
-          let lastResultMessage: string | undefined;
-          const intervalMs = parsedInterval * 60 * 1000;
-          const handleSigint = () => {
-            interrupted = true;
-          };
-          process.on('SIGINT', handleSigint);
-
-          try {
-            while (!interrupted) {
-              const result = await handler.poll(pollOptions);
-              lastResultMessage = result.message;
-
-              if (opts.json) {
-                console.log(JSON.stringify(result, null, 2));
-              } else if (result.totalChanges === 0 && result.totalErrors === 0) {
-                console.log(chalk.dim(`⏱ no changes (next check in ${parsedInterval} min)`));
-              } else {
-                printResult(result);
-              }
-
-              if (!result.success) {
-                process.exit(1);
-              }
-
-              const allResolved = result.items.length > 0 && result.items.every(item => item.currentState.unresolvedComments === 0);
-              if (allResolved && result.totalChanges === 0) {
-                if (!opts.json) {
-                  console.log(chalk.green('All review threads resolved. Stopping watch.'));
-                }
-                break;
-              }
-
-              if (interrupted) {
-                break;
-              }
-
-              await new Promise(resolve => setTimeout(resolve, intervalMs));
-            }
-          } finally {
-            process.off('SIGINT', handleSigint);
-            if (interrupted && lastResultMessage && !opts.json) {
-              console.log(chalk.bold(`Final summary: ${lastResultMessage}`));
-            }
-          }
+          await runPrWatchLoop({
+            handler,
+            pollOptions,
+            intervalMinutes: parsedInterval,
+            json: opts.json,
+            printResult,
+            stopOnResolved: true,
+          });
         } else {
           const result = await handler.poll(pollOptions);
 

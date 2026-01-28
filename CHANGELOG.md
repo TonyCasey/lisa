@@ -83,6 +83,7 @@ lisa pr poll --watch --pr 72 --no-auto-address
 
 **Features:**
 - Foreground watch loop with heartbeat output
+- `lisa pr create` now starts polling every minute by default (use `--no-poll` to skip)
 - `--pr` and `--current` targeting for single-PR polling
 - Local cache for last-seen comment IDs (no Neo4j dependency for comment tracking)
 - Auto-address output continues to reuse `lisa pr address` formatting
