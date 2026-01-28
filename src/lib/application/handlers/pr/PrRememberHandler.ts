@@ -62,6 +62,12 @@ export class PrRememberHandler {
     try {
       // 1. Resolve repository
       const repo = options.repo || await this.githubClient.getCurrentRepo();
+      if (!repo) {
+        return {
+          success: false,
+          message: 'Could not determine repository. Specify --repo or run from a git repository.',
+        };
+      }
 
       // 2. Fetch PR details from GitHub
       const ghPr = await this.githubClient.getPr(repo, prNumber);

@@ -245,5 +245,20 @@ describe('PrRememberHandler', () => {
       assert.strictEqual(detectedRepo, true);
       assert.strictEqual(result.pr?.repo, 'detected/repo');
     });
+
+    it('should return error when repo cannot be determined', async () => {
+      mockGithubClient = createMockGithubClient({
+        getCurrentRepo: async () => undefined as unknown as string,
+      });
+      handler = new PrRememberHandler(mockGithubClient, mockMemoryWriter, groupId);
+
+      const result = await handler.execute({
+        prNumber: 50,
+        note: 'Test note',
+      });
+
+      assert.strictEqual(result.success, false);
+      assert.ok(result.message.includes('Could not determine repository'));
+    });
   });
 });
