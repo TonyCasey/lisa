@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+
+#### Auto-Address Flag for PR Poll ([#64](https://github.com/TonyCasey/lisa/issues/64))
+
+The `lisa pr poll` command now automatically outputs formatted instructions for addressing new comments when detected. This is enabled by default.
+
+**Usage:**
+```bash
+lisa pr poll                # Auto-address enabled (default)
+lisa pr poll --no-auto-address  # Disable auto-address
+```
+
+When new comments are detected on watched PRs, the poll command will automatically call `lisa pr address` and output the formatted comment details with instructions for addressing them.
+
+---
+
 ## [2.11.0] - 2026-01-27
 
 ### Added

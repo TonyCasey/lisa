@@ -1253,6 +1253,7 @@ prCmd
   .option('--no-log', 'Do not write to log file')
   .option('-c, --concurrency <n>', 'Max concurrent GitHub API calls', '5')
   .option('--notify', 'Send desktop notifications for state changes')
+  .option('--no-auto-address', 'Do not auto-address new comments')
   .option('--json', 'Output as JSON')
   .action(async (opts) => {
     await withCorrelation(async () => {
@@ -1278,6 +1279,7 @@ prCmd
           logToFile: opts.log,
           concurrency: Number.isFinite(parsedConcurrency) ? parsedConcurrency : 5,
           notify: opts.notify,
+          autoAddress: opts.autoAddress,
         });
 
         if (opts.json) {
@@ -1306,6 +1308,16 @@ prCmd
           if (result.logPath) {
             console.log('');
             console.log(chalk.dim(`Log: ${result.logPath}`));
+          }
+
+          // Display auto-address output if available
+          if (result.addressOutput && result.addressOutput.length > 0) {
+            console.log('');
+            console.log(chalk.bold.cyan('--- Auto-Address Output ---'));
+            for (const addr of result.addressOutput) {
+              console.log('');
+              console.log(addr.formattedOutput);
+            }
           }
         }
 
