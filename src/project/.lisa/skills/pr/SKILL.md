@@ -199,7 +199,7 @@ lisa pr remember 50 "Important learning" --json
 PR workflow integrates with Lisa's memory system for automatic knowledge capture:
 
 **Auto-capture on merge:**
-When a watched PR is merged, it is automatically saved to memory with the `github:pr-merged` tag. This happens during `lisa pr poll --notify` when the PR status changes to merged.
+When a watched PR is merged, it is automatically saved to memory with the `github:pr-merged` tag. This happens during `lisa pr poll` when the PR status changes to merged (requires memory to be configured).
 
 **Retrieve PR memories:**
 ```bash
