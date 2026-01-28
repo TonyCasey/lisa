@@ -11,6 +11,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### PR Memory Integration ([#47](https://github.com/TonyCasey/lisa/issues/47))
+
+Integrate PR workflow with Lisa's memory system to capture decisions, learnings, and patterns from PR reviews.
+
+**New Command - `lisa pr remember`:**
+```bash
+lisa pr remember 50 "Learned to always reply inline to review comments"
+lisa pr remember 50 "Key decision: use factory pattern" --repo owner/repo
+lisa pr remember 50 "Important learning" --json
+```
+
+**Features:**
+- Manual note capture: `lisa pr remember <pr> "<note>"` saves notes with PR context
+- Auto-capture on merge: Merged PRs are automatically saved to memory during polling
+- Memory tagging: Facts tagged with `github:pr`, `github:pr:<number>`, `github:pr-merged`
+- Retrieval support: Notes searchable via `lisa memory load --query "PR"`
+
+**Auto-capture behavior:**
+When a watched PR is merged (detected by `lisa pr poll --notify`), the PR is automatically saved to memory with the `github:pr-merged` tag. This enables tracking of completed work without manual intervention.
+
+**Tags:**
+- `github:pr` - General PR memory (manual notes)
+- `github:pr:<number>` - Specific PR (e.g., `github:pr:50`)
+- `github:pr-merged` - Auto-captured merged PR
+
+**New Files:**
+- `src/lib/application/handlers/pr/PrRememberHandler.ts` - Remember handler
+- `tests/unit/src/lib/application/handlers/pr/PrRememberHandler.test.ts` - 10 tests
+
 #### PR Link Command ([#46](https://github.com/TonyCasey/lisa/issues/46))
 
 New `lisa pr link` command creates bidirectional links between PRs and issues.

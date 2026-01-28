@@ -32,6 +32,9 @@ export const TYPE_MAP: Record<string, string> = {
   'scope-out': 'project:scope-out',
   milestone: 'project:milestone',
   'init-review': 'type:init-review',
+  // GitHub PR
+  'pr-merged': 'github:pr-merged',
+  'pr-note': 'github:pr',
 };
 
 /**
@@ -53,6 +56,9 @@ export const PREFIX_MAP: Record<string, string> = {
   'MILESTONE:': 'project:milestone',
   'FEATURE:': 'project:feature',
   'REFACTOR:': 'code:refactor',
+  // GitHub PR
+  'PR MERGED:': 'github:pr-merged',
+  'PR:': 'github:pr',
 };
 
 /**

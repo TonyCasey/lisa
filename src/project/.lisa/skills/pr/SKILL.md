@@ -1,13 +1,13 @@
 ---
 name: pr
-description: "PR workflow operations: create PRs, check status, link PRs to issues, poll for comments, address feedback, watch PRs. Triggers on 'pr create', 'pr checks', 'pr link', 'pr poll', 'pr address', 'pr comments', 'watch pr', 'watching'."
+description: "PR workflow operations: create PRs, check status, link PRs to issues, poll for comments, address feedback, watch PRs, save notes to memory. Triggers on 'pr create', 'pr checks', 'pr link', 'pr poll', 'pr address', 'pr comments', 'pr remember', 'watch pr', 'watching'."
 ---
 
 ## Purpose
-Model-neutral helper for GitHub PR workflow operations including creating PRs with auto-generated content, checking CI status, linking PRs to issues, polling for and addressing review comments, and tracking PRs you're working on.
+Model-neutral helper for GitHub PR workflow operations including creating PRs with auto-generated content, checking CI status, linking PRs to issues, polling for and addressing review comments, tracking PRs you're working on, and saving PR notes to memory.
 
 ## Triggers
-Use when the user says: "create pr", "pr create", "pr checks", "check pr", "pr link", "link pr", "link pr to issue", "pr poll", "poll pr", "pr address", "address comments", "pr comments", "view comments", "watch pr", "unwatch pr", "watching", "what prs am i watching", "pr status".
+Use when the user says: "create pr", "pr create", "pr checks", "check pr", "pr link", "link pr", "link pr to issue", "pr poll", "poll pr", "pr address", "address comments", "pr comments", "view comments", "watch pr", "unwatch pr", "watching", "what prs am i watching", "pr status", "pr remember", "remember pr", "save pr note".
 
 ## How to use
 
@@ -167,6 +167,53 @@ lisa pr link <PR_NUMBER> <ISSUE_NUMBER> --json
 ```text
 ⚠ PR #28 is already linked to Issue #15
 ```
+
+### Remember a PR Note
+Save notes, decisions, or learnings about a PR to memory:
+
+```bash
+# Save a note about a PR
+lisa pr remember 50 "Learned to always reply inline to review comments"
+
+# Save a note for a specific repo
+lisa pr remember 50 "Key decision: use factory pattern" --repo owner/repo
+
+# Output as JSON
+lisa pr remember 50 "Important learning" --json
+```
+
+**Features:**
+- Saves note to memory with PR context (number and title)
+- Tags with `github:pr` and `github:pr:<number>` for retrieval
+- Useful for capturing decisions, learnings, and patterns from PR reviews
+
+**Output:**
+```text
+✓ Saved note for PR #50
+  Fact: PR #50 (Fix auth bug): Learned to always reply inline to review comments
+  Tags: github:pr, github:pr:50
+```
+
+### Memory Integration
+
+PR workflow integrates with Lisa's memory system for automatic knowledge capture:
+
+**Auto-capture on merge:**
+When a watched PR is merged, it is automatically saved to memory with the `github:pr-merged` tag. This happens during `lisa pr poll --notify` when the PR status changes to merged.
+
+**Retrieve PR memories:**
+```bash
+# Search for PR-related memories
+lisa memory load --query "PR merged"
+
+# Load recent memories (PR notes will have github:pr tags)
+lisa memory load --cache
+```
+
+**Tags:**
+- `github:pr` - General PR memory
+- `github:pr:<number>` - Specific PR (e.g., `github:pr:50`)
+- `github:pr-merged` - Auto-captured merged PR
 
 ### List Watched PRs
 See all PRs you're currently watching:
@@ -445,6 +492,21 @@ lisa pr poll 50
     "url": "https://github.com/owner/repo/issues/15"
   },
   "alreadyLinked": false
+}
+```
+
+### lisa pr remember
+```json
+{
+  "success": true,
+  "message": "Saved note for PR #50",
+  "pr": {
+    "number": 50,
+    "repo": "owner/repo",
+    "title": "Fix auth bug"
+  },
+  "fact": "PR #50 (Fix auth bug): Learned to always reply inline",
+  "tags": ["github:pr", "github:pr:50"]
 }
 ```
 

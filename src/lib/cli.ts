@@ -1207,6 +1207,67 @@ prCmd
   });
 
 prCmd
+  .command('remember <pr-number> <note>')
+  .description('Save a note about a PR to memory')
+  .option('-r, --repo <repo>', 'Repository (owner/repo format)')
+  .option('--json', 'Output as JSON')
+  .action(async (prNumber: string, note: string, opts) => {
+    await withCorrelation(async () => {
+      const log = cliLogger.child({ command: 'pr remember' });
+
+      const parsedPrNumber = parseInt(prNumber, 10);
+      if (!Number.isFinite(parsedPrNumber) || parsedPrNumber <= 0) {
+        console.error(chalk.red('PR number must be a positive integer.'));
+        process.exit(1);
+      }
+
+      log.info('Saving PR note', { prNumber: parsedPrNumber, repo: opts.repo });
+
+      try {
+        const { GithubClient, MemoryService, McpClient } = await import('./infrastructure');
+        const { PrRememberHandler } = await import('./application/handlers');
+        const { getCurrentGroupId } = await import('./skills/common/group-id');
+
+        const githubClient = new GithubClient();
+        const mcpEndpoint = process.env.MCP_ENDPOINT || process.env.GRAPHITI_ENDPOINT || 'http://localhost:8000/mcp/';
+        const mcpClient = new McpClient(mcpEndpoint, process.env.GRAPHITI_API_KEY);
+        const memoryService = new MemoryService(mcpClient);
+        const groupId = getCurrentGroupId();
+
+        const handler = new PrRememberHandler(githubClient, memoryService, groupId);
+        const result = await handler.execute({
+          prNumber: parsedPrNumber,
+          repo: opts.repo,
+          note,
+        });
+
+        if (opts.json) {
+          console.log(JSON.stringify(result, null, 2));
+          if (!result.success) {
+            process.exit(1);
+          }
+        } else if (result.success) {
+          console.log(chalk.green(`✓ ${result.message}`));
+          if (result.fact) {
+            console.log(chalk.dim(`  Fact: ${result.fact}`));
+          }
+          if (result.tags) {
+            console.log(chalk.dim(`  Tags: ${result.tags.join(', ')}`));
+          }
+        } else {
+          console.error(chalk.red(`✗ ${result.message}`));
+          process.exit(1);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        log.error('Failed to save PR note', { error: message });
+        console.error(chalk.red(`Failed to save PR note: ${message}`));
+        process.exit(1);
+      }
+    });
+  });
+
+prCmd
   .command('watching')
   .description('List all PRs being watched')
   .option('-r, --repo <repo>', 'Filter by repository (owner/repo format)')
@@ -1334,9 +1395,10 @@ prCmd
 
       let neo4jConnection: Neo4jConnectionManager | undefined;
       try {
-        const { GithubClient, Neo4jPullRequestRepository, createNeo4jConnectionManager } = await import('./infrastructure');
+        const { GithubClient, Neo4jPullRequestRepository, createNeo4jConnectionManager, MemoryService, McpClient } = await import('./infrastructure');
         const { PrPollHandler } = await import('./application/handlers');
         const { NotificationService } = await import('./infrastructure/notifications');
+        const { getCurrentGroupId } = await import('./skills/common/group-id');
 
         const githubClient = new GithubClient();
         neo4jConnection = createNeo4jConnectionManager();
@@ -1344,7 +1406,14 @@ prCmd
 
         // Create notification service if --notify flag is set
         const notificationService = opts.notify ? new NotificationService() : undefined;
-        const handler = new PrPollHandler(githubClient, prRepository, notificationService);
+
+        // Create memory service for auto-capture of merged PRs
+        const mcpEndpoint = process.env.MCP_ENDPOINT || process.env.GRAPHITI_ENDPOINT || 'http://localhost:8000/mcp/';
+        const mcpClient = new McpClient(mcpEndpoint, process.env.GRAPHITI_API_KEY);
+        const memoryService = new MemoryService(mcpClient);
+        const groupId = getCurrentGroupId();
+
+        const handler = new PrPollHandler(githubClient, prRepository, notificationService, memoryService, groupId);
         const parsedConcurrency = parseInt(opts.concurrency, 10);
         const result = await handler.poll({
           autoUnwatch: opts.autoUnwatch,

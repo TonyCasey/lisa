@@ -18,6 +18,7 @@ export {
   PrPollHandler,
   PrStatusHandler,
   PrLinkHandler,
+  PrRememberHandler,
   type IPrCreateResult,
   type IPrCreateOptions,
   type IPrReviewResult,
@@ -42,4 +43,6 @@ export {
   type ReadyState,
   type IPrLinkResult,
   type IPrLinkOptions,
+  type IPrRememberResult,
+  type IPrRememberOptions,
 } from './pr';

@@ -25,6 +25,7 @@ import type {
 import type { IGhCheckResponse, IGhReviewCommentResponse } from '../../../infrastructure/github/types';
 import { GithubClientError } from '../../../infrastructure/github/types';
 import type { INotificationService, INotification } from '../../../domain/interfaces/INotificationService';
+import type { IMemoryWriter } from '../../../domain/interfaces/IMemoryService';
 import { createNotificationFromStateChange } from '../../../infrastructure/notifications/NotificationService';
 import { PrAddressHandler } from './PrAddressHandler';
 
@@ -117,7 +118,9 @@ export class PrPollHandler {
   constructor(
     private readonly githubClient: IGithubClient,
     private readonly prRepository: IPullRequestRepository,
-    private readonly notificationService?: INotificationService
+    private readonly notificationService?: INotificationService,
+    private readonly memoryService?: IMemoryWriter,
+    private readonly groupId?: string
   ) {
     this.logPath = path.join(os.homedir(), '.lisa', 'pr-poll.log');
   }
@@ -331,6 +334,19 @@ export class PrPollHandler {
           };
           changes.push(change);
           log(`${pr.repo}#${pr.number}: PR merged`);
+
+          // Auto-capture merged PR to memory
+          if (this.memoryService && this.groupId) {
+            try {
+              const fact = `PR MERGED: #${pr.number} ${ghPr.title}`;
+              const tags = ['github:pr-merged', `github:pr:${pr.number}`];
+              await this.memoryService.addFact(this.groupId, fact, tags);
+              log(`${pr.repo}#${pr.number}: saved to memory`);
+            } catch (memError) {
+              // Don't fail the poll if memory save fails
+              log(`${pr.repo}#${pr.number}: failed to save to memory: ${memError instanceof Error ? memError.message : String(memError)}`);
+            }
+          }
         } else if (newStatus === 'closed') {
           const change: IStateChange = {
             type: 'pr_closed',
