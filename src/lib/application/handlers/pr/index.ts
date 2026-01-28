@@ -22,3 +22,4 @@ export { PrWatchHandler, type IPrWatchResult } from './PrWatchHandler';
 export { PrPollHandler, type IPrPollResult, type IPrPollOptions, type IPrPollItem, type IStateChange, type IAutoAddressOutput } from './PrPollHandler';
 export { PrStatusHandler, type IPrStatusResult, type IPrStatusOptions, type IPrStatusItem, type IPrsByRepo, type IPrStatusSummary, type ReadyState } from './PrStatusHandler';
 export { PrLinkHandler, type IPrLinkResult, type IPrLinkOptions } from './PrLinkHandler';
+export { PrRememberHandler, type IPrRememberResult, type IPrRememberOptions } from './PrRememberHandler';
