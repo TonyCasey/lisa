@@ -528,16 +528,18 @@ export class GithubClient {
       }
       return parsed;
     } catch (error) {
-      const message = (error as Error).message || '';
-      if (message.includes('no pull requests found')) {
+      const originalError = error instanceof Error ? error : new Error(String(error));
+      if (originalError.message.includes('no pull requests found')) {
         throw new GithubClientError(
           'No pull request found for current branch',
-          'NOT_FOUND'
+          'NOT_FOUND',
+          originalError
         );
       }
       throw new GithubClientError(
         'Could not determine current PR number',
-        'UNKNOWN'
+        'UNKNOWN',
+        originalError
       );
     }
   }

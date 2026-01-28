@@ -96,7 +96,7 @@ async function runPrWatchLoop(options: IPrWatchLoopOptions): Promise<void> {
       }
 
       if (!result.success) {
-        process.exit(1);
+        throw new Error(result.message || 'Poll failed');
       }
 
       if (stopOnResolved) {

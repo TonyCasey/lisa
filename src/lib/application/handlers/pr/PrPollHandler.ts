@@ -174,7 +174,8 @@ export class PrPollHandler {
     try {
       const target = await this.resolveTarget(options);
       const localCache = useLocalCache ? await this.loadCache() : undefined;
-      const userId = !useLocalCache || !target
+      const needsUserId = !useLocalCache || !target;
+      const userId = needsUserId
         ? await this.prRepository.getUserId()
         : undefined;
 
