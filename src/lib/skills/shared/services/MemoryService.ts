@@ -93,9 +93,10 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
     ): Promise<IMemoryLoadResult> {
       // Always use Neo4j for load (better date ordering)
       // Use parameterized query for groupIds to prevent Cypher injection
+      // Neo4j requires integer for LIMIT - ensure it's not a float
       const params: Record<string, unknown> = {
         groupIds,
-        limit,
+        limit: Math.floor(limit),
       };
 
       // Build date filter clauses

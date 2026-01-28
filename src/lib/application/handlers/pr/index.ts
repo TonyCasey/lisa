@@ -10,6 +10,7 @@
  * - watching: List all watched PRs
  * - poll: Cron-based polling for state changes
  * - status: Multi-PR summary dashboard
+ * - link: Link PR to issue (CLOSES relationship)
  */
 
 export { PrCreateHandler, type IPrCreateResult, type IPrCreateOptions } from './PrCreateHandler';
@@ -20,3 +21,4 @@ export { PrAddressHandler, type IPrAddressResult, type IPrAddressOptions, type I
 export { PrWatchHandler, type IPrWatchResult } from './PrWatchHandler';
 export { PrPollHandler, type IPrPollResult, type IPrPollOptions, type IPrPollItem, type IStateChange, type IAutoAddressOutput } from './PrPollHandler';
 export { PrStatusHandler, type IPrStatusResult, type IPrStatusOptions, type IPrStatusItem, type IPrsByRepo, type IPrStatusSummary, type ReadyState } from './PrStatusHandler';
+export { PrLinkHandler, type IPrLinkResult, type IPrLinkOptions } from './PrLinkHandler';

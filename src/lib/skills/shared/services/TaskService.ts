@@ -56,9 +56,10 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
     ): Promise<ITaskListResult> {
       // Always use Neo4j for list (better date ordering)
       // Use parameterized query for groupIds to prevent Cypher injection
+      // Neo4j requires integer for LIMIT - ensure it's not a float
       const params: Record<string, unknown> = {
         groupIds,
-        limit,
+        limit: Math.floor(limit),
       };
 
       // Build date filter clauses

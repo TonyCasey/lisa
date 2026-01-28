@@ -27,6 +27,7 @@ interface INeo4jModule {
   driver(uri: string, auth: unknown, options: Record<string, unknown>): INeo4jDriver;
   auth: { basic(username: string, password: string): unknown };
   session: { READ: unknown };
+  int(value: number): unknown;
   isInt(value: unknown): boolean;
   isDateTime(value: unknown): boolean;
   isDate(value: unknown): boolean;
@@ -74,7 +75,18 @@ export function createNeo4jClient(config: INeo4jClientConfig): INeo4jClient {
       });
 
       try {
-        const result = await session.run(cypher, params);
+        // Convert integer parameters to Neo4j Integer type
+        // JavaScript numbers are passed as floats, but LIMIT requires integers
+        const convertedParams: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(params)) {
+          if (typeof value === 'number' && Number.isInteger(value)) {
+            convertedParams[key] = neo4j.int(value);
+          } else {
+            convertedParams[key] = value;
+          }
+        }
+
+        const result = await session.run(cypher, convertedParams);
         return result.records.map((record: INeo4jRecord) => {
           const obj: Record<string, unknown> = {};
           for (const key of record.keys) {

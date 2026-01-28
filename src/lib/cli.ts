@@ -1135,6 +1135,78 @@ prCmd
   });
 
 prCmd
+  .command('link <pr-number> <issue-number>')
+  .description('Link a PR to an issue (creates CLOSES relationship)')
+  .option('-r, --repo <repo>', 'Repository (owner/repo format)')
+  .option('--no-comment', 'Skip commenting on the GitHub issue')
+  .option('--json', 'Output as JSON')
+  .action(async (prNumber: string, issueNumber: string, opts) => {
+    await withCorrelation(async () => {
+      const log = cliLogger.child({ command: 'pr link' });
+
+      // Validate PR and issue numbers before proceeding
+      const parsedPrNumber = parseInt(prNumber, 10);
+      const parsedIssueNumber = parseInt(issueNumber, 10);
+      if (!Number.isFinite(parsedPrNumber) || parsedPrNumber <= 0 ||
+          !Number.isFinite(parsedIssueNumber) || parsedIssueNumber <= 0) {
+        console.error(chalk.red('PR and Issue numbers must be positive integers.'));
+        process.exit(1);
+      }
+
+      log.info('Linking PR to issue', { prNumber: parsedPrNumber, issueNumber: parsedIssueNumber, repo: opts.repo });
+
+      let neo4jConnection: Neo4jConnectionManager | undefined;
+      try {
+        const { GithubClient, Neo4jPullRequestRepository, createNeo4jConnectionManager } = await import('./infrastructure');
+        const { PrLinkHandler } = await import('./application/handlers');
+
+        const githubClient = new GithubClient();
+        neo4jConnection = createNeo4jConnectionManager();
+        const prRepository = new Neo4jPullRequestRepository(neo4jConnection);
+
+        const handler = new PrLinkHandler(githubClient, prRepository);
+        const result = await handler.execute({
+          prNumber: parsedPrNumber,
+          issueNumber: parsedIssueNumber,
+          repo: opts.repo,
+          noComment: opts.comment === false,
+        });
+
+        if (opts.json) {
+          console.log(JSON.stringify(result, null, 2));
+          if (!result.success) {
+            process.exit(1);
+          }
+        } else if (result.success) {
+          if (result.alreadyLinked) {
+            console.log(chalk.yellow(`⚠ PR #${prNumber} is already linked to Issue #${issueNumber}`));
+          } else {
+            console.log(chalk.green(`✓ Linked PR #${prNumber} to Issue #${issueNumber}`));
+            if (result.pr) {
+              console.log(chalk.dim(`  PR: ${result.pr.url}`));
+            }
+            if (result.issue) {
+              console.log(chalk.dim(`  Issue: ${result.issue.url}`));
+            }
+          }
+        } else {
+          console.error(chalk.red(`✗ ${result.message}`));
+          process.exit(1);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        log.error('Failed to link PR to issue', { error: message });
+        console.error(chalk.red(`Failed to link: ${message}`));
+        process.exit(1);
+      } finally {
+        if (neo4jConnection) {
+          await neo4jConnection.disconnect();
+        }
+      }
+    });
+  });
+
+prCmd
   .command('watching')
   .description('List all PRs being watched')
   .option('-r, --repo <repo>', 'Filter by repository (owner/repo format)')

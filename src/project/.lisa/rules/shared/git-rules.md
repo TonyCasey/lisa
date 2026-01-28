@@ -87,6 +87,52 @@ Use the `/pr` skill to check CI status:
 lisa pr checks <PR_NUMBER>
 ```
 
+### PR Review Workflow
+
+After creating a PR, actively monitor and respond to review comments:
+
+**1. Poll for review comments:**
+```bash
+lisa pr poll <PR_NUMBER>
+```
+
+**2. When a comment is detected:**
+- Add an 👀 (eyes) emoji to acknowledge you've seen it
+- Read and understand the suggestion
+
+**3. Address the comment:**
+- Make the requested changes in code
+- Commit with a descriptive message referencing the feedback
+
+**4. Reply to the comment:**
+- Reply inline to the comment explaining what was done
+- Or discuss if you disagree with the suggestion
+
+**5. Poll for responses:**
+```bash
+lisa pr poll <PR_NUMBER>
+```
+
+**6. Repeat** until all comments are:
+- Addressed and resolved
+- Agreed upon (reviewer approves or discussion concludes)
+
+**Example workflow:**
+```bash
+# Initial poll after PR creation
+lisa pr poll 65
+
+# Reviewer leaves comment about missing error handling
+# -> Add 👀 emoji to the comment
+# -> Fix the code
+git add . && git commit -m "fix: add error handling per review feedback"
+git push
+
+# -> Reply inline: "Added try/catch with proper error logging"
+# -> Poll again for response
+lisa pr poll 65
+```
+
 ## After Merge
 
 ### 1. Create Milestone Memory
@@ -143,7 +189,7 @@ lisa memory add "FIX: Resolved race condition in database connection pooling" --
 ## Related Skills
 
 - `/git` - Version bumping, CI retriggers, push workflows
-- `/pr` - PR creation, CI checks, comment tracking
+- `/pr` - PR creation, CI checks, polling, comment tracking
 - `/github` - GitHub Issues and Projects management
 - `/jira` - Jira ticket transitions and management
 - `/memory` - Milestone and fact storage
