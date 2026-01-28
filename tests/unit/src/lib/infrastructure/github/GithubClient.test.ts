@@ -96,7 +96,7 @@ describe('GithubClient Type Structures', () => {
         createdAt: '2026-01-26T00:00:00Z',
         updatedAt: '2026-01-26T00:00:00Z',
         author: { login: 'user' },
-        repository: { nameWithOwner: 'owner/repo' },
+        headRepository: { nameWithOwner: 'owner/repo' },
       };
 
       assert.strictEqual(pr.number, 42);
@@ -120,7 +120,7 @@ describe('GithubClient Type Structures', () => {
           { number: 15, title: 'Bug report', url: 'https://github.com/owner/repo/issues/15' },
         ],
         author: { login: 'user' },
-        repository: { nameWithOwner: 'owner/repo' },
+        headRepository: { nameWithOwner: 'owner/repo' },
       };
 
       assert.strictEqual(pr.closingIssuesReferences?.length, 1);

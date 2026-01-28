@@ -45,6 +45,7 @@ export interface IGithubClient {
 
   // Repository Operations
   getCurrentRepo(): Promise<string>;
+  getCurrentPrNumber(): Promise<number>;
 
   // Git Operations
   getCurrentBranch(): Promise<string>;

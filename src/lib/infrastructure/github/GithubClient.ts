@@ -513,6 +513,28 @@ export class GithubClient {
     }
   }
 
+  /**
+   * Get the current PR number for the checked-out branch.
+   */
+  async getCurrentPrNumber(): Promise<number> {
+    try {
+      const output = execSync('gh pr view --json number --jq .number', {
+        encoding: 'utf-8',
+        timeout: this.options.timeoutMs,
+      });
+      const parsed = parseInt(output.trim(), 10);
+      if (!Number.isFinite(parsed)) {
+        throw new Error('Invalid PR number');
+      }
+      return parsed;
+    } catch {
+      throw new GithubClientError(
+        'Could not determine current PR number',
+        'UNKNOWN'
+      );
+    }
+  }
+
   // ============================================================
   // Git Operations
   // ============================================================

@@ -1387,6 +1387,10 @@ prCmd
   .option('-c, --concurrency <n>', 'Max concurrent GitHub API calls', '5')
   .option('--notify', 'Send desktop notifications for state changes')
   .option('--no-auto-address', 'Do not auto-address new comments')
+  .option('--watch', 'Watch a single PR in the foreground')
+  .option('--pr <number>', 'Poll a specific PR number')
+  .option('--current', 'Use current PR from branch')
+  .option('-i, --interval <minutes>', 'Polling interval in minutes', '1')
   .option('--json', 'Output as JSON')
   .action(async (opts) => {
     await withCorrelation(async () => {
@@ -1404,8 +1408,37 @@ prCmd
         neo4jConnection = createNeo4jConnectionManager();
         const prRepository = new Neo4jPullRequestRepository(neo4jConnection);
 
-        // Create notification service if --notify flag is set
-        const notificationService = opts.notify ? new NotificationService() : undefined;
+        const parsedConcurrency = parseInt(opts.concurrency, 10);
+        const parsedInterval = parseInt(opts.interval, 10);
+        const prNumber = opts.pr ? parseInt(opts.pr, 10) : undefined;
+
+        if (opts.pr && !Number.isFinite(prNumber)) {
+          console.error(chalk.red('Invalid PR number. Must be a number.'));
+          process.exit(1);
+        }
+
+        if (opts.watch && !Number.isFinite(parsedInterval)) {
+          console.error(chalk.red('Invalid interval. Must be a number of minutes.'));
+          process.exit(1);
+        }
+
+        if (opts.watch && parsedInterval < 1) {
+          console.error(chalk.red('Invalid interval. Must be at least 1 minute.'));
+          process.exit(1);
+        }
+
+        if (opts.pr && opts.current) {
+          console.error(chalk.red('Use either --pr or --current, not both.'));
+          process.exit(1);
+        }
+
+        if (opts.watch && !opts.pr && !opts.current) {
+          console.error(chalk.red('Watch mode requires --pr <number> or --current.'));
+          process.exit(1);
+        }
+
+        // Create notification service if --notify flag is set (disabled in watch mode)
+        const notificationService = opts.notify && !opts.watch ? new NotificationService() : undefined;
 
         // Create memory service for auto-capture of merged PRs
         const mcpEndpoint = process.env.MCP_ENDPOINT || process.env.GRAPHITI_ENDPOINT || 'http://localhost:8000/mcp/';
@@ -1414,18 +1447,18 @@ prCmd
         const groupId = getCurrentGroupId();
 
         const handler = new PrPollHandler(githubClient, prRepository, notificationService, memoryService, groupId);
-        const parsedConcurrency = parseInt(opts.concurrency, 10);
-        const result = await handler.poll({
+        const pollOptions = {
           autoUnwatch: opts.autoUnwatch,
           logToFile: opts.log,
           concurrency: Number.isFinite(parsedConcurrency) ? parsedConcurrency : 5,
-          notify: opts.notify,
+          notify: opts.notify && !opts.watch,
           autoAddress: opts.autoAddress,
-        });
+          prNumber: prNumber,
+          current: opts.current,
+          useLocalCache: opts.watch,
+        };
 
-        if (opts.json) {
-          console.log(JSON.stringify(result, null, 2));
-        } else {
+        const printResult = (result: { message: string; items: readonly { repo: string; number: number; changes: readonly { description: string }[]; error?: string; unwatched: boolean }[]; logPath?: string; addressOutput?: readonly { formattedOutput: string }[] }) => {
           console.log(chalk.bold(result.message));
 
           if (result.items.length > 0) {
@@ -1438,7 +1471,7 @@ prCmd
                   console.log(chalk.yellow(`  📢 ${item.repo}#${item.number}: ${change.description}`));
                 }
                 if (item.unwatched) {
-                  console.log(chalk.dim(`     (unwatched)`));
+                  console.log(chalk.dim('     (unwatched)'));
                 }
               } else {
                 console.log(chalk.dim(`  ✓ ${item.repo}#${item.number}: no changes`));
@@ -1451,7 +1484,6 @@ prCmd
             console.log(chalk.dim(`Log: ${result.logPath}`));
           }
 
-          // Display auto-address output if available
           if (result.addressOutput && result.addressOutput.length > 0) {
             console.log('');
             console.log(chalk.bold.cyan('--- Auto-Address Output ---'));
@@ -1460,11 +1492,66 @@ prCmd
               console.log(addr.formattedOutput);
             }
           }
-        }
+        };
 
-        // Exit with error code if there were errors
-        if (!result.success) {
-          process.exit(1);
+        if (opts.watch) {
+          let interrupted = false;
+          let lastResultMessage: string | undefined;
+          const intervalMs = parsedInterval * 60 * 1000;
+          const handleSigint = () => {
+            interrupted = true;
+          };
+          process.on('SIGINT', handleSigint);
+
+          try {
+            while (!interrupted) {
+              const result = await handler.poll(pollOptions);
+              lastResultMessage = result.message;
+
+              if (opts.json) {
+                console.log(JSON.stringify(result, null, 2));
+              } else if (result.totalChanges === 0 && result.totalErrors === 0) {
+                console.log(chalk.dim(`⏱ no changes (next check in ${parsedInterval} min)`));
+              } else {
+                printResult(result);
+              }
+
+              if (!result.success) {
+                process.exit(1);
+              }
+
+              const allResolved = result.items.length > 0 && result.items.every(item => item.currentState.unresolvedComments === 0);
+              if (allResolved && result.totalChanges === 0) {
+                if (!opts.json) {
+                  console.log(chalk.green('All review threads resolved. Stopping watch.'));
+                }
+                break;
+              }
+
+              if (interrupted) {
+                break;
+              }
+
+              await new Promise(resolve => setTimeout(resolve, intervalMs));
+            }
+          } finally {
+            process.off('SIGINT', handleSigint);
+            if (interrupted && lastResultMessage && !opts.json) {
+              console.log(chalk.bold(`Final summary: ${lastResultMessage}`));
+            }
+          }
+        } else {
+          const result = await handler.poll(pollOptions);
+
+          if (opts.json) {
+            console.log(JSON.stringify(result, null, 2));
+          } else {
+            printResult(result);
+          }
+
+          if (!result.success) {
+            process.exit(1);
+          }
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

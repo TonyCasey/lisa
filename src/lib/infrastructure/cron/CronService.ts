@@ -298,7 +298,7 @@ export class CronService implements ICronService {
       const config: ILisaGlobalConfig = JSON.parse(content);
 
       // Remove prPolling key
-      const { prPolling, ...rest } = config;
+      const { prPolling: _prPolling, ...rest } = config;
       
       if (Object.keys(rest).length === 0) {
         // No other config, delete file

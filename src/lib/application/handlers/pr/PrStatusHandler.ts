@@ -371,9 +371,6 @@ export class PrStatusHandler {
    * Format a single PR line.
    */
   private formatPrLine(pr: IPrStatusItem): string {
-    // Status indicator
-    const statusIcon = this.getStatusIcon(pr.status);
-
     // Checks indicator
     const checksIcon = this.getChecksIcon(pr.checksStatus);
     const checksText = pr.checksTotal !== undefined && pr.checksPassed !== undefined

@@ -438,7 +438,7 @@ export function createNotificationFromStateChange(
   repo: string,
   prTitle?: string
 ): INotification {
-  const icon = NOTIFICATION_ICONS[type];
+  const _icon = NOTIFICATION_ICONS[type];
   const shortRepo = repo.split('/').pop() || repo;
 
   let title: string;

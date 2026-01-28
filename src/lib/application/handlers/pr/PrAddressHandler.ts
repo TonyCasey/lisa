@@ -314,7 +314,7 @@ export class PrAddressHandler {
   private generateInstructions(
     comments: readonly ICommentToAddress[],
     repo: string,
-    prNumber: number
+    _prNumber: number
   ): string {
     const lines: string[] = [];
 

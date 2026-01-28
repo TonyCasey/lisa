@@ -44,7 +44,7 @@ export interface ITaskServiceDependencies {
  * @returns Task service implementation
  */
 export function createTaskService(deps: ITaskServiceDependencies): ITaskService {
-  const { neo4jClient, mcpClient, zepClient } = deps;
+  const { neo4jClient, mcpClient: _mcpClient, zepClient } = deps;
 
   return {
     async list(

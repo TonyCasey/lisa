@@ -74,7 +74,7 @@ function createMockPrResponse(overrides: Partial<IGhPrResponse> = {}): IGhPrResp
     createdAt: '2026-01-26T10:00:00Z',
     updatedAt: '2026-01-26T10:00:00Z',
     author: { login: 'user' },
-    repository: { nameWithOwner: 'owner/repo' },
+    headRepository: { nameWithOwner: 'owner/repo' },
     ...overrides,
   };
 }
