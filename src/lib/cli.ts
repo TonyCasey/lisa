@@ -72,7 +72,9 @@ async function runPrWatchLoop(options: IPrWatchLoopOptions): Promise<void> {
   const { handler, pollOptions, intervalMinutes, json, printResult, stopOnResolved } = options;
   let interrupted = false;
   let lastResultMessage: string | undefined;
+  let dots = '';
   const intervalMs = intervalMinutes * 60 * 1000;
+  const prLabel = pollOptions.prNumber ? `PR #${pollOptions.prNumber}` : 'PRs';
   const handleSigint = () => {
     interrupted = true;
   };
@@ -86,8 +88,10 @@ async function runPrWatchLoop(options: IPrWatchLoopOptions): Promise<void> {
       if (json) {
         console.log(JSON.stringify(result, null, 2));
       } else if (result.totalChanges === 0 && result.totalErrors === 0) {
-        console.log(chalk.dim(`⏱ no changes (next check in ${intervalMinutes} min)`));
+        dots += '.';
+        console.log(chalk.dim(`Watching ${prLabel} for updates${dots}`));
       } else {
+        dots = '';
         printResult(result);
       }
 

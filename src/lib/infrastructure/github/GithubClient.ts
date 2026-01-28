@@ -527,7 +527,14 @@ export class GithubClient {
         throw new Error('Invalid PR number');
       }
       return parsed;
-    } catch {
+    } catch (error) {
+      const message = (error as Error).message || '';
+      if (message.includes('no pull requests found')) {
+        throw new GithubClientError(
+          'No pull request found for current branch',
+          'NOT_FOUND'
+        );
+      }
       throw new GithubClientError(
         'Could not determine current PR number',
         'UNKNOWN'

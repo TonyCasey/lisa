@@ -76,10 +76,16 @@ The `lisa pr poll` command now supports foreground watch mode for proactive revi
 
 **Usage:**
 ```bash
-lisa pr poll --watch --pr 72 --interval 1
-lisa pr poll --watch --current --interval 1
-lisa pr poll --watch --pr 72 --no-auto-address
+lisa pr poll --watch --pr 72                    # poll every 1 minute (default)
+lisa pr poll --watch --current --interval 2     # poll current branch PR every 2 minutes
+lisa pr poll --watch --pr 72 --no-auto-address  # disable auto-address output
 ```
+
+**Flags:**
+- `--watch` — run in foreground watch mode (requires `--pr` or `--current`)
+- `--pr <number>` — target a specific PR by number
+- `--current` — target the PR for the current branch
+- `--interval <minutes>` — polling interval in minutes (default: `1`, minimum: `1`)
 
 **Features:**
 - Foreground watch loop with heartbeat output

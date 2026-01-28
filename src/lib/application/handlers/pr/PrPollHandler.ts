@@ -875,7 +875,7 @@ export class PrPollHandler {
 
       const isReply = Boolean(ghComment.in_reply_to_id);
       const change: IStateChange = {
-        type: isReply ? 'new_reply' : 'new_comment',
+        type: 'new_comment',
         description: `new ${isReply ? 'reply' : 'comment'} from @${ghComment.user.login} on ${ghComment.path}:${ghComment.line || ghComment.original_line || '?'}`,
         prNumber: pr.number,
         repo: pr.repo,
