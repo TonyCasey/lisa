@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [2.11.5] - 2026-01-28
+
 ### Added
 
 #### PR Memory Integration ([#47](https://github.com/TonyCasey/lisa/issues/47))
