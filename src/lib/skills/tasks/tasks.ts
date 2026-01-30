@@ -3,7 +3,7 @@
  * Task management CLI - thin entry point.
  *
  * Commands:
- *   node tasks.js list [--group <id>] [--limit N] [--cache]
+ *   node tasks.js list [--group <id>] [--limit N] [--since <date>] [--until <date>] [--all] [--cache]
  *   node tasks.js list-linked [--linked github|jira|linear] [--group <id>] [--limit N]
  *   node tasks.js add "task text" [--status todo|doing|done] [--tag foo] [--link github#123] [--group <id>] [--cache]
  *   node tasks.js update "task text" [--status ...] [--tag foo] [--link github#123] [--group <id>] [--cache]
@@ -44,6 +44,7 @@ async function main(): Promise<void> {
   const linkedSource = popFlag(args, '--linked', null); // Filter source for list-linked
   const since = popFlag(args, '--since', null);
   const until = popFlag(args, '--until', null);
+  const all = hasFlag(args, '--all');
   const useCache = hasFlag(args, '--cache');
   const payload = args.join(' ').trim();
 
@@ -61,7 +62,7 @@ async function main(): Promise<void> {
 
   try {
     const result = await cliService.run({
-      command, payload, explicitGroup, limit, status, tag, repo, assignee, notes, link, linkedSource, since, until,
+      command, payload, explicitGroup, limit, status, tag, repo, assignee, notes, link, linkedSource, since, until, all,
     });
     console.log(JSON.stringify(result, null, 2));
   } catch (err: unknown) {
