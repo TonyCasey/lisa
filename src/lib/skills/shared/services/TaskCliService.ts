@@ -104,7 +104,8 @@ export function createTaskCliService(deps: ITaskCliDependencies): ITaskCliServic
         throw new Error(`command must be ${validCommands.join('|')}`);
       }
 
-      const groupId = explicitGroup || env.GRAPHITI_GROUP_ID || getCurrentGroupId();
+      // Use explicit --group if provided, otherwise use canonical folder-based group ID
+      const groupId = explicitGroup || getCurrentGroupId();
 
       logger.info(`Executing command: ${command}`, { mode: env.STORAGE_MODE, group: groupId });
 

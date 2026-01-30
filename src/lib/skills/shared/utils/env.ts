@@ -14,7 +14,6 @@ export interface IEnvConfig {
 
   // Graphiti MCP settings
   GRAPHITI_ENDPOINT: string;
-  GRAPHITI_GROUP_ID?: string;
 
   // Neo4j settings
   NEO4J_URI: string;
@@ -100,7 +99,6 @@ export function loadEnv(): IEnvConfig {
     STORAGE_MODE: storageMode,
 
     GRAPHITI_ENDPOINT: get('GRAPHITI_ENDPOINT', 'http://localhost:8010/mcp/'),
-    GRAPHITI_GROUP_ID: get('GRAPHITI_GROUP_ID') || undefined,
 
     NEO4J_URI: get('NEO4J_URI', 'bolt://localhost:7687'),
     NEO4J_USER: get('NEO4J_USER', 'neo4j'),

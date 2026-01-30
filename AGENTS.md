@@ -471,7 +471,7 @@ Address Lisa directly for memory and tasks:
 
 ### Configuration
 - **Endpoint**: `GRAPHITI_ENDPOINT` env or `http://localhost:8010/mcp/`
-- **Group**: `GRAPHITI_GROUP_ID` env or project name
+- **Group**: Automatically derived from project folder path
 - **Storage modes**: Local Docker or Zep Cloud
 
 ### Cross-Model Compatibility

@@ -29,8 +29,6 @@ async function main(): Promise<void> {
 
   const command = args.shift() ?? '';
   const explicitGroup = popFlag(args, '--group', null);
-  const envGroup = env.GRAPHITI_GROUP_ID;
-  const hasConfiguredGroup = !!(explicitGroup || envGroup);
   const query = popFlag(args, '--query', '');
   const limit = Number(popFlag(args, '--limit', '10')) || 10;
   const explicitTag = popFlag(args, '--tag', null);
@@ -55,7 +53,7 @@ async function main(): Promise<void> {
 
   try {
     const result = await cliService.run({
-      command, payload, explicitGroup, hasConfiguredGroup, query, limit, explicitTag, entityType, source, since, until,
+      command, payload, explicitGroup, query, limit, explicitTag, entityType, source, since, until,
     });
     console.log(JSON.stringify(result, null, 2));
   } catch (err: unknown) {

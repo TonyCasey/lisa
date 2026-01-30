@@ -72,7 +72,8 @@ test('initCommand copies expected templates with replacements', async () => {
   const rulesCopy = services.templateCopier.calls.find((c) => c.dest.includes('rules') && c.dest.includes('clean-architecture'));
   assert.ok(rulesCopy, 'rules should be copied');
   assert.equal(rulesCopy?.replacements.GRAPHITI_ENDPOINT, DEFAULT_ENDPOINT);
-  assert.equal(rulesCopy?.replacements.GRAPHITI_GROUP, DEFAULT_GROUP);
+  // GRAPHITI_GROUP replacement removed - group ID is now derived from folder path
+  assert.ok(rulesCopy?.replacements.PROJECT_NAME, 'PROJECT_NAME replacement should be set');
 });
 
 test('initCommand skips docker assets when includeDocker is false', async () => {

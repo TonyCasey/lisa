@@ -20,7 +20,8 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
 
   const explicitGroup = popFlag(args, '--group', null);
-  const groupId = explicitGroup || env.GRAPHITI_GROUP_ID || getCurrentGroupId();
+  // Use explicit --group if provided, otherwise use canonical folder-based group ID
+  const groupId = explicitGroup || getCurrentGroupId();
   const text = popFlag(args, '--text', null) || popFlag(args, '-t', null);
   const role = popFlag(args, '--role', 'user') || popFlag(args, '-r', 'user');
   const source = popFlag(args, '--source', 'user-prompt') || popFlag(args, '-s', 'user-prompt');

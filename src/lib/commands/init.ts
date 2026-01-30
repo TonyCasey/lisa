@@ -16,7 +16,6 @@ import {
   BUNDLED_OPENCODE_ROOT,
   DEFAULT_ENDPOINT,
   ZEP_CLOUD_ENDPOINT,
-  DEFAULT_GROUP,
   type DeploymentMode,
   type CliSupport,
   type IGraphitiConfig,
@@ -198,14 +197,6 @@ async function promptZepCloudConfig(): Promise<Partial<IGraphitiConfig>> {
   });
 
   return { zepApiKey, zepProjectId, endpoint: ZEP_CLOUD_ENDPOINT };
-}
-
-async function promptGroupId(): Promise<string> {
-  const projectName = path.basename(process.cwd());
-  return await input({
-    message: 'Group ID:',
-    default: projectName,
-  });
 }
 
 async function promptCliSupport(): Promise<CliSupport[]> {
@@ -416,7 +407,6 @@ export async function initCommand(opts: IInitOptions, services: IServices): Prom
     config = {
       mode,
       endpoint: opts.endpoint || (mode === 'zep-cloud' ? ZEP_CLOUD_ENDPOINT : DEFAULT_ENDPOINT),
-      groupId: opts.group || process.env.GRAPHITI_GROUP_ID || DEFAULT_GROUP,
       zepApiKey: opts.zepApiKey,
       zepProjectId: opts.zepProjectId,
     };
@@ -431,13 +421,11 @@ export async function initCommand(opts: IInitOptions, services: IServices): Prom
       modeConfig = { endpoint: DEFAULT_ENDPOINT };
     }
 
-    const groupId = await promptGroupId();
     cliSupport = await promptCliSupport();
 
     config = {
       mode,
       endpoint: modeConfig.endpoint || DEFAULT_ENDPOINT,
-      groupId,
       ...modeConfig,
     };
   }
@@ -446,11 +434,10 @@ export async function initCommand(opts: IInitOptions, services: IServices): Prom
   const supportClaudeCode = cliSupport.includes('claude-code');
   const supportOpenCode = cliSupport.includes('opencode');
 
+  const projectName = path.basename(cwd);
   const replacements = {
     GRAPHITI_ENDPOINT: config.endpoint,
-    GRAPHITI_GROUP: config.groupId,
-    GRAPHITI_GROUP_ID: config.groupId,
-    PROJECT_NAME: config.groupId,
+    PROJECT_NAME: projectName,
   };
 
   const lisaDir = path.join(cwd, '.lisa');
@@ -627,7 +614,6 @@ export async function initCommand(opts: IInitOptions, services: IServices): Prom
   console.log(chalk.green(`Scaffolded ${scaffoldedDirs.join(', ')} into ${cwd}`));
   console.log(`Mode: ${config.mode}`);
   console.log(`Endpoint: ${config.endpoint}`);
-  console.log(`Group ID: ${config.groupId}`);
   console.log(`CLI Support: ${cliSupport.join(', ')}`);
 
   if (config.mode === 'skip') {
