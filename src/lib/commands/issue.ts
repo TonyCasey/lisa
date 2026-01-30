@@ -9,6 +9,7 @@
 import type {Command} from 'commander';
 import chalk from 'chalk';
 import {createLabelInferenceService} from '../infrastructure/services';
+import {CliExitError} from './cli-utils';
 
 const TYPE_LABELS = ['bug', 'enhancement', 'documentation', 'refactor', 'testing'] as const;
 
@@ -144,8 +145,7 @@ export function registerIssueCommands(issueCmd: Command): void {
         console.log(chalk.green('Issue created:'), (result.stdout || '').trim());
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        console.error(chalk.red('Failed to create issue:'), message);
-        process.exit(1);
+        throw new CliExitError(1, `Failed to create issue: ${message}`);
       }
     });
 

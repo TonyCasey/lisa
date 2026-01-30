@@ -54,6 +54,7 @@ export { registerPrCommands } from './pr';
 
 // CLI utilities
 export {
+  CliExitError,
   getSkillCacheEnv,
   spawnAndWait,
   runPrWatchLoop,
