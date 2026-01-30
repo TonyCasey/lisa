@@ -8,7 +8,7 @@
 import fs from 'fs-extra';
 import path from 'path';
 import chalk from 'chalk';
-import type { IServices } from '../interfaces/IServices';
+import type { ICliServices } from './cli-services';
 import { getCurrentGroupId } from '../skills/shared/utils/group-id';
 
 // ============================================================================
@@ -179,7 +179,7 @@ function getLisaVersion(): string {
 /**
  * Check Docker availability.
  */
-async function checkDocker(services: IServices): Promise<ICheckResult> {
+async function checkDocker(services: ICliServices): Promise<ICheckResult> {
   const start = Date.now();
   try {
     const version = await services.docker.version();
@@ -204,7 +204,7 @@ async function checkDocker(services: IServices): Promise<ICheckResult> {
 /**
  * Check Docker Compose availability.
  */
-async function checkDockerCompose(services: IServices): Promise<ICheckResult> {
+async function checkDockerCompose(services: ICliServices): Promise<ICheckResult> {
   const start = Date.now();
   try {
     const version = await services.docker.composeVersion();
@@ -245,7 +245,7 @@ async function checkComposeFile(composeFile: string): Promise<ICheckResult> {
  * Check MCP/Graphiti connectivity.
  */
 async function checkMcp(
-  services: IServices,
+  services: ICliServices,
   endpoint: string,
   apiKey?: string
 ): Promise<ICheckResult> {
@@ -539,7 +539,7 @@ function findTranscripts(): ITranscriptInfo {
  */
 export async function runDoctor(
   opts: IDoctorOptions,
-  services: IServices
+  services: ICliServices
 ): Promise<IDoctorResult> {
   const startTime = Date.now();
   const cwd = opts.cwd;
@@ -823,7 +823,7 @@ export function getExitCode(status: CheckStatus): number {
  */
 export async function doctorCommand(
   opts: IDoctorOptions,
-  services: IServices
+  services: ICliServices
 ): Promise<void> {
   const result = await runDoctor(opts, services);
 

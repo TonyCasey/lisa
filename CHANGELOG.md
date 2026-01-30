@@ -82,6 +82,28 @@ Removed all `process.exit()` calls from non-entrypoint command modules, centrali
 
 **Result:** Only the CLI entry point (`cli.ts`) and legitimate standalone scripts (skills, hooks) call `process.exit()`. All command modules are now testable without terminating the process.
 
+#### Consolidate legacy services.ts with DI container ([#86](https://github.com/TonyCasey/lisa/issues/86))
+
+Eliminated the competing service construction paths, establishing one clear composition root per concern and removing all deprecated code.
+
+**Removed dead code:**
+- `ServiceFactory.ts` — removed deprecated `createServices()`, `createServicesWithCleanup()`, and `IServicesWithCleanup` (zero callers, duplicated `bootstrapContainer`)
+- `bootstrap.ts` — removed deprecated `bootstrapServices()` (zero callers)
+- `src/lib/services.ts` — deleted (monolithic file mixing interfaces and implementations)
+- `src/lib/interfaces/` — deleted directory (ambiguously located CLI contracts)
+
+**New: `cli-services.ts`** (`src/lib/commands/cli-services.ts`) — consolidated CLI infrastructure module with:
+- `ICliServices` (renamed from `IServices`) — CLI service container
+- `ITemplateCopier`, `IDockerClient`, `IMcpPingClient` — CLI infrastructure contracts
+- `TemplateCopier`, `DockerClient`, `McpPingClient` — implementations
+- `createCliServices()` (renamed from `createDefaultServices()`) — CLI composition root
+
+**Two clear composition roots:**
+- **CLI commands** (init, doctor, up, down) → `createCliServices()` in `cli-services.ts`
+- **Hooks/handlers** (session-start, session-stop, prompt-submit) → `bootstrapContainer()` in `bootstrap.ts`
+
+**Result:** One clear composition root per concern, zero deprecated service factory functions, and the DI container index documents both paths with JSDoc.
+
 ---
 
 ## [2.11.5] - 2026-01-28

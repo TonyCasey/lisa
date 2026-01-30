@@ -345,27 +345,3 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
   return { container, dispose };
 }
 
-/**
- * Convenience function to bootstrap and get ILisaServices-compatible object.
- * This provides backward compatibility during migration.
- *
- * @deprecated Use bootstrapContainer() and resolve individual services instead
- */
-export async function bootstrapServices(config: IServiceConfig = {}) {
-  const { container, dispose } = await bootstrapContainer(config);
-
-  return {
-    context: await container.resolve(TOKENS.Context),
-    memory: await container.resolve(TOKENS.MemoryService),
-    tasks: await container.resolve(TOKENS.TaskService),
-    mcp: await container.resolve(TOKENS.McpClient),
-    events: await container.resolve(TOKENS.EventEmitter),
-    sessionCapture: await container.resolve(TOKENS.SessionCaptureService),
-    logger: await container.resolve(TOKENS.Logger),
-    router: container.isRegistered(TOKENS.RepositoryRouter)
-      ? await container.resolve(TOKENS.RepositoryRouter)
-      : undefined,
-    recursion: await container.resolve(TOKENS.RecursionService),
-    cleanup: dispose,
-  };
-}

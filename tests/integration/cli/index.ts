@@ -20,7 +20,7 @@ import * as os from 'node:os';
 
 import {
   initCommand,
-  createDefaultServices,
+  createCliServices,
   DEFAULT_ENDPOINT,
   DEFAULT_GROUP,
 } from '../../../src/lib/cli';
@@ -87,10 +87,10 @@ async function isSymlink(linkPath: string): Promise<boolean> {
 // =============================================================================
 
 describe('CLI init command integration', () => {
-    let services: ReturnType<typeof createDefaultServices>;
+    let services: ReturnType<typeof createCliServices>;
 
     before(() => {
-      services = createDefaultServices(TEMPLATE_ROOT);
+      services = createCliServices(TEMPLATE_ROOT);
     });
 
     // =========================================================================
