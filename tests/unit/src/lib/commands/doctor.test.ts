@@ -14,6 +14,7 @@ import {
   type CheckStatus,
 } from '../../../../../src/lib/commands/doctor';
 import type { IServices } from '../../../../../src/lib/interfaces/IServices';
+import { normalizeGroupId } from '../../../../../src/lib/skills/shared/utils/group-id';
 
 /**
  * Create a mock IServices object for testing.
@@ -265,13 +266,13 @@ describe('Doctor Command', () => {
       const result = await runDoctor({ cwd: tempDir }, services);
 
       assert.strictEqual(result.config.mode, 'local');
-      // Group is now derived from folder path, not from env
-      assert.ok(result.config.group.length > 0, 'Group should be derived from folder path');
+      const expectedGroup = normalizeGroupId(tempDir);
+      assert.strictEqual(result.config.group, expectedGroup, 'Group should be derived from folder path');
       assert.strictEqual(result.config.endpoint, 'http://localhost:8010/mcp/');
       assert.strictEqual(result.config.envFileExists, true);
     });
 
-    it('should derive group from folder path regardless of env config', async () => {
+    it('runDoctor_givenNoGroupEnv_shouldDeriveGroupFromFolderPath', async () => {
       fs.mkdirSync(path.join(tempDir, '.lisa', 'skills'), { recursive: true });
       fs.mkdirSync(path.join(tempDir, '.lisa', 'rules'), { recursive: true });
       fs.writeFileSync(
@@ -282,11 +283,8 @@ describe('Doctor Command', () => {
       const services = createMockServices();
       const result = await runDoctor({ cwd: tempDir }, services);
 
-      // Group should be the normalized folder path, not a package name or env var
-      assert.ok(result.config.group.length > 0, 'Group should be non-empty');
-      assert.ok(!result.config.group.includes(':'), 'Group should not contain colons');
-      assert.ok(!result.config.group.includes('\\'), 'Group should not contain backslashes');
-      assert.ok(!result.config.group.includes('/'), 'Group should not contain forward slashes');
+      const expectedGroup = normalizeGroupId(tempDir);
+      assert.strictEqual(result.config.group, expectedGroup, 'Group should be derived from folder path');
     });
   });
 
