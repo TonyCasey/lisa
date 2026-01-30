@@ -15,19 +15,23 @@ import fs from 'fs';
  */
 function findLisaDir(startDir: string): string | null {
   let dir = startDir;
-  
-  // Traverse up to 10 levels looking for .lisa
-  for (let i = 0; i < 10; i++) {
+
+  // Traverse up to the filesystem root looking for .lisa
+  while (true) {
     const lisaDir = path.join(dir, '.lisa');
-    if (fs.existsSync(lisaDir) && fs.statSync(lisaDir).isDirectory()) {
-      return lisaDir;
+    try {
+      if (fs.statSync(lisaDir).isDirectory()) {
+        return lisaDir;
+      }
+    } catch {
+      // Ignore not-found / permission errors and keep walking up
     }
-    
+
     const parent = path.dirname(dir);
     if (parent === dir) break; // Reached root
     dir = parent;
   }
-  
+
   return null;
 }
 
@@ -89,8 +93,8 @@ export function normalizeGroupId(input: string): string {
 
 /**
  * Get group IDs for querying.
- * Returns array with current folder's group ID.
- * 
+ * Returns canonical + legacy group IDs for the current project.
+ *
  * @param cwd - Current working directory (defaults to process.cwd())
  * @returns Array of group IDs to query
  */

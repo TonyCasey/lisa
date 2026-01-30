@@ -143,7 +143,7 @@ describe('persistCreatedIssueTask', () => {
     assert.strictEqual(listLinkedCalls[0].source, 'github');
   });
 
-  it('updates a task when a linked task exists', async () => {
+  it('skips persistence when a linked task already exists (idempotent)', async () => {
     const existing = createMockTask({
       externalLink: {
         source: 'github',
@@ -164,11 +164,8 @@ describe('persistCreatedIssueTask', () => {
       },
     });
 
-    assert.strictEqual(addCalls.length, 0);
-    assert.strictEqual(updateCalls.length, 1);
-    const call = updateCalls[0];
-    assert.strictEqual(call.title, 'Issue title');
-    assert.strictEqual(call.options.externalLink?.id, '42');
+    assert.strictEqual(addCalls.length, 0, 'Should not add when task exists');
+    assert.strictEqual(updateCalls.length, 0, 'Should not update (append-only would duplicate)');
     assert.strictEqual(listLinkedCalls.length, 1);
     assert.strictEqual(listLinkedCalls[0].source, 'github');
   });

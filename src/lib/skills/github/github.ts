@@ -120,7 +120,8 @@ export async function persistCreatedIssueTask(options: {
   );
 
   if (existing) {
-    await tasks.update(issue.title, groupId, taskOptions);
+    // Task already persisted for this GitHub issue — skip to avoid
+    // creating a duplicate node (append-only storage pattern).
     return;
   }
 
@@ -186,7 +187,11 @@ async function handleIssues(
           createMcpConfigFromEnv,
         } = await import('../shared/clients');
 
-        const groupId = (args.group as string) || getCurrentGroupId();
+        const rawGroup = args.group;
+        const groupId =
+          typeof rawGroup === 'string' && rawGroup.trim().length > 0
+            ? rawGroup
+            : getCurrentGroupId();
         const neo4jClient = createNeo4jClient(createNeo4jConfigFromEnv(env.raw));
         const mcpClient = createMcpClient(createMcpConfigFromEnv(env.raw));
         const taskService = createTaskService({
@@ -213,6 +218,8 @@ async function handleIssues(
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           taskInfo = { persisted: false, groupId, error: message };
+        } finally {
+          await neo4jClient.disconnect();
         }
       }
 
@@ -445,7 +452,18 @@ async function handleSync(
 
   // Get group ID (use canonical folder-based group, allow --group override)
   const { getCurrentGroupId } = await import('../shared/group-id');
-  const groupId = (args.group as string) || getCurrentGroupId();
+  const rawGroup = args.group;
+  if (rawGroup !== undefined && typeof rawGroup !== 'string') {
+    console.log(formatError(
+      '--group requires a value',
+      'github sync --repo owner/repo [--import|--export] [--dry-run] [--group <id>]'
+    ));
+    process.exit(1);
+  }
+  const groupId =
+    typeof rawGroup === 'string' && rawGroup.trim().length > 0
+      ? rawGroup
+      : getCurrentGroupId();
 
   // Create dependencies
   const ghCli = createGhCliClientFromEnv();

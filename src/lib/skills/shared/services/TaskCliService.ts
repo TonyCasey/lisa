@@ -32,6 +32,7 @@ export interface ITaskCliArgs {
   linkedSource?: string | null; // Filter by external link source for listLinked
   since: string | null;
   until: string | null;
+  all?: boolean;
 }
 
 /**
@@ -97,7 +98,7 @@ export function createTaskCliService(deps: ITaskCliDependencies): ITaskCliServic
 
   return {
     async run(args: ITaskCliArgs): Promise<ITaskListResult | ITaskWriteResult | ITaskLinkResult> {
-      const { command, payload, explicitGroup, limit, status, tag, repo, assignee, notes, link, linkedSource, since, until } = args;
+      const { command, payload, explicitGroup, limit, status, tag, repo, assignee, notes, link, linkedSource, since, until, all } = args;
 
       const validCommands = ['add', 'list', 'update', 'link', 'unlink', 'list-linked'];
       if (!validCommands.includes(command)) {
@@ -117,10 +118,14 @@ export function createTaskCliService(deps: ITaskCliDependencies): ITaskCliServic
         
         // Parse date filters - throw error on invalid values
         const loadOptions: ITaskLoadOptions = {};
-        if (since) {
-          const parsedSince = parseDate(since);
+        let effectiveSince = since;
+        if (!effectiveSince && !until && !all) {
+          effectiveSince = 'today';
+        }
+        if (effectiveSince) {
+          const parsedSince = parseDate(effectiveSince);
           if (!parsedSince) {
-            throw new Error(`Invalid --since date: "${since}". Use formats like: today, yesterday, 7d, 1w, 1m, or ISO date (2026-01-27)`);
+            throw new Error(`Invalid --since date: "${effectiveSince}". Use formats like: today, yesterday, 7d, 1w, 1m, or ISO date (2026-01-27)`);
           }
           loadOptions.since = parsedSince;
         }

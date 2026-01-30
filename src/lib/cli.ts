@@ -456,6 +456,7 @@ tasksCmd
   .option('-l, --limit <n>', 'Max results', '20')
   .option('--since <date>', 'Filter tasks created after date (ISO or relative: today, yesterday, 7d, 1w, 1m)')
   .option('--until <date>', 'Filter tasks created before date')
+  .option('--all', 'Include tasks from all time (disables default --since today)')
   .option('--cache', 'Use cache fallback')
   .action(async (opts) => {
     const args = ['list'];
@@ -463,6 +464,7 @@ tasksCmd
     if (opts.limit) args.push('--limit', String(parseInt(opts.limit, 10)));
     if (opts.since) args.push('--since', opts.since);
     if (opts.until) args.push('--until', opts.until);
+    if (opts.all) args.push('--all');
     if (opts.cache) args.push('--cache');
     const scriptPath = path.join(__dirname, 'skills', 'tasks', 'tasks.js');
     await spawnAndWait(scriptPath, args, getSkillCacheEnv('tasks'));

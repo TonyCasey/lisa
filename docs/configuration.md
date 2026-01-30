@@ -123,13 +123,13 @@ OPENAI_API_KEY=your-openai-key
 
 ## Group IDs
 
-Lisa automatically derives the group ID from your project's folder path. This ensures:
+Lisa automatically derives the group ID from your project's folder path and normalizes it. This ensures:
 
 - **Per-project isolation**: Each project has its own memory namespace based on the folder path
 - **Hierarchical context**: Lisa automatically queries parent folders for inherited context
 - **Consistent organization**: Memories are organized by project location, not manual configuration
 
-The group ID is automatically set to the project folder path (e.g., `/home/user/projects/my-app` or `C:\Users\user\projects\my-app`). This provides natural project isolation while allowing hierarchical memory inheritance from parent directories.
+The group ID is the **normalized** folder path (e.g., `/home/user/projects/my-app` -> `home-user-projects-my-app`, `C:\Users\user\projects\my-app` -> `c-users-user-projects-my-app`). This provides natural project isolation while allowing hierarchical memory inheritance from parent directories.
 
 ## Deployment Modes
 
