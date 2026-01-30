@@ -219,9 +219,10 @@ Skills read configuration from `.lisa/.env`:
 
 ```env
 GRAPHITI_ENDPOINT=http://localhost:8010/mcp/
-GRAPHITI_GROUP_ID=my-project
 LOG_LEVEL=debug
 ```
+
+Note: The group ID is automatically derived from the project folder path and does not need to be configured manually.
 
 ## Creating Custom Skills
 

@@ -12,6 +12,7 @@ export {};
 
 import fs from 'fs';
 import path from 'path';
+import { getCurrentGroupId } from '../shared/group-id';
 
 interface IStaticAnalysis {
   summary: string;
@@ -37,8 +38,8 @@ function log(message: string): void {
   fs.appendFileSync(LOG_FILE, `[${new Date().toISOString()}] ${message}\n`);
 }
 
-function loadConfig(): { endpoint: string; groupId: string; zepApiKey: string } {
-  const config = { endpoint: 'http://localhost:8010/mcp/', groupId: path.basename(projectRoot).toLowerCase().replace(/[^a-z0-9-]/g, '-'), zepApiKey: '' };
+function loadConfig(): { endpoint: string; zepApiKey: string } {
+  const config = { endpoint: 'http://localhost:8010/mcp/', zepApiKey: '' };
   const envPath = path.join(agentsDir, '.env');
 
   try {
@@ -47,7 +48,6 @@ function loadConfig(): { endpoint: string; groupId: string; zepApiKey: string } 
       for (const line of content.split('\n')) {
         const [key, value] = line.split('=').map(s => s.trim());
         if (key === 'GRAPHITI_ENDPOINT') config.endpoint = value;
-        if (key === 'GRAPHITI_GROUP_ID') config.groupId = value;
         if (key === 'ZEP_API_KEY') config.zepApiKey = value;
       }
     }
@@ -156,12 +156,13 @@ async function main(): Promise<void> {
   log(`Generated enriched summary: ${enrichedSummary.slice(0, 100)}...`);
 
   const config = loadConfig();
-  log(`Using endpoint: ${config.endpoint}, group: ${config.groupId}`);
+  const groupId = getCurrentGroupId(projectRoot);
+  log(`Using endpoint: ${config.endpoint}, group: ${groupId}`);
 
   const sessionId = await initializeMCP(config.endpoint, config.zepApiKey);
   if (!sessionId) { log('Could not initialize MCP'); return; }
 
-  const success = await addEnrichedMemory(config.endpoint, sessionId, enrichedSummary, config.groupId, config.zepApiKey);
+  const success = await addEnrichedMemory(config.endpoint, sessionId, enrichedSummary, groupId, config.zepApiKey);
 
   if (success) {
     log('Successfully stored enriched memory');

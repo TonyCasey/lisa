@@ -258,38 +258,35 @@ describe('Doctor Command', () => {
       fs.mkdirSync(path.join(tempDir, '.lisa', 'rules'), { recursive: true });
       fs.writeFileSync(
         path.join(tempDir, '.lisa', '.env'),
-        'STORAGE_MODE=local\nGRAPHITI_GROUP_ID=my-project\nGRAPHITI_ENDPOINT=http://localhost:8010/mcp/\n'
+        'STORAGE_MODE=local\nGRAPHITI_ENDPOINT=http://localhost:8010/mcp/\n'
       );
 
       const services = createMockServices();
       const result = await runDoctor({ cwd: tempDir }, services);
 
       assert.strictEqual(result.config.mode, 'local');
-      assert.strictEqual(result.config.group, 'my-project');
+      // Group is now derived from folder path, not from env
+      assert.ok(result.config.group.length > 0, 'Group should be derived from folder path');
       assert.strictEqual(result.config.endpoint, 'http://localhost:8010/mcp/');
       assert.strictEqual(result.config.envFileExists, true);
     });
 
-    it('should use default group from project name when not configured', async () => {
+    it('should derive group from folder path regardless of env config', async () => {
       fs.mkdirSync(path.join(tempDir, '.lisa', 'skills'), { recursive: true });
       fs.mkdirSync(path.join(tempDir, '.lisa', 'rules'), { recursive: true });
-      // Create .env with no group
       fs.writeFileSync(
         path.join(tempDir, '.lisa', '.env'),
         'STORAGE_MODE=skip\n'
       );
 
-      // Create package.json
-      fs.writeFileSync(
-        path.join(tempDir, 'package.json'),
-        JSON.stringify({ name: '@scope/my-app' })
-      );
-
       const services = createMockServices();
       const result = await runDoctor({ cwd: tempDir }, services);
 
-      // Should use package name without scope
-      assert.strictEqual(result.config.group, 'my-app');
+      // Group should be the normalized folder path, not a package name or env var
+      assert.ok(result.config.group.length > 0, 'Group should be non-empty');
+      assert.ok(!result.config.group.includes(':'), 'Group should not contain colons');
+      assert.ok(!result.config.group.includes('\\'), 'Group should not contain backslashes');
+      assert.ok(!result.config.group.includes('/'), 'Group should not contain forward slashes');
     });
   });
 

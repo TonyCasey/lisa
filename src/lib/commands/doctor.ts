@@ -9,6 +9,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import chalk from 'chalk';
 import type { IServices } from '../interfaces/IServices';
+import { getCurrentGroupId } from '../skills/shared/utils/group-id';
 
 // ============================================================================
 // Types
@@ -96,7 +97,6 @@ type DeploymentMode = 'local' | 'zep-cloud' | 'skip';
 
 interface ILoadedConfig {
   endpoint?: string;
-  group?: string;
   mode?: DeploymentMode;
   zepApiKey?: string;
   zepProjectId?: string;
@@ -126,7 +126,6 @@ async function loadConfig(cwd: string): Promise<ILoadedConfig | null> {
 
   return {
     endpoint: map.GRAPHITI_ENDPOINT,
-    group: map.GRAPHITI_GROUP_ID,
     mode: map.STORAGE_MODE as DeploymentMode | undefined,
     zepApiKey: map.ZEP_API_KEY,
     zepProjectId: map.ZEP_PROJECT_ID,
@@ -553,7 +552,7 @@ export async function runDoctor(
     opts.endpoint ||
     config?.endpoint ||
     (mode === 'zep-cloud' ? ZEP_CLOUD_ENDPOINT : DEFAULT_ENDPOINT);
-  const group = config?.group || projectName;
+  const group = getCurrentGroupId(cwd);
   const zepApiKey = config?.zepApiKey || process.env.ZEP_API_KEY;
 
   // Build config info

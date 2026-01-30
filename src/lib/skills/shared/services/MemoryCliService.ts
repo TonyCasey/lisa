@@ -19,7 +19,6 @@ export interface IMemoryCliArgs {
   command: string;
   payload: string;
   explicitGroup: string | null;
-  hasConfiguredGroup: boolean;
   query: string;
   limit: number;
   explicitTag: string | null;
@@ -57,20 +56,22 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
 
   return {
     async run(args: IMemoryCliArgs): Promise<IMemoryLoadResult | IMemoryAddResult> {
-      const { command, payload, explicitGroup, hasConfiguredGroup, query, limit, explicitTag, entityType, source, since, until } = args;
+      const { command, payload, explicitGroup, query, limit, explicitTag, entityType, source, since, until } = args;
 
       if (!['add', 'load'].includes(command)) {
         throw new Error('command must be add|load');
       }
 
-      const groupId = explicitGroup || env.GRAPHITI_GROUP_ID || getCurrentGroupId();
+      // Use explicit --group if provided, otherwise use canonical folder-based group ID
+      const groupId = explicitGroup || getCurrentGroupId();
 
       logger.info(`Executing command: ${command}`, { mode: env.STORAGE_MODE, group: groupId });
 
       let result: IMemoryLoadResult | IMemoryAddResult;
 
       if (command === 'load') {
-        const groupIds = hasConfiguredGroup ? [groupId] : getGroupIds();
+        // Always use canonical group IDs for loading (hierarchical lookup)
+        const groupIds = explicitGroup ? [explicitGroup] : getGroupIds();
         logger.debug('Using Neo4j direct mode for load');
         
         // Parse date filters - throw error on invalid values

@@ -417,7 +417,7 @@ memoryCmd
     const args = ['load'];
     if (opts.group) args.push('--group', opts.group);
     if (opts.query) args.push('--query', opts.query);
-    if (opts.limit) args.push('--limit', opts.limit);
+    if (opts.limit) args.push('--limit', String(parseInt(opts.limit, 10)));
     if (opts.since) args.push('--since', opts.since);
     if (opts.until) args.push('--until', opts.until);
     if (opts.cache) args.push('--cache');
@@ -460,7 +460,7 @@ tasksCmd
   .action(async (opts) => {
     const args = ['list'];
     if (opts.group) args.push('--group', opts.group);
-    if (opts.limit) args.push('--limit', opts.limit);
+    if (opts.limit) args.push('--limit', String(parseInt(opts.limit, 10)));
     if (opts.since) args.push('--since', opts.since);
     if (opts.until) args.push('--until', opts.until);
     if (opts.cache) args.push('--cache');

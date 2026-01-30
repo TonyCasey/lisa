@@ -9,7 +9,6 @@ Lisa can be configured through environment variables and configuration files.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `GRAPHITI_ENDPOINT` | `http://localhost:8010/mcp/` | MCP server endpoint |
-| `GRAPHITI_GROUP_ID` | Project folder name | Group ID for organizing memories |
 | `LOG_LEVEL` | `debug` | Logging level: `debug`, `info`, `warn`, `error`, `silent` |
 | `STORAGE_MODE` | `local` | Storage mode: `local`, `neo4j`, `zep-cloud` |
 
@@ -61,9 +60,6 @@ NEO4J_URI=bolt://localhost:7687
 NEO4J_USER=neo4j
 NEO4J_PASSWORD=demodemo
 NEO4J_DATABASE=neo4j
-
-# Group ID (optional - defaults to folder name)
-# GRAPHITI_GROUP_ID=my-project
 
 # Zep Cloud (if using)
 # ZEP_API_KEY=your-api-key
@@ -127,24 +123,13 @@ OPENAI_API_KEY=your-openai-key
 
 ## Group IDs
 
-The `GRAPHITI_GROUP_ID` determines how memories are organized:
+Lisa automatically derives the group ID from your project's folder path. This ensures:
 
-- **Per-project** (default): Each project has its own memory namespace
-- **Shared**: Use the same group ID across projects to share memories
-- **Hierarchical**: Lisa automatically queries parent folders for inherited context
+- **Per-project isolation**: Each project has its own memory namespace based on the folder path
+- **Hierarchical context**: Lisa automatically queries parent folders for inherited context
+- **Consistent organization**: Memories are organized by project location, not manual configuration
 
-### Examples
-
-```bash
-# Project-specific (default)
-lisa init -g my-project
-
-# Shared across projects
-lisa init -g company-standards
-
-# Per-user
-lisa init -g ${USER}-personal
-```
+The group ID is automatically set to the project folder path (e.g., `/home/user/projects/my-app` or `C:\Users\user\projects\my-app`). This provides natural project isolation while allowing hierarchical memory inheritance from parent directories.
 
 ## Deployment Modes
 

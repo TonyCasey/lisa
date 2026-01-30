@@ -350,8 +350,9 @@ async function handleSync(
     direction = 'export';
   }
 
-  // Get group ID (default to repo name)
-  const groupId = (args.group as string) || repo.replace('/', '-');
+  // Get group ID (use canonical folder-based group, allow --group override)
+  const { getCurrentGroupId } = await import('../shared/group-id');
+  const groupId = (args.group as string) || getCurrentGroupId();
 
   // Create dependencies
   const ghCli = createGhCliClientFromEnv();

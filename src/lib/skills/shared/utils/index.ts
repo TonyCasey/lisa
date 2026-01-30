@@ -18,6 +18,7 @@ export {
 export {
   getCurrentGroupId,
   getGroupIds,
+  getGroupIdsWithLegacy,
   getHierarchicalGroupIds,
   normalizeGroupId,
   createZepUserId,

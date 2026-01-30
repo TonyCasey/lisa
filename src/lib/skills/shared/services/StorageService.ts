@@ -3,6 +3,7 @@
  */
 import fs from 'fs';
 import { execSync } from 'child_process';
+import { getCurrentGroupId } from '../group-id';
 
 // ============================================================================
 // Types
@@ -107,12 +108,7 @@ export function createStorageService(deps: IStorageServiceDependencies): IStorag
       });
 
       if (!foundMode) {
-        const groupIdx = updatedLines.findIndex((l: string) => l.startsWith('GRAPHITI_GROUP_ID'));
-        if (groupIdx !== -1) {
-          updatedLines.splice(groupIdx + 1, 0, `STORAGE_MODE=${newMode}`);
-        } else {
-          updatedLines.push(`STORAGE_MODE=${newMode}`);
-        }
+        updatedLines.push(`STORAGE_MODE=${newMode}`);
       }
 
       if (!foundEndpoint) {
@@ -198,7 +194,7 @@ export function createStorageService(deps: IStorageServiceDependencies): IStorag
       const env = service.readEnvConfig();
       const mode = env.STORAGE_MODE || process.env.STORAGE_MODE || 'local';
       const endpoint = env.GRAPHITI_ENDPOINT || process.env.GRAPHITI_ENDPOINT || defaultLocalEndpoint;
-      const groupId = env.GRAPHITI_GROUP_ID || process.env.GRAPHITI_GROUP_ID || 'lisa';
+      const groupId = getCurrentGroupId();
 
       let isConnected = false;
       let connectionError: string | undefined;

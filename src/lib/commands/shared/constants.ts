@@ -22,7 +22,8 @@ export const ZEP_CLOUD_ENDPOINT = 'https://api.getzep.com/mcp/';
 
 /**
  * Get project name from package.json or directory name.
- * Used as the default group ID for memory storage.
+ * Used for display purposes (e.g., init output). NOT used for group ID routing -
+ * group IDs are derived from the full folder path via getCurrentGroupId().
  */
 export function getProjectName(): string {
   try {
@@ -51,11 +52,11 @@ export type CliSupport = 'claude-code' | 'opencode';
 
 /**
  * Graphiti configuration interface.
+ * Note: groupId is no longer configurable - it's derived from the project folder path.
  */
 export interface IGraphitiConfig {
   mode: DeploymentMode;
   endpoint: string;
-  groupId: string;
   // Zep Cloud specific
   zepApiKey?: string;
   zepProjectId?: string;
