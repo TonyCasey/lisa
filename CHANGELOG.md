@@ -35,6 +35,24 @@ Decomposed the monolithic `SessionStartHandler` (818 lines) into focused service
 
 Each service is independently unit-testable with no cross-dependencies.
 
+#### Move shell/git behind infrastructure interfaces ([#83](https://github.com/TonyCasey/lisa/issues/83))
+
+Introduced domain interfaces for shell operations so application-layer handlers no longer import `child_process`:
+
+- `IGitClient` — git log, remote URL, default branch detection, diff, ref verification
+- `IClaudeCliClient` — Claude CLI availability check and prompt execution
+
+**Infrastructure implementations:**
+- `GitClient` (`src/lib/infrastructure/git/`) — wraps git CLI via `execSync`
+- `ClaudeCliClient` (`src/lib/infrastructure/claude/`) — wraps Claude CLI via `spawnSync` (shell-injection safe)
+
+**Updated handlers:**
+- `GitIntrospectionService` — now accepts `IGitClient` (no direct shell access)
+- `PrReviewHandler` — now accepts `IGitClient` + `IClaudeCliClient` (no direct shell access)
+- `SessionStartHandler` — passes `IGitClient` to `GitIntrospectionService`
+
+Unit tests now use mock clients, verifying behavior without invoking real git/claude.
+
 ---
 
 ## [2.11.5] - 2026-01-28

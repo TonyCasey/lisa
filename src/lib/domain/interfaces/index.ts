@@ -46,6 +46,8 @@ export {
   ICronResult,
   ICronService,
 } from './ICronService';
+export type { IGitClient, IGitLogOptions, IGitDiffOptions } from './IGitClient';
+export type { IClaudeCliClient, IClaudePromptOptions } from './IClaudeCliClient';
 
 // Event interfaces
 export * from './events';

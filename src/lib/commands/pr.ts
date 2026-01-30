@@ -181,8 +181,10 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
 
         try {
           const { PrReviewHandler } = await import('../application/handlers');
+          const { GitClient } = await import('../infrastructure/git/GitClient');
+          const { ClaudeCliClient } = await import('../infrastructure/claude/ClaudeCliClient');
 
-          const handler = new PrReviewHandler();
+          const handler = new PrReviewHandler(new GitClient(), new ClaudeCliClient());
           const result = await handler.execute({
             base: opts.base,
             block: opts.block,

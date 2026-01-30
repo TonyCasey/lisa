@@ -4,10 +4,13 @@
  * Runs local AI code review on the current branch diff before creating a PR.
  * Uses Claude/Codex to analyze changes and categorize issues by severity.
  *
+ * Uses IGitClient and IClaudeCliClient interfaces — no direct child_process dependency.
+ *
  * @see .dev/features/github-pr.md for full specification
  */
 
-import { execSync } from 'child_process';
+import type { IGitClient } from '../../../domain/interfaces/IGitClient';
+import type { IClaudeCliClient } from '../../../domain/interfaces/IClaudeCliClient';
 
 /**
  * Options for PR review.
@@ -69,13 +72,18 @@ export interface IPrReviewResult {
  * Handler for running local AI code review.
  */
 export class PrReviewHandler {
+  constructor(
+    private readonly git: IGitClient,
+    private readonly claude: IClaudeCliClient,
+  ) {}
+
   /**
    * Run AI review on the current branch diff.
    */
   async execute(options: IPrReviewOptions = {}): Promise<IPrReviewResult> {
     try {
       // 1. Determine base branch
-      const base = options.base || this.detectDefaultBranch();
+      const base = options.base || this.git.getDefaultBranch();
 
       // 2. Get diff and changed files
       const diff = this.getDiff(base);
@@ -121,7 +129,7 @@ export class PrReviewHandler {
 
       return {
         success: !reviewError,
-        message: reviewError 
+        message: reviewError
           ? `Review completed with errors: ${reviewError}`
           : `Review complete: ${counts.critical} critical, ${counts.warning} warnings, ${counts.suggestion} suggestions`,
         base,
@@ -150,46 +158,21 @@ export class PrReviewHandler {
   }
 
   /**
-   * Detect the default branch (main or master).
-   */
-  private detectDefaultBranch(): string {
-    try {
-      // Try to get from git remote
-      const result = execSync('git remote show origin 2>/dev/null | grep "HEAD branch" | cut -d: -f2', {
-        encoding: 'utf8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-      }).trim();
-      if (result) return result;
-    } catch {
-      // Ignore
-    }
-
-    // Fallback: check if main exists, otherwise master
-    try {
-      execSync('git rev-parse --verify main 2>/dev/null', {
-        encoding: 'utf8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
-      return 'main';
-    } catch {
-      return 'master';
-    }
-  }
-
-  /**
    * Get diff between base and HEAD.
    */
   private getDiff(base: string): string {
     try {
-      return execSync(`git diff ${base}...HEAD`, {
-        encoding: 'utf8',
-        maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large diffs
+      return this.git.diff({
+        base,
+        threeDot: true,
+        maxBuffer: 10 * 1024 * 1024,
       });
     } catch (error) {
       // Try without the three-dot syntax
       try {
-        return execSync(`git diff ${base}..HEAD`, {
-          encoding: 'utf8',
+        return this.git.diff({
+          base,
+          threeDot: false,
           maxBuffer: 10 * 1024 * 1024,
         });
       } catch {
@@ -203,15 +186,19 @@ export class PrReviewHandler {
    */
   private getChangedFiles(base: string): string[] {
     try {
-      const output = execSync(`git diff --name-only ${base}...HEAD`, {
-        encoding: 'utf8',
+      const output = this.git.diff({
+        base,
+        threeDot: true,
+        nameOnly: true,
       });
       return output.trim().split('\n').filter(Boolean);
     } catch {
       // Try without three-dot syntax
       try {
-        const output = execSync(`git diff --name-only ${base}..HEAD`, {
-          encoding: 'utf8',
+        const output = this.git.diff({
+          base,
+          threeDot: false,
+          nameOnly: true,
         });
         return output.trim().split('\n').filter(Boolean);
       } catch {
@@ -224,15 +211,12 @@ export class PrReviewHandler {
    * Run AI review using Claude CLI (claude command).
    */
   private async runAiReview(diff: string, files: string[]): Promise<{ issues: IReviewIssue[]; passed: string[] }> {
-    // Check if claude CLI is available
-    const claudeAvailable = this.isClaudeCliAvailable();
-    
-    if (!claudeAvailable) {
+    if (!this.claude.isAvailable()) {
       throw new Error('Claude CLI not available. Install with: npm install -g @anthropic-ai/claude-code');
     }
 
     // Truncate diff if too large (context window limits)
-    const maxDiffSize = 50000; // ~50KB should be safe
+    const maxDiffSize = 50000;
     let truncatedDiff = diff;
     let wasTruncated = false;
     if (diff.length > maxDiffSize) {
@@ -240,37 +224,18 @@ export class PrReviewHandler {
       wasTruncated = true;
     }
 
-    // Create the review prompt
     const prompt = this.createReviewPrompt(truncatedDiff, files, wasTruncated);
 
-    // Run claude CLI with the prompt
     try {
-      const result = execSync(`claude -p "${prompt.replace(/"/g, '\\"')}"`, {
-        encoding: 'utf8',
+      const result = this.claude.runPrompt(prompt, {
         maxBuffer: 5 * 1024 * 1024,
-        timeout: 120000, // 2 minute timeout
+        timeout: 120000,
       });
-
       return this.parseAiResponse(result);
-    } catch (error) {
+    } catch {
       // Claude CLI might not be installed or might fail
       // Try alternative: use a simple heuristic-based review
       return this.fallbackReview(diff, files);
-    }
-  }
-
-  /**
-   * Check if Claude CLI is available.
-   */
-  private isClaudeCliAvailable(): boolean {
-    try {
-      execSync('claude --version', {
-        encoding: 'utf8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
-      return true;
-    } catch {
-      return false;
     }
   }
 
@@ -398,7 +363,7 @@ Be concise. Only report real issues, not style preferences.`;
     if (!issues.some(i => i.severity === 'critical')) {
       passed.push('No critical security issues detected');
     }
-    
+
     const testFiles = files.filter(f => f.includes('.test.') || f.includes('.spec.'));
     if (testFiles.length > 0) {
       passed.push(`Test files included: ${testFiles.length} test file(s)`);
