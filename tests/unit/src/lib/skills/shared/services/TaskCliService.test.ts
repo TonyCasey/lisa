@@ -13,7 +13,6 @@ import type {
   ITaskListResult,
   ITaskWriteResult,
   ITaskLinkResult,
-  ITaskWriteOptions,
 } from '../../../../../../../src/lib/skills/shared/services/interfaces';
 
 const noopLogger: ILogger = {
