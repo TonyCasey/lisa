@@ -113,7 +113,7 @@ function createMockTaskService(linkedTasks: ITask[] = []) {
 
 describe('persistCreatedIssueTask', () => {
   it('adds a task when no linked task exists', async () => {
-    const { service, addCalls, updateCalls } = createMockTaskService();
+    const { service, addCalls, updateCalls, listLinkedCalls } = createMockTaskService();
 
     await persistCreatedIssueTask({
       tasks: service,
@@ -139,6 +139,8 @@ describe('persistCreatedIssueTask', () => {
     assert.strictEqual(call.options.externalLink?.source, 'github');
     assert.strictEqual(call.options.externalLink?.id, '42');
     assert.strictEqual(call.options.externalLink?.url, 'https://github.com/owner/repo/issues/42');
+    assert.strictEqual(listLinkedCalls.length, 1);
+    assert.strictEqual(listLinkedCalls[0].source, 'github');
   });
 
   it('updates a task when a linked task exists', async () => {
@@ -149,7 +151,7 @@ describe('persistCreatedIssueTask', () => {
         url: 'https://github.com/owner/repo/issues/42',
       },
     });
-    const { service, addCalls, updateCalls } = createMockTaskService([existing]);
+    const { service, addCalls, updateCalls, listLinkedCalls } = createMockTaskService([existing]);
 
     await persistCreatedIssueTask({
       tasks: service,
@@ -167,6 +169,8 @@ describe('persistCreatedIssueTask', () => {
     const call = updateCalls[0];
     assert.strictEqual(call.title, 'Issue title');
     assert.strictEqual(call.options.externalLink?.id, '42');
+    assert.strictEqual(listLinkedCalls.length, 1);
+    assert.strictEqual(listLinkedCalls[0].source, 'github');
   });
 
   it('surfaces persistence errors for caller handling', async () => {
