@@ -26,6 +26,12 @@
 
 export {};
 
+import type {
+  ITaskService,
+  ITaskExternalLink,
+  ITaskWriteOptions,
+} from '../shared/services/interfaces';
+
 interface IParsedArgs {
   subcommand: string | null;  // 'issues' or 'projects'
   command: string | null;     // 'list', 'create', 'view', etc.
@@ -78,6 +84,49 @@ function formatSuccess(action: string, data: Record<string, unknown>): string {
   }, null, 2);
 }
 
+export interface ICreatedIssueSummary {
+  number: number;
+  url: string;
+  title: string;
+  body?: string;
+  assignee?: string;
+}
+
+export async function persistCreatedIssueTask(options: {
+  tasks: ITaskService;
+  groupId: string;
+  repo: string;
+  issue: ICreatedIssueSummary;
+}): Promise<void> {
+  const { tasks, groupId, repo, issue } = options;
+  const externalLink: ITaskExternalLink = {
+    source: 'github',
+    id: String(issue.number),
+    url: issue.url,
+    syncedAt: new Date().toISOString(),
+  };
+
+  const taskOptions: ITaskWriteOptions = {
+    status: 'todo',
+    repo,
+    assignee: issue.assignee || '',
+    notes: issue.body || undefined,
+    externalLink,
+  };
+
+  const linked = await tasks.listLinked([groupId], 'github', 1000, repo, issue.assignee || '');
+  const existing = linked.tasks.find(
+    (task) => task.externalLink?.source === 'github' && task.externalLink?.id === String(issue.number)
+  );
+
+  if (existing) {
+    await tasks.update(issue.title, groupId, taskOptions);
+    return;
+  }
+
+  await tasks.add(issue.title, groupId, taskOptions);
+}
+
 async function handleIssues(
   command: string | null,
   args: Record<string, string | boolean>,
@@ -123,7 +172,51 @@ async function handleIssues(
         assignee: args.assignee as string | undefined,
         milestone: args.milestone as string | undefined,
       });
-      console.log(formatSuccess('create', { issue: result }));
+      const { loadEnv } = await import('../shared/utils/env');
+      const env = loadEnv();
+
+      let taskInfo: { persisted: boolean; groupId?: string; error?: string } | undefined;
+      if (env.STORAGE_MODE === 'local') {
+        const { getCurrentGroupId } = await import('../shared/group-id');
+        const { createTaskService } = await import('../shared/services');
+        const {
+          createNeo4jClient,
+          createNeo4jConfigFromEnv,
+          createMcpClient,
+          createMcpConfigFromEnv,
+        } = await import('../shared/clients');
+
+        const groupId = (args.group as string) || getCurrentGroupId();
+        const neo4jClient = createNeo4jClient(createNeo4jConfigFromEnv(env.raw));
+        const mcpClient = createMcpClient(createMcpConfigFromEnv(env.raw));
+        const taskService = createTaskService({
+          neo4jClient,
+          mcpClient,
+          zepClient: null,
+        });
+
+        try {
+          await persistCreatedIssueTask({
+            tasks: taskService,
+            groupId,
+            repo,
+            issue: {
+              number: result.number,
+              url: result.url,
+              title: result.title,
+              body: args.body as string | undefined,
+              assignee: args.assignee as string | undefined,
+            },
+          });
+
+          taskInfo = { persisted: true, groupId };
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          taskInfo = { persisted: false, groupId, error: message };
+        }
+      }
+
+      console.log(formatSuccess('create', { issue: result, task: taskInfo }));
       break;
     }
 
@@ -458,4 +551,6 @@ async function main(): Promise<void> {
   }
 }
 
-main();
+if (require.main === module) {
+  void main();
+}
