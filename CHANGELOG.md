@@ -43,7 +43,7 @@ Introduced domain interfaces for shell operations so application-layer handlers 
 - `IClaudeCliClient` — Claude CLI availability check and prompt execution
 
 **Infrastructure implementations:**
-- `GitClient` (`src/lib/infrastructure/git/`) — wraps git CLI via `execSync`
+- `GitClient` (`src/lib/infrastructure/git/`) — wraps git CLI via `execFileSync`
 - `ClaudeCliClient` (`src/lib/infrastructure/claude/`) — wraps Claude CLI via `spawnSync` (shell-injection safe)
 
 **Updated handlers:**
@@ -52,6 +52,20 @@ Introduced domain interfaces for shell operations so application-layer handlers 
 - `SessionStartHandler` — passes `IGitClient` to `GitIntrospectionService`
 
 Unit tests now use mock clients, verifying behavior without invoking real git/claude.
+
+#### Replace execSync shell pipelines with safe process runner ([#84](https://github.com/TonyCasey/lisa/issues/84))
+
+Eliminated all `execSync` string-command calls across infrastructure code, replacing them with `execFileSync`/`spawnSync` argument arrays (`shell: false`). This removes shell interpolation risks and improves cross-platform portability.
+
+**Files updated:**
+- `GitClient` — all 5 methods now use `execFileSync('git', [...args])` instead of `execSync(string)`
+- `GithubClient` — 7 helper methods converted from `execSync(string)` to `execFileSync`/`spawnSync` with argument arrays; removed `execSync` import entirely
+- `SessionCaptureService` — replaced `execSync('git ... 2>/dev/null')` shell redirection with `execFileSync` + `stdio: ['pipe', 'pipe', 'pipe']`
+- `ContextDetector` — replaced `execSync(string)` with `execFileSync` argument array
+- `Neo4jPullRequestRepository` — replaced `execSync(string)` with `execFileSync` argument array
+- `StorageService` — replaced `execSync('docker info')` with `execFileSync('docker', ['info'])`
+
+**Result:** Zero `execSync` calls remain in `src/lib/`. All process invocations use argument arrays with no shell interpolation.
 
 ---
 
