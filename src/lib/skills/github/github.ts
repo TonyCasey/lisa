@@ -120,7 +120,8 @@ export async function persistCreatedIssueTask(options: {
   );
 
   if (existing) {
-    await tasks.update(issue.title, groupId, taskOptions);
+    // Task already persisted for this GitHub issue — skip to avoid
+    // creating a duplicate node (append-only storage pattern).
     return;
   }
 
@@ -217,6 +218,8 @@ async function handleIssues(
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           taskInfo = { persisted: false, groupId, error: message };
+        } finally {
+          await neo4jClient.disconnect();
         }
       }
 
