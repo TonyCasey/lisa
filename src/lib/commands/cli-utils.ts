@@ -53,8 +53,7 @@ export function spawnAndWait(
       if (code === 0) {
         resolve();
       } else {
-        // Exit with the same code as the child process
-        process.exit(code ?? 1);
+        reject(new Error(`Child process exited with code ${code ?? 1}`));
       }
     });
   });

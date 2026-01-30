@@ -10,6 +10,8 @@ import type {Command} from 'commander';
 import chalk from 'chalk';
 import {createLabelInferenceService} from '../infrastructure/services';
 
+const TYPE_LABELS = ['bug', 'enhancement', 'documentation', 'refactor', 'testing'] as const;
+
 export function registerIssueCommands(issueCmd: Command): void {
   issueCmd
     .command('create')
@@ -42,13 +44,13 @@ export function registerIssueCommands(issueCmd: Command): void {
 
         // Filter out labels that conflict with explicit labels
         const explicitTypes = explicitLabels.filter(l =>
-          ['bug', 'enhancement', 'documentation', 'refactor', 'testing'].includes(l)
+          (TYPE_LABELS as readonly string[]).includes(l)
         );
 
         if (explicitTypes.length > 0) {
           // User specified a type label, don't override it
           inferredLabels = inferredLabels.filter(l =>
-            !['bug', 'enhancement', 'documentation', 'refactor', 'testing'].includes(l)
+            !(TYPE_LABELS as readonly string[]).includes(l)
           );
         }
 

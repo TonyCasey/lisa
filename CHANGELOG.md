@@ -19,7 +19,7 @@ Refactored the monolithic `src/lib/cli.ts` (1,951 lines) into focused command mo
 - `src/lib/commands/cli-utils.ts` — shared utilities (`getSkillCacheEnv`, `spawnAndWait`, `runPrWatchLoop`)
 - `src/lib/commands/hooks.ts` — hook commands (session-start, session-stop, user-prompt-submit)
 - `src/lib/commands/knowledge.ts` — memory, tasks, and storage commands
-- `src/lib/commands/skills.ts` — skill passthrough commands (jira, github, prompt, etc.)
+- `src/lib/commands/skills.ts` — skill passthrough commands (jira, GitHub, prompt, etc.)
 - `src/lib/commands/issue.ts` — GitHub issue management with auto-labeling
 - `src/lib/commands/pr.ts` — PR workflow commands (create, review, checks, comments, watch, poll, cron)
 
