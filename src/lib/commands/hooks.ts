@@ -41,7 +41,6 @@ export function registerHookCommands(hookCmd: Command): void {
         // Bootstrap container and resolve mediator
         const bootstrap = await bootstrapContainer({
           projectRoot: input.cwd || process.cwd(),
-          disableLogging: true,
         });
         dispose = bootstrap.dispose;
 
@@ -90,7 +89,6 @@ export function registerHookCommands(hookCmd: Command): void {
         // Bootstrap container and resolve mediator
         const bootstrap = await bootstrapContainer({
           projectRoot: input.cwd || process.cwd(),
-          disableLogging: true,
         });
         dispose = bootstrap.dispose;
 
@@ -135,7 +133,6 @@ export function registerHookCommands(hookCmd: Command): void {
         // Bootstrap container and resolve mediator
         const bootstrap = await bootstrapContainer({
           projectRoot: process.cwd(),
-          disableLogging: true,
         });
         dispose = bootstrap.dispose;
 

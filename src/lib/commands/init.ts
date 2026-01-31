@@ -10,7 +10,7 @@ import os from 'os';
 import fs from 'fs-extra';
 import chalk from 'chalk';
 import { checkbox, confirm, input, password, select } from '@inquirer/prompts';
-import type { IServices } from '../interfaces/IServices';
+import type { ICliServices } from './cli-services';
 import {
   TEMPLATE_ROOT,
   BUNDLED_OPENCODE_ROOT,
@@ -392,7 +392,7 @@ export interface IInitOptions {
 // Init Command Implementation
 // ============================================================================
 
-export async function initCommand(opts: IInitOptions, services: IServices): Promise<void> {
+export async function initCommand(opts: IInitOptions, services: ICliServices): Promise<void> {
   const force = Boolean(opts.force);
   const verbose = opts.verbose !== false;
   const cwd = opts.cwd;

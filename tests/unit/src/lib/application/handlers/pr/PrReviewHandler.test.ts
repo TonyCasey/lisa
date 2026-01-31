@@ -2,23 +2,51 @@
  * Tests for PrReviewHandler
  *
  * Tests local AI code review functionality.
+ * Uses mock IGitClient and IClaudeCliClient to avoid real shell operations.
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { PrReviewHandler } from '../../../../../../../src/lib/application/handlers/pr/PrReviewHandler';
+import type { IGitClient } from '../../../../../../../src/lib/domain/interfaces/IGitClient';
+import type { IClaudeCliClient } from '../../../../../../../src/lib/domain/interfaces/IClaudeCliClient';
+
+// ============================================================================
+// Mock Factories
+// ============================================================================
+
+function createMockGitClient(overrides: Partial<IGitClient> = {}): IGitClient {
+  return {
+    log: () => '',
+    getRemoteUrl: () => 'https://github.com/test/repo.git',
+    getDefaultBranch: () => 'main',
+    diff: () => '',
+    refExists: () => true,
+    ...overrides,
+  };
+}
+
+function createMockClaudeClient(overrides: Partial<IClaudeCliClient> = {}): IClaudeCliClient {
+  return {
+    isAvailable: () => false,
+    runPrompt: () => '{}',
+    ...overrides,
+  };
+}
+
+// ============================================================================
+// Tests
+// ============================================================================
 
 describe('PrReviewHandler', () => {
   describe('execute()', () => {
     it('should return empty result when no changes', async () => {
-      // Create handler - it will try to detect git changes
-      const handler = new PrReviewHandler();
-      
-      // Since we're testing from the main branch against main, 
-      // there should be no changes (or we're not in a git repo)
-      // Either way, this tests that the handler doesn't crash
+      const gitClient = createMockGitClient({
+        diff: () => '',
+      });
+      const handler = new PrReviewHandler(gitClient, createMockClaudeClient());
+
       const result = await handler.execute({ base: 'main' });
-      
-      // Result should be a valid IPrReviewResult
+
       assert.strictEqual(typeof result.success, 'boolean');
       assert.strictEqual(typeof result.message, 'string');
       assert.strictEqual(typeof result.filesChanged, 'number');
@@ -31,48 +59,116 @@ describe('PrReviewHandler', () => {
     });
 
     it('should respect --block option with no critical issues', async () => {
-      const handler = new PrReviewHandler();
-      
-      const result = await handler.execute({ 
+      const handler = new PrReviewHandler(
+        createMockGitClient(),
+        createMockClaudeClient(),
+      );
+
+      const result = await handler.execute({
         base: 'main',
         block: true,
       });
-      
-      // With no critical issues, shouldBlock should be false
-      // (even if we have warnings or suggestions)
+
       if (result.counts.critical === 0) {
         assert.strictEqual(result.shouldBlock, false);
       }
     });
 
     it('should include base branch in result', async () => {
-      const handler = new PrReviewHandler();
-      
+      const handler = new PrReviewHandler(
+        createMockGitClient(),
+        createMockClaudeClient(),
+      );
+
       const result = await handler.execute({ base: 'develop' });
-      
-      // Base should be what we specified (or fallback if branch doesn't exist)
+
       assert.ok(result.base);
       assert.strictEqual(typeof result.base, 'string');
     });
 
-    it('should handle missing base branch gracefully', async () => {
-      const handler = new PrReviewHandler();
-      
-      // Even with a non-existent branch, it should not throw
+    it('should handle diff failure gracefully', async () => {
+      const gitClient = createMockGitClient({
+        diff: () => { throw new Error('Not a git repo'); },
+      });
+      const handler = new PrReviewHandler(gitClient, createMockClaudeClient());
+
       const result = await handler.execute({ base: 'nonexistent-branch-xyz' });
-      
-      // Should either succeed with empty or fail gracefully
+
       assert.strictEqual(typeof result.success, 'boolean');
       assert.strictEqual(typeof result.message, 'string');
+    });
+
+    it('should use getDefaultBranch when no base specified', async () => {
+      let defaultBranchCalled = false;
+      const gitClient = createMockGitClient({
+        getDefaultBranch: () => {
+          defaultBranchCalled = true;
+          return 'main';
+        },
+      });
+      const handler = new PrReviewHandler(gitClient, createMockClaudeClient());
+
+      await handler.execute();
+
+      assert.strictEqual(defaultBranchCalled, true);
+    });
+
+    it('should run fallback review when claude prompt fails', async () => {
+      const diffContent = [
+        '+++ b/src/test.ts',
+        '+const x: any = 5;',
+        '+console.log(x);',
+      ].join('\n');
+
+      const gitClient = createMockGitClient({
+        diff: (opts) => {
+          if (opts.nameOnly) return 'src/test.ts\n';
+          return diffContent;
+        },
+      });
+      const handler = new PrReviewHandler(
+        gitClient,
+        createMockClaudeClient({
+          isAvailable: () => true,
+          runPrompt: () => { throw new Error('Claude crashed'); },
+        }),
+      );
+
+      const result = await handler.execute({ base: 'main' });
+
+      assert.strictEqual(result.filesChanged, 1);
+      // Fallback review should detect `: any` and `console.log` patterns
+      assert.ok(result.issues.length > 0);
+    });
+
+    it('should report error when claude is not available', async () => {
+      const gitClient = createMockGitClient({
+        diff: (opts) => {
+          if (opts.nameOnly) return 'src/test.ts\n';
+          return '+++ b/src/test.ts\n+test\n';
+        },
+      });
+      const handler = new PrReviewHandler(
+        gitClient,
+        createMockClaudeClient({ isAvailable: () => false }),
+      );
+
+      const result = await handler.execute({ base: 'main' });
+
+      // When claude is unavailable, execute catches the error
+      assert.ok(result.reviewError);
+      assert.ok(result.reviewError.includes('not available'));
     });
   });
 
   describe('result structure', () => {
     it('should have correct shape for IPrReviewResult', async () => {
-      const handler = new PrReviewHandler();
+      const handler = new PrReviewHandler(
+        createMockGitClient(),
+        createMockClaudeClient(),
+      );
       const result = await handler.execute();
-      
-      // Check all required fields exist
+
       assert.ok('success' in result);
       assert.ok('message' in result);
       assert.ok('base' in result);
@@ -82,8 +178,7 @@ describe('PrReviewHandler', () => {
       assert.ok('counts' in result);
       assert.ok('passed' in result);
       assert.ok('shouldBlock' in result);
-      
-      // Check counts structure
+
       assert.ok('critical' in result.counts);
       assert.ok('warning' in result.counts);
       assert.ok('suggestion' in result.counts);

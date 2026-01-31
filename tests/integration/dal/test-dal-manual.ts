@@ -20,7 +20,8 @@ import {
   createRepositoryRouter,
   closeConnections,
 } from '../../../src/lib/infrastructure/dal';
-import { createServicesWithCleanup } from '../../../src/lib/infrastructure/di';
+import { bootstrapContainer, TOKENS } from '../../../src/lib/infrastructure/di';
+import type { IMemoryService } from '../../../src/lib/domain/interfaces';
 
 const GROUP_ID = 'lisa'; // Group ID as stored in Neo4j
 
@@ -154,34 +155,36 @@ async function main() {
   // Test 5: Full MemoryService integration
   console.log('6. Testing full MemoryService integration...');
   
-  let services;
+  const { container, dispose } = await bootstrapContainer({
+    mcpEndpoint: process.env.GRAPHITI_ENDPOINT || 'http://localhost:8010/mcp/',
+    dalConfig: {
+      neo4jUri: process.env.NEO4J_URI || 'bolt://localhost:7687',
+      neo4jUsername: process.env.NEO4J_USER || 'neo4j',
+      neo4jPassword: process.env.NEO4J_PASSWORD || 'demodemo',
+    },
+  });
+
   try {
-    services = await createServicesWithCleanup({
-      mcpEndpoint: process.env.GRAPHITI_ENDPOINT || 'http://localhost:8010/mcp/',
-      dalConfig: {
-        neo4jUri: process.env.NEO4J_URI || 'bolt://localhost:7687',
-        neo4jUsername: process.env.NEO4J_USER || 'neo4j',
-        neo4jPassword: process.env.NEO4J_PASSWORD || 'demodemo',
-      },
-    });
-    
-    console.log(`   Router available: ${services.router ? 'yes' : 'no'}`);
-    
-    if (services.router) {
+    const hasRouter = container.isRegistered(TOKENS.RepositoryRouter);
+    console.log(`   Router available: ${hasRouter ? 'yes' : 'no'}`);
+
+    if (hasRouter) {
+      const memory = await container.resolve<IMemoryService>(TOKENS.MemoryService);
+
       // Test the new DAL-based methods
       console.log('   Testing loadFactsDateOrdered...');
-      const dateOrderedFacts = await services.memory.loadFactsDateOrdered([GROUP_ID], 5);
+      const dateOrderedFacts = await memory.loadFactsDateOrdered([GROUP_ID], 5);
       console.log(`   Got ${dateOrderedFacts.length} date-ordered facts`);
-      
+
       if (dateOrderedFacts.length > 0) {
         const first = dateOrderedFacts[0];
         console.log(`   Most recent: [${first.created_at?.slice(0, 16)}] ${first.fact?.slice(0, 50)}...`);
       }
-      
+
       console.log('   Testing searchFacts (semantic)...');
-      const semanticFacts = await services.memory.searchFacts([GROUP_ID], 'phase implementation', 3);
+      const semanticFacts = await memory.searchFacts([GROUP_ID], 'phase implementation', 3);
       console.log(`   Got ${semanticFacts.length} semantic matches`);
-      
+
       if (semanticFacts.length > 0) {
         const first = semanticFacts[0];
         console.log(`   Best match: ${first.fact?.slice(0, 60)}...`);
@@ -189,15 +192,13 @@ async function main() {
     } else {
       console.log('   Router not available, skipping DAL-specific tests');
     }
-    
+
     console.log();
     console.log('=== All tests completed ===');
-    
+
   } finally {
-    if (services) {
-      console.log('\nClosing service connections...');
-      await services.cleanup();
-    }
+    console.log('\nClosing service connections...');
+    await dispose();
     console.log('Done.');
   }
 }

@@ -6,13 +6,17 @@
  * - Detect GitHub repository from remote URL
  *
  * Extracted from SessionStartHandler for testability.
+ * Uses IGitClient interface — no direct child_process dependency.
  */
 
+import type { IGitClient } from '../../domain/interfaces/IGitClient';
 import type { IGitCommit } from './SessionContextFormatter';
 
 const MAX_GIT_COMMITS = 10;
 
 export class GitIntrospectionService {
+  constructor(private readonly git: IGitClient) {}
+
   /**
    * Load recent git commits for context.
    * @param since - Date to start from
@@ -23,16 +27,13 @@ export class GitIntrospectionService {
     if (!since) return [];
 
     try {
-      const { execSync } = await import('child_process');
       const sinceArg = since.toISOString().split('T')[0]; // YYYY-MM-DD format
-      const output = execSync(
-        `git log --since="${sinceArg}" --oneline --format="%h %s" -${MAX_GIT_COMMITS}`,
-        {
-          encoding: 'utf8',
-          cwd: projectRoot,
-          stdio: ['pipe', 'pipe', 'pipe'],
-        }
-      ).trim();
+      const output = this.git.log({
+        since: sinceArg,
+        format: '%h %s',
+        maxCount: MAX_GIT_COMMITS,
+        cwd: projectRoot,
+      });
 
       if (!output) return [];
 
@@ -55,12 +56,7 @@ export class GitIntrospectionService {
    */
   async detectGitHubRepo(projectRoot: string): Promise<string | null> {
     try {
-      const { execSync } = await import('child_process');
-      const remote = execSync('git remote get-url origin', {
-        encoding: 'utf8',
-        cwd: projectRoot,
-        stdio: ['pipe', 'pipe', 'pipe'],
-      }).trim();
+      const remote = this.git.getRemoteUrl('origin', projectRoot);
 
       // Parse GitHub URL formats:
       // https://github.com/owner/repo.git

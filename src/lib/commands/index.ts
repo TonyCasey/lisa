@@ -54,8 +54,18 @@ export { registerPrCommands } from './pr';
 
 // CLI utilities
 export {
+  CliExitError,
   getSkillCacheEnv,
   spawnAndWait,
   runPrWatchLoop,
   type IPrWatchLoopOptions,
 } from './cli-utils';
+
+// CLI infrastructure services (for init, doctor, up, down commands)
+export {
+  createCliServices,
+  type ICliServices,
+  type ITemplateCopier,
+  type IDockerClient,
+  type IMcpPingClient,
+} from './cli-services';

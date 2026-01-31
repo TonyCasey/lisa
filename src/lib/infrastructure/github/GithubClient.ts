@@ -7,7 +7,7 @@
  * @see .dev/features/github-pr.md for full specification
  */
 
-import { execSync, execFileSync, spawnSync } from 'child_process';
+import { execFileSync, spawnSync } from 'child_process';
 import type {
   IGhPrResponse,
   IGhCheckResponse,
@@ -484,15 +484,22 @@ export class GithubClient {
    */
   async getCurrentRepo(): Promise<string> {
     try {
-      const output = execSync('gh repo view --json nameWithOwner --jq .nameWithOwner', {
+      const result = spawnSync('gh', ['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner'], {
         encoding: 'utf-8',
         timeout: this.options.timeoutMs,
+        shell: false,
       });
-      return output.trim();
+      if (result.status === 0 && result.stdout.trim()) {
+        return result.stdout.trim();
+      }
+      throw new Error(result.stderr || 'gh repo view failed');
     } catch {
       // Fallback to git remote parsing
       try {
-        const remote = execSync('git remote get-url origin', { encoding: 'utf-8' }).trim();
+        const remote = execFileSync('git', ['remote', 'get-url', 'origin'], {
+          encoding: 'utf-8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+        }).trim();
         // Parse SSH format: git@github.com:owner/repo.git
         const sshMatch = remote.match(/git@github\.com:(.+?)(?:\.git)?$/);
         if (sshMatch) {
@@ -518,11 +525,15 @@ export class GithubClient {
    */
   async getCurrentPrNumber(): Promise<number> {
     try {
-      const output = execSync('gh pr view --json number --jq .number', {
+      const result = spawnSync('gh', ['pr', 'view', '--json', 'number', '--jq', '.number'], {
         encoding: 'utf-8',
         timeout: this.options.timeoutMs,
+        shell: false,
       });
-      const parsed = parseInt(output.trim(), 10);
+      if (result.error) throw result.error;
+      if (result.status !== 0) throw new Error(result.stderr || 'gh pr view failed');
+
+      const parsed = parseInt(result.stdout.trim(), 10);
       if (!Number.isFinite(parsed)) {
         throw new Error('Invalid PR number');
       }
@@ -553,9 +564,10 @@ export class GithubClient {
    */
   async getCurrentBranch(): Promise<string> {
     try {
-      const output = execSync('git rev-parse --abbrev-ref HEAD', {
+      const output = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
         encoding: 'utf-8',
         timeout: this.options.timeoutMs,
+        stdio: ['pipe', 'pipe', 'pipe'],
       });
       return output.trim();
     } catch {
@@ -578,15 +590,15 @@ export class GithubClient {
     } catch {
       // Fallback: try common names (main, master, develop)
       try {
-        execSync('git rev-parse --verify origin/main', { encoding: 'utf-8', stdio: 'pipe' });
+        execFileSync('git', ['rev-parse', '--verify', 'origin/main'], { encoding: 'utf-8', stdio: 'pipe' });
         return 'main';
       } catch {
         try {
-          execSync('git rev-parse --verify origin/master', { encoding: 'utf-8', stdio: 'pipe' });
+          execFileSync('git', ['rev-parse', '--verify', 'origin/master'], { encoding: 'utf-8', stdio: 'pipe' });
           return 'master';
         } catch {
           try {
-            execSync('git rev-parse --verify origin/develop', { encoding: 'utf-8', stdio: 'pipe' });
+            execFileSync('git', ['rev-parse', '--verify', 'origin/develop'], { encoding: 'utf-8', stdio: 'pipe' });
             return 'develop';
           } catch {
             return 'main'; // Default assumption

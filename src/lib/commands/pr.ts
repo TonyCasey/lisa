@@ -13,7 +13,7 @@ import {withCorrelation} from '../infrastructure';
 import type {Neo4jConnectionManager} from '../infrastructure/dal/connections';
 import type {IPrPollOptions, IPrPollResult} from '../application/handlers';
 import type {ILogger} from '../domain';
-import {runPrWatchLoop} from './cli-utils';
+import {CliExitError, runPrWatchLoop} from './cli-utils';
 
 /**
  * Format a poll result for console display.
@@ -102,7 +102,7 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
           if (opts.json) {
             console.log(JSON.stringify(result, null, 2));
             if (!result.success) {
-              process.exit(1);
+              throw new CliExitError(1);
             }
           } else if (result.success) {
             console.log(chalk.green(`✓ ${result.message}`));
@@ -117,8 +117,7 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
               console.log(chalk.dim('─'.repeat(60)));
             }
           } else {
-            console.error(chalk.red(`✗ ${result.message}`));
-            process.exit(1);
+            throw new CliExitError(1, `✗ ${result.message}`);
           }
 
           const shouldPoll = result.success
@@ -158,8 +157,7 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           log.error('Failed to create PR', { error: message });
-          console.error(chalk.red(`Failed to create PR: ${message}`));
-          process.exit(1);
+          throw new CliExitError(1, `Failed to create PR: ${message}`);
         } finally {
           if (neo4jConnection) {
             await neo4jConnection.disconnect();
@@ -181,8 +179,10 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
 
         try {
           const { PrReviewHandler } = await import('../application/handlers');
+          const { GitClient } = await import('../infrastructure/git/GitClient');
+          const { ClaudeCliClient } = await import('../infrastructure/claude/ClaudeCliClient');
 
-          const handler = new PrReviewHandler();
+          const handler = new PrReviewHandler(new GitClient(), new ClaudeCliClient());
           const result = await handler.execute({
             base: opts.base,
             block: opts.block,
@@ -192,7 +192,7 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
           if (opts.json) {
             console.log(JSON.stringify(result, null, 2));
             if (result.shouldBlock) {
-              process.exit(1);
+              throw new CliExitError(1);
             }
           } else {
             // Header
@@ -261,15 +261,13 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
 
             if (result.shouldBlock) {
               console.log('');
-              console.log(chalk.red.bold('✗ Review failed: critical issues must be fixed before merge'));
-              process.exit(1);
+              throw new CliExitError(1, 'Review failed: critical issues must be fixed before merge');
             }
           }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           log.error('Failed to run review', { error: message });
-          console.error(chalk.red(`Failed to run review: ${message}`));
-          process.exit(1);
+          throw new CliExitError(1, `Failed to run review: ${message}`);
         }
       });
     });
@@ -329,8 +327,7 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           log.error('Failed to fetch PR checks', { error: message });
-          console.error(chalk.red(`Failed to fetch checks: ${message}`));
-          process.exit(1);
+          throw new CliExitError(1, `Failed to fetch checks: ${message}`);
         } finally {
           if (neo4jConnection) {
             await neo4jConnection.disconnect();
@@ -376,8 +373,7 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           log.error('Failed to fetch PR comments', { error: message });
-          console.error(chalk.red(`Failed to fetch comments: ${message}`));
-          process.exit(1);
+          throw new CliExitError(1, `Failed to fetch comments: ${message}`);
         } finally {
           if (neo4jConnection) {
             await neo4jConnection.disconnect();
@@ -423,8 +419,7 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           log.error('Failed to prepare PR comments', { error: message });
-          console.error(chalk.red(`Failed to prepare comments: ${message}`));
-          process.exit(1);
+          throw new CliExitError(1, `Failed to prepare comments: ${message}`);
         } finally {
           if (neo4jConnection) {
             await neo4jConnection.disconnect();
@@ -460,14 +455,13 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
           if (result.success) {
             console.log(chalk.green(result.message));
           } else {
-            console.error(chalk.red(result.message));
-            process.exit(1);
+            throw new CliExitError(1, result.message);
           }
         } catch (error) {
+          if (error instanceof CliExitError) throw error;
           const message = error instanceof Error ? error.message : String(error);
           log.error('Failed to watch PR', { error: message });
-          console.error(chalk.red(`Failed to watch PR: ${message}`));
-          process.exit(1);
+          throw new CliExitError(1, `Failed to watch PR: ${message}`);
         } finally {
           if (neo4jConnection) {
             await neo4jConnection.disconnect();
@@ -503,14 +497,13 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
           if (result.success) {
             console.log(chalk.green(result.message));
           } else {
-            console.error(chalk.red(result.message));
-            process.exit(1);
+            throw new CliExitError(1, result.message);
           }
         } catch (error) {
+          if (error instanceof CliExitError) throw error;
           const message = error instanceof Error ? error.message : String(error);
           log.error('Failed to unwatch PR', { error: message });
-          console.error(chalk.red(`Failed to unwatch PR: ${message}`));
-          process.exit(1);
+          throw new CliExitError(1, `Failed to unwatch PR: ${message}`);
         } finally {
           if (neo4jConnection) {
             await neo4jConnection.disconnect();
@@ -534,8 +527,7 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
         const parsedIssueNumber = parseInt(issueNumber, 10);
         if (!Number.isFinite(parsedPrNumber) || parsedPrNumber <= 0 ||
             !Number.isFinite(parsedIssueNumber) || parsedIssueNumber <= 0) {
-          console.error(chalk.red('PR and Issue numbers must be positive integers.'));
-          process.exit(1);
+          throw new CliExitError(1, 'PR and Issue numbers must be positive integers.');
         }
 
         log.info('Linking PR to issue', { prNumber: parsedPrNumber, issueNumber: parsedIssueNumber, repo: opts.repo });
@@ -560,7 +552,7 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
           if (opts.json) {
             console.log(JSON.stringify(result, null, 2));
             if (!result.success) {
-              process.exit(1);
+              throw new CliExitError(1);
             }
           } else if (result.success) {
             if (result.alreadyLinked) {
@@ -575,14 +567,12 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
               }
             }
           } else {
-            console.error(chalk.red(`✗ ${result.message}`));
-            process.exit(1);
+            throw new CliExitError(1, `✗ ${result.message}`);
           }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           log.error('Failed to link PR to issue', { error: message });
-          console.error(chalk.red(`Failed to link: ${message}`));
-          process.exit(1);
+          throw new CliExitError(1, `Failed to link: ${message}`);
         } finally {
           if (neo4jConnection) {
             await neo4jConnection.disconnect();
@@ -602,8 +592,7 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
 
         const parsedPrNumber = parseInt(prNumber, 10);
         if (!Number.isFinite(parsedPrNumber) || parsedPrNumber <= 0) {
-          console.error(chalk.red('PR number must be a positive integer.'));
-          process.exit(1);
+          throw new CliExitError(1, 'PR number must be a positive integer.');
         }
 
         log.info('Saving PR note', { prNumber: parsedPrNumber, repo: opts.repo });
@@ -629,7 +618,7 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
           if (opts.json) {
             console.log(JSON.stringify(result, null, 2));
             if (!result.success) {
-              process.exit(1);
+              throw new CliExitError(1);
             }
           } else if (result.success) {
             console.log(chalk.green(`✓ ${result.message}`));
@@ -640,14 +629,12 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
               console.log(chalk.dim(`  Tags: ${result.tags.join(', ')}`));
             }
           } else {
-            console.error(chalk.red(`✗ ${result.message}`));
-            process.exit(1);
+            throw new CliExitError(1, `✗ ${result.message}`);
           }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           log.error('Failed to save PR note', { error: message });
-          console.error(chalk.red(`Failed to save PR note: ${message}`));
-          process.exit(1);
+          throw new CliExitError(1, `Failed to save PR note: ${message}`);
         }
       });
     });
@@ -707,8 +694,7 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           log.error('Failed to list watched PRs', { error: message });
-          console.error(chalk.red(`Failed to list watched PRs: ${message}`));
-          process.exit(1);
+          throw new CliExitError(1, `Failed to list watched PRs: ${message}`);
         } finally {
           if (neo4jConnection) {
             await neo4jConnection.disconnect();
@@ -743,19 +729,17 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
           if (opts.json) {
             console.log(JSON.stringify(result, null, 2));
             if (!result.success) {
-              process.exit(1);
+              throw new CliExitError(1);
             }
           } else if (result.success) {
             console.log(result.formattedOutput);
           } else {
-            console.error(chalk.red(result.message));
-            process.exit(1);
+            throw new CliExitError(1, result.message);
           }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           log.error('Failed to get PR status', { error: message });
-          console.error(chalk.red(`Failed to get PR status: ${message}`));
-          process.exit(1);
+          throw new CliExitError(1, `Failed to get PR status: ${message}`);
         } finally {
           if (neo4jConnection) {
             await neo4jConnection.disconnect();
@@ -798,28 +782,23 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
           const prNumber = opts.pr ? parseInt(opts.pr, 10) : undefined;
 
           if (opts.pr && !Number.isFinite(prNumber)) {
-            console.error(chalk.red('Invalid PR number. Must be a number.'));
-            process.exit(1);
+            throw new CliExitError(1, 'Invalid PR number. Must be a number.');
           }
 
           if (opts.watch && !Number.isFinite(parsedInterval)) {
-            console.error(chalk.red('Invalid interval. Must be a number of minutes.'));
-            process.exit(1);
+            throw new CliExitError(1, 'Invalid interval. Must be a number of minutes.');
           }
 
           if (opts.watch && parsedInterval < 1) {
-            console.error(chalk.red('Invalid interval. Must be at least 1 minute.'));
-            process.exit(1);
+            throw new CliExitError(1, 'Invalid interval. Must be at least 1 minute.');
           }
 
           if (opts.pr && opts.current) {
-            console.error(chalk.red('Use either --pr or --current, not both.'));
-            process.exit(1);
+            throw new CliExitError(1, 'Use either --pr or --current, not both.');
           }
 
           if (opts.watch && !opts.pr && !opts.current) {
-            console.error(chalk.red('Watch mode requires --pr <number> or --current.'));
-            process.exit(1);
+            throw new CliExitError(1, 'Watch mode requires --pr <number> or --current.');
           }
 
           // Create notification service if --notify flag is set (disabled in watch mode)
@@ -862,14 +841,14 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
             }
 
             if (!result.success) {
-              process.exit(1);
+              throw new CliExitError(1);
             }
           }
         } catch (error) {
+          if (error instanceof CliExitError) throw error;
           const message = error instanceof Error ? error.message : String(error);
           log.error('Failed to poll PRs', { error: message });
-          console.error(chalk.red(`Failed to poll PRs: ${message}`));
-          process.exit(1);
+          throw new CliExitError(1, `Failed to poll PRs: ${message}`);
         } finally {
           if (neo4jConnection) {
             await neo4jConnection.disconnect();
@@ -900,8 +879,7 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
 
           const intervalMinutes = parseInt(opts.interval, 10);
           if (!Number.isFinite(intervalMinutes) || intervalMinutes < 1) {
-            console.error(chalk.red('Invalid interval. Must be at least 1 minute.'));
-            process.exit(1);
+            throw new CliExitError(1, 'Invalid interval. Must be at least 1 minute.');
           }
 
           const result = await cronService.install({
@@ -919,19 +897,19 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
             console.log(chalk.cyan('PR monitoring is now active.'));
             console.log(chalk.cyan('Use `lisa pr watch <number>` to start tracking PRs.'));
           } else {
-            console.error(chalk.red(`Failed to install: ${result.error}`));
             if (result.manualInstructions) {
+              console.error(chalk.red(`Failed to install: ${result.error}`));
               console.log('');
               console.log(chalk.cyan('Manual installation:'));
               console.log(result.manualInstructions);
             }
-            process.exit(1);
+            throw new CliExitError(1, result.manualInstructions ? '' : `Failed to install: ${result.error}`);
           }
         } catch (error) {
+          if (error instanceof CliExitError) throw error;
           const message = error instanceof Error ? error.message : String(error);
           log.error('Failed to install cron job', { error: message });
-          console.error(chalk.red(`Failed to install: ${message}`));
-          process.exit(1);
+          throw new CliExitError(1, `Failed to install: ${message}`);
         }
       });
     });
@@ -953,14 +931,13 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
           if (result.success) {
             console.log(chalk.green('PR polling cron job removed.'));
           } else {
-            console.error(chalk.red(`Failed to uninstall: ${result.error}`));
-            process.exit(1);
+            throw new CliExitError(1, `Failed to uninstall: ${result.error}`);
           }
         } catch (error) {
+          if (error instanceof CliExitError) throw error;
           const message = error instanceof Error ? error.message : String(error);
           log.error('Failed to uninstall cron job', { error: message });
-          console.error(chalk.red(`Failed to uninstall: ${message}`));
-          process.exit(1);
+          throw new CliExitError(1, `Failed to uninstall: ${message}`);
         }
       });
     });
@@ -997,8 +974,7 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           log.error('Failed to check status', { error: message });
-          console.error(chalk.red(`Failed to check status: ${message}`));
-          process.exit(1);
+          throw new CliExitError(1, `Failed to check status: ${message}`);
         }
       });
     });

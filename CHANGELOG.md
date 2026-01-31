@@ -34,6 +34,76 @@ Decomposed the monolithic `SessionStartHandler` (818 lines) into focused service
 - `MemoryContextLoader` — DAL/MCP memory loading strategy with AbortController-based cancellation
 
 Each service is independently unit-testable with no cross-dependencies.
+
+#### Move shell/git behind infrastructure interfaces ([#83](https://github.com/TonyCasey/lisa/issues/83))
+
+Introduced domain interfaces for shell operations so application-layer handlers no longer import `child_process`:
+
+- `IGitClient` — git log, remote URL, default branch detection, diff, ref verification
+- `IClaudeCliClient` — Claude CLI availability check and prompt execution
+
+**Infrastructure implementations:**
+- `GitClient` (`src/lib/infrastructure/git/`) — wraps git CLI via `execFileSync`
+- `ClaudeCliClient` (`src/lib/infrastructure/claude/`) — wraps Claude CLI via `spawnSync` (shell-injection safe)
+
+**Updated handlers:**
+- `GitIntrospectionService` — now accepts `IGitClient` (no direct shell access)
+- `PrReviewHandler` — now accepts `IGitClient` + `IClaudeCliClient` (no direct shell access)
+- `SessionStartHandler` — passes `IGitClient` to `GitIntrospectionService`
+
+Unit tests now use mock clients, verifying behavior without invoking real git/claude.
+
+#### Replace execSync shell pipelines with safe process runner ([#84](https://github.com/TonyCasey/lisa/issues/84))
+
+Eliminated all `execSync` string-command calls across infrastructure code, replacing them with `execFileSync`/`spawnSync` argument arrays (`shell: false`). This removes shell interpolation risks and improves cross-platform portability.
+
+**Files updated:**
+- `GitClient` — all 5 methods now use `execFileSync('git', [...args])` instead of `execSync(string)`
+- `GithubClient` — 7 helper methods converted from `execSync(string)` to `execFileSync`/`spawnSync` with argument arrays; removed `execSync` import entirely
+- `SessionCaptureService` — replaced `execSync('git ... 2>/dev/null')` shell redirection with `execFileSync` + `stdio: ['pipe', 'pipe', 'pipe']`
+- `ContextDetector` — replaced `execSync(string)` with `execFileSync` argument array
+- `Neo4jPullRequestRepository` — replaced `execSync(string)` with `execFileSync` argument array
+- `StorageService` — replaced `execSync('docker info')` with `execFileSync('docker', ['info'])`
+
+**Result:** Zero `execSync` calls remain in `src/lib/`. All process invocations use argument arrays with no shell interpolation.
+
+#### Centralize process.exit usage at CLI boundary ([#85](https://github.com/TonyCasey/lisa/issues/85))
+
+Removed all `process.exit()` calls from non-entrypoint command modules, centralizing exit handling at the CLI boundary.
+
+**New: `CliExitError`** (`src/lib/commands/cli-utils.ts`) — an error class carrying an exit code. Command modules throw `CliExitError` instead of calling `process.exit()` directly. The top-level CLI handler in `cli.ts` catches it and exits.
+
+**Files updated:**
+- `cli-utils.ts` — added `CliExitError` class
+- `cli.ts` — updated top-level catch to handle `CliExitError`; converted 3 inline `process.exit()` calls to throws
+- `pr.ts` — replaced 30 `process.exit(1)` calls with `CliExitError` throws
+- `issue.ts` — replaced 1 `process.exit(1)` call with `CliExitError` throw
+- `commands/index.ts` — exported `CliExitError`
+
+**Result:** Only the CLI entry point (`cli.ts`) and legitimate standalone scripts (skills, hooks) call `process.exit()`. All command modules are now testable without terminating the process.
+
+#### Consolidate legacy services.ts with DI container ([#86](https://github.com/TonyCasey/lisa/issues/86))
+
+Eliminated the competing service construction paths, establishing one clear composition root per concern and removing all deprecated code.
+
+**Removed dead code:**
+- `ServiceFactory.ts` — removed deprecated `createServices()`, `createServicesWithCleanup()`, and `IServicesWithCleanup` (zero callers, duplicated `bootstrapContainer`)
+- `bootstrap.ts` — removed deprecated `bootstrapServices()` (zero callers)
+- `src/lib/services.ts` — deleted (monolithic file mixing interfaces and implementations)
+- `src/lib/interfaces/` — deleted directory (ambiguously located CLI contracts)
+
+**New: `cli-services.ts`** (`src/lib/commands/cli-services.ts`) — consolidated CLI infrastructure module with:
+- `ICliServices` (renamed from `IServices`) — CLI service container
+- `ITemplateCopier`, `IDockerClient`, `IMcpPingClient` — CLI infrastructure contracts
+- `TemplateCopier`, `DockerClient`, `McpPingClient` — implementations
+- `createCliServices()` (renamed from `createDefaultServices()`) — CLI composition root
+
+**Two clear composition roots:**
+- **CLI commands** (init, doctor, up, down) → `createCliServices()` in `cli-services.ts`
+- **Hooks/handlers** (session-start, session-stop, prompt-submit) → `bootstrapContainer()` in `bootstrap.ts`
+
+**Result:** One clear composition root per concern, zero deprecated service factory functions, and the DI container index documents both paths with JSDoc.
+
 ---
 
 ## [2.11.5] - 2026-01-28

@@ -13,17 +13,17 @@ import {
   type ICheckResult,
   type CheckStatus,
 } from '../../../../../src/lib/commands/doctor';
-import type { IServices } from '../../../../../src/lib/interfaces/IServices';
+import type { ICliServices } from '../../../../../src/lib/commands/cli-services';
 import { normalizeGroupId } from '../../../../../src/lib/skills/shared/utils/group-id';
 
 /**
- * Create a mock IServices object for testing.
+ * Create a mock ICliServices object for testing.
  */
 function createMockServices(overrides?: {
   dockerVersion?: string | Error;
   dockerComposeVersion?: string | Error;
   mcpPing?: void | Error;
-}): IServices {
+}): ICliServices {
   return {
     templateCopier: {
       copy: mock.fn(() => Promise.resolve({ skipped: false })),

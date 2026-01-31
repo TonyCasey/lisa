@@ -10,6 +10,7 @@ import type {
   ITaskCounts,
   ILogger,
   IMemoryDateOptions,
+  IGitClient,
 } from '../../domain';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
 import type { IGitHubSyncService } from '../../skills/shared/services/GitHubSyncService';
@@ -52,8 +53,9 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
    * Create a new SessionStartHandler.
    *
    * @param services - Lisa services (legacy constructor for backward compatibility)
+   * @param gitClient - Git client (optional, creates default if not provided)
    */
-  constructor(services: ILisaServices);
+  constructor(services: ILisaServices, gitClient?: IGitClient);
 
   /**
    * Create a new SessionStartHandler with individual service injection.
@@ -65,6 +67,7 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
    * @param router - Repository router (optional)
    * @param logger - Logger (optional)
    * @param githubSync - GitHub sync service (optional)
+   * @param gitClient - Git client (optional)
    */
   constructor(
     context: ILisaContext,
@@ -73,18 +76,22 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
     mcp: IMcpClient,
     router?: IRepositoryRouter,
     logger?: ILogger,
-    githubSync?: IGitHubSyncService
+    githubSync?: IGitHubSyncService,
+    gitClient?: IGitClient,
   );
 
   constructor(
     contextOrServices: ILisaContext | ILisaServices,
-    memory?: IMemoryService,
+    memoryOrGitClient?: IMemoryService | IGitClient,
     tasks?: ITaskService,
     mcp?: IMcpClient,
     router?: IRepositoryRouter,
     logger?: ILogger,
-    githubSync?: IGitHubSyncService
+    githubSync?: IGitHubSyncService,
+    gitClient?: IGitClient,
   ) {
+    let resolvedGitClient: IGitClient | undefined;
+
     // Check if this is the legacy ILisaServices constructor
     if ('context' in contextOrServices && 'memory' in contextOrServices) {
       const services = contextOrServices as ILisaServices;
@@ -95,20 +102,29 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
       this.router = services.router;
       this.logger = services.logger;
       this.githubSync = services.githubSync;
+      resolvedGitClient = memoryOrGitClient as IGitClient | undefined;
     } else {
       // Individual service injection
       this.context = contextOrServices as ILisaContext;
-      this.memory = memory!;
+      this.memory = memoryOrGitClient as IMemoryService;
       this.tasks = tasks!;
       this.mcp = mcp!;
       this.router = router;
       this.logger = logger;
       this.githubSync = githubSync;
+      resolvedGitClient = gitClient;
+    }
+
+    // Lazy-load default GitClient if none provided
+    if (!resolvedGitClient) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { GitClient } = require('../../infrastructure/git/GitClient');
+      resolvedGitClient = new GitClient() as IGitClient;
     }
 
     // Initialize extracted services
     this.formatter = new SessionContextFormatter();
-    this.gitService = new GitIntrospectionService();
+    this.gitService = new GitIntrospectionService(resolvedGitClient);
     this.memoryLoader = new MemoryContextLoader(
       this.memory,
       this.tasks,

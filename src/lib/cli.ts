@@ -3,10 +3,11 @@ import {Command} from 'commander';
 import path from 'path';
 import fs from 'fs-extra';
 import chalk from 'chalk';
-import {createDefaultServices} from './services';
+import {createCliServices} from './commands/cli-services';
 import {IScanOptions, runScan} from './scanner';
 import {createLogger, withCorrelation} from './infrastructure';
 import {
+  CliExitError,
   doctorCommand,
   initCommand,
   cleanupPreviousInstall,
@@ -76,7 +77,7 @@ program
         verbose,
       });
 
-      const services = createDefaultServices(TEMPLATE_ROOT);
+      const services = createCliServices(TEMPLATE_ROOT);
 
       // Determine CLI support from flags
       let cliSupport: CliSupport[] | undefined;
@@ -130,7 +131,7 @@ program
   .option('-v, --verbose', 'Show detailed logging (default: true)', true)
   .option('-q, --quiet', 'Suppress detailed logging')
   .action(async (cmd) => {
-    const services = createDefaultServices(TEMPLATE_ROOT);
+    const services = createCliServices(TEMPLATE_ROOT);
     const verbose = cmd.verbose && !cmd.quiet;
 
     // Determine CLI support from flags
@@ -168,7 +169,7 @@ program
   .option('-c, --compose <file>', 'Compose file', 'docker-compose.graphiti.yml')
   .action(async (cmd) => {
     const composeFile = path.resolve(process.cwd(), cmd.compose);
-    const services = createDefaultServices(TEMPLATE_ROOT);
+    const services = createCliServices(TEMPLATE_ROOT);
     await upCommand({ composeFile }, services);
   });
 
@@ -178,7 +179,7 @@ program
   .option('-c, --compose <file>', 'Compose file', 'docker-compose.graphiti.yml')
   .action(async (cmd) => {
     const composeFile = path.resolve(process.cwd(), cmd.compose);
-    const services = createDefaultServices(TEMPLATE_ROOT);
+    const services = createCliServices(TEMPLATE_ROOT);
     await downCommand({ composeFile }, services);
   });
 
@@ -190,7 +191,7 @@ program
   .option('-v, --verbose', 'Show detailed diagnostics')
   .option('--json', 'Output results as JSON')
   .action(async (cmd) => {
-    const services = createDefaultServices(TEMPLATE_ROOT);
+    const services = createCliServices(TEMPLATE_ROOT);
     await doctorCommand({
       cwd: process.cwd(),
       compose: cmd.compose,
@@ -231,11 +232,13 @@ program
           projectsFound: result.projectsFound,
           factsGenerated: result.factsGenerated,
         });
-        process.exit(result.success ? 0 : 1);
+        if (!result.success) {
+          throw new CliExitError(1, 'Scan completed with errors');
+        }
       } catch (err) {
+        if (err instanceof CliExitError) throw err;
         log.error('Scan failed', { error: err instanceof Error ? err.message : String(err) });
-        console.error(chalk.red(`Scan failed: ${err instanceof Error ? err.message : err}`));
-        process.exit(1);
+        throw new CliExitError(1, `Scan failed: ${err instanceof Error ? err.message : err}`);
       }
     });
   });
@@ -278,8 +281,7 @@ program
 
       console.log(chalk.green('Sync complete.'));
     } catch (err) {
-      console.error(chalk.red(`Sync failed: ${err instanceof Error ? err.message : err}`));
-      process.exit(1);
+      throw new CliExitError(1, `Sync failed: ${err instanceof Error ? err.message : err}`);
     }
   });
 
@@ -304,6 +306,11 @@ registerHookCommands(hookCmd);
 
 if (require.main === module) {
   program.parseAsync(process.argv).catch((err) => {
+    if (err instanceof CliExitError) {
+      if (err.message) console.error(chalk.red(err.message));
+      process.exit(err.exitCode);
+      return;
+    }
     console.error(chalk.red(err.message));
     process.exit(1);
   });
@@ -314,10 +321,10 @@ export {
   doctorCommand,
   upCommand,
   downCommand,
-  createDefaultServices,
   cleanupPreviousInstall,
   DEFAULT_ENDPOINT,
   DEFAULT_GROUP,
   TEMPLATE_ROOT,
   runScan,
 };
+export { createCliServices } from './commands/cli-services';

@@ -24,7 +24,6 @@ echo "  OS:        $OS_NAME"
 echo "  CLI Mode:  $CLI_MODE"
 echo "  Package:   $PACKAGE_PATH"
 echo "  Endpoint:  ${GRAPHITI_ENDPOINT:-not set}"
-echo "  Group ID:  ${GRAPHITI_GROUP_ID:-not set}"
 echo "=========================================="
 
 if [ -z "$PACKAGE_PATH" ]; then
