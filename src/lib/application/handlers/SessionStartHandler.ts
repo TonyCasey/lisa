@@ -11,10 +11,14 @@ import type {
   ILogger,
   IMemoryDateOptions,
   IGitClient,
+  IContextStrategy,
 } from '../../domain';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
 import type { IGitHubSyncService } from '../../skills/shared/services/GitHubSyncService';
 import { emptyTaskCounts } from '../../domain';
+import { isValidTaskType, getDefaultStrategy } from '../../domain/interfaces/types/ITaskType';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
 import type { ISessionStartResult } from '../interfaces';
 import type { IRequestHandler } from '../mediator';
 import { SessionStartRequest } from '../mediator/requests';
@@ -146,12 +150,16 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
     // Determine date options based on trigger
     const dateOptions = this.computeDateOptions(request.trigger);
 
+    // Read stored context mode (if any)
+    const contextStrategy = await this.readStoredContextStrategy(projectRoot);
+
     // Load memory using optimal strategy (DAL or MCP)
     const memories = await this.memoryLoader.loadMemory(
       hierarchicalGroupIds,
       projectAliases,
       branch,
       dateOptions,
+      contextStrategy,
     );
 
     // Load recent git commits for context
@@ -281,6 +289,23 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
       (counts as Record<string, number>)[key] += 1;
     }
     return counts;
+  }
+
+  /**
+   * Read stored context mode from .lisa/.context-mode file.
+   * Returns the corresponding IContextStrategy, or undefined if no mode is set.
+   */
+  private async readStoredContextStrategy(projectRoot: string): Promise<IContextStrategy | undefined> {
+    try {
+      const modePath = join(projectRoot, '.lisa', '.context-mode');
+      const mode = (await readFile(modePath, 'utf-8')).trim();
+      if (mode && mode !== 'auto' && isValidTaskType(mode)) {
+        return getDefaultStrategy(mode);
+      }
+    } catch {
+      // File doesn't exist or can't be read — no stored mode
+    }
+    return undefined;
   }
 
   // --- Task helper methods ---

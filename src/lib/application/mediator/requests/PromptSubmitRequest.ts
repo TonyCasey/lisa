@@ -5,7 +5,7 @@
  */
 
 import type { IRequest } from '../IMediator';
-import type { PermissionMode, ISOTimestamp, IRecursionResult } from '../../../domain';
+import type { PermissionMode, ISOTimestamp, IRecursionResult, TaskType } from '../../../domain';
 
 /**
  * Result from handling a prompt submit request.
@@ -25,6 +25,9 @@ export interface IPromptSubmitResult {
 
   /** Additional context to inject */
   readonly additionalContext?: string;
+
+  /** Auto-detected task type from prompt content */
+  readonly taskType?: TaskType;
 
   /**
    * Recursion result if in plan mode.

@@ -14,6 +14,7 @@ import type {
   IMemoryItem,
   ILogger,
   IMemoryDateOptions,
+  IContextStrategy,
 } from '../../domain';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
 import {
@@ -48,22 +49,37 @@ export class MemoryContextLoader {
 
   /**
    * Load memory using the optimal strategy (DAL or MCP fallback).
+   *
+   * @param hierarchicalGroupIds - Hierarchical group IDs to search
+   * @param projectAliases - Project aliases for comprehensive search
+   * @param branch - Current git branch
+   * @param dateOptions - Optional date filtering
+   * @param strategy - Optional context strategy to adjust limits and timeout
    */
+  /**
+   * Compute the effective timeout: strategy timeout + buffer, or default 5s.
+   */
+  private computeTimeout(strategy?: IContextStrategy): number {
+    return strategy?.timeout ? strategy.timeout + 2000 : 5000;
+  }
+
   async loadMemory(
     hierarchicalGroupIds: readonly string[],
     projectAliases: readonly string[],
     branch: string | null,
     dateOptions?: IMemoryDateOptions,
+    strategy?: IContextStrategy,
   ): Promise<IMemoryLoadResult> {
+    const timeout = this.computeTimeout(strategy);
     if (this.router && this.router.isBackendAvailable('neo4j')) {
-      return this.loadMemoryWithDAL(hierarchicalGroupIds, projectAliases, branch, undefined, dateOptions);
+      return this.loadMemoryWithDAL(hierarchicalGroupIds, projectAliases, branch, undefined, dateOptions, strategy);
     }
     // Fall back to MCP-only path
     const result = await this.memory.loadMemory(
       hierarchicalGroupIds,
       projectAliases,
       branch,
-      5000 // 5 second timeout
+      timeout
     );
     return result as IMemoryLoadResult;
   }
@@ -78,7 +94,8 @@ export class MemoryContextLoader {
     projectAliases: readonly string[],
     branch: string | null,
     signal?: AbortSignal,
-    dateOptions?: IMemoryDateOptions
+    dateOptions?: IMemoryDateOptions,
+    strategy?: IContextStrategy
   ): Promise<IMemoryLoadResult> {
     const memory = this.memory;
     const mcp = this.mcp;
@@ -90,7 +107,8 @@ export class MemoryContextLoader {
       timedOut: false,
     };
 
-    const TIMEOUT_MS = 5000;
+    const TIMEOUT_MS = this.computeTimeout(strategy);
+    const factLimit = strategy?.factLimit ?? 100;
 
     // Combine hierarchical group IDs with project aliases for comprehensive search
     const allGroupIds = [...new Set([...hierarchicalGroupIds, ...projectAliases])];
@@ -118,7 +136,7 @@ export class MemoryContextLoader {
         try {
           checkCancellation(abortSignal, 'Memory load cancelled before facts');
 
-          const facts = await memory.loadFactsDateOrdered(allGroupIds, 100, dateOptions);
+          const facts = await memory.loadFactsDateOrdered(allGroupIds, factLimit, dateOptions);
 
           checkCancellation(abortSignal, 'Memory load cancelled after facts fetch');
 

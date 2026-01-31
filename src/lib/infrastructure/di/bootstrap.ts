@@ -16,6 +16,7 @@ import type {
   ISessionCaptureService,
   IEventEmitter,
   IRecursionService,
+  ITaskTypeDetector,
 } from '../../domain/interfaces';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
 import type { IConnectionManagers } from '../dal';
@@ -307,7 +308,8 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
       const mem = await container.resolve<IMemoryService>(TOKENS.MemoryService);
       const rec = await container.resolve<IRecursionService>(TOKENS.RecursionService);
       const log = await container.resolve<ILogger>(TOKENS.Logger);
-      return new PromptSubmitHandler(ctx, mem, rec, log);
+      const detector = await container.resolve<ITaskTypeDetector>(TOKENS.TaskTypeDetector);
+      return new PromptSubmitHandler(ctx, mem, rec, log, detector);
     },
     'transient'
   );
