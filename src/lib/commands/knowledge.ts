@@ -1,13 +1,15 @@
 /**
  * Knowledge Command Module
  *
- * Commands for memory, tasks, and storage operations.
+ * Commands for memory, tasks, storage, and context operations.
  * These are passthrough commands that delegate to skill scripts.
  */
 
 import type {Command} from 'commander';
 import path from 'path';
+import fs from 'fs';
 import {getSkillCacheEnv, spawnAndWait} from './cli-utils';
+import { TASK_TYPE_VALUES, isValidTaskType } from '../domain/interfaces/types/ITaskType';
 
 export function registerKnowledgeCommands(program: Command): void {
   // Subcommand: lisa memory
@@ -173,4 +175,79 @@ export function registerKnowledgeCommands(program: Command): void {
       const scriptPath = path.join(__dirname, '..', 'skills', 'lisa', 'storage.js');
       await spawnAndWait(scriptPath, args, getSkillCacheEnv('lisa'));
     });
+
+  // Subcommand: lisa context
+  const contextCmd = program
+    .command('context')
+    .description('Context mode operations (get-mode, set-mode)');
+
+  contextCmd
+    .command('get-mode')
+    .description('Show current context mode')
+    .action(() => {
+      const mode = readContextMode(process.cwd());
+      if (mode) {
+        console.log(`Context mode: ${mode}`);
+      } else {
+        console.log('Context mode: auto (default)');
+      }
+    });
+
+  contextCmd
+    .command('set-mode <mode>')
+    .description(`Set context mode (${TASK_TYPE_VALUES.join(', ')}, auto)`)
+    .action((mode: string) => {
+      const normalised = mode.toLowerCase().trim();
+      if (normalised === 'auto') {
+        clearContextMode(process.cwd());
+        console.log('Context mode reset to auto (default).');
+        return;
+      }
+      if (!isValidTaskType(normalised)) {
+        console.error(`Invalid mode: ${mode}`);
+        console.error(`Valid modes: ${TASK_TYPE_VALUES.join(', ')}, auto`);
+        process.exitCode = 1;
+        return;
+      }
+      writeContextMode(process.cwd(), normalised);
+      console.log(`Context mode set to: ${normalised}`);
+    });
+}
+
+/**
+ * Read stored context mode from .lisa/.context-mode file.
+ */
+export function readContextMode(projectRoot: string): string | null {
+  try {
+    const modePath = path.join(projectRoot, '.lisa', '.context-mode');
+    const mode = fs.readFileSync(modePath, 'utf-8').trim();
+    if (mode && mode !== 'auto' && isValidTaskType(mode)) {
+      return mode;
+    }
+  } catch {
+    // File doesn't exist or can't be read
+  }
+  return null;
+}
+
+/**
+ * Write context mode to .lisa/.context-mode file.
+ */
+export function writeContextMode(projectRoot: string, mode: string): void {
+  const lisaDir = path.join(projectRoot, '.lisa');
+  if (!fs.existsSync(lisaDir)) {
+    fs.mkdirSync(lisaDir, { recursive: true });
+  }
+  fs.writeFileSync(path.join(lisaDir, '.context-mode'), mode + '\n', 'utf-8');
+}
+
+/**
+ * Clear context mode (remove .lisa/.context-mode file).
+ */
+export function clearContextMode(projectRoot: string): void {
+  try {
+    fs.unlinkSync(path.join(projectRoot, '.lisa', '.context-mode'));
+  } catch {
+    // File doesn't exist - already cleared
+  }
 }

@@ -110,7 +110,8 @@ export class SessionContextFormatter {
     taskCounts: ITaskCounts,
     context: ISessionContext,
     gitCommits: readonly IGitCommit[] = [],
-    querySince?: Date
+    querySince?: Date,
+    contextMode?: string | null
   ): string {
     const { projectName, userName, folderType, projectRoot, branch } = context;
     const lines: string[] = [];
@@ -132,6 +133,11 @@ export class SessionContextFormatter {
     const folderDisplay = projectRoot.replace(process.env.HOME || process.env.USERPROFILE || '', '~');
     lines.push(`User: ${userName} | Folder: ${folderDisplay} (${folderType})`);
     lines.push(`Repo: ${projectName}${branch ? ' (' + branch + ')' : ''}`);
+
+    // Context mode (if explicitly set)
+    if (contextMode) {
+      lines.push(`Context mode: ${contextMode}`);
+    }
 
     // Init review (codebase summary)
     if (memories.initReview) {
