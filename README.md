@@ -1,6 +1,6 @@
 # Lisa – Long Term Memory for AI Coding Assistants
 
-![Lisa for Claude](assets/claude-i-remember.png)
+![Lisa for Claude](claude-i-remember.png)
 
 
 > *Lisa, never forgets a commit, a pr, a code change, or a saxophone lesson.*
@@ -18,7 +18,7 @@ Unlike simple vector databases or file-based memory, Lisa uses **[Graphiti](http
 
 ---
 
-![Graph DB](assets/lisa-graph-db.png)
+![Graph DB](lisa-graph-db.png)
 
 ## Installation
 
