@@ -81,7 +81,6 @@ Removed all `process.exit()` calls from non-entrypoint command modules, centrali
 - `commands/index.ts` — exported `CliExitError`
 
 **Result:** Only the CLI entry point (`cli.ts`) and legitimate standalone scripts (skills, hooks) call `process.exit()`. All command modules are now testable without terminating the process.
-
 ---
 
 ## [2.11.5] - 2026-01-28
