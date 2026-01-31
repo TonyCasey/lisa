@@ -27,6 +27,19 @@ Added domain types and interfaces for fact quality tracking and provenance, enab
 
 Part of Epic [#124](https://github.com/TonyCasey/lisa/issues/124)
 
+#### Repository Quality Metadata Support ([#127](https://github.com/TonyCasey/lisa/issues/127))
+
+Implemented quality metadata storage and querying in Neo4j and MCP repository layers.
+
+- Neo4j: `findByMinConfidence()` filters facts by confidence level threshold (client-side)
+- Neo4j: `findConflicts()` detects facts sharing topic tags with differing content
+- Neo4j: Cypher queries now return `r.tags` for client-side quality filtering
+- Neo4j: Implements `IReadOnlyMemoryRepositoryWithQuality` composite interface
+- MCP: Quality method stubs that throw appropriate errors
+- MCP: Implements `IMemoryRepositoryQuality` interface
+
+Part of Epic [#124](https://github.com/TonyCasey/lisa/issues/124)
+
 #### Memory Lifecycle Domain Types ([#111](https://github.com/TonyCasey/lisa/issues/111))
 
 Added domain types and interfaces for memory lifecycle tiers, enabling retention control and TTL-based expiration for memory facts.

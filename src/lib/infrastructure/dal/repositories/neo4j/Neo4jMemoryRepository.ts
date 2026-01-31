@@ -7,13 +7,19 @@
 
 import type { IMemoryItem } from '../../../../domain/interfaces/types/IMemoryResult';
 import type {
-  IReadOnlyMemoryRepositoryWithExpiration,
+  IReadOnlyMemoryRepositoryWithQuality,
   IQueryOptions,
   IMemoryQueryResult,
   IExpirationFilter,
+  IConflictGroup,
 } from '../../../../domain/interfaces/dal';
 import { applyQueryDefaults } from '../../../../domain/interfaces/dal';
 import { resolveLifecycleTag } from '../../../../domain/interfaces/types/IMemoryLifecycle';
+import type { ConfidenceLevel } from '../../../../domain/interfaces/types/IMemoryQuality';
+import {
+  CONFIDENCE_SCORES,
+  parseConfidenceTag,
+} from '../../../../domain/interfaces/types/IMemoryQuality';
 import { Neo4jConnectionManager } from '../../connections/Neo4jConnectionManager';
 
 /**
@@ -28,6 +34,7 @@ interface Neo4jFactRecord {
   valid_at?: string;
   invalid_at?: string;
   expired_at?: string;
+  tags?: string[];
 }
 
 /**
@@ -41,7 +48,7 @@ interface Neo4jCountRecord {
  * Neo4j Memory Repository implementation.
  * Read-only with expiration support: writes go through MCP for proper Graphiti ingestion.
  */
-export class Neo4jMemoryRepository implements IReadOnlyMemoryRepositoryWithExpiration {
+export class Neo4jMemoryRepository implements IReadOnlyMemoryRepositoryWithQuality {
   constructor(private readonly connection: Neo4jConnectionManager) {}
 
   /**
@@ -85,7 +92,7 @@ export class Neo4jMemoryRepository implements IReadOnlyMemoryRepositoryWithExpir
       RETURN r.uuid AS uuid, r.group_id AS group_id, r.name AS name,
              r.fact AS fact, r.created_at AS created_at,
              r.valid_at AS valid_at, r.invalid_at AS invalid_at,
-             r.expired_at AS expired_at
+             r.expired_at AS expired_at, r.tags AS tags
       ORDER BY ${sortField} ${sortOrder}
       SKIP ${offset}
       LIMIT ${limit}
@@ -155,7 +162,7 @@ export class Neo4jMemoryRepository implements IReadOnlyMemoryRepositoryWithExpir
       RETURN r.uuid AS uuid, r.group_id AS group_id, r.name AS name,
              r.fact AS fact, r.created_at AS created_at,
              r.valid_at AS valid_at, r.invalid_at AS invalid_at,
-             r.expired_at AS expired_at
+             r.expired_at AS expired_at, r.tags AS tags
       ORDER BY ${sortField} ${sortOrder}
       SKIP ${offset}
       LIMIT ${limit}
@@ -261,6 +268,107 @@ export class Neo4jMemoryRepository implements IReadOnlyMemoryRepositoryWithExpir
   }
 
   /**
+   * Find facts at or above a minimum confidence level.
+   * Loads facts with tags and filters client-side by confidence score.
+   */
+  async findByMinConfidence(
+    groupIds: readonly string[],
+    minLevel: ConfidenceLevel,
+    options?: IQueryOptions
+  ): Promise<IMemoryQueryResult> {
+    // Load a larger set since we filter client-side.
+    // Account for offset: we need enough records to cover offset + limit after filtering.
+    const opts = applyQueryDefaults(options);
+    const limit = opts.limit ?? 10;
+    const offset = opts.offset ?? 0;
+    const fetchLimit = (offset + limit) * 3;
+    const result = await this.findByGroupIds(groupIds, { ...opts, limit: fetchLimit, offset: 0 });
+
+    const minScore = CONFIDENCE_SCORES[minLevel];
+    const filtered = result.items.filter((item) => {
+      const tags = item.tags ?? [];
+      const level = parseConfidenceTag(tags);
+      if (!level) {
+        // Facts without confidence tag don't meet the threshold
+        return false;
+      }
+      return CONFIDENCE_SCORES[level] >= minScore;
+    });
+
+    const items = filtered.slice(offset, offset + limit);
+    return {
+      items,
+      source: 'neo4j',
+      hasMore: result.hasMore || filtered.length > offset + limit,
+    };
+  }
+
+  /**
+   * Find groups of potentially conflicting facts.
+   * Groups facts by shared topic tags (excluding utility tags) and identifies
+   * groups where facts have differing content.
+   */
+  async findConflicts(
+    groupIds: readonly string[],
+    topic?: string,
+    options?: IQueryOptions
+  ): Promise<readonly IConflictGroup[]> {
+    // Load facts to analyze
+    const opts = applyQueryDefaults(options);
+    const result = await this.findByGroupIds(groupIds, { ...opts, limit: 200 });
+
+    // Utility tag prefixes to exclude from topic grouping
+    const utilityPrefixes = ['lifecycle:', 'confidence:', 'source:', 'type:'];
+
+    // Group facts by their topic tags
+    const topicGroups = new Map<string, IMemoryItem[]>();
+    for (const item of result.items) {
+      const tags = item.tags ?? [];
+      const topicTags = tags.filter(
+        (t) => !utilityPrefixes.some((prefix) => t.startsWith(prefix))
+      );
+
+      // If topic filter specified, only include facts with matching tags
+      if (topic) {
+        const hasMatchingTag = topicTags.some((t) =>
+          t.toLowerCase().includes(topic.toLowerCase())
+        );
+        if (!hasMatchingTag) {
+          continue;
+        }
+      }
+
+      for (const tag of topicTags) {
+        const existing = topicGroups.get(tag) ?? [];
+        existing.push(item);
+        topicGroups.set(tag, existing);
+      }
+    }
+
+    // Find groups where facts have differing content
+    const conflicts: IConflictGroup[] = [];
+    const now = new Date().toISOString();
+
+    for (const [tag, facts] of topicGroups) {
+      if (facts.length < 2) {
+        continue;
+      }
+
+      // Check if facts in this group have different content
+      const uniqueContents = new Set(facts.map((f) => f.fact));
+      if (uniqueContents.size > 1) {
+        conflicts.push({
+          topic: tag,
+          facts,
+          detectedAt: now,
+        });
+      }
+    }
+
+    return conflicts;
+  }
+
+  /**
    * Convert Neo4j record to IMemoryItem.
    */
   private toMemoryItem(record: Neo4jFactRecord): IMemoryItem {
@@ -268,6 +376,7 @@ export class Neo4jMemoryRepository implements IReadOnlyMemoryRepositoryWithExpir
       uuid: record.uuid,
       name: record.name,
       fact: record.fact,
+      tags: record.tags,
       created_at: record.created_at,
     };
   }
