@@ -777,6 +777,45 @@ describe('SessionContextFormatter', () => {
       assert.ok(!result.includes('Repo: test-project ('));
     });
 
+    it('should include context mode when set', () => {
+      const result = formatter.formatContextContent(
+        'startup',
+        createFormattableMemories(),
+        [],
+        createTaskCounts(),
+        createSessionContext(),
+        [],
+        undefined,
+        'debugging',
+      );
+      assert.ok(result.includes('Context mode: debugging'));
+    });
+
+    it('should not include context mode when null', () => {
+      const result = formatter.formatContextContent(
+        'startup',
+        createFormattableMemories(),
+        [],
+        createTaskCounts(),
+        createSessionContext(),
+        [],
+        undefined,
+        null,
+      );
+      assert.ok(!result.includes('Context mode:'));
+    });
+
+    it('should not include context mode when undefined', () => {
+      const result = formatter.formatContextContent(
+        'startup',
+        createFormattableMemories(),
+        [],
+        createTaskCounts(),
+        createSessionContext(),
+      );
+      assert.ok(!result.includes('Context mode:'));
+    });
+
     it('should include init review when present', () => {
       const result = formatter.formatContextContent(
         'startup',

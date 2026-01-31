@@ -11,7 +11,7 @@ import type {
   ILogger,
   IMemoryDateOptions,
   IGitClient,
-  IContextStrategy,
+  TaskType,
 } from '../../domain';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
 import type { IGitHubSyncService } from '../../skills/shared/services/GitHubSyncService';
@@ -151,7 +151,8 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
     const dateOptions = this.computeDateOptions(request.trigger);
 
     // Read stored context mode (if any)
-    const contextStrategy = await this.readStoredContextStrategy(projectRoot);
+    const contextMode = await this.readStoredContextMode(projectRoot);
+    const contextStrategy = contextMode ? getDefaultStrategy(contextMode) : undefined;
 
     // Load memory using optimal strategy (DAL or MCP)
     const memories = await this.memoryLoader.loadMemory(
@@ -178,6 +179,7 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
       { projectName, userName, folderType, projectRoot, branch },
       gitCommits,
       dateOptions.since,
+      contextMode,
     );
 
     // Build message
@@ -293,19 +295,19 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
 
   /**
    * Read stored context mode from .lisa/.context-mode file.
-   * Returns the corresponding IContextStrategy, or undefined if no mode is set.
+   * Returns the raw TaskType string, or null if no mode is set.
    */
-  private async readStoredContextStrategy(projectRoot: string): Promise<IContextStrategy | undefined> {
+  private async readStoredContextMode(projectRoot: string): Promise<TaskType | null> {
     try {
       const modePath = join(projectRoot, '.lisa', '.context-mode');
       const mode = (await readFile(modePath, 'utf-8')).trim();
       if (mode && mode !== 'auto' && isValidTaskType(mode)) {
-        return getDefaultStrategy(mode);
+        return mode;
       }
     } catch {
       // File doesn't exist or can't be read — no stored mode
     }
-    return undefined;
+    return null;
   }
 
   // --- Task helper methods ---
