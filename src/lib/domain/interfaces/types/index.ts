@@ -28,3 +28,20 @@ export {
   isValidLifecycle,
   computeExpiresAt,
 } from './IMemoryLifecycle';
+export {
+  ConfidenceLevel,
+  CONFIDENCE_VALUES,
+  CONFIDENCE_SCORES,
+  SourceType,
+  SOURCE_VALUES,
+  DEFAULT_CONFIDENCE,
+  resolveConfidenceTag,
+  parseConfidenceTag,
+  isValidConfidence,
+  confidenceToScore,
+  scoreToConfidence,
+  resolveSourceTag,
+  parseSourceTag,
+  isValidSource,
+  defaultConfidenceForSource,
+} from './IMemoryQuality';
