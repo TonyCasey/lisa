@@ -1,0 +1,7 @@
+# CodeRabbit configuration
+# https://docs.coderabbit.ai/guides/configure-coderabbit
+language: en-US
+reviews:
+  # Review all PRs regardless of target branch (not just main)
+  base_branches:
+    - "**"
