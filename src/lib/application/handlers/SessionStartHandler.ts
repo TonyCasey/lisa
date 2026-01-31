@@ -17,7 +17,7 @@ import type { IRepositoryRouter } from '../../domain/interfaces/dal';
 import type { IGitHubSyncService } from '../../skills/shared/services/GitHubSyncService';
 import { emptyTaskCounts } from '../../domain';
 import { isValidTaskType, getDefaultStrategy } from '../../domain/interfaces/types/ITaskType';
-import { readFileSync } from 'fs';
+import { readFile } from 'fs/promises';
 import { join } from 'path';
 import type { ISessionStartResult } from '../interfaces';
 import type { IRequestHandler } from '../mediator';
@@ -151,7 +151,7 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
     const dateOptions = this.computeDateOptions(request.trigger);
 
     // Read stored context mode (if any)
-    const contextStrategy = this.readStoredContextStrategy(projectRoot);
+    const contextStrategy = await this.readStoredContextStrategy(projectRoot);
 
     // Load memory using optimal strategy (DAL or MCP)
     const memories = await this.memoryLoader.loadMemory(
@@ -295,10 +295,10 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
    * Read stored context mode from .lisa/.context-mode file.
    * Returns the corresponding IContextStrategy, or undefined if no mode is set.
    */
-  private readStoredContextStrategy(projectRoot: string): IContextStrategy | undefined {
+  private async readStoredContextStrategy(projectRoot: string): Promise<IContextStrategy | undefined> {
     try {
       const modePath = join(projectRoot, '.lisa', '.context-mode');
-      const mode = readFileSync(modePath, 'utf-8').trim();
+      const mode = (await readFile(modePath, 'utf-8')).trim();
       if (mode && mode !== 'auto' && isValidTaskType(mode)) {
         return getDefaultStrategy(mode);
       }

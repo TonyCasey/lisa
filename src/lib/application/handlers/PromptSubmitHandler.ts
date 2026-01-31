@@ -56,6 +56,7 @@ export class PromptSubmitHandler implements IRequestHandler<PromptSubmitRequest,
       this.memory = services.memory;
       this.recursion = services.recursion;
       this.logger = services.logger;
+      this.taskTypeDetector = (services as { taskTypeDetector?: ITaskTypeDetector }).taskTypeDetector;
     } else {
       this.context = contextOrServices as ILisaContext;
       this.memory = memory!;

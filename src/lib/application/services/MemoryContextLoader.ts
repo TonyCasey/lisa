@@ -56,6 +56,13 @@ export class MemoryContextLoader {
    * @param dateOptions - Optional date filtering
    * @param strategy - Optional context strategy to adjust limits and timeout
    */
+  /**
+   * Compute the effective timeout: strategy timeout + buffer, or default 5s.
+   */
+  private computeTimeout(strategy?: IContextStrategy): number {
+    return strategy?.timeout ? strategy.timeout + 2000 : 5000;
+  }
+
   async loadMemory(
     hierarchicalGroupIds: readonly string[],
     projectAliases: readonly string[],
@@ -63,7 +70,7 @@ export class MemoryContextLoader {
     dateOptions?: IMemoryDateOptions,
     strategy?: IContextStrategy,
   ): Promise<IMemoryLoadResult> {
-    const timeout = strategy?.timeout ? strategy.timeout + 2000 : 5000;
+    const timeout = this.computeTimeout(strategy);
     if (this.router && this.router.isBackendAvailable('neo4j')) {
       return this.loadMemoryWithDAL(hierarchicalGroupIds, projectAliases, branch, undefined, dateOptions, strategy);
     }
@@ -100,7 +107,7 @@ export class MemoryContextLoader {
       timedOut: false,
     };
 
-    const TIMEOUT_MS = strategy?.timeout ? strategy.timeout + 2000 : 5000;
+    const TIMEOUT_MS = this.computeTimeout(strategy);
     const factLimit = strategy?.factLimit ?? 100;
 
     // Combine hierarchical group IDs with project aliases for comprehensive search

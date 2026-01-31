@@ -109,17 +109,17 @@ export class RecursionService implements IRecursionService {
    * Uses mode-specific search types when taskType is provided.
    */
   async run(prompt: string, groupIds: readonly string[], taskType?: TaskType): Promise<IRecursionResult> {
+    // Determine search strategy based on task type (computed once)
+    const strategy = taskType ? getDefaultStrategy(taskType) : undefined;
+
     // Extract topics from prompt
-    const topics = this.extractTopics(prompt, taskType);
+    const topics = this.extractTopics(prompt, strategy?.searchBreadth);
     if (topics.length === 0) {
       return EMPTY_RESULT;
     }
 
     // Build search query from topics
     const query = topics.join(' ');
-
-    // Determine search strategy based on task type
-    const strategy = taskType ? getDefaultStrategy(taskType) : undefined;
     const timeout = strategy?.timeout ?? this.config.queryTimeoutMs;
     const maxResults = strategy?.maxResults ?? this.config.maxResultsPerType;
     const searchTypes = strategy?.searchTypes ?? ['decision', 'retrospective'];
@@ -194,8 +194,8 @@ export class RecursionService implements IRecursionService {
   /**
    * Extract meaningful topics from a prompt.
    */
-  private extractTopics(prompt: string, taskType?: TaskType): string[] {
-    const breadth = taskType ? getDefaultStrategy(taskType).searchBreadth : 5;
+  private extractTopics(prompt: string, searchBreadth?: number): string[] {
+    const breadth = searchBreadth ?? 5;
 
     // Normalize and split
     const words = prompt
@@ -293,15 +293,6 @@ export class RecursionService implements IRecursionService {
 
     const text = `${prefix} ${task.title}${suffix}`.trim();
     return text.length > 100 ? text.slice(0, 97) + '...' : text;
-  }
-
-  /**
-   * Get a tag value by prefix.
-   */
-  private getTag(tags: readonly string[] | undefined, prefix: string): string | null {
-    if (!tags) return null;
-    const tag = tags.find((t) => t.startsWith(prefix));
-    return tag ? tag.replace(prefix, '') : null;
   }
 
   /**
