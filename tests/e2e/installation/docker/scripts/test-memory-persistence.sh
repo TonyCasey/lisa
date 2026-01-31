@@ -4,9 +4,9 @@
 #
 # Requires:
 #   - GRAPHITI_ENDPOINT environment variable set
-#   - GRAPHITI_GROUP_ID environment variable set
 #   - Graphiti MCP server running and healthy
 #   - lisa CLI installed globally
+#   - Note: Group ID is derived from the project folder name (not env var)
 
 # Disable errexit for this script (arithmetic with 0 triggers exit)
 set +e
@@ -35,7 +35,7 @@ check() {
 
 echo "Running memory persistence tests..."
 echo "  Endpoint: ${GRAPHITI_ENDPOINT:-not set}"
-echo "  Group ID: ${GRAPHITI_GROUP_ID:-not set}"
+echo "  Project:  $(basename "$PWD") (group derived from folder)"
 echo ""
 
 # =============================================================================
@@ -140,15 +140,16 @@ fi
 echo ""
 echo "=== Test 5: Group Isolation ==="
 
-# Save original group
-ORIGINAL_GROUP="$GRAPHITI_GROUP_ID"
+# Group ID is derived from the project folder name.
+# Create a temporary directory with a unique name to get a different group.
+ISOLATED_DIR=$(mktemp -d "/tmp/isolated-test-group-$$-XXXXXX")
 
-# Create a temporary different group (without timestamp to avoid false positives)
-export GRAPHITI_GROUP_ID="isolated-test-group-$$"
+# Initialize a minimal project so lisa can run
+(cd "$ISOLATED_DIR" && npm init -y >/dev/null 2>&1 && npm install "$(ls /home/testuser/tonycasey-lisa-*.tgz 2>/dev/null | head -1)" >/dev/null 2>&1 && npx lisa init -y --mode skip >/dev/null 2>&1) || true
 
-ISOLATED_OUTPUT=$(lisa memory load --limit 10 2>&1)
+ISOLATED_OUTPUT=$(cd "$ISOLATED_DIR" && lisa memory load --limit 10 2>&1)
 
-# The isolated group should have zero facts (empty group)
+# The isolated group (different folder = different group) should have zero facts
 ISOLATED_FACTS=$(echo "$ISOLATED_OUTPUT" | grep -c '"fact"' || true)
 
 if [ "$ISOLATED_FACTS" -eq 0 ]; then
@@ -159,8 +160,8 @@ else
     ((FAIL++))
 fi
 
-# Restore original group
-export GRAPHITI_GROUP_ID="$ORIGINAL_GROUP"
+# Cleanup
+rm -rf "$ISOLATED_DIR"
 
 # =============================================================================
 # Test 6: Session hook integration (if hooks exist)
