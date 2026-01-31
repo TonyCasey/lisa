@@ -103,7 +103,6 @@ Eliminated the competing service construction paths, establishing one clear comp
 - **Hooks/handlers** (session-start, session-stop, prompt-submit) → `bootstrapContainer()` in `bootstrap.ts`
 
 **Result:** One clear composition root per concern, zero deprecated service factory functions, and the DI container index documents both paths with JSDoc.
-
 ---
 
 ## [2.11.5] - 2026-01-28
