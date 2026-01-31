@@ -1,4 +1,5 @@
 import type { IMemoryResult, IMemoryItem } from './types';
+import type { IMemorySaveOptions } from './dal/IMemoryRepository';
 
 /**
  * Options for date-filtered memory queries.
@@ -75,6 +76,35 @@ export interface IMemoryWriter {
    * @param tags - Optional tags for the fact
    */
   addFact(groupId: string, fact: string, tags?: readonly string[]): Promise<void>;
+
+  /**
+   * Add a fact with lifecycle metadata.
+   * Enriches tags with lifecycle:<tier> tag and delegates to addFact.
+   * @param groupId - Group ID to save to
+   * @param fact - Fact to add
+   * @param options - Save options including lifecycle and TTL
+   */
+  addFactWithLifecycle(
+    groupId: string,
+    fact: string,
+    options: IMemorySaveOptions
+  ): Promise<void>;
+
+  /**
+   * Expire a single fact by UUID.
+   * Routes to Neo4j repository for direct Cypher expiration.
+   * @param groupId - Group ID the fact belongs to
+   * @param uuid - UUID of the fact to expire
+   */
+  expireFact(groupId: string, uuid: string): Promise<void>;
+
+  /**
+   * Clean up expired facts based on lifecycle TTL defaults.
+   * Expires session facts older than 24h and ephemeral facts older than 1h.
+   * @param groupId - Group ID to clean up
+   * @returns Number of facts expired
+   */
+  cleanupExpired(groupId: string): Promise<number>;
 }
 
 /**

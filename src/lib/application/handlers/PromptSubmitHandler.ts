@@ -90,12 +90,12 @@ export class PromptSubmitHandler implements IRequestHandler<PromptSubmitRequest,
     // Truncate long prompts
     const truncatedContent = this.truncate(request.content, 200);
 
-    // Add to memory (fire-and-forget style - don't block on errors)
+    // Add to memory with ephemeral lifecycle (fire-and-forget style)
     try {
-      await this.memory.addFact(
+      await this.memory.addFactWithLifecycle(
         this.context.groupId,
         `User prompt at ${request.timestamp}: ${truncatedContent}`,
-        ['type:prompt']
+        { lifecycle: 'ephemeral', tags: ['type:prompt'] }
       );
     } catch {
       // Silently ignore errors - don't block user experience

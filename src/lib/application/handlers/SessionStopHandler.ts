@@ -95,8 +95,13 @@ export class SessionStopHandler implements IRequestHandler<SessionStopRequest, I
       };
     }
 
-    // Save captured facts to memory
-    await this.memory.saveMemory(this.context.groupId, captured.facts);
+    // Save captured facts to memory with session lifecycle
+    for (const fact of captured.facts) {
+      await this.memory.addFactWithLifecycle(this.context.groupId, fact, {
+        lifecycle: 'session',
+        tags: ['type:session-capture'],
+      });
+    }
 
     // Emit internal event for any listeners
     await this.events.emit({

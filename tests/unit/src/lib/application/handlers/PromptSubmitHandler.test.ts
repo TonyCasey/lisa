@@ -43,6 +43,9 @@ function createMockContext(overrides: Partial<ILisaContext> = {}): ILisaContext 
 function createMockMemoryService(overrides: Partial<IMemoryService> = {}): IMemoryService {
   return {
     addFact: async () => {},
+    addFactWithLifecycle: async () => {},
+    expireFact: async () => {},
+    cleanupExpired: async () => 0,
     search: async () => [],
     listRecent: async () => [],
     loadMemory: async () => ({
@@ -178,11 +181,11 @@ describe('PromptSubmitHandler', () => {
   });
 
   describe('memory storage', () => {
-    it('should add prompt to memory with truncated content', async () => {
-      let addedFact: { groupId: string; fact: string; tags: readonly string[] } | undefined;
+    it('should add prompt to memory with ephemeral lifecycle', async () => {
+      let addedFact: { groupId: string; fact: string; options: unknown } | undefined;
       const mockMemory = createMockMemoryService({
-        addFact: async (groupId, fact, tags) => {
-          addedFact = { groupId, fact, tags: tags || [] };
+        addFactWithLifecycle: async (groupId, fact, options) => {
+          addedFact = { groupId, fact, options };
         },
       });
 
@@ -198,13 +201,15 @@ describe('PromptSubmitHandler', () => {
       assert.strictEqual(addedFact.groupId, 'test-group');
       assert.ok(addedFact.fact.includes('User prompt at 2024-01-15T10:00:00.000Z'));
       assert.ok(addedFact.fact.includes('Test prompt content'));
-      assert.deepStrictEqual(addedFact.tags, ['type:prompt']);
+      const opts = addedFact.options as { lifecycle: string; tags: string[] };
+      assert.strictEqual(opts.lifecycle, 'ephemeral');
+      assert.deepStrictEqual(opts.tags, ['type:prompt']);
     });
 
     it('should truncate long prompts to 200 characters', async () => {
       let addedFact: string | undefined;
       const mockMemory = createMockMemoryService({
-        addFact: async (_groupId, fact) => {
+        addFactWithLifecycle: async (_groupId, fact) => {
           addedFact = fact;
         },
       });
@@ -227,7 +232,7 @@ describe('PromptSubmitHandler', () => {
     it('should not truncate short prompts', async () => {
       let addedFact: string | undefined;
       const mockMemory = createMockMemoryService({
-        addFact: async (_groupId, fact) => {
+        addFactWithLifecycle: async (_groupId, fact) => {
           addedFact = fact;
         },
       });
@@ -248,7 +253,7 @@ describe('PromptSubmitHandler', () => {
 
     it('should silently ignore memory errors', async () => {
       const mockMemory = createMockMemoryService({
-        addFact: async () => {
+        addFactWithLifecycle: async () => {
           throw new Error('Memory service unavailable');
         },
       });
