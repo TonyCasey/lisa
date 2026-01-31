@@ -26,7 +26,7 @@ interface INeo4jRecord {
 interface INeo4jModule {
   driver(uri: string, auth: unknown, options: Record<string, unknown>): INeo4jDriver;
   auth: { basic(username: string, password: string): unknown };
-  session: { READ: unknown };
+  session: { READ: unknown; WRITE: unknown };
   int(value: number): unknown;
   isInt(value: unknown): boolean;
   isDateTime(value: unknown): boolean;
@@ -110,6 +110,26 @@ export function createNeo4jClient(config: INeo4jClientConfig): INeo4jClient {
           }
           return obj as T;
         });
+      } finally {
+        await session.close();
+      }
+    },
+
+    async write(
+      cypher: string,
+      params: Record<string, unknown> = {}
+    ): Promise<void> {
+      if (!driver || !neo4j) {
+        throw new Error('Neo4j client not connected. Call connect() first.');
+      }
+
+      const session = driver.session({
+        database,
+        defaultAccessMode: neo4j.session.WRITE,
+      });
+
+      try {
+        await session.run(cypher, params);
       } finally {
         await session.close();
       }

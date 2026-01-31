@@ -13,7 +13,7 @@ export function registerKnowledgeCommands(program: Command): void {
   // Subcommand: lisa memory
   const memoryCmd = program
     .command('memory')
-    .description('Memory operations (load, add)');
+    .description('Memory operations (load, add, expire, cleanup)');
 
   memoryCmd
     .command('load')
@@ -43,6 +43,8 @@ export function registerKnowledgeCommands(program: Command): void {
     .option('-t, --tag <tag>', 'Tag for the memory')
     .option('--type <type>', 'Memory type')
     .option('--source <source>', 'Source identifier')
+    .option('--lifecycle <tier>', 'Lifecycle tier (permanent, project, session, ephemeral)')
+    .option('--ttl <duration>', 'Custom TTL duration (e.g. 30s, 5m, 2h, 7d, 1w)')
     .option('--cache', 'Use cache fallback')
     .action(async (text, opts) => {
       const args = ['add', text];
@@ -50,6 +52,36 @@ export function registerKnowledgeCommands(program: Command): void {
       if (opts.tag) args.push('--tag', opts.tag);
       if (opts.type) args.push('--type', opts.type);
       if (opts.source) args.push('--source', opts.source);
+      if (opts.lifecycle) args.push('--lifecycle', opts.lifecycle);
+      if (opts.ttl) args.push('--ttl', opts.ttl);
+      if (opts.cache) args.push('--cache');
+      const scriptPath = path.join(__dirname, '..', 'skills', 'memory', 'memory.js');
+      await spawnAndWait(scriptPath, args, getSkillCacheEnv('memory'));
+    });
+
+  memoryCmd
+    .command('expire <uuid>')
+    .description('Expire a single memory by UUID')
+    .option('-g, --group <id>', 'Group ID')
+    .option('--cache', 'Use cache fallback')
+    .action(async (uuid: string, opts) => {
+      const args = ['expire', '--uuid', uuid];
+      if (opts.group) args.push('--group', opts.group);
+      if (opts.cache) args.push('--cache');
+      const scriptPath = path.join(__dirname, '..', 'skills', 'memory', 'memory.js');
+      await spawnAndWait(scriptPath, args, getSkillCacheEnv('memory'));
+    });
+
+  memoryCmd
+    .command('cleanup')
+    .description('Clean up expired memories based on lifecycle TTL')
+    .option('-g, --group <id>', 'Group ID')
+    .option('--dry-run', 'Count without expiring')
+    .option('--cache', 'Use cache fallback')
+    .action(async (opts) => {
+      const args = ['cleanup'];
+      if (opts.group) args.push('--group', opts.group);
+      if (opts.dryRun) args.push('--dry-run');
       if (opts.cache) args.push('--cache');
       const scriptPath = path.join(__dirname, '..', 'skills', 'memory', 'memory.js');
       await spawnAndWait(scriptPath, args, getSkillCacheEnv('memory'));
