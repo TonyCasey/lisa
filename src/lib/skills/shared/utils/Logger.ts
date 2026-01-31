@@ -75,7 +75,12 @@ function readEnvFile(envPath: string): Record<string, string> {
       const idx = line.indexOf('=');
       if (idx === -1) return;
       const key = line.slice(0, idx).trim();
-      const val = line.slice(idx + 1).trim();
+      let val = line.slice(idx + 1).trim();
+      // Strip inline comments (e.g., "true # comment" → "true")
+      const commentIdx = val.indexOf(' #');
+      if (commentIdx !== -1) {
+        val = val.slice(0, commentIdx).trim();
+      }
       env[key] = val;
     });
   } catch {
