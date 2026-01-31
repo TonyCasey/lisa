@@ -9,11 +9,14 @@ import type { IMemoryItem } from '../../../../domain/interfaces/types/IMemoryRes
 import type {
   IMemoryRepository,
   IMemoryRepositoryExpiration,
+  IMemoryRepositoryQuality,
   IMemorySaveOptions,
   IQueryOptions,
   IMemoryQueryResult,
   IExpirationFilter,
+  IConflictGroup,
 } from '../../../../domain/interfaces/dal';
+import type { ConfidenceLevel } from '../../../../domain/interfaces/types/IMemoryQuality';
 import { applyQueryDefaults } from '../../../../domain/interfaces/dal';
 import { McpConnectionManager } from '../../connections/McpConnectionManager';
 
@@ -43,7 +46,7 @@ interface McpFact {
  * MCP Memory Repository implementation.
  * Full read/write support via Graphiti MCP.
  */
-export class McpMemoryRepository implements IMemoryRepository, IMemoryRepositoryExpiration {
+export class McpMemoryRepository implements IMemoryRepository, IMemoryRepositoryExpiration, IMemoryRepositoryQuality {
   constructor(private readonly connection: McpConnectionManager) {}
 
   /**
@@ -183,6 +186,34 @@ export class McpMemoryRepository implements IMemoryRepository, IMemoryRepository
   async expireByFilter(_groupId: string, _filter: IExpirationFilter): Promise<number> {
     throw new Error(
       'MCP does not support direct expiration. Use Neo4j repository instead.'
+    );
+  }
+
+  /**
+   * MCP does not support confidence-based filtering.
+   * Use Neo4j repository for quality queries.
+   */
+  async findByMinConfidence(
+    _groupIds: readonly string[],
+    _minLevel: ConfidenceLevel,
+    _options?: IQueryOptions
+  ): Promise<IMemoryQueryResult> {
+    throw new Error(
+      'MCP does not support confidence-based filtering. Use Neo4j repository instead.'
+    );
+  }
+
+  /**
+   * MCP does not support conflict detection.
+   * Use Neo4j repository for quality queries.
+   */
+  async findConflicts(
+    _groupIds: readonly string[],
+    _topic?: string,
+    _options?: IQueryOptions
+  ): Promise<readonly IConflictGroup[]> {
+    throw new Error(
+      'MCP does not support conflict detection. Use Neo4j repository instead.'
     );
   }
 
