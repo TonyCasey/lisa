@@ -6,6 +6,7 @@
 
 import { IMemoryItem } from '../types/IMemoryResult';
 import { ITask } from '../types/ITask';
+import type { MemoryLifecycle } from '../types/IMemoryLifecycle';
 
 /**
  * Fields that can be used for sorting.
@@ -105,4 +106,16 @@ export function applyQueryDefaults(options?: IQueryOptions): IQueryOptions {
     ...DEFAULT_QUERY_OPTIONS,
     ...options,
   };
+}
+
+/**
+ * Filter criteria for expiring facts.
+ */
+export interface IExpirationFilter {
+  /** Filter by lifecycle tier */
+  readonly lifecycle?: MemoryLifecycle;
+  /** Expire facts older than this date */
+  readonly olderThan?: Date;
+  /** Filter by tags (all must match) */
+  readonly tags?: readonly string[];
 }

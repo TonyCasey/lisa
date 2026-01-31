@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+
+#### Memory Lifecycle Domain Types ([#111](https://github.com/TonyCasey/lisa/issues/111))
+
+Added domain types and interfaces for memory lifecycle tiers, enabling retention control and TTL-based expiration for memory facts.
+
+- `MemoryLifecycle` type with four tiers: `permanent`, `project`, `session`, `ephemeral`
+- Utility functions: `resolveLifecycleTag()`, `parseLifecycleTag()`, `isValidLifecycle()`, `computeExpiresAt()`
+- `IExpirationFilter` interface for expiration queries
+- `IMemoryRepositoryExpiration` interface with `expire()` and `expireByFilter()` methods
+- `IReadOnlyMemoryRepositoryWithExpiration` composite interface
+- Extended `IMemorySaveOptions` with `lifecycle` and `ttlMs` fields
+
+Part of Epic [#110](https://github.com/TonyCasey/lisa/issues/110)
+
+---
+
 ## [2.12.0] - 2026-01-31
 
 ### Changed

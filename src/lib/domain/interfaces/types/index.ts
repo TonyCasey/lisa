@@ -19,3 +19,12 @@ export {
   createPullRequest,
   createGitHubIssue,
 } from './IPullRequest';
+export {
+  MemoryLifecycle,
+  LIFECYCLE_VALUES,
+  LIFECYCLE_DEFAULTS,
+  resolveLifecycleTag,
+  parseLifecycleTag,
+  isValidLifecycle,
+  computeExpiresAt,
+} from './IMemoryLifecycle';
