@@ -328,26 +328,32 @@ describe('MemoryService - quality', () => {
       assert.deepStrictEqual(options, { limit: 25 });
     });
 
-    it('should fall back to loadFactsDateOrdered without router', async () => {
+    it('should fall back to loadFactsDateOrdered without router and filter by confidence', async () => {
       const callFn = mcp.call as ReturnType<typeof mock.fn>;
       callFn.mock.mockImplementation(async () => [{
         result: {
-          facts: [createMockItem({ uuid: 'fallback-1' })],
+          facts: [
+            createMockItem({ uuid: 'fallback-high', tags: ['confidence:high'] }),
+            createMockItem({ uuid: 'fallback-low', tags: ['confidence:low'] }),
+          ],
         },
       }]);
       const service = new MemoryService(mcp, undefined, logger);
 
       const result = await service.loadFactsByConfidence(['group-1'], 'high');
 
+      // Only high-confidence item should survive the filter
       assert.strictEqual(result.length, 1);
-      assert.strictEqual(result[0].uuid, 'fallback-1');
+      assert.strictEqual(result[0].uuid, 'fallback-high');
     });
 
-    it('should fall back when repo does not have findByMinConfidence', async () => {
-      // The fallback will go through loadFactsDateOrdered which tries router first
+    it('should fall back when repo does not have findByMinConfidence and filter by confidence', async () => {
       const mockRepo = {
         findByGroupIds: mock.fn(async () => ({
-          items: [createMockItem({ uuid: 'fallback-item' })],
+          items: [
+            createMockItem({ uuid: 'fallback-verified', tags: ['confidence:verified'] }),
+            createMockItem({ uuid: 'fallback-low', tags: ['confidence:low'] }),
+          ],
           source: 'neo4j' as const,
           hasMore: false,
         })),
@@ -359,15 +365,18 @@ describe('MemoryService - quality', () => {
 
       const result = await service.loadFactsByConfidence(['group-1'], 'high');
 
-      // Should fall back to loadFactsDateOrdered
+      // Only verified item (score >= high) should pass
       assert.strictEqual(result.length, 1);
-      assert.strictEqual(result[0].uuid, 'fallback-item');
+      assert.strictEqual(result[0].uuid, 'fallback-verified');
     });
 
-    it('should fall back on findByMinConfidence error', async () => {
+    it('should fall back on findByMinConfidence error and filter by confidence', async () => {
       const mockRepo = {
         findByGroupIds: mock.fn(async () => ({
-          items: [createMockItem({ uuid: 'error-fallback' })],
+          items: [
+            createMockItem({ uuid: 'error-high', tags: ['confidence:high'] }),
+            createMockItem({ uuid: 'error-uncertain', tags: ['confidence:uncertain'] }),
+          ],
           source: 'neo4j' as const,
           hasMore: false,
         })),
@@ -382,9 +391,9 @@ describe('MemoryService - quality', () => {
 
       const result = await service.loadFactsByConfidence(['group-1'], 'high');
 
-      // Should fall back to loadFactsDateOrdered
+      // Should fall back and filter - only high-confidence item passes
       assert.strictEqual(result.length, 1);
-      assert.strictEqual(result[0].uuid, 'error-fallback');
+      assert.strictEqual(result[0].uuid, 'error-high');
     });
 
     it('should use default limit of 50', async () => {

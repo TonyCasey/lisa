@@ -276,10 +276,13 @@ export class Neo4jMemoryRepository implements IReadOnlyMemoryRepositoryWithQuali
     minLevel: ConfidenceLevel,
     options?: IQueryOptions
   ): Promise<IMemoryQueryResult> {
-    // Load a larger set since we filter client-side
+    // Load a larger set since we filter client-side.
+    // Account for offset: we need enough records to cover offset + limit after filtering.
     const opts = applyQueryDefaults(options);
-    const fetchLimit = (opts.limit ?? 10) * 3;
-    const result = await this.findByGroupIds(groupIds, { ...opts, limit: fetchLimit });
+    const limit = opts.limit ?? 10;
+    const offset = opts.offset ?? 0;
+    const fetchLimit = (offset + limit) * 3;
+    const result = await this.findByGroupIds(groupIds, { ...opts, limit: fetchLimit, offset: 0 });
 
     const minScore = CONFIDENCE_SCORES[minLevel];
     const filtered = result.items.filter((item) => {
@@ -292,11 +295,11 @@ export class Neo4jMemoryRepository implements IReadOnlyMemoryRepositoryWithQuali
       return CONFIDENCE_SCORES[level] >= minScore;
     });
 
-    const limit = opts.limit ?? 10;
+    const items = filtered.slice(offset, offset + limit);
     return {
-      items: filtered.slice(0, limit),
+      items,
       source: 'neo4j',
-      hasMore: filtered.length > limit,
+      hasMore: result.hasMore || filtered.length > offset + limit,
     };
   }
 

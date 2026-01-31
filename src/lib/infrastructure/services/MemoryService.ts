@@ -21,6 +21,8 @@ import {
   resolveConfidenceTag,
   resolveSourceTag,
   defaultConfidenceForSource,
+  parseConfidenceTag,
+  CONFIDENCE_SCORES,
 } from '../../domain/interfaces/types/IMemoryQuality';
 import type { ConfidenceLevel } from '../../domain/interfaces/types/IMemoryQuality';
 import { ContextDetector } from '../context';
@@ -445,15 +447,16 @@ export class MemoryService implements IMemoryService {
   }
 
   /**
-   * Verify a fact, upgrading its confidence to 'verified'.
-   * Expires the original fact and re-adds with verified confidence tag.
+   * Expire a fact as part of the verification flow.
+   * This infrastructure-level method handles the expiration primitive.
+   * The full verify flow (read tags, replace confidence, write back) is
+   * orchestrated by the skill-level MemoryService which has direct Neo4j access.
    */
   async verifyFact(groupId: string, uuid: string): Promise<void> {
     if (!this.router) {
       throw new Error('Verification requires a DAL router with Neo4j support');
     }
 
-    // Expire the original fact
     const repo = this.router.getMemoryRepository('list');
     if (!('expire' in repo)) {
       throw new Error('Memory repository does not support expiration');
@@ -470,22 +473,31 @@ export class MemoryService implements IMemoryService {
     minLevel: ConfidenceLevel,
     limit: number = 50
   ): Promise<IMemoryItem[]> {
+    const filterByConfidence = (items: IMemoryItem[]): IMemoryItem[] => {
+      const minScore = CONFIDENCE_SCORES[minLevel];
+      return items.filter(item => {
+        const level = parseConfidenceTag(item.tags ?? []);
+        return level ? CONFIDENCE_SCORES[level] >= minScore : false;
+      });
+    };
+
     if (!this.router) {
-      // Without router, fall back to loading all facts (no confidence filtering)
-      return this.loadFactsDateOrdered(groupIds, limit);
+      const facts = await this.loadFactsDateOrdered(groupIds, limit);
+      return filterByConfidence(facts);
     }
 
     try {
       const repo = this.router.getMemoryRepository('list');
       if (!('findByMinConfidence' in repo)) {
-        return this.loadFactsDateOrdered(groupIds, limit);
+        const facts = await this.loadFactsDateOrdered(groupIds, limit);
+        return filterByConfidence(facts);
       }
       const qualityRepo = repo as unknown as IMemoryRepositoryQuality;
       const result = await qualityRepo.findByMinConfidence(groupIds, minLevel, { limit });
       return [...result.items];
     } catch {
-      // Fallback to unfiltered
-      return this.loadFactsDateOrdered(groupIds, limit);
+      const facts = await this.loadFactsDateOrdered(groupIds, limit);
+      return filterByConfidence(facts);
     }
   }
 
