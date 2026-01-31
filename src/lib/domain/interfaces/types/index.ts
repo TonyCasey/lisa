@@ -45,3 +45,12 @@ export {
   isValidSource,
   defaultConfidenceForSource,
 } from './IMemoryQuality';
+export {
+  TaskType,
+  TASK_TYPE_VALUES,
+  IContextStrategy,
+  DEFAULT_CONTEXT_STRATEGIES,
+  DETECTION_SIGNALS,
+  isValidTaskType,
+  getDefaultStrategy,
+} from './ITaskType';

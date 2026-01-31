@@ -13,6 +13,7 @@ export { ISessionCaptureService } from './ISessionCaptureService';
 export { EventHandler, IEventEmitter } from './IEventEmitter';
 export { ILisaServices } from './ILisaServices';
 export { IRecursionResult, IRecursionConfig, IRecursionService } from './IRecursionService';
+export { ITaskTypeResult, ITaskTypeDetector } from './ITaskTypeDetector';
 export { LogLevel, ILoggerOptions, ILogger, LoggerFactory } from './ILogger';
 export {
   LogEvents,
