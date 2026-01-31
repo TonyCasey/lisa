@@ -16,7 +16,7 @@ import {
 
 describe('ITaskType', () => {
   describe('TASK_TYPE_VALUES', () => {
-    it('should contain all four task types', () => {
+    it('TASK_TYPE_VALUES_givenModule_shouldContainAllFourTaskTypes', () => {
       assert.deepStrictEqual([...TASK_TYPE_VALUES], [
         'planning',
         'execution',
@@ -27,13 +27,13 @@ describe('ITaskType', () => {
   });
 
   describe('DEFAULT_CONTEXT_STRATEGIES', () => {
-    it('should have a strategy for each task type', () => {
+    it('DEFAULT_CONTEXT_STRATEGIES_givenAllTaskTypes_shouldHaveStrategyForEach', () => {
       for (const taskType of TASK_TYPE_VALUES) {
         assert.ok(DEFAULT_CONTEXT_STRATEGIES[taskType], `Missing strategy for ${taskType}`);
       }
     });
 
-    it('planning strategy should prioritize breadth', () => {
+    it('DEFAULT_CONTEXT_STRATEGIES_givenPlanning_shouldPrioritizeBreadth', () => {
       const strategy = DEFAULT_CONTEXT_STRATEGIES.planning;
       assert.ok(strategy.searchTypes.includes('decision'));
       assert.ok(strategy.searchTypes.includes('retrospective'));
@@ -43,7 +43,7 @@ describe('ITaskType', () => {
       assert.strictEqual(strategy.searchBreadth, 5);
     });
 
-    it('execution strategy should prioritize precision', () => {
+    it('DEFAULT_CONTEXT_STRATEGIES_givenExecution_shouldPrioritizePrecision', () => {
       const strategy = DEFAULT_CONTEXT_STRATEGIES.execution;
       assert.ok(strategy.searchTypes.includes('pattern'));
       assert.ok(strategy.searchTypes.includes('task'));
@@ -53,7 +53,7 @@ describe('ITaskType', () => {
       assert.strictEqual(strategy.searchBreadth, 3);
     });
 
-    it('exploration strategy should surface related concepts', () => {
+    it('DEFAULT_CONTEXT_STRATEGIES_givenExploration_shouldSurfaceRelatedConcepts', () => {
       const strategy = DEFAULT_CONTEXT_STRATEGIES.exploration;
       assert.ok(strategy.searchTypes.includes('decision'));
       assert.ok(strategy.searchTypes.includes('pattern'));
@@ -62,7 +62,7 @@ describe('ITaskType', () => {
       assert.strictEqual(strategy.factLimit, 100);
     });
 
-    it('debugging strategy should target bugs and errors', () => {
+    it('DEFAULT_CONTEXT_STRATEGIES_givenDebugging_shouldTargetBugsAndErrors', () => {
       const strategy = DEFAULT_CONTEXT_STRATEGIES.debugging;
       assert.ok(strategy.searchTypes.includes('bug'));
       assert.ok(strategy.searchTypes.includes('error'));
@@ -72,7 +72,7 @@ describe('ITaskType', () => {
       assert.strictEqual(strategy.factLimit, 100);
     });
 
-    it('all strategies should have positive numeric values', () => {
+    it('DEFAULT_CONTEXT_STRATEGIES_givenAnyTaskType_shouldHavePositiveNumericValues', () => {
       for (const taskType of TASK_TYPE_VALUES) {
         const strategy = DEFAULT_CONTEXT_STRATEGIES[taskType];
         assert.ok(strategy.maxResults > 0, `${taskType} maxResults should be positive`);
@@ -85,14 +85,14 @@ describe('ITaskType', () => {
   });
 
   describe('DETECTION_SIGNALS', () => {
-    it('should have signals for each task type', () => {
+    it('DETECTION_SIGNALS_givenAllTaskTypes_shouldHaveSignalsForEach', () => {
       for (const taskType of TASK_TYPE_VALUES) {
         assert.ok(DETECTION_SIGNALS[taskType], `Missing signals for ${taskType}`);
         assert.ok(DETECTION_SIGNALS[taskType].length > 0, `${taskType} should have signals`);
       }
     });
 
-    it('planning signals should include design-related keywords', () => {
+    it('DETECTION_SIGNALS_givenPlanning_shouldIncludeDesignKeywords', () => {
       const signals = DETECTION_SIGNALS.planning;
       assert.ok(signals.includes('design'));
       assert.ok(signals.includes('plan'));
@@ -100,7 +100,7 @@ describe('ITaskType', () => {
       assert.ok(signals.includes('should we'));
     });
 
-    it('execution signals should include implementation keywords', () => {
+    it('DETECTION_SIGNALS_givenExecution_shouldIncludeImplementationKeywords', () => {
       const signals = DETECTION_SIGNALS.execution;
       assert.ok(signals.includes('implement'));
       assert.ok(signals.includes('add'));
@@ -108,7 +108,7 @@ describe('ITaskType', () => {
       assert.ok(signals.includes('build'));
     });
 
-    it('exploration signals should include investigative keywords', () => {
+    it('DETECTION_SIGNALS_givenExploration_shouldIncludeInvestigativeKeywords', () => {
       const signals = DETECTION_SIGNALS.exploration;
       assert.ok(signals.includes('what if'));
       assert.ok(signals.includes('could we'));
@@ -116,7 +116,7 @@ describe('ITaskType', () => {
       assert.ok(signals.includes('explore'));
     });
 
-    it('debugging signals should include error-related keywords', () => {
+    it('DETECTION_SIGNALS_givenDebugging_shouldIncludeErrorKeywords', () => {
       const signals = DETECTION_SIGNALS.debugging;
       assert.ok(signals.includes('bug'));
       assert.ok(signals.includes('error'));
@@ -127,23 +127,23 @@ describe('ITaskType', () => {
   });
 
   describe('isValidTaskType()', () => {
-    it('should return true for planning', () => {
+    it('isValidTaskType_givenPlanning_shouldReturnTrue', () => {
       assert.strictEqual(isValidTaskType('planning'), true);
     });
 
-    it('should return true for execution', () => {
+    it('isValidTaskType_givenExecution_shouldReturnTrue', () => {
       assert.strictEqual(isValidTaskType('execution'), true);
     });
 
-    it('should return true for exploration', () => {
+    it('isValidTaskType_givenExploration_shouldReturnTrue', () => {
       assert.strictEqual(isValidTaskType('exploration'), true);
     });
 
-    it('should return true for debugging', () => {
+    it('isValidTaskType_givenDebugging_shouldReturnTrue', () => {
       assert.strictEqual(isValidTaskType('debugging'), true);
     });
 
-    it('should return false for invalid values', () => {
+    it('isValidTaskType_givenInvalidValues_shouldReturnFalse', () => {
       assert.strictEqual(isValidTaskType('coding'), false);
       assert.strictEqual(isValidTaskType(''), false);
       assert.strictEqual(isValidTaskType('PLANNING'), false);
@@ -152,27 +152,27 @@ describe('ITaskType', () => {
   });
 
   describe('getDefaultStrategy()', () => {
-    it('should return planning strategy for planning', () => {
+    it('getDefaultStrategy_givenPlanning_shouldReturnPlanningStrategy', () => {
       const strategy = getDefaultStrategy('planning');
       assert.deepStrictEqual(strategy, DEFAULT_CONTEXT_STRATEGIES.planning);
     });
 
-    it('should return execution strategy for execution', () => {
+    it('getDefaultStrategy_givenExecution_shouldReturnExecutionStrategy', () => {
       const strategy = getDefaultStrategy('execution');
       assert.deepStrictEqual(strategy, DEFAULT_CONTEXT_STRATEGIES.execution);
     });
 
-    it('should return exploration strategy for exploration', () => {
+    it('getDefaultStrategy_givenExploration_shouldReturnExplorationStrategy', () => {
       const strategy = getDefaultStrategy('exploration');
       assert.deepStrictEqual(strategy, DEFAULT_CONTEXT_STRATEGIES.exploration);
     });
 
-    it('should return debugging strategy for debugging', () => {
+    it('getDefaultStrategy_givenDebugging_shouldReturnDebuggingStrategy', () => {
       const strategy = getDefaultStrategy('debugging');
       assert.deepStrictEqual(strategy, DEFAULT_CONTEXT_STRATEGIES.debugging);
     });
 
-    it('should return a frozen object (same reference as constant)', () => {
+    it('getDefaultStrategy_givenAnyTaskType_shouldReturnSameReferenceAsConstant', () => {
       for (const taskType of TASK_TYPE_VALUES) {
         const strategy = getDefaultStrategy(taskType);
         assert.strictEqual(strategy, DEFAULT_CONTEXT_STRATEGIES[taskType]);
