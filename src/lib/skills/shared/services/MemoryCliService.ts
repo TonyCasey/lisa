@@ -10,12 +10,25 @@ import type {
   IMemoryAddResult,
   IMemoryExpireResult,
   IMemoryCleanupResult,
+  IMemoryVerifyResult,
+  IMemoryCurateResult,
+  IMemoryConflictsResult,
   IMemoryLoadOptions,
 } from './interfaces';
 import { parseDate } from '../../../utils/dateParser';
+import { isValidConfidence } from '../../../domain/interfaces/types/IMemoryQuality';
+import type { ConfidenceLevel, SourceType } from '../../../domain/interfaces/types/IMemoryQuality';
+import { isValidSource } from '../../../domain/interfaces/types/IMemoryQuality';
 
 /** CLI result union for all memory commands. */
-export type MemoryCliResult = IMemoryLoadResult | IMemoryAddResult | IMemoryExpireResult | IMemoryCleanupResult;
+export type MemoryCliResult =
+  | IMemoryLoadResult
+  | IMemoryAddResult
+  | IMemoryExpireResult
+  | IMemoryCleanupResult
+  | IMemoryVerifyResult
+  | IMemoryCurateResult
+  | IMemoryConflictsResult;
 
 /**
  * Parsed memory CLI arguments.
@@ -35,6 +48,11 @@ export interface IMemoryCliArgs {
   ttl: string | null;
   dryRun: boolean;
   uuid: string | null;
+  confidence: string | null;
+  sourceType: string | null;
+  minConfidence: string | null;
+  showMetadata: boolean;
+  topic: string | null;
 }
 
 /**
@@ -102,6 +120,8 @@ export function parseTtlDuration(input: string): number | null {
   return Math.round(value * multiplier);
 }
 
+const VALID_COMMANDS = ['add', 'load', 'expire', 'cleanup', 'verify', 'curate', 'conflicts'];
+
 /**
  * Creates a memory CLI service instance.
  */
@@ -114,10 +134,11 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
         command, payload, explicitGroup, query, limit,
         explicitTag, entityType, source, since, until,
         lifecycle, ttl, dryRun, uuid,
+        confidence, sourceType, minConfidence, showMetadata, topic,
       } = args;
 
-      if (!['add', 'load', 'expire', 'cleanup'].includes(command)) {
-        throw new Error('command must be add|load|expire|cleanup');
+      if (!VALID_COMMANDS.includes(command)) {
+        throw new Error(`command must be ${VALID_COMMANDS.join('|')}`);
       }
 
       // Use explicit --group if provided, otherwise use canonical folder-based group ID
@@ -128,11 +149,9 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
       let result: MemoryCliResult;
 
       if (command === 'load') {
-        // Always use canonical group IDs for loading (hierarchical lookup)
         const groupIds = explicitGroup ? [explicitGroup] : getGroupIds();
         logger.debug('Using Neo4j direct mode for load');
 
-        // Parse date filters - throw error on invalid values
         const loadOptions: IMemoryLoadOptions = {};
         if (since) {
           const parsedSince = parseDate(since);
@@ -149,6 +168,17 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
           loadOptions.until = parsedUntil;
         }
 
+        // Quality filters
+        if (minConfidence) {
+          if (!isValidConfidence(minConfidence)) {
+            throw new Error(`Invalid --min-confidence: "${minConfidence}". Valid values: verified, high, medium, low, uncertain`);
+          }
+          loadOptions.minConfidence = minConfidence;
+        }
+        if (showMetadata) {
+          loadOptions.showMetadata = true;
+        }
+
         result = await memoryService.load(groupIds, query, limit, loadOptions);
       } else if (command === 'expire') {
         const targetUuid = uuid || payload;
@@ -156,6 +186,29 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
         result = await memoryService.expire(groupId, targetUuid);
       } else if (command === 'cleanup') {
         result = await memoryService.cleanup(groupId, dryRun);
+      } else if (command === 'verify') {
+        const targetUuid = uuid || payload;
+        if (!targetUuid) throw new Error('verify requires a UUID (--uuid <id> or positional argument)');
+        result = await memoryService.verify(groupId, targetUuid);
+      } else if (command === 'curate') {
+        const groupIds = explicitGroup ? [explicitGroup] : getGroupIds();
+
+        let parsedMinConfidence: ConfidenceLevel | undefined;
+        if (minConfidence) {
+          if (!isValidConfidence(minConfidence)) {
+            throw new Error(`Invalid --min-confidence: "${minConfidence}". Valid values: verified, high, medium, low, uncertain`);
+          }
+          parsedMinConfidence = minConfidence;
+        }
+
+        result = await memoryService.curate(groupId, groupIds, {
+          since: since ?? undefined,
+          minConfidence: parsedMinConfidence,
+          limit,
+        });
+      } else if (command === 'conflicts') {
+        const groupIds = explicitGroup ? [explicitGroup] : getGroupIds();
+        result = await memoryService.conflicts(groupIds, topic ?? undefined);
       } else {
         // add
         if (!payload) throw new Error('add requires text payload');
@@ -177,15 +230,34 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
           ttlMs = parsed;
         }
 
+        // Validate and parse quality flags
+        let parsedConfidence: ConfidenceLevel | undefined;
+        if (confidence) {
+          if (!isValidConfidence(confidence)) {
+            throw new Error(`Invalid --confidence: "${confidence}". Valid values: verified, high, medium, low, uncertain`);
+          }
+          parsedConfidence = confidence;
+        }
+
+        let parsedSourceType: SourceType | undefined;
+        if (sourceType) {
+          if (!isValidSource(sourceType)) {
+            throw new Error(`Invalid --source-type: "${sourceType}". Valid values: user-explicit, session-capture, prompt-capture, code-analysis, auto-inferred, external-sync`);
+          }
+          parsedSourceType = sourceType;
+        }
+
         result = await memoryService.add(payload, groupId, {
           tag,
           type: entityType ?? lifecycle ?? undefined,
           source,
           ttl: ttlMs,
+          confidence: parsedConfidence,
+          sourceType: parsedSourceType,
         });
       }
 
-      const factsCount = 'facts' in result ? result.facts?.length ?? 0 : 0;
+      const factsCount = 'facts' in result ? (result as { facts?: unknown[] }).facts?.length ?? 0 : 0;
       logger.info(`Command completed: ${command}`, { mode: env.STORAGE_MODE, factsCount });
 
       cache.write(result as unknown as Record<string, unknown>);

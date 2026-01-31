@@ -3,10 +3,13 @@
  * Memory management CLI - thin entry point.
  *
  * Commands:
- *   node memory.js add "text" [--group <id>] [--tag foo] [--type <type>] [--source <src>] [--lifecycle <tier>] [--ttl <dur>] [--cache]
- *   node memory.js load [--group <id>] [--query <q>] [--limit N] [--since <d>] [--until <d>] [--cache]
+ *   node memory.js add "text" [--group <id>] [--tag foo] [--type <type>] [--source <src>] [--lifecycle <tier>] [--ttl <dur>] [--confidence <lvl>] [--source-type <type>] [--cache]
+ *   node memory.js load [--group <id>] [--query <q>] [--limit N] [--since <d>] [--until <d>] [--min-confidence <lvl>] [--show-metadata] [--cache]
  *   node memory.js expire [--uuid <uuid>] [--group <id>] [--cache]   (uuid can also be positional)
  *   node memory.js cleanup [--group <id>] [--dry-run] [--cache]
+ *   node memory.js verify [--uuid <uuid>] [--group <id>] [--cache]   (uuid can also be positional)
+ *   node memory.js curate [--group <id>] [--since <d>] [--min-confidence <lvl>] [--limit N] [--cache]
+ *   node memory.js conflicts [--group <id>] [--topic <t>] [--cache]
  */
 
 export {};
@@ -41,7 +44,12 @@ async function main(): Promise<void> {
   const lifecycle = popFlag(args, '--lifecycle', null);
   const ttl = popFlag(args, '--ttl', null);
   const uuid = popFlag(args, '--uuid', null);
+  const confidence = popFlag(args, '--confidence', null);
+  const sourceType = popFlag(args, '--source-type', null);
+  const minConfidence = popFlag(args, '--min-confidence', null);
+  const topic = popFlag(args, '--topic', null);
   const dryRun = hasFlag(args, '--dry-run');
+  const showMetadata = hasFlag(args, '--show-metadata');
   const useCache = hasFlag(args, '--cache');
   const payload = args.join(' ').trim();
 
@@ -61,6 +69,7 @@ async function main(): Promise<void> {
     const result = await cliService.run({
       command, payload, explicitGroup, query, limit, explicitTag,
       entityType, source, since, until, lifecycle, ttl, dryRun, uuid,
+      confidence, sourceType, minConfidence, showMetadata, topic,
     });
     console.log(JSON.stringify(result, null, 2));
   } catch (err: unknown) {

@@ -3,6 +3,8 @@
  * Provides a clean API for memory/fact CRUD operations.
  */
 
+import type { ConfidenceLevel, SourceType } from '../../../../domain/interfaces/types/IMemoryQuality';
+
 /**
  * A memory/fact item.
  */
@@ -14,6 +16,7 @@ export interface IFact {
   created_at: string;
   valid_at?: string;
   expired_at?: string | null;
+  tags?: string[];
 }
 
 /**
@@ -51,6 +54,8 @@ export interface IMemoryAddOptions {
   type?: string;
   source?: string;
   ttl?: number;
+  confidence?: ConfidenceLevel;
+  sourceType?: SourceType;
 }
 
 /**
@@ -59,6 +64,8 @@ export interface IMemoryAddOptions {
 export interface IMemoryLoadOptions {
   since?: Date;
   until?: Date;
+  minConfidence?: ConfidenceLevel;
+  showMetadata?: boolean;
 }
 
 /**
@@ -86,17 +93,81 @@ export interface IMemoryCleanupResult {
 }
 
 /**
+ * Result of a memory verify operation.
+ */
+export interface IMemoryVerifyResult {
+  status: 'ok';
+  action: 'verify';
+  group: string;
+  uuid: string;
+  previousConfidence: ConfidenceLevel | null;
+  newConfidence: 'verified';
+  mode: 'neo4j';
+}
+
+/**
+ * Options for curation listing.
+ */
+export interface ICurateOptions {
+  since?: string;
+  minConfidence?: ConfidenceLevel;
+  limit?: number;
+}
+
+/**
+ * A fact enriched with parsed quality metadata for curation.
+ */
+export interface ICurateFact {
+  uuid: string;
+  fact: string;
+  confidence: ConfidenceLevel | null;
+  source: SourceType | null;
+  lifecycle: string | null;
+  created_at: string;
+  age: string;
+  tags: string[];
+}
+
+/**
+ * Result of a memory curate operation.
+ */
+export interface IMemoryCurateResult {
+  status: 'ok';
+  action: 'curate';
+  group: string;
+  facts: ICurateFact[];
+  totalReviewed: number;
+  mode: 'neo4j';
+}
+
+/**
+ * A group of potentially conflicting facts.
+ */
+export interface IConflictGroupResult {
+  topic: string;
+  facts: IFact[];
+  detectedAt: string;
+}
+
+/**
+ * Result of a memory conflicts operation.
+ */
+export interface IMemoryConflictsResult {
+  status: 'ok';
+  action: 'conflicts';
+  group: string;
+  conflicts: IConflictGroupResult[];
+  totalGroups: number;
+  mode: 'neo4j';
+}
+
+/**
  * Memory service interface.
  */
 export interface IMemoryService {
   /**
    * Load memories/facts from storage.
    * Always uses Neo4j direct for better date ordering.
-   *
-   * @param groupIds - Group identifiers to search
-   * @param query - Optional search query (empty string or '*' for all)
-   * @param limit - Maximum number of facts to return
-   * @param options - Optional date filtering options
    */
   load(
     groupIds: string[],
@@ -108,10 +179,6 @@ export interface IMemoryService {
   /**
    * Add a new memory/fact.
    * Uses MCP or Zep depending on configuration.
-   *
-   * @param text - Memory text content
-   * @param groupId - Group identifier for storage
-   * @param options - Additional options (tag, type, source)
    */
   add(
     text: string,
@@ -122,9 +189,6 @@ export interface IMemoryService {
   /**
    * Expire a single fact by UUID.
    * Uses Neo4j direct to set expired_at.
-   *
-   * @param groupId - Group identifier
-   * @param uuid - UUID of the fact to expire
    */
   expire(
     groupId: string,
@@ -134,12 +198,36 @@ export interface IMemoryService {
   /**
    * Clean up expired facts based on lifecycle TTL defaults.
    * Expires session facts >24h and ephemeral facts >1h.
-   *
-   * @param groupId - Group identifier
-   * @param dryRun - If true, count without expiring
    */
   cleanup(
     groupId: string,
     dryRun: boolean
   ): Promise<IMemoryCleanupResult>;
+
+  /**
+   * Verify a fact, upgrading its confidence to 'verified'.
+   * Expires original and re-creates with verified confidence.
+   */
+  verify(
+    groupId: string,
+    uuid: string
+  ): Promise<IMemoryVerifyResult>;
+
+  /**
+   * List facts for curation review with full quality metadata.
+   * Sorted by confidence ascending (lowest first for review).
+   */
+  curate(
+    groupId: string,
+    groupIds: string[],
+    options: ICurateOptions
+  ): Promise<IMemoryCurateResult>;
+
+  /**
+   * Detect and group potentially conflicting facts.
+   */
+  conflicts(
+    groupIds: string[],
+    topic?: string
+  ): Promise<IMemoryConflictsResult>;
 }
