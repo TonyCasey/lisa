@@ -52,7 +52,6 @@ Introduced domain interfaces for shell operations so application-layer handlers 
 - `SessionStartHandler` — passes `IGitClient` to `GitIntrospectionService`
 
 Unit tests now use mock clients, verifying behavior without invoking real git/claude.
-
 ---
 
 ## [2.11.5] - 2026-01-28
