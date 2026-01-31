@@ -264,7 +264,6 @@ describe('CLI init command integration', () => {
         await initCommand({
           cwd: tempDir,
           endpoint: DEFAULT_ENDPOINT,
-          group: 'first-group',
           force: false,
           mode: 'skip',
           cliSupport: ['claude-code'],
@@ -272,22 +271,24 @@ describe('CLI init command integration', () => {
 
         const envPath = path.join(tempDir, '.lisa', '.env');
         const envContents = await fs.readFile(envPath, 'utf8');
-        assert.ok(envContents.includes('GRAPHITI_GROUP_ID=first-group'), 'First group should be written to .env');
+        assert.ok(envContents.includes(`GRAPHITI_ENDPOINT=${DEFAULT_ENDPOINT}`), 'Endpoint should be written to .env');
       });
 
       test('second init does not overwrite existing .env', { timeout: 30_000 }, async () => {
+        // Add a unique marker to the .env created by the first init
+        const envPath = path.join(tempDir, '.lisa', '.env');
+        await fs.appendFile(envPath, '\nTEST_MARKER=preserve-me\n');
+
         await initCommand({
           cwd: tempDir,
           endpoint: DEFAULT_ENDPOINT,
-          group: 'second-group',
           force: true,
           mode: 'skip',
           cliSupport: ['claude-code'],
         }, services);
 
-        const envPath = path.join(tempDir, '.lisa', '.env');
         const envContents = await fs.readFile(envPath, 'utf8');
-        assert.ok(envContents.includes('GRAPHITI_GROUP_ID=first-group'), 'Existing .env should be preserved');
+        assert.ok(envContents.includes('TEST_MARKER=preserve-me'), 'Existing .env should be preserved');
       });
     });
 
