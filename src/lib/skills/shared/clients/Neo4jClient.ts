@@ -42,6 +42,53 @@ export function createNeo4jClient(config: INeo4jClientConfig): INeo4jClient {
   let neo4j: INeo4jModule | null = null;
   const database = config.database ?? 'neo4j';
 
+  /**
+   * Convert integer parameters to Neo4j Integer type.
+   * JavaScript numbers are passed as floats, but LIMIT and other
+   * integer-requiring clauses need Neo4j Integer values.
+   */
+  function convertParams(params: Record<string, unknown>): Record<string, unknown> {
+    if (!neo4j) return params;
+    const converted: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(params)) {
+      if (typeof value === 'number' && Number.isInteger(value)) {
+        converted[key] = neo4j.int(value);
+      } else {
+        converted[key] = value;
+      }
+    }
+    return converted;
+  }
+
+  /**
+   * Map Neo4j records to plain objects, converting Neo4j types.
+   */
+  function mapRecords<T>(records: INeo4jRecord[]): T[] {
+    return records.map((record: INeo4jRecord) => {
+      const obj: Record<string, unknown> = {};
+      for (const key of record.keys) {
+        let value = record.get(key);
+
+        // Convert Neo4j Integer to number
+        if (neo4j!.isInt(value)) {
+          value = (value as { toNumber(): number }).toNumber();
+        }
+
+        // Convert Neo4j DateTime/Date to string
+        if (
+          value &&
+          typeof (value as { toString?: () => string }).toString === 'function' &&
+          (neo4j!.isDateTime(value) || neo4j!.isDate(value))
+        ) {
+          value = (value as { toString(): string }).toString();
+        }
+
+        obj[key] = value;
+      }
+      return obj as T;
+    });
+  }
+
   return {
     async connect(): Promise<void> {
       if (driver) return; // Already connected
@@ -75,41 +122,8 @@ export function createNeo4jClient(config: INeo4jClientConfig): INeo4jClient {
       });
 
       try {
-        // Convert integer parameters to Neo4j Integer type
-        // JavaScript numbers are passed as floats, but LIMIT requires integers
-        const convertedParams: Record<string, unknown> = {};
-        for (const [key, value] of Object.entries(params)) {
-          if (typeof value === 'number' && Number.isInteger(value)) {
-            convertedParams[key] = neo4j.int(value);
-          } else {
-            convertedParams[key] = value;
-          }
-        }
-
-        const result = await session.run(cypher, convertedParams);
-        return result.records.map((record: INeo4jRecord) => {
-          const obj: Record<string, unknown> = {};
-          for (const key of record.keys) {
-            let value = record.get(key);
-
-            // Convert Neo4j Integer to number
-            if (neo4j!.isInt(value)) {
-              value = (value as { toNumber(): number }).toNumber();
-            }
-
-            // Convert Neo4j DateTime/Date to string
-            if (
-              value &&
-              typeof (value as { toString?: () => string }).toString === 'function' &&
-              (neo4j!.isDateTime(value) || neo4j!.isDate(value))
-            ) {
-              value = (value as { toString(): string }).toString();
-            }
-
-            obj[key] = value;
-          }
-          return obj as T;
-        });
+        const result = await session.run(cypher, convertParams(params));
+        return mapRecords<T>(result.records);
       } finally {
         await session.close();
       }
@@ -129,7 +143,28 @@ export function createNeo4jClient(config: INeo4jClientConfig): INeo4jClient {
       });
 
       try {
-        await session.run(cypher, params);
+        await session.run(cypher, convertParams(params));
+      } finally {
+        await session.close();
+      }
+    },
+
+    async writeQuery<T>(
+      cypher: string,
+      params: Record<string, unknown> = {}
+    ): Promise<T[]> {
+      if (!driver || !neo4j) {
+        throw new Error('Neo4j client not connected. Call connect() first.');
+      }
+
+      const session = driver.session({
+        database,
+        defaultAccessMode: neo4j.session.WRITE,
+      });
+
+      try {
+        const result = await session.run(cypher, convertParams(params));
+        return mapRecords<T>(result.records);
       } finally {
         await session.close();
       }

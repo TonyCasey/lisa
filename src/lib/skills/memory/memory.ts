@@ -5,7 +5,7 @@
  * Commands:
  *   node memory.js add "text" [--group <id>] [--tag foo] [--type <type>] [--source <src>] [--lifecycle <tier>] [--ttl <dur>] [--cache]
  *   node memory.js load [--group <id>] [--query <q>] [--limit N] [--since <d>] [--until <d>] [--cache]
- *   node memory.js expire <uuid> [--group <id>] [--cache]
+ *   node memory.js expire [--uuid <uuid>] [--group <id>] [--cache]   (uuid can also be positional)
  *   node memory.js cleanup [--group <id>] [--dry-run] [--cache]
  */
 

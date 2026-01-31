@@ -132,6 +132,7 @@ describe('MemoryCliService', () => {
         action: 'expire',
         group: groupId,
         uuid,
+        found: true,
         mode: 'neo4j',
       };
     },
@@ -283,11 +284,24 @@ describe('MemoryCliService', () => {
         tag: 'lifecycle:session',
         type: 'session',
         source: 'test',
+        ttl: undefined,
       });
     });
   });
 
-  describe('add with invalid --ttl', () => {
+  describe('add with --ttl flag', () => {
+    it('should pass parsed TTL to memoryService.add', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'add',
+        payload: 'test memory',
+        ttl: '2h',
+      });
+
+      assert.strictEqual(addCalls.length, 1);
+      assert.strictEqual((addCalls[0].options as Record<string, unknown>).ttl, 7_200_000);
+    });
+
     it('should throw for invalid TTL duration', async () => {
       await assert.rejects(
         () => cliService.run({

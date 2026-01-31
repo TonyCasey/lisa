@@ -50,6 +50,7 @@ export interface IMemoryAddOptions {
   tag?: string | null;
   type?: string;
   source?: string;
+  ttl?: number;
 }
 
 /**
@@ -68,6 +69,7 @@ export interface IMemoryExpireResult {
   action: 'expire';
   group: string;
   uuid: string;
+  found: boolean;
   mode: 'neo4j';
 }
 

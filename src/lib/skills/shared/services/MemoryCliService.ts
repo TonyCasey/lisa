@@ -160,28 +160,28 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
         // add
         if (!payload) throw new Error('add requires text payload');
 
-        // If --lifecycle is provided, resolve the lifecycle tag and include it
-        let tag = resolveTag(payload, explicitTag, entityType);
-        if (lifecycle) {
-          // Lifecycle type mapping is handled by resolveTag via --type flag
-          // But if user passed --lifecycle explicitly, set the type to lifecycle tier
-          if (!entityType) {
-            tag = resolveTag(payload, explicitTag, lifecycle);
-          }
-        }
+        // Resolve tag: explicit --tag > --type > --lifecycle > text prefix
+        const tag = resolveTag(
+          payload,
+          explicitTag,
+          entityType ?? (lifecycle && !explicitTag ? lifecycle : null)
+        );
 
-        // Validate --ttl if provided
+        // Parse and validate --ttl if provided
+        let ttlMs: number | undefined;
         if (ttl) {
-          const ttlMs = parseTtlDuration(ttl);
-          if (ttlMs === null) {
+          const parsed = parseTtlDuration(ttl);
+          if (parsed === null) {
             throw new Error(`Invalid --ttl duration: "${ttl}". Use formats like: 30s, 5m, 2h, 7d, 1w`);
           }
+          ttlMs = parsed;
         }
 
         result = await memoryService.add(payload, groupId, {
           tag,
           type: entityType ?? lifecycle ?? undefined,
           source,
+          ttl: ttlMs,
         });
       }
 

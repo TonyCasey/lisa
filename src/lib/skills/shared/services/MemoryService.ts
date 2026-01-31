@@ -205,12 +205,17 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
 
       // Use MCP
       await mcpClient.initialize();
+      // Tags already containing ':' are namespaced (e.g. lifecycle:session, code:decision)
+      // and should be stored as-is. Simple tags (DECISION, PATTERN) get 'type:' prefix.
+      const mcpTag = tag
+        ? (tag.includes(':') ? tag.toLowerCase() : `type:${tag.toLowerCase()}`)
+        : undefined;
       const params = {
         name: tag ? `${tag}: ${text.slice(0, 60)}` : text.slice(0, 80),
         episode_body: text,
         source: options.source || 'text',
         group_id: groupId,
-        tags: tag ? [`type:${tag.toLowerCase()}`] : undefined,
+        tags: mcpTag ? [mcpTag] : undefined,
       };
       const result = await mcpClient.rpcCall<unknown>('add_memory', params);
 
@@ -231,18 +236,24 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
     ): Promise<IMemoryExpireResult> {
       await neo4jClient.connect();
       try {
+        // Atomic SET + RETURN to know if a record was actually expired
         const cypher = `
           MATCH (s:Entity)-[r]->(t:Entity)
           WHERE r.group_id = $groupId AND r.uuid = $uuid AND r.expired_at IS NULL
           SET r.expired_at = datetime()
+          RETURN count(r) AS affected
         `;
-        await neo4jClient.write(cypher, { groupId, uuid });
+        const result = await neo4jClient.writeQuery<{ affected: number }>(
+          cypher, { groupId, uuid }
+        );
+        const affected = result[0]?.affected ?? 0;
 
         return {
           status: 'ok',
           action: 'expire',
           group: groupId,
           uuid,
+          found: affected > 0,
           mode: 'neo4j',
         };
       } finally {
@@ -269,7 +280,7 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
           const lifecycleTag = resolveLifecycleTag(tier);
 
           if (dryRun) {
-            // Count only
+            // Count only (READ session)
             const countCypher = `
               MATCH (s:Entity)-[r]->(t:Entity)
               WHERE r.group_id = $groupId
@@ -284,33 +295,21 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
             );
             totalExpired += countResult[0]?.count ?? 0;
           } else {
-            // Count then expire
-            const countCypher = `
+            // Atomic SET + RETURN count (WRITE session, no TOCTOU race)
+            const expireCypher = `
               MATCH (s:Entity)-[r]->(t:Entity)
               WHERE r.group_id = $groupId
                 AND r.expired_at IS NULL
                 AND $lifecycleTag IN r.tags
                 AND r.created_at <= datetime($cutoff)
-              RETURN count(r) AS count
+              SET r.expired_at = datetime()
+              RETURN count(r) AS expired
             `;
-            const countResult = await neo4jClient.query<{ count: number }>(
-              countCypher,
+            const writeResult = await neo4jClient.writeQuery<{ expired: number }>(
+              expireCypher,
               { groupId, lifecycleTag, cutoff: cutoff.toISOString() }
             );
-            const count = countResult[0]?.count ?? 0;
-
-            if (count > 0) {
-              const expireCypher = `
-                MATCH (s:Entity)-[r]->(t:Entity)
-                WHERE r.group_id = $groupId
-                  AND r.expired_at IS NULL
-                  AND $lifecycleTag IN r.tags
-                  AND r.created_at <= datetime($cutoff)
-                SET r.expired_at = datetime()
-              `;
-              await neo4jClient.write(expireCypher, { groupId, lifecycleTag, cutoff: cutoff.toISOString() });
-              totalExpired += count;
-            }
+            totalExpired += writeResult[0]?.expired ?? 0;
           }
         }
 
