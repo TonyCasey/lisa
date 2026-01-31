@@ -25,6 +25,15 @@ Refactored the monolithic `src/lib/cli.ts` (1,951 lines) into focused command mo
 
 **Pattern:** Each module exports a `register*Commands(parent: Command)` function that handles both Commander wiring and action logic, keeping related code together.
 
+#### Split SessionStartHandler ([#82](https://github.com/TonyCasey/lisa/issues/82))
+
+Decomposed the monolithic `SessionStartHandler` (818 lines) into focused services. The handler is now a clean orchestrator (~294 lines) that delegates to:
+
+- `SessionContextFormatter` — all formatting, trigger messages, memory grouping, date display
+- `GitIntrospectionService` — git log loading, GitHub repo detection
+- `MemoryContextLoader` — DAL/MCP memory loading strategy with AbortController-based cancellation
+
+Each service is independently unit-testable with no cross-dependencies.
 ---
 
 ## [2.11.5] - 2026-01-28
