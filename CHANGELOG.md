@@ -24,6 +24,15 @@ Added domain types and interfaces for memory lifecycle tiers, enabling retention
 
 Part of Epic [#110](https://github.com/TonyCasey/lisa/issues/110)
 
+#### Repository Expiration Support ([#112](https://github.com/TonyCasey/lisa/issues/112))
+
+Implemented expiration methods in Neo4j and MCP repository layers.
+
+- Neo4j `expire()`: Sets `expired_at` via Cypher WRITE session
+- Neo4j `expireByFilter()`: Count-then-write approach (READ for count, WRITE for expiration) with lifecycle, date, and tag filters
+- MCP stubs: Throw descriptive errors since MCP does not support direct expiration
+- 13 unit tests covering Neo4j expiration and MCP stubs
+
 ---
 
 ## [2.12.0] - 2026-01-31
