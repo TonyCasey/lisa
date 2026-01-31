@@ -12,7 +12,7 @@ import {
   DEFAULT_ENDPOINT,
   DEFAULT_GROUP,
 } from '../../../src/lib/cli';
-import { IServices } from '../../../src/lib/services';
+import type { ICliServices } from '../../../src/lib/commands/cli-services';
 
 class MockTemplateCopier {
   calls: Array<{ rel: string; dest: string; force?: boolean; replacements: Record<string, string> }> = [];
@@ -46,7 +46,7 @@ class MockMcpClient {
   }
 }
 
-function makeServices(): IServices & {
+function makeServices(): ICliServices & {
   templateCopier: MockTemplateCopier;
   docker: MockDockerClient;
   mcp: MockMcpClient;

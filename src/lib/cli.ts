@@ -3,7 +3,7 @@ import {Command} from 'commander';
 import path from 'path';
 import fs from 'fs-extra';
 import chalk from 'chalk';
-import {createDefaultServices} from './services';
+import {createCliServices} from './commands/cli-services';
 import {IScanOptions, runScan} from './scanner';
 import {createLogger, withCorrelation} from './infrastructure';
 import {
@@ -77,7 +77,7 @@ program
         verbose,
       });
 
-      const services = createDefaultServices(TEMPLATE_ROOT);
+      const services = createCliServices(TEMPLATE_ROOT);
 
       // Determine CLI support from flags
       let cliSupport: CliSupport[] | undefined;
@@ -131,7 +131,7 @@ program
   .option('-v, --verbose', 'Show detailed logging (default: true)', true)
   .option('-q, --quiet', 'Suppress detailed logging')
   .action(async (cmd) => {
-    const services = createDefaultServices(TEMPLATE_ROOT);
+    const services = createCliServices(TEMPLATE_ROOT);
     const verbose = cmd.verbose && !cmd.quiet;
 
     // Determine CLI support from flags
@@ -169,7 +169,7 @@ program
   .option('-c, --compose <file>', 'Compose file', 'docker-compose.graphiti.yml')
   .action(async (cmd) => {
     const composeFile = path.resolve(process.cwd(), cmd.compose);
-    const services = createDefaultServices(TEMPLATE_ROOT);
+    const services = createCliServices(TEMPLATE_ROOT);
     await upCommand({ composeFile }, services);
   });
 
@@ -179,7 +179,7 @@ program
   .option('-c, --compose <file>', 'Compose file', 'docker-compose.graphiti.yml')
   .action(async (cmd) => {
     const composeFile = path.resolve(process.cwd(), cmd.compose);
-    const services = createDefaultServices(TEMPLATE_ROOT);
+    const services = createCliServices(TEMPLATE_ROOT);
     await downCommand({ composeFile }, services);
   });
 
@@ -191,7 +191,7 @@ program
   .option('-v, --verbose', 'Show detailed diagnostics')
   .option('--json', 'Output results as JSON')
   .action(async (cmd) => {
-    const services = createDefaultServices(TEMPLATE_ROOT);
+    const services = createCliServices(TEMPLATE_ROOT);
     await doctorCommand({
       cwd: process.cwd(),
       compose: cmd.compose,
@@ -321,10 +321,10 @@ export {
   doctorCommand,
   upCommand,
   downCommand,
-  createDefaultServices,
   cleanupPreviousInstall,
   DEFAULT_ENDPOINT,
   DEFAULT_GROUP,
   TEMPLATE_ROOT,
   runScan,
 };
+export { createCliServices } from './commands/cli-services';

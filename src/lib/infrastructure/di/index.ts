@@ -1,5 +1,12 @@
 /**
  * Dependency injection infrastructure.
+ *
+ * Composition root: bootstrapContainer() in bootstrap.ts
+ * This is the single entry point for creating application-level services
+ * (memory, tasks, context, handlers, mediator, etc.) used by hooks and handlers.
+ *
+ * For CLI-specific services (template copier, Docker, MCP ping),
+ * see createCliServices() in src/lib/commands/cli-services.ts.
  */
 
 // Container
@@ -10,14 +17,9 @@ export { Container, createContainer } from './Container';
 export { TOKENS, INFRA_TOKENS, APP_TOKENS, CONFIG_TOKENS } from './tokens';
 export type { TokenType, Token } from './tokens';
 
-// Bootstrap
-export { bootstrapContainer, bootstrapServices } from './bootstrap';
+// Bootstrap (composition root)
+export { bootstrapContainer } from './bootstrap';
 export type { IBootstrapResult } from './bootstrap';
 
-// Legacy ServiceFactory (deprecated - use bootstrapContainer instead)
-export {
-  IServiceConfig,
-  IServicesWithCleanup,
-  createServices,
-  createServicesWithCleanup,
-} from './ServiceFactory';
+// Service configuration
+export { IServiceConfig } from './ServiceFactory';

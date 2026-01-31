@@ -4,7 +4,7 @@
  * Provides commands for managing Docker Compose services (Neo4j, Graphiti MCP).
  */
 
-import type { IServices } from '../interfaces/IServices';
+import type { ICliServices } from './cli-services';
 
 // ============================================================================
 // Command Options
@@ -22,7 +22,7 @@ export interface IDockerOptions {
  * Start Docker Compose services.
  * Runs `docker compose up -d` with the specified compose file.
  */
-export async function upCommand(opts: IDockerOptions, services: IServices): Promise<void> {
+export async function upCommand(opts: IDockerOptions, services: ICliServices): Promise<void> {
   await services.docker.compose(opts.composeFile, ['up', '-d']);
 }
 
@@ -30,6 +30,6 @@ export async function upCommand(opts: IDockerOptions, services: IServices): Prom
  * Stop Docker Compose services.
  * Runs `docker compose down` with the specified compose file.
  */
-export async function downCommand(opts: IDockerOptions, services: IServices): Promise<void> {
+export async function downCommand(opts: IDockerOptions, services: ICliServices): Promise<void> {
   await services.docker.compose(opts.composeFile, ['down']);
 }

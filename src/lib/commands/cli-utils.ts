@@ -82,6 +82,9 @@ export function spawnAndWait(
 
 export async function runPrWatchLoop(options: IPrWatchLoopOptions): Promise<void> {
   const { handler, pollOptions, intervalMinutes, json, printResult, stopOnResolved } = options;
+  if (intervalMinutes < 1) {
+    throw new Error('intervalMinutes must be >= 1');
+  }
   let interrupted = false;
   let lastResultMessage: string | undefined;
   let dots = '';
