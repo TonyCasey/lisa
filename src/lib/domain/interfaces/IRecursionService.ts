@@ -1,3 +1,5 @@
+import type { TaskType } from './types/ITaskType';
+
 /**
  * Result of memory recursion for plan mode prompts.
  */
@@ -27,28 +29,31 @@ export interface IRecursionConfig {
 }
 
 /**
- * Service for searching memory when planning.
- * 
- * When a user submits a prompt in plan mode, this service searches
- * memory for relevant context: previous decisions, learnings, and tasks.
+ * Service for searching memory based on task context.
+ *
+ * When a user submits a prompt, this service searches memory for
+ * relevant context: previous decisions, learnings, and tasks.
+ * The search strategy adapts based on the detected task type.
  */
 export interface IRecursionService {
   /**
-   * Run memory recursion for a plan mode prompt.
+   * Run memory recursion for a prompt.
    * Searches for relevant decisions, learnings, and tasks.
-   * 
+   *
    * @param prompt - The user's prompt text
    * @param groupIds - Hierarchical group IDs to search
+   * @param taskType - Optional task type to adjust search strategy
    * @returns Recursion result with found context
    */
-  run(prompt: string, groupIds: readonly string[]): Promise<IRecursionResult>;
+  run(prompt: string, groupIds: readonly string[], taskType?: TaskType): Promise<IRecursionResult>;
 
   /**
    * Check if recursion should run for a given prompt.
-   * 
+   *
    * @param prompt - The user's prompt text
    * @param permissionMode - The current permission mode
+   * @param taskType - Optional task type (debugging/exploration always trigger)
    * @returns True if recursion should run
    */
-  shouldRun(prompt: string, permissionMode: string): boolean;
+  shouldRun(prompt: string, permissionMode: string, taskType?: TaskType): boolean;
 }
