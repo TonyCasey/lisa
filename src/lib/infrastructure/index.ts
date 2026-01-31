@@ -39,5 +39,11 @@ export * from './notifications';
 // Cron service for scheduled tasks
 export * from './cron';
 
+// Git CLI wrapper
+export * from './git';
+
+// Claude CLI wrapper
+export * from './claude';
+
 // Note: CLI adapters (./adapters/claude/, ./adapters/opencode/)
 // are entry points, not exported from here.
