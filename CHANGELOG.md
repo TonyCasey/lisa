@@ -66,6 +66,21 @@ Eliminated all `execSync` string-command calls across infrastructure code, repla
 - `StorageService` — replaced `execSync('docker info')` with `execFileSync('docker', ['info'])`
 
 **Result:** Zero `execSync` calls remain in `src/lib/`. All process invocations use argument arrays with no shell interpolation.
+
+#### Centralize process.exit usage at CLI boundary ([#85](https://github.com/TonyCasey/lisa/issues/85))
+
+Removed all `process.exit()` calls from non-entrypoint command modules, centralizing exit handling at the CLI boundary.
+
+**New: `CliExitError`** (`src/lib/commands/cli-utils.ts`) — an error class carrying an exit code. Command modules throw `CliExitError` instead of calling `process.exit()` directly. The top-level CLI handler in `cli.ts` catches it and exits.
+
+**Files updated:**
+- `cli-utils.ts` — added `CliExitError` class
+- `cli.ts` — updated top-level catch to handle `CliExitError`; converted 3 inline `process.exit()` calls to throws
+- `pr.ts` — replaced 30 `process.exit(1)` calls with `CliExitError` throws
+- `issue.ts` — replaced 1 `process.exit(1)` call with `CliExitError` throw
+- `commands/index.ts` — exported `CliExitError`
+
+**Result:** Only the CLI entry point (`cli.ts`) and legitimate standalone scripts (skills, hooks) call `process.exit()`. All command modules are now testable without terminating the process.
 ---
 
 ## [2.11.5] - 2026-01-28

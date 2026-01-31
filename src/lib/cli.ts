@@ -7,6 +7,7 @@ import {createDefaultServices} from './services';
 import {IScanOptions, runScan} from './scanner';
 import {createLogger, withCorrelation} from './infrastructure';
 import {
+  CliExitError,
   doctorCommand,
   initCommand,
   cleanupPreviousInstall,
@@ -231,11 +232,13 @@ program
           projectsFound: result.projectsFound,
           factsGenerated: result.factsGenerated,
         });
-        process.exit(result.success ? 0 : 1);
+        if (!result.success) {
+          throw new CliExitError(1, 'Scan completed with errors');
+        }
       } catch (err) {
+        if (err instanceof CliExitError) throw err;
         log.error('Scan failed', { error: err instanceof Error ? err.message : String(err) });
-        console.error(chalk.red(`Scan failed: ${err instanceof Error ? err.message : err}`));
-        process.exit(1);
+        throw new CliExitError(1, `Scan failed: ${err instanceof Error ? err.message : err}`);
       }
     });
   });
@@ -278,8 +281,7 @@ program
 
       console.log(chalk.green('Sync complete.'));
     } catch (err) {
-      console.error(chalk.red(`Sync failed: ${err instanceof Error ? err.message : err}`));
-      process.exit(1);
+      throw new CliExitError(1, `Sync failed: ${err instanceof Error ? err.message : err}`);
     }
   });
 
@@ -304,6 +306,11 @@ registerHookCommands(hookCmd);
 
 if (require.main === module) {
   program.parseAsync(process.argv).catch((err) => {
+    if (err instanceof CliExitError) {
+      if (err.message) console.error(chalk.red(err.message));
+      process.exit(err.exitCode);
+      return;
+    }
     console.error(chalk.red(err.message));
     process.exit(1);
   });

@@ -2,6 +2,7 @@
  * CLI Utility Functions
  *
  * Shared utilities used by CLI command modules:
+ * - CliExitError: error class for centralized process.exit at CLI boundary
  * - getSkillCacheEnv: environment setup for skill scripts
  * - spawnAndWait: spawn child process and wait for completion
  * - runPrWatchLoop: foreground polling loop for PR watch
@@ -11,6 +12,26 @@ import {spawn} from 'child_process';
 import path from 'path';
 import chalk from 'chalk';
 import type {IPrPollOptions, IPrPollResult} from '../application/handlers';
+
+/**
+ * Error class for signaling a CLI exit with a specific code.
+ *
+ * Throw this from command modules instead of calling process.exit() directly.
+ * The top-level CLI runner catches it, prints any message, and exits.
+ *
+ * Usage:
+ * - `throw new CliExitError(1, 'Something failed')` — prints message, exits 1
+ * - `throw new CliExitError(1)` — exits 1 with no additional output
+ */
+export class CliExitError extends Error {
+  readonly exitCode: number;
+
+  constructor(exitCode: number, message = '') {
+    super(message);
+    this.name = 'CliExitError';
+    this.exitCode = exitCode;
+  }
+}
 
 export interface IPrWatchLoopOptions {
   handler: { poll: (options: IPrPollOptions) => Promise<IPrPollResult> };
