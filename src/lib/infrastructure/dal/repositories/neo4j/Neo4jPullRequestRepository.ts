@@ -10,7 +10,7 @@
  * @see .dev/features/github-pr.md for full specification
  */
 
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import neo4j from 'neo4j-driver';
 import type {
   IPullRequest,
@@ -69,7 +69,10 @@ export class Neo4jPullRequestRepository implements IPullRequestRepository {
     }
 
     try {
-      const name = execSync('git config user.name', { encoding: 'utf-8' }).trim();
+      const name = execFileSync('git', ['config', 'user.name'], {
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      }).trim();
       // Normalize: lowercase, replace spaces with hyphens
       const normalized = name.toLowerCase().replace(/\s+/g, '-');
       this.cachedUserId = `user:${normalized}`;

@@ -2,7 +2,7 @@
  * Storage service - manages Lisa storage mode (local/zep-cloud).
  */
 import fs from 'fs';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { getCurrentGroupId } from '../group-id';
 
 // ============================================================================
@@ -125,7 +125,7 @@ export function createStorageService(deps: IStorageServiceDependencies): IStorag
 
     checkDockerRunning(): { running: boolean; error?: string } {
       try {
-        execSync('docker info', { stdio: 'pipe', timeout: 5000 });
+        execFileSync('docker', ['info'], { stdio: 'pipe', timeout: 5000 });
         return { running: true };
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);

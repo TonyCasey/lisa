@@ -1,7 +1,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import type { ILisaContext } from '../../domain/interfaces';
 
 const ENV_FILE = '.lisa/.env';
@@ -290,11 +290,12 @@ export class ContextDetector {
    */
   static detectBranch(projectRoot: string): string | null {
     try {
-      const out = execSync('git rev-parse --abbrev-ref HEAD', {
+      const out = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
         cwd: projectRoot,
-        stdio: ['ignore', 'pipe', 'ignore'],
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
       });
-      return out.toString().trim();
+      return out.trim();
     } catch {
       return null;
     }

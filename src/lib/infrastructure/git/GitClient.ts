@@ -2,21 +2,21 @@
  * GitClient
  *
  * Infrastructure implementation of IGitClient.
- * Wraps git CLI operations using child_process.execSync.
+ * Wraps git CLI operations using child_process.execFileSync (shell: false).
  */
 
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import type { IGitClient, IGitLogOptions, IGitDiffOptions } from '../../domain/interfaces/IGitClient';
 
 export class GitClient implements IGitClient {
   log(options: IGitLogOptions): string {
-    const args: string[] = ['git', 'log'];
+    const args: string[] = ['log'];
     if (options.since) args.push(`--since=${options.since}`);
     if (options.format) args.push(`--format=${options.format}`);
     if (options.maxCount) args.push(`-${options.maxCount}`);
     args.push('--oneline');
 
-    return execSync(args.join(' '), {
+    return execFileSync('git', args, {
       encoding: 'utf8',
       cwd: options.cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -24,7 +24,7 @@ export class GitClient implements IGitClient {
   }
 
   getRemoteUrl(remote: string, cwd?: string): string {
-    return execSync(`git remote get-url ${remote}`, {
+    return execFileSync('git', ['remote', 'get-url', remote], {
       encoding: 'utf8',
       cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -34,7 +34,7 @@ export class GitClient implements IGitClient {
   getDefaultBranch(cwd?: string): string {
     // Try to get from remote HEAD
     try {
-      const result = execSync('git remote show origin', {
+      const result = execFileSync('git', ['remote', 'show', 'origin'], {
         encoding: 'utf8',
         cwd,
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -53,11 +53,11 @@ export class GitClient implements IGitClient {
   diff(options: IGitDiffOptions): string {
     const separator = options.threeDot !== false ? '...' : '..';
     const head = options.head || 'HEAD';
-    const args = ['git', 'diff'];
+    const args = ['diff'];
     if (options.nameOnly) args.push('--name-only');
     args.push(`${options.base}${separator}${head}`);
 
-    return execSync(args.join(' '), {
+    return execFileSync('git', args, {
       encoding: 'utf8',
       cwd: options.cwd,
       maxBuffer: options.maxBuffer,
@@ -66,7 +66,7 @@ export class GitClient implements IGitClient {
 
   refExists(ref: string, cwd?: string): boolean {
     try {
-      execSync(`git rev-parse --verify ${ref}`, {
+      execFileSync('git', ['rev-parse', '--verify', ref], {
         encoding: 'utf8',
         cwd,
         stdio: ['pipe', 'pipe', 'pipe'],

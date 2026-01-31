@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import type { ISessionCaptureService, ICapturedWork, ILogger } from '../../domain';
 import { emptyCapturedWork } from '../../domain';
 
@@ -379,8 +379,9 @@ export class SessionCaptureService implements ISessionCaptureService {
    */
   detectRepo(): string {
     try {
-      const url = execSync('git remote get-url origin 2>/dev/null', {
+      const url = execFileSync('git', ['remote', 'get-url', 'origin'], {
         encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
       }).trim();
       const match = url.match(/\/([^/]+?)(?:\.git)?$/);
       return match ? match[1] : this.getProjectName();
