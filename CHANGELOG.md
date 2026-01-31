@@ -55,6 +55,25 @@ Added quality methods to MemoryService and source tracking to session/prompt han
 
 Part of Epic [#124](https://github.com/TonyCasey/lisa/issues/124)
 
+#### Quality CLI Flags and Curate/Verify/Conflicts Commands ([#132](https://github.com/TonyCasey/lisa/issues/132))
+
+Added CLI commands and flags for quality metadata management, curation, verification, and conflict detection.
+
+- New `lisa memory verify <uuid>` command to upgrade a fact's confidence to `verified`
+- New `lisa memory curate` command to list facts for review, sorted by confidence (lowest first)
+- New `lisa memory conflicts` command to detect and group contradicting facts
+- `lisa memory add` now supports `--confidence <level>` and `--source-type <type>` flags
+- `lisa memory load` now supports `--min-confidence <level>` and `--show-metadata` flags
+- `lisa memory curate` supports `--since`, `--min-confidence`, and `--limit` options
+- `lisa memory conflicts` supports `--topic` filtering
+- Skill-level `MemoryService` updated with `verify()`, `curate()`, `conflicts()` methods
+- Skill-level `IMemoryService` extended with quality result types and interfaces
+- `type-mappings.ts` updated with confidence and source type entries in `TYPE_MAP`
+- Input validation for `--confidence`, `--source-type`, and `--min-confidence` with clear error messages
+- 39 unit tests for `MemoryCliService` covering all new commands and validation
+
+Part of Epic [#124](https://github.com/TonyCasey/lisa/issues/124)
+
 #### Memory Lifecycle Domain Types ([#111](https://github.com/TonyCasey/lisa/issues/111))
 
 Added domain types and interfaces for memory lifecycle tiers, enabling retention control and TTL-based expiration for memory facts.

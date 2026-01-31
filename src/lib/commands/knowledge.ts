@@ -13,7 +13,7 @@ export function registerKnowledgeCommands(program: Command): void {
   // Subcommand: lisa memory
   const memoryCmd = program
     .command('memory')
-    .description('Memory operations (load, add, expire, cleanup)');
+    .description('Memory operations (load, add, expire, cleanup, verify, curate, conflicts)');
 
   memoryCmd
     .command('load')
@@ -23,6 +23,8 @@ export function registerKnowledgeCommands(program: Command): void {
     .option('-l, --limit <n>', 'Max results', '10')
     .option('--since <date>', 'Filter memories created after date (ISO or relative: today, yesterday, 7d, 1w, 1m)')
     .option('--until <date>', 'Filter memories created before date')
+    .option('--min-confidence <level>', 'Filter by minimum confidence (verified, high, medium, low, uncertain)')
+    .option('--show-metadata', 'Include quality metadata tags in output')
     .option('--cache', 'Use cache fallback')
     .action(async (opts) => {
       const args = ['load'];
@@ -31,6 +33,8 @@ export function registerKnowledgeCommands(program: Command): void {
       if (opts.limit) args.push('--limit', String(parseInt(opts.limit, 10)));
       if (opts.since) args.push('--since', opts.since);
       if (opts.until) args.push('--until', opts.until);
+      if (opts.minConfidence) args.push('--min-confidence', opts.minConfidence);
+      if (opts.showMetadata) args.push('--show-metadata');
       if (opts.cache) args.push('--cache');
       const scriptPath = path.join(__dirname, '..', 'skills', 'memory', 'memory.js');
       await spawnAndWait(scriptPath, args, getSkillCacheEnv('memory'));
@@ -45,6 +49,8 @@ export function registerKnowledgeCommands(program: Command): void {
     .option('--source <source>', 'Source identifier')
     .option('--lifecycle <tier>', 'Lifecycle tier (permanent, project, session, ephemeral)')
     .option('--ttl <duration>', 'Custom TTL duration (e.g. 30s, 5m, 2h, 7d, 1w)')
+    .option('--confidence <level>', 'Confidence level (verified, high, medium, low, uncertain)')
+    .option('--source-type <type>', 'Source type (user-explicit, session-capture, prompt-capture, code-analysis, auto-inferred, external-sync)')
     .option('--cache', 'Use cache fallback')
     .action(async (text, opts) => {
       const args = ['add', text];
@@ -54,6 +60,8 @@ export function registerKnowledgeCommands(program: Command): void {
       if (opts.source) args.push('--source', opts.source);
       if (opts.lifecycle) args.push('--lifecycle', opts.lifecycle);
       if (opts.ttl) args.push('--ttl', opts.ttl);
+      if (opts.confidence) args.push('--confidence', opts.confidence);
+      if (opts.sourceType) args.push('--source-type', opts.sourceType);
       if (opts.cache) args.push('--cache');
       const scriptPath = path.join(__dirname, '..', 'skills', 'memory', 'memory.js');
       await spawnAndWait(scriptPath, args, getSkillCacheEnv('memory'));
@@ -82,6 +90,53 @@ export function registerKnowledgeCommands(program: Command): void {
       const args = ['cleanup'];
       if (opts.group) args.push('--group', opts.group);
       if (opts.dryRun) args.push('--dry-run');
+      if (opts.cache) args.push('--cache');
+      const scriptPath = path.join(__dirname, '..', 'skills', 'memory', 'memory.js');
+      await spawnAndWait(scriptPath, args, getSkillCacheEnv('memory'));
+    });
+
+  memoryCmd
+    .command('verify <uuid>')
+    .description('Verify a memory, upgrading its confidence to verified')
+    .option('-g, --group <id>', 'Group ID')
+    .option('--cache', 'Use cache fallback')
+    .action(async (uuid: string, opts) => {
+      const args = ['verify', '--uuid', uuid];
+      if (opts.group) args.push('--group', opts.group);
+      if (opts.cache) args.push('--cache');
+      const scriptPath = path.join(__dirname, '..', 'skills', 'memory', 'memory.js');
+      await spawnAndWait(scriptPath, args, getSkillCacheEnv('memory'));
+    });
+
+  memoryCmd
+    .command('curate')
+    .description('List memories for curation review, sorted by confidence (lowest first)')
+    .option('-g, --group <id>', 'Group ID')
+    .option('-l, --limit <n>', 'Max results', '20')
+    .option('--since <date>', 'Filter memories created after date')
+    .option('--min-confidence <level>', 'Filter by minimum confidence (verified, high, medium, low, uncertain)')
+    .option('--cache', 'Use cache fallback')
+    .action(async (opts) => {
+      const args = ['curate'];
+      if (opts.group) args.push('--group', opts.group);
+      if (opts.limit) args.push('--limit', String(parseInt(opts.limit, 10)));
+      if (opts.since) args.push('--since', opts.since);
+      if (opts.minConfidence) args.push('--min-confidence', opts.minConfidence);
+      if (opts.cache) args.push('--cache');
+      const scriptPath = path.join(__dirname, '..', 'skills', 'memory', 'memory.js');
+      await spawnAndWait(scriptPath, args, getSkillCacheEnv('memory'));
+    });
+
+  memoryCmd
+    .command('conflicts')
+    .description('Detect and group potentially conflicting memories')
+    .option('-g, --group <id>', 'Group ID')
+    .option('--topic <topic>', 'Filter conflicts by topic')
+    .option('--cache', 'Use cache fallback')
+    .action(async (opts) => {
+      const args = ['conflicts'];
+      if (opts.group) args.push('--group', opts.group);
+      if (opts.topic) args.push('--topic', opts.topic);
       if (opts.cache) args.push('--cache');
       const scriptPath = path.join(__dirname, '..', 'skills', 'memory', 'memory.js');
       await spawnAndWait(scriptPath, args, getSkillCacheEnv('memory'));

@@ -40,6 +40,19 @@ export const TYPE_MAP: Record<string, string> = {
   project: 'lifecycle:project',
   session: 'lifecycle:session',
   ephemeral: 'lifecycle:ephemeral',
+  // Confidence
+  verified: 'confidence:verified',
+  'confidence-high': 'confidence:high',
+  'confidence-medium': 'confidence:medium',
+  'confidence-low': 'confidence:low',
+  uncertain: 'confidence:uncertain',
+  // Source Type
+  'user-explicit': 'source:user-explicit',
+  'session-capture': 'source:session-capture',
+  'prompt-capture': 'source:prompt-capture',
+  'code-analysis': 'source:code-analysis',
+  'auto-inferred': 'source:auto-inferred',
+  'external-sync': 'source:external-sync',
 };
 
 /**

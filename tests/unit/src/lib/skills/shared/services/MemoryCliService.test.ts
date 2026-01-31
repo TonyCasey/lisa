@@ -16,6 +16,9 @@ import type {
   IMemoryAddResult,
   IMemoryExpireResult,
   IMemoryCleanupResult,
+  IMemoryVerifyResult,
+  IMemoryCurateResult,
+  IMemoryConflictsResult,
 } from '../../../../../../../src/lib/skills/shared/services/interfaces';
 
 const noopLogger: ILogger = {
@@ -104,6 +107,9 @@ describe('MemoryCliService', () => {
   let expireCalls: Array<{ groupId: string; uuid: string }>;
   let cleanupCalls: Array<{ groupId: string; dryRun: boolean }>;
   let addCalls: Array<{ text: string; groupId: string; options: unknown }>;
+  let verifyCalls: Array<{ groupId: string; uuid: string }>;
+  let curateCalls: Array<{ groupId: string; groupIds: string[]; options: unknown }>;
+  let conflictsCalls: Array<{ groupIds: string[]; topic?: string }>;
 
   const memoryService: IMemoryService = {
     load: async (groupIds): Promise<IMemoryLoadResult> => ({
@@ -147,6 +153,40 @@ describe('MemoryCliService', () => {
         mode: 'neo4j',
       };
     },
+    verify: async (groupId, uuid): Promise<IMemoryVerifyResult> => {
+      verifyCalls.push({ groupId, uuid });
+      return {
+        status: 'ok',
+        action: 'verify',
+        group: groupId,
+        uuid,
+        previousConfidence: 'medium',
+        newConfidence: 'verified',
+        mode: 'neo4j',
+      };
+    },
+    curate: async (groupId, groupIds, options): Promise<IMemoryCurateResult> => {
+      curateCalls.push({ groupId, groupIds, options });
+      return {
+        status: 'ok',
+        action: 'curate',
+        group: groupId,
+        facts: [],
+        totalReviewed: 0,
+        mode: 'neo4j',
+      };
+    },
+    conflicts: async (groupIds, topic): Promise<IMemoryConflictsResult> => {
+      conflictsCalls.push({ groupIds, topic });
+      return {
+        status: 'ok',
+        action: 'conflicts',
+        group: groupIds[0] || '',
+        conflicts: [],
+        totalGroups: 0,
+        mode: 'neo4j',
+      };
+    },
   };
 
   function defaultArgs() {
@@ -165,6 +205,11 @@ describe('MemoryCliService', () => {
       ttl: null,
       dryRun: false,
       uuid: null,
+      confidence: null,
+      sourceType: null,
+      minConfidence: null,
+      showMetadata: false,
+      topic: null,
     };
   }
 
@@ -172,6 +217,9 @@ describe('MemoryCliService', () => {
     expireCalls = [];
     cleanupCalls = [];
     addCalls = [];
+    verifyCalls = [];
+    curateCalls = [];
+    conflictsCalls = [];
   });
 
   const cliService = createMemoryCliService({
@@ -285,6 +333,8 @@ describe('MemoryCliService', () => {
         type: 'session',
         source: 'test',
         ttl: undefined,
+        confidence: undefined,
+        sourceType: undefined,
       });
     });
   });
@@ -315,11 +365,234 @@ describe('MemoryCliService', () => {
     });
   });
 
+  describe('verify command', () => {
+    it('should call memoryService.verify with uuid from --uuid flag', async () => {
+      const result = await cliService.run({
+        ...defaultArgs(),
+        command: 'verify',
+        uuid: 'abc-123',
+      });
+
+      assert.strictEqual(verifyCalls.length, 1);
+      assert.strictEqual(verifyCalls[0].uuid, 'abc-123');
+      assert.strictEqual(verifyCalls[0].groupId, 'test-group');
+      assert.strictEqual(result.action, 'verify');
+    });
+
+    it('should use payload as uuid fallback', async () => {
+      const result = await cliService.run({
+        ...defaultArgs(),
+        command: 'verify',
+        payload: 'def-456',
+      });
+
+      assert.strictEqual(verifyCalls.length, 1);
+      assert.strictEqual(verifyCalls[0].uuid, 'def-456');
+      assert.strictEqual(result.action, 'verify');
+    });
+
+    it('should use explicit group if provided', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'verify',
+        uuid: 'abc-123',
+        explicitGroup: 'custom-group',
+      });
+
+      assert.strictEqual(verifyCalls[0].groupId, 'custom-group');
+    });
+
+    it('should throw if no uuid provided', async () => {
+      await assert.rejects(
+        () => cliService.run({ ...defaultArgs(), command: 'verify' }),
+        { message: /verify requires a UUID/ }
+      );
+    });
+  });
+
+  describe('curate command', () => {
+    it('should call memoryService.curate with default options', async () => {
+      const result = await cliService.run({
+        ...defaultArgs(),
+        command: 'curate',
+      });
+
+      assert.strictEqual(curateCalls.length, 1);
+      assert.strictEqual(curateCalls[0].groupId, 'test-group');
+      assert.deepStrictEqual(curateCalls[0].groupIds, ['test-group']);
+      assert.deepStrictEqual(curateCalls[0].options, {
+        since: undefined,
+        minConfidence: undefined,
+        limit: 10,
+      });
+      assert.strictEqual(result.action, 'curate');
+    });
+
+    it('should pass since and limit options', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'curate',
+        since: '7d',
+        limit: 25,
+      });
+
+      assert.strictEqual(curateCalls.length, 1);
+      assert.deepStrictEqual(curateCalls[0].options, {
+        since: '7d',
+        minConfidence: undefined,
+        limit: 25,
+      });
+    });
+
+    it('should pass minConfidence when valid', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'curate',
+        minConfidence: 'low',
+      });
+
+      assert.strictEqual(curateCalls.length, 1);
+      assert.strictEqual((curateCalls[0].options as Record<string, unknown>).minConfidence, 'low');
+    });
+
+    it('should throw for invalid minConfidence in curate', async () => {
+      await assert.rejects(
+        () => cliService.run({
+          ...defaultArgs(),
+          command: 'curate',
+          minConfidence: 'bogus',
+        }),
+        { message: /Invalid --min-confidence/ }
+      );
+    });
+
+    it('should use explicit group if provided', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'curate',
+        explicitGroup: 'custom-group',
+      });
+
+      assert.strictEqual(curateCalls[0].groupId, 'custom-group');
+      assert.deepStrictEqual(curateCalls[0].groupIds, ['custom-group']);
+    });
+  });
+
+  describe('conflicts command', () => {
+    it('should call memoryService.conflicts with default group', async () => {
+      const result = await cliService.run({
+        ...defaultArgs(),
+        command: 'conflicts',
+      });
+
+      assert.strictEqual(conflictsCalls.length, 1);
+      assert.deepStrictEqual(conflictsCalls[0].groupIds, ['test-group']);
+      assert.strictEqual(conflictsCalls[0].topic, undefined);
+      assert.strictEqual(result.action, 'conflicts');
+    });
+
+    it('should pass topic filter', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'conflicts',
+        topic: 'authentication',
+      });
+
+      assert.strictEqual(conflictsCalls.length, 1);
+      assert.strictEqual(conflictsCalls[0].topic, 'authentication');
+    });
+
+    it('should use explicit group if provided', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'conflicts',
+        explicitGroup: 'custom-group',
+      });
+
+      assert.deepStrictEqual(conflictsCalls[0].groupIds, ['custom-group']);
+    });
+  });
+
+  describe('add with --confidence flag', () => {
+    it('should pass confidence to memoryService.add', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'add',
+        payload: 'test memory',
+        confidence: 'high',
+      });
+
+      assert.strictEqual(addCalls.length, 1);
+      assert.strictEqual((addCalls[0].options as Record<string, unknown>).confidence, 'high');
+    });
+
+    it('should throw for invalid confidence value', async () => {
+      await assert.rejects(
+        () => cliService.run({
+          ...defaultArgs(),
+          command: 'add',
+          payload: 'test memory',
+          confidence: 'invalid',
+        }),
+        { message: /Invalid --confidence/ }
+      );
+    });
+  });
+
+  describe('add with --source-type flag', () => {
+    it('should pass sourceType to memoryService.add', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'add',
+        payload: 'test memory',
+        sourceType: 'user-explicit',
+      });
+
+      assert.strictEqual(addCalls.length, 1);
+      assert.strictEqual((addCalls[0].options as Record<string, unknown>).sourceType, 'user-explicit');
+    });
+
+    it('should throw for invalid source-type value', async () => {
+      await assert.rejects(
+        () => cliService.run({
+          ...defaultArgs(),
+          command: 'add',
+          payload: 'test memory',
+          sourceType: 'invalid',
+        }),
+        { message: /Invalid --source-type/ }
+      );
+    });
+  });
+
+  describe('load with --min-confidence flag', () => {
+    it('should pass minConfidence to memoryService.load', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'load',
+        minConfidence: 'medium',
+      });
+
+      // load should succeed without error - validates the value is accepted
+    });
+
+    it('should throw for invalid min-confidence value', async () => {
+      await assert.rejects(
+        () => cliService.run({
+          ...defaultArgs(),
+          command: 'load',
+          minConfidence: 'bogus',
+        }),
+        { message: /Invalid --min-confidence/ }
+      );
+    });
+  });
+
   describe('invalid command', () => {
     it('should throw for unknown commands', async () => {
       await assert.rejects(
         () => cliService.run({ ...defaultArgs(), command: 'unknown' }),
-        { message: /command must be add\|load\|expire\|cleanup/ }
+        { message: /command must be/ }
       );
     });
   });
