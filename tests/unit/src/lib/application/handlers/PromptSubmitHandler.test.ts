@@ -353,10 +353,10 @@ describe('PromptSubmitHandler', () => {
       assert.strictEqual(result.planModeRecursion, false);
     });
 
-    it('should not run recursion when not in plan mode', async () => {
+    it('should not run recursion when shouldRun returns false for default mode', async () => {
       let recursionRan = false;
       const mockRecursion = createMockRecursionService({
-        shouldRun: () => true,
+        shouldRun: (_prompt: string, mode: string) => mode === 'plan',
         run: async () => {
           recursionRan = true;
           return createMockRecursionResult({ hasContext: true });
@@ -373,8 +373,33 @@ describe('PromptSubmitHandler', () => {
 
       const result = await handler.handle(request);
 
-      assert.strictEqual(recursionRan, false, 'Recursion should not run in default mode');
+      assert.strictEqual(recursionRan, false, 'Recursion should not run when shouldRun returns false');
       assert.strictEqual(result.planModeRecursion, false);
+    });
+
+    it('should run recursion in default mode when shouldRun returns true (e.g. debugging taskType)', async () => {
+      let recursionRan = false;
+      const mockRecursion = createMockRecursionService({
+        shouldRun: () => true,
+        run: async () => {
+          recursionRan = true;
+          return createMockRecursionResult({ hasContext: true, summary: 'Debug context' });
+        },
+      });
+
+      const handler = new PromptSubmitHandler(context, memory, mockRecursion);
+      const request = new PromptSubmitRequest(
+        'There is a bug in the login',
+        '2024-01-15T10:00:00.000Z',
+        undefined,
+        'default' as PermissionMode
+      );
+
+      const result = await handler.handle(request);
+
+      assert.strictEqual(recursionRan, true, 'Recursion should run when shouldRun returns true');
+      assert.strictEqual(result.planModeRecursion, true);
+      assert.strictEqual(result.additionalContext, 'Debug context');
     });
 
     it('should not set planModeRecursion when hasContext is false', async () => {
@@ -465,6 +490,118 @@ describe('PromptSubmitHandler', () => {
 
       assert.strictEqual(result.planModeRecursion, false);
       assert.strictEqual(result.additionalContext, undefined);
+    });
+  });
+
+  describe('task type detection', () => {
+    it('should detect task type when detector is provided', async () => {
+      const mockDetector = {
+        detect: (prompt: string) => ({
+          taskType: 'debugging' as const,
+          confidence: 0.8,
+          signals: ['bug'],
+        }),
+      };
+
+      const handler = new PromptSubmitHandler(context, memory, recursion, logger, mockDetector);
+      const request = new PromptSubmitRequest(
+        'There is a bug in the login',
+        '2024-01-15T10:00:00.000Z'
+      );
+
+      const result = await handler.handle(request);
+
+      assert.strictEqual(result.taskType, 'debugging');
+    });
+
+    it('should pass detected taskType to shouldRun', async () => {
+      let receivedTaskType: string | undefined;
+      const mockRecursion = createMockRecursionService({
+        shouldRun: (_prompt: string, _mode: string, taskType?: string) => {
+          receivedTaskType = taskType;
+          return false;
+        },
+      });
+
+      const mockDetector = {
+        detect: () => ({
+          taskType: 'exploration' as const,
+          confidence: 0.7,
+          signals: ['explore'],
+        }),
+      };
+
+      const handler = new PromptSubmitHandler(context, memory, mockRecursion, logger, mockDetector);
+      const request = new PromptSubmitRequest(
+        'Explore the codebase',
+        '2024-01-15T10:00:00.000Z'
+      );
+
+      await handler.handle(request);
+
+      assert.strictEqual(receivedTaskType, 'exploration');
+    });
+
+    it('should pass detected taskType to recursion run', async () => {
+      let receivedTaskType: string | undefined;
+      const mockRecursion = createMockRecursionService({
+        shouldRun: () => true,
+        run: async (_prompt: string, _groupIds: readonly string[], taskType?: string) => {
+          receivedTaskType = taskType;
+          return createMockRecursionResult({ hasContext: true, summary: 'context' });
+        },
+      });
+
+      const mockDetector = {
+        detect: () => ({
+          taskType: 'planning' as const,
+          confidence: 0.9,
+          signals: ['plan'],
+        }),
+      };
+
+      const handler = new PromptSubmitHandler(context, memory, mockRecursion, logger, mockDetector);
+      const request = new PromptSubmitRequest(
+        'Plan the architecture',
+        '2024-01-15T10:00:00.000Z',
+        undefined,
+        'plan' as PermissionMode
+      );
+
+      await handler.handle(request);
+
+      assert.strictEqual(receivedTaskType, 'planning');
+    });
+
+    it('should silently ignore detection errors', async () => {
+      const mockDetector = {
+        detect: () => {
+          throw new Error('Detection failed');
+        },
+      };
+
+      const handler = new PromptSubmitHandler(context, memory, recursion, logger, mockDetector);
+      const request = new PromptSubmitRequest(
+        'Test prompt',
+        '2024-01-15T10:00:00.000Z'
+      );
+
+      const result = await handler.handle(request);
+
+      assert.strictEqual(result.taskType, undefined);
+      assert.strictEqual(result.blocked, false);
+    });
+
+    it('should work without detector (backward compatible)', async () => {
+      const handler = new PromptSubmitHandler(context, memory, recursion, logger);
+      const request = new PromptSubmitRequest(
+        'Test prompt',
+        '2024-01-15T10:00:00.000Z'
+      );
+
+      const result = await handler.handle(request);
+
+      assert.strictEqual(result.taskType, undefined);
     });
   });
 

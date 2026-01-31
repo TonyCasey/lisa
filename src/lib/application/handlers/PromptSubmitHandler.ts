@@ -5,6 +5,8 @@ import type {
   IRecursionService,
   IRecursionResult,
   ILogger,
+  ITaskTypeDetector,
+  TaskType,
 } from '../../domain';
 import type { IRequestHandler } from '../mediator';
 import { PromptSubmitRequest } from '../mediator/requests';
@@ -12,7 +14,7 @@ import type { IPromptSubmitResult } from '../mediator/requests';
 
 /**
  * Handler for prompt submit events.
- * Records user prompts to memory and runs recursion in plan mode.
+ * Records user prompts to memory and runs mode-aware recursion.
  *
  * Implements IRequestHandler for use with the Mediator pattern.
  */
@@ -21,6 +23,7 @@ export class PromptSubmitHandler implements IRequestHandler<PromptSubmitRequest,
   private readonly memory: IMemoryService;
   private readonly recursion?: IRecursionService;
   private readonly logger?: ILogger;
+  private readonly taskTypeDetector?: ITaskTypeDetector;
 
   /**
    * Create a new PromptSubmitHandler.
@@ -36,14 +39,16 @@ export class PromptSubmitHandler implements IRequestHandler<PromptSubmitRequest,
     context: ILisaContext,
     memory: IMemoryService,
     recursion?: IRecursionService,
-    logger?: ILogger
+    logger?: ILogger,
+    taskTypeDetector?: ITaskTypeDetector
   );
 
   constructor(
     contextOrServices: ILisaContext | ILisaServices,
     memory?: IMemoryService,
     recursion?: IRecursionService,
-    logger?: ILogger
+    logger?: ILogger,
+    taskTypeDetector?: ITaskTypeDetector
   ) {
     if ('context' in contextOrServices && 'memory' in contextOrServices) {
       const services = contextOrServices as ILisaServices;
@@ -56,26 +61,41 @@ export class PromptSubmitHandler implements IRequestHandler<PromptSubmitRequest,
       this.memory = memory!;
       this.recursion = recursion;
       this.logger = logger;
+      this.taskTypeDetector = taskTypeDetector;
     }
   }
 
   /**
    * Handle a prompt submit request.
+   * - Auto-detects task type from prompt
+   * - Runs memory recursion for plan/debugging/exploration modes
    * - Adds the prompt to memory for context
-   * - Runs memory recursion if in plan mode
    */
   async handle(request: PromptSubmitRequest): Promise<IPromptSubmitResult> {
     let planModeRecursion = false;
     let additionalContext: string | undefined;
     let recursionResult: IRecursionResult | undefined;
+    let detectedTaskType: TaskType | undefined;
 
-    // Run memory recursion in plan mode
-    if (this.recursion && request.permissionMode === 'plan') {
-      if (this.recursion.shouldRun(request.content, request.permissionMode)) {
+    // Auto-detect task type
+    if (this.taskTypeDetector) {
+      try {
+        const detection = this.taskTypeDetector.detect(request.content);
+        detectedTaskType = detection.taskType;
+      } catch {
+        // Silently ignore detection errors
+      }
+    }
+
+    // Run memory recursion (plan mode, debugging, or exploration)
+    if (this.recursion) {
+      const permissionMode = request.permissionMode ?? 'default';
+      if (this.recursion.shouldRun(request.content, permissionMode, detectedTaskType)) {
         try {
           recursionResult = await this.recursion.run(
             request.content,
-            this.context.hierarchicalGroupIds
+            this.context.hierarchicalGroupIds,
+            detectedTaskType
           );
           if (recursionResult.hasContext) {
             planModeRecursion = true;
@@ -106,6 +126,7 @@ export class PromptSubmitHandler implements IRequestHandler<PromptSubmitRequest,
       blocked: false,
       planModeRecursion,
       additionalContext,
+      taskType: detectedTaskType,
       // Deprecated: include for backward compatibility
       recursion: recursionResult,
     };
