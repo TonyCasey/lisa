@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [2.12.0] - 2026-01-31
 
 ### Changed
 
@@ -103,6 +103,26 @@ Eliminated the competing service construction paths, establishing one clear comp
 - **Hooks/handlers** (session-start, session-stop, prompt-submit) → `bootstrapContainer()` in `bootstrap.ts`
 
 **Result:** One clear composition root per concern, zero deprecated service factory functions, and the DI container index documents both paths with JSDoc.
+
+### Fixed
+
+#### Canonical group-id derived from project folder path ([#90](https://github.com/TonyCasey/lisa/issues/90))
+
+Group ID is now derived from the project folder name (or `package.json` name) instead of being a user-configurable `.env` value. Removes `GRAPHITI_GROUP_ID` from `.env.template` and all code paths.
+
+#### Persist GitHub issue creation in local mode ([#91](https://github.com/TonyCasey/lisa/issues/91))
+
+Fixed GitHub issue creation not persisting in local storage mode.
+
+#### Default tasks list to today ([#92](https://github.com/TonyCasey/lisa/issues/92))
+
+`lisa tasks list` now defaults to querying from today instead of returning all tasks.
+
+#### Enable hook logging and fix .env inline comment parsing ([#107](https://github.com/TonyCasey/lisa/issues/107))
+
+- Hook commands were bootstrapping with `disableLogging: true`, creating a `NullLogger` — zero operational logs were written. Removed the flag so hooks now write to `.lisa/logs/`.
+- Fixed `.env` inline comment parsing in both `readEnvFile` implementations (`"true # comment"` was parsed as the full string instead of `"true"`).
+- Fixed 3 integration tests and e2e docker tests broken by `GRAPHITI_GROUP_ID` removal in PR #90.
 
 ---
 
