@@ -34,7 +34,6 @@ Decomposed the monolithic `SessionStartHandler` (818 lines) into focused service
 - `MemoryContextLoader` — DAL/MCP memory loading strategy with AbortController-based cancellation
 
 Each service is independently unit-testable with no cross-dependencies.
-
 ---
 
 ## [2.11.5] - 2026-01-28
