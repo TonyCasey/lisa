@@ -1,5 +1,7 @@
 import type { IMemoryResult, IMemoryItem } from './types';
+import type { ConfidenceLevel } from './types/IMemoryQuality';
 import type { IMemorySaveOptions } from './dal/IMemoryRepository';
+import type { IConflictGroup } from './dal/types';
 
 /**
  * Options for date-filtered memory queries.
@@ -55,6 +57,29 @@ export interface IMemoryReader {
     query: string,
     limit?: number
   ): Promise<IMemoryItem[]>;
+
+  /**
+   * Load facts at or above a minimum confidence level.
+   * Routes to Neo4j for confidence-based filtering.
+   * @param groupIds - Group IDs to query
+   * @param minLevel - Minimum confidence level (inclusive)
+   * @param limit - Maximum number of facts to return
+   */
+  loadFactsByConfidence(
+    groupIds: readonly string[],
+    minLevel: ConfidenceLevel,
+    limit?: number
+  ): Promise<IMemoryItem[]>;
+
+  /**
+   * Find groups of potentially conflicting facts.
+   * @param groupIds - Group IDs to search
+   * @param topic - Optional topic to filter conflicts by
+   */
+  findConflicts(
+    groupIds: readonly string[],
+    topic?: string
+  ): Promise<readonly IConflictGroup[]>;
 }
 
 /**
@@ -105,6 +130,13 @@ export interface IMemoryWriter {
    * @returns Number of facts expired
    */
   cleanupExpired(groupId: string): Promise<number>;
+
+  /**
+   * Verify a fact, upgrading its confidence to 'verified'.
+   * @param groupId - Group ID the fact belongs to
+   * @param uuid - UUID of the fact to verify
+   */
+  verifyFact(groupId: string, uuid: string): Promise<void>;
 }
 
 /**

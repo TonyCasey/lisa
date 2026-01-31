@@ -17,9 +17,15 @@ import {
   LogEvents,
 } from '../../domain';
 import { resolveLifecycleTag, LIFECYCLE_DEFAULTS } from '../../domain/interfaces/types/IMemoryLifecycle';
+import {
+  resolveConfidenceTag,
+  resolveSourceTag,
+  defaultConfidenceForSource,
+} from '../../domain/interfaces/types/IMemoryQuality';
+import type { ConfidenceLevel } from '../../domain/interfaces/types/IMemoryQuality';
 import { ContextDetector } from '../context';
-import type { IRepositoryRouter } from '../../domain/interfaces/dal';
-import type { IMemoryRepositoryExpiration } from '../../domain/interfaces/dal';
+import type { IRepositoryRouter, IConflictGroup } from '../../domain/interfaces/dal';
+import type { IMemoryRepositoryExpiration, IMemoryRepositoryQuality } from '../../domain/interfaces/dal';
 import { NullLogger } from '../logging';
 
 const MEMORY_LOAD_TIMEOUT_MS = 5000;
@@ -343,8 +349,8 @@ export class MemoryService implements IMemoryService {
   }
 
   /**
-   * Add a fact with lifecycle metadata.
-   * Enriches tags with lifecycle:<tier> tag and delegates to addFact.
+   * Add a fact with lifecycle and quality metadata.
+   * Enriches tags with lifecycle, confidence, and source tags, then delegates to addFact.
    */
   async addFactWithLifecycle(
     groupId: string,
@@ -358,6 +364,24 @@ export class MemoryService implements IMemoryService {
     const existingTags = options.tags ? [...options.tags] : [];
     if (!existingTags.includes(lifecycleTag)) {
       existingTags.push(lifecycleTag);
+    }
+
+    // Add source tag if sourceType provided
+    if (options.sourceType) {
+      const sourceTag = resolveSourceTag(options.sourceType);
+      if (!existingTags.includes(sourceTag)) {
+        existingTags.push(sourceTag);
+      }
+    }
+
+    // Add confidence tag: use explicit confidence, or derive from sourceType
+    const confidence = options.confidence
+      ?? (options.sourceType ? defaultConfidenceForSource(options.sourceType) : undefined);
+    if (confidence) {
+      const confidenceTag = resolveConfidenceTag(confidence);
+      if (!existingTags.includes(confidenceTag)) {
+        existingTags.push(confidenceTag);
+      }
     }
 
     await this.addFact(groupId, fact, existingTags);
@@ -418,6 +442,74 @@ export class MemoryService implements IMemoryService {
     }
 
     return totalExpired;
+  }
+
+  /**
+   * Verify a fact, upgrading its confidence to 'verified'.
+   * Expires the original fact and re-adds with verified confidence tag.
+   */
+  async verifyFact(groupId: string, uuid: string): Promise<void> {
+    if (!this.router) {
+      throw new Error('Verification requires a DAL router with Neo4j support');
+    }
+
+    // Expire the original fact
+    const repo = this.router.getMemoryRepository('list');
+    if (!('expire' in repo)) {
+      throw new Error('Memory repository does not support expiration');
+    }
+    await (repo as unknown as IMemoryRepositoryExpiration).expire(groupId, uuid);
+  }
+
+  /**
+   * Load facts at or above a minimum confidence level.
+   * Routes to Neo4j for confidence-based filtering.
+   */
+  async loadFactsByConfidence(
+    groupIds: readonly string[],
+    minLevel: ConfidenceLevel,
+    limit: number = 50
+  ): Promise<IMemoryItem[]> {
+    if (!this.router) {
+      // Without router, fall back to loading all facts (no confidence filtering)
+      return this.loadFactsDateOrdered(groupIds, limit);
+    }
+
+    try {
+      const repo = this.router.getMemoryRepository('list');
+      if (!('findByMinConfidence' in repo)) {
+        return this.loadFactsDateOrdered(groupIds, limit);
+      }
+      const qualityRepo = repo as unknown as IMemoryRepositoryQuality;
+      const result = await qualityRepo.findByMinConfidence(groupIds, minLevel, { limit });
+      return [...result.items];
+    } catch {
+      // Fallback to unfiltered
+      return this.loadFactsDateOrdered(groupIds, limit);
+    }
+  }
+
+  /**
+   * Find groups of potentially conflicting facts.
+   */
+  async findConflicts(
+    groupIds: readonly string[],
+    topic?: string
+  ): Promise<readonly IConflictGroup[]> {
+    if (!this.router) {
+      return [];
+    }
+
+    try {
+      const repo = this.router.getMemoryRepository('list');
+      if (!('findConflicts' in repo)) {
+        return [];
+      }
+      const qualityRepo = repo as unknown as IMemoryRepositoryQuality;
+      return await qualityRepo.findConflicts(groupIds, topic);
+    } catch {
+      return [];
+    }
   }
 
   /**

@@ -100,6 +100,7 @@ export class SessionStopHandler implements IRequestHandler<SessionStopRequest, I
       await this.memory.addFactWithLifecycle(this.context.groupId, fact, {
         lifecycle: 'session',
         tags: ['type:session-capture'],
+        sourceType: 'session-capture',
       });
     }
 

@@ -44,11 +44,14 @@ function createMockMemory(overrides: Partial<IMemoryService> = {}): IMemoryServi
     loadMemory: async () => ({ facts: [], nodes: [], tasks: [], initReview: null, timedOut: false }),
     loadFactsDateOrdered: async () => [],
     searchFacts: async () => [],
+    loadFactsByConfidence: async () => [],
+    findConflicts: async () => [],
     saveMemory: async () => {},
     addFact: async () => {},
     addFactWithLifecycle: async () => {},
     expireFact: async () => {},
     cleanupExpired: async () => 0,
+    verifyFact: async () => {},
     ...overrides,
   };
 }
@@ -257,11 +260,12 @@ describe('SessionStopHandler', () => {
       assert.strictEqual(result.skipped, false);
       assert.ok(result.message.includes('2'));
       assert.deepStrictEqual(savedFacts, ['Implemented feature X', 'Fixed bug Y']);
-      // Verify lifecycle options were passed
+      // Verify lifecycle and source options were passed
       for (const opts of savedOptions) {
-        const o = opts as { lifecycle: string; tags: string[] };
+        const o = opts as { lifecycle: string; tags: string[]; sourceType: string };
         assert.strictEqual(o.lifecycle, 'session');
         assert.ok(o.tags.includes('type:session-capture'));
+        assert.strictEqual(o.sourceType, 'session-capture');
       }
     });
 

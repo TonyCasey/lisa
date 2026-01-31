@@ -95,7 +95,7 @@ export class PromptSubmitHandler implements IRequestHandler<PromptSubmitRequest,
       await this.memory.addFactWithLifecycle(
         this.context.groupId,
         `User prompt at ${request.timestamp}: ${truncatedContent}`,
-        { lifecycle: 'ephemeral', tags: ['type:prompt'] }
+        { lifecycle: 'ephemeral', tags: ['type:prompt'], sourceType: 'prompt-capture' }
       );
     } catch {
       // Silently ignore errors - don't block user experience
