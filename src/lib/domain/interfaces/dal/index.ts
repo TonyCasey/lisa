@@ -16,6 +16,7 @@ export type {
   IMemoryQueryResult,
   ITaskQueryResult,
   OperationType,
+  IExpirationFilter,
 } from './types';
 
 export {
@@ -41,8 +42,10 @@ export type {
   IMemoryRepositoryReader,
   IMemoryRepositoryWriter,
   IMemoryRepositoryCapabilities,
+  IMemoryRepositoryExpiration,
   IMemoryRepository,
   IReadOnlyMemoryRepository,
+  IReadOnlyMemoryRepositoryWithExpiration,
 } from './IMemoryRepository';
 
 // Task Repository

@@ -6,7 +6,8 @@
  */
 
 import { IMemoryItem } from '../types/IMemoryResult';
-import { IQueryOptions, IMemoryQueryResult } from './types';
+import type { MemoryLifecycle } from '../types/IMemoryLifecycle';
+import { IQueryOptions, IMemoryQueryResult, IExpirationFilter } from './types';
 
 /**
  * Options for saving memory.
@@ -16,6 +17,10 @@ export interface IMemorySaveOptions {
   readonly tags?: readonly string[];
   /** Source identifier (e.g., 'session-stop', 'user-explicit') */
   readonly source?: string;
+  /** Lifecycle tier for retention control */
+  readonly lifecycle?: MemoryLifecycle;
+  /** Custom TTL override in milliseconds (overrides lifecycle default) */
+  readonly ttlMs?: number;
 }
 
 /**
@@ -111,6 +116,28 @@ export interface IMemoryRepositoryCapabilities {
 }
 
 /**
+ * Expiration operations for memory repositories.
+ * Separated interface since not all backends support direct expiration.
+ */
+export interface IMemoryRepositoryExpiration {
+  /**
+   * Expire a single fact by UUID.
+   * Sets expired_at timestamp on the fact.
+   * @param groupId - Group ID the fact belongs to
+   * @param uuid - UUID of the fact to expire
+   */
+  expire(groupId: string, uuid: string): Promise<void>;
+
+  /**
+   * Expire facts matching a filter.
+   * @param groupId - Group ID to filter within
+   * @param filter - Expiration filter criteria
+   * @returns Number of facts expired
+   */
+  expireByFilter(groupId: string, filter: IExpirationFilter): Promise<number>;
+}
+
+/**
  * Complete memory repository interface.
  */
 export interface IMemoryRepository
@@ -124,3 +151,10 @@ export interface IMemoryRepository
 export interface IReadOnlyMemoryRepository
   extends IMemoryRepositoryReader,
     IMemoryRepositoryCapabilities {}
+
+/**
+ * Read-only memory repository with expiration support (e.g., Neo4j direct).
+ */
+export interface IReadOnlyMemoryRepositoryWithExpiration
+  extends IReadOnlyMemoryRepository,
+    IMemoryRepositoryExpiration {}
