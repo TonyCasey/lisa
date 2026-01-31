@@ -11,6 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Memory Relationship Domain Types ([#150](https://github.com/TonyCasey/lisa/issues/150))
+
+Added domain types and interfaces for typed relationships between memory facts, enabling structured knowledge graphs where decisions can supersede others, facts can support or contradict each other, and implementations can be linked to decisions.
+
+- `MemoryRelationType` union type with six relation types: `supersedes`, `supports`, `contradicts`, `implements`, `relates_to`, `refines`
+- `IMemoryRelationship` interface for relationship data
+- `RELATION_LABELS` and `INVERSE_RELATIONS` mapping constants for display
+- `isValidRelationType()` type guard function
+- `IMemoryRelationshipRepository` DAL interface with `createRelationship()`, `findRelationships()`, `removeRelationship()`
+- `IMemoryRelationshipWriter` service interface with `linkFacts()`, `unlinkFacts()`, `getRelatedFacts()`
+- `IMemoryServiceWithRelationships` extended interface (backward compatible)
+
+Part of Epic [#149](https://github.com/TonyCasey/lisa/issues/149)
+
 #### Memory Quality & Source Tracking Domain Types ([#125](https://github.com/TonyCasey/lisa/issues/125))
 
 Added domain types and interfaces for fact quality tracking and provenance, enabling confidence scoring and source attribution for memory facts.
