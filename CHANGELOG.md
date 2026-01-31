@@ -33,6 +33,18 @@ Implemented expiration methods in Neo4j and MCP repository layers.
 - MCP stubs: Throw descriptive errors since MCP does not support direct expiration
 - 13 unit tests covering Neo4j expiration and MCP stubs
 
+#### Service Layer Lifecycle Support ([#113](https://github.com/TonyCasey/lisa/issues/113))
+
+Added lifecycle-aware methods to the MemoryService and updated handlers to use lifecycle tagging.
+
+- `addFactWithLifecycle()`: Enriches tags with `lifecycle:<tier>` tag, delegates to `addFact()`
+- `expireFact()`: Routes to Neo4j repository's `expire()` via DAL router
+- `cleanupExpired()`: Expires session facts >24h and ephemeral facts >1h
+- `SessionStopHandler`: Now saves facts with `lifecycle: 'session'` via `addFactWithLifecycle()`
+- `PromptSubmitHandler`: Now saves prompts with `lifecycle: 'ephemeral'` via `addFactWithLifecycle()`
+- Extended `IMemoryWriter` interface with three new lifecycle methods
+- 10 new service-level tests, updated 5 existing handler tests
+
 ---
 
 ## [2.12.0] - 2026-01-31

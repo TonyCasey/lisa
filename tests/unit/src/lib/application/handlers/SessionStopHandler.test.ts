@@ -46,6 +46,9 @@ function createMockMemory(overrides: Partial<IMemoryService> = {}): IMemoryServi
     searchFacts: async () => [],
     saveMemory: async () => {},
     addFact: async () => {},
+    addFactWithLifecycle: async () => {},
+    expireFact: async () => {},
+    cleanupExpired: async () => 0,
     ...overrides,
   };
 }
@@ -198,7 +201,7 @@ describe('SessionStopHandler', () => {
 
     it('should handle memory save errors gracefully', async () => {
       const failingMemory = createMockMemory({
-        saveMemory: async () => {
+        addFactWithLifecycle: async () => {
           throw new Error('Memory unavailable');
         },
       });
@@ -219,12 +222,14 @@ describe('SessionStopHandler', () => {
       );
     });
 
-    it('should capture facts and save to memory', async () => {
-      let savedFacts: string[] = [];
+    it('should capture facts and save to memory with session lifecycle', async () => {
+      const savedFacts: string[] = [];
+      const savedOptions: unknown[] = [];
       const context = createMockContext();
       const memory = createMockMemory({
-        saveMemory: async (_groupId, facts) => {
-          savedFacts = [...facts];
+        addFactWithLifecycle: async (_groupId, fact, options) => {
+          savedFacts.push(fact);
+          savedOptions.push(options);
         },
       });
       const sessionCapture = createMockSessionCapture({
@@ -252,6 +257,12 @@ describe('SessionStopHandler', () => {
       assert.strictEqual(result.skipped, false);
       assert.ok(result.message.includes('2'));
       assert.deepStrictEqual(savedFacts, ['Implemented feature X', 'Fixed bug Y']);
+      // Verify lifecycle options were passed
+      for (const opts of savedOptions) {
+        const o = opts as { lifecycle: string; tags: string[] };
+        assert.strictEqual(o.lifecycle, 'session');
+        assert.ok(o.tags.includes('type:session-capture'));
+      }
     });
 
     it('should skip when no facts captured', async () => {

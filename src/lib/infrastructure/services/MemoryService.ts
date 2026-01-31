@@ -7,6 +7,7 @@ import type {
   IMemoryResultBuilder,
   IStructuredLogger,
   ILogContext,
+  IMemorySaveOptions,
 } from '../../domain';
 import {
   createMemoryResultBuilder,
@@ -15,8 +16,10 @@ import {
   isCancellationError,
   LogEvents,
 } from '../../domain';
+import { resolveLifecycleTag, LIFECYCLE_DEFAULTS } from '../../domain/interfaces/types/IMemoryLifecycle';
 import { ContextDetector } from '../context';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
+import type { IMemoryRepositoryExpiration } from '../../domain/interfaces/dal';
 import { NullLogger } from '../logging';
 
 const MEMORY_LOAD_TIMEOUT_MS = 5000;
@@ -337,6 +340,84 @@ export class MemoryService implements IMemoryService {
       tags: [...tags],
     });
     completeOperation({ data: { backend: 'mcp', factLength: fact.length } });
+  }
+
+  /**
+   * Add a fact with lifecycle metadata.
+   * Enriches tags with lifecycle:<tier> tag and delegates to addFact.
+   */
+  async addFactWithLifecycle(
+    groupId: string,
+    fact: string,
+    options: IMemorySaveOptions
+  ): Promise<void> {
+    const lifecycle = options.lifecycle ?? 'project';
+    const lifecycleTag = resolveLifecycleTag(lifecycle);
+
+    // Merge lifecycle tag with existing tags
+    const existingTags = options.tags ? [...options.tags] : [];
+    if (!existingTags.includes(lifecycleTag)) {
+      existingTags.push(lifecycleTag);
+    }
+
+    await this.addFact(groupId, fact, existingTags);
+  }
+
+  /**
+   * Expire a single fact by UUID.
+   * Routes to a repository that supports expiration.
+   */
+  async expireFact(groupId: string, uuid: string): Promise<void> {
+    if (!this.router) {
+      throw new Error('Expiration requires a DAL router with Neo4j support');
+    }
+
+    const repo = this.router.getMemoryRepository('list');
+    if (!('expire' in repo)) {
+      throw new Error('Memory repository does not support expiration');
+    }
+    await (repo as unknown as IMemoryRepositoryExpiration).expire(groupId, uuid);
+  }
+
+  /**
+   * Clean up expired facts based on lifecycle TTL defaults.
+   * Expires session facts older than 24h and ephemeral facts older than 1h.
+   */
+  async cleanupExpired(groupId: string): Promise<number> {
+    if (!this.router) {
+      throw new Error('Cleanup requires a DAL router with Neo4j support');
+    }
+
+    const repo = this.router.getMemoryRepository('list');
+    if (!('expireByFilter' in repo)) {
+      throw new Error('Memory repository does not support expiration');
+    }
+    const expirationRepo = repo as unknown as IMemoryRepositoryExpiration;
+
+    const now = new Date();
+    let totalExpired = 0;
+
+    // Expire session facts older than their TTL (24h)
+    const sessionTtl = LIFECYCLE_DEFAULTS.session;
+    if (sessionTtl !== null) {
+      const sessionCutoff = new Date(now.getTime() - sessionTtl);
+      totalExpired += await expirationRepo.expireByFilter(groupId, {
+        lifecycle: 'session',
+        olderThan: sessionCutoff,
+      });
+    }
+
+    // Expire ephemeral facts older than their TTL (1h)
+    const ephemeralTtl = LIFECYCLE_DEFAULTS.ephemeral;
+    if (ephemeralTtl !== null) {
+      const ephemeralCutoff = new Date(now.getTime() - ephemeralTtl);
+      totalExpired += await expirationRepo.expireByFilter(groupId, {
+        lifecycle: 'ephemeral',
+        olderThan: ephemeralCutoff,
+      });
+    }
+
+    return totalExpired;
   }
 
   /**
