@@ -66,7 +66,6 @@ Eliminated all `execSync` string-command calls across infrastructure code, repla
 - `StorageService` — replaced `execSync('docker info')` with `execFileSync('docker', ['info'])`
 
 **Result:** Zero `execSync` calls remain in `src/lib/`. All process invocations use argument arrays with no shell interpolation.
-
 ---
 
 ## [2.11.5] - 2026-01-28
