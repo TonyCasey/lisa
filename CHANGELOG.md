@@ -40,6 +40,21 @@ Implemented quality metadata storage and querying in Neo4j and MCP repository la
 
 Part of Epic [#124](https://github.com/TonyCasey/lisa/issues/124)
 
+#### Service Layer Quality, Source Tracking & Verification ([#129](https://github.com/TonyCasey/lisa/issues/129))
+
+Added quality methods to MemoryService and source tracking to session/prompt handlers.
+
+- `MemoryService.addFactWithLifecycle()` now injects `confidence:<level>` and `source:<type>` tags automatically
+- Auto-derives confidence from `sourceType` when explicit confidence not provided (e.g., `user-explicit` → `high`)
+- `MemoryService.verifyFact()` expires the original fact via Neo4j repository
+- `MemoryService.loadFactsByConfidence()` routes to Neo4j `findByMinConfidence`, falls back to date-ordered listing
+- `MemoryService.findConflicts()` routes to Neo4j `findConflicts`, returns empty on error
+- `IMemoryService` interface extended with `loadFactsByConfidence()`, `findConflicts()`, `verifyFact()`
+- `SessionStopHandler` now passes `sourceType: 'session-capture'` to memory writes
+- `PromptSubmitHandler` now passes `sourceType: 'prompt-capture'` to memory writes
+
+Part of Epic [#124](https://github.com/TonyCasey/lisa/issues/124)
+
 #### Memory Lifecycle Domain Types ([#111](https://github.com/TonyCasey/lisa/issues/111))
 
 Added domain types and interfaces for memory lifecycle tiers, enabling retention control and TTL-based expiration for memory facts.

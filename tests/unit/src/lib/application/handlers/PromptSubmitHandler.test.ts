@@ -42,19 +42,17 @@ function createMockContext(overrides: Partial<ILisaContext> = {}): ILisaContext 
 
 function createMockMemoryService(overrides: Partial<IMemoryService> = {}): IMemoryService {
   return {
+    loadMemory: async () => ({ facts: [], nodes: [], tasks: [], initReview: null, timedOut: false }),
+    loadFactsDateOrdered: async () => [],
+    searchFacts: async () => [],
+    loadFactsByConfidence: async () => [],
+    findConflicts: async () => [],
+    saveMemory: async () => {},
     addFact: async () => {},
     addFactWithLifecycle: async () => {},
     expireFact: async () => {},
     cleanupExpired: async () => 0,
-    search: async () => [],
-    listRecent: async () => [],
-    loadMemory: async () => ({
-      facts: [],
-      tasks: [],
-      initReview: undefined,
-      totalFacts: 0,
-      totalTasks: 0,
-    }),
+    verifyFact: async () => {},
     ...overrides,
   } as IMemoryService;
 }
