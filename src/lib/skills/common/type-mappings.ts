@@ -35,6 +35,11 @@ export const TYPE_MAP: Record<string, string> = {
   // GitHub PR
   'pr-merged': 'github:pr-merged',
   'pr-note': 'github:pr',
+  // Lifecycle
+  permanent: 'lifecycle:permanent',
+  project: 'lifecycle:project',
+  session: 'lifecycle:session',
+  ephemeral: 'lifecycle:ephemeral',
 };
 
 /**

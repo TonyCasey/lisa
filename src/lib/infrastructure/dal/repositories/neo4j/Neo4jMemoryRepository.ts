@@ -7,11 +7,13 @@
 
 import type { IMemoryItem } from '../../../../domain/interfaces/types/IMemoryResult';
 import type {
-  IReadOnlyMemoryRepository,
+  IReadOnlyMemoryRepositoryWithExpiration,
   IQueryOptions,
   IMemoryQueryResult,
+  IExpirationFilter,
 } from '../../../../domain/interfaces/dal';
 import { applyQueryDefaults } from '../../../../domain/interfaces/dal';
+import { resolveLifecycleTag } from '../../../../domain/interfaces/types/IMemoryLifecycle';
 import { Neo4jConnectionManager } from '../../connections/Neo4jConnectionManager';
 
 /**
@@ -29,10 +31,17 @@ interface Neo4jFactRecord {
 }
 
 /**
- * Neo4j Memory Repository implementation.
- * Read-only: writes go through MCP for proper Graphiti ingestion.
+ * Neo4j count result from Cypher COUNT query.
  */
-export class Neo4jMemoryRepository implements IReadOnlyMemoryRepository {
+interface Neo4jCountRecord {
+  count: number;
+}
+
+/**
+ * Neo4j Memory Repository implementation.
+ * Read-only with expiration support: writes go through MCP for proper Graphiti ingestion.
+ */
+export class Neo4jMemoryRepository implements IReadOnlyMemoryRepositoryWithExpiration {
   constructor(private readonly connection: Neo4jConnectionManager) {}
 
   /**
@@ -160,6 +169,74 @@ export class Neo4jMemoryRepository implements IReadOnlyMemoryRepository {
       source: 'neo4j',
       hasMore: items.length === limit,
     };
+  }
+
+  /**
+   * Expire a single fact by UUID.
+   * Sets expired_at timestamp on the matching relationship.
+   */
+  async expire(groupId: string, uuid: string): Promise<void> {
+    const cypher = `
+      MATCH (s:Entity)-[r]->(t:Entity)
+      WHERE r.group_id = $groupId AND r.uuid = $uuid AND r.expired_at IS NULL
+      SET r.expired_at = datetime()
+    `;
+    await this.connection.write(cypher, { groupId, uuid });
+  }
+
+  /**
+   * Expire facts matching a filter.
+   * Uses count-then-write: READ session for count, WRITE session for expiration.
+   * @returns Number of facts expired
+   */
+  async expireByFilter(groupId: string, filter: IExpirationFilter): Promise<number> {
+    const whereClauses: string[] = [
+      `r.group_id = $groupId`,
+      `r.fact IS NOT NULL`,
+      `r.expired_at IS NULL`,
+    ];
+    const params: Record<string, unknown> = { groupId };
+
+    if (filter.lifecycle) {
+      const lifecycleTag = resolveLifecycleTag(filter.lifecycle);
+      whereClauses.push(`$lifecycleTag IN r.tags`);
+      params.lifecycleTag = lifecycleTag;
+    }
+
+    if (filter.olderThan) {
+      whereClauses.push(`r.created_at <= datetime($olderThan)`);
+      params.olderThan = filter.olderThan.toISOString();
+    }
+
+    if (filter.tags && filter.tags.length > 0) {
+      whereClauses.push(`ANY(tag IN $filterTags WHERE tag IN r.tags)`);
+      params.filterTags = [...filter.tags];
+    }
+
+    const whereClause = whereClauses.join(' AND ');
+
+    // Step 1: Count matching facts (READ session)
+    const countCypher = `
+      MATCH (s:Entity)-[r]->(t:Entity)
+      WHERE ${whereClause}
+      RETURN count(r) AS count
+    `;
+    const countResult = await this.connection.query<Neo4jCountRecord>(countCypher, params);
+    const count = countResult[0]?.count ?? 0;
+
+    if (count === 0) {
+      return 0;
+    }
+
+    // Step 2: Expire matching facts (WRITE session)
+    const expireCypher = `
+      MATCH (s:Entity)-[r]->(t:Entity)
+      WHERE ${whereClause}
+      SET r.expired_at = datetime()
+    `;
+    await this.connection.write(expireCypher, params);
+
+    return count;
   }
 
   /**

@@ -3,8 +3,10 @@
  * Memory management CLI - thin entry point.
  *
  * Commands:
- *   node memory.js add "text" [--group <id>] [--tag foo] [--type <type>] [--source <src>] [--cache]
- *   node memory.js load [--group <id>] [--query <q>] [--limit N] [--cache]
+ *   node memory.js add "text" [--group <id>] [--tag foo] [--type <type>] [--source <src>] [--lifecycle <tier>] [--ttl <dur>] [--cache]
+ *   node memory.js load [--group <id>] [--query <q>] [--limit N] [--since <d>] [--until <d>] [--cache]
+ *   node memory.js expire [--uuid <uuid>] [--group <id>] [--cache]   (uuid can also be positional)
+ *   node memory.js cleanup [--group <id>] [--dry-run] [--cache]
  */
 
 export {};
@@ -36,6 +38,10 @@ async function main(): Promise<void> {
   const source = popFlag(args, '--source', 'skill:load-memory');
   const since = popFlag(args, '--since', null);
   const until = popFlag(args, '--until', null);
+  const lifecycle = popFlag(args, '--lifecycle', null);
+  const ttl = popFlag(args, '--ttl', null);
+  const uuid = popFlag(args, '--uuid', null);
+  const dryRun = hasFlag(args, '--dry-run');
   const useCache = hasFlag(args, '--cache');
   const payload = args.join(' ').trim();
 
@@ -53,7 +59,8 @@ async function main(): Promise<void> {
 
   try {
     const result = await cliService.run({
-      command, payload, explicitGroup, query, limit, explicitTag, entityType, source, since, until,
+      command, payload, explicitGroup, query, limit, explicitTag,
+      entityType, source, since, until, lifecycle, ttl, dryRun, uuid,
     });
     console.log(JSON.stringify(result, null, 2));
   } catch (err: unknown) {

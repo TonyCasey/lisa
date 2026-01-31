@@ -50,6 +50,7 @@ export interface IMemoryAddOptions {
   tag?: string | null;
   type?: string;
   source?: string;
+  ttl?: number;
 }
 
 /**
@@ -58,6 +59,30 @@ export interface IMemoryAddOptions {
 export interface IMemoryLoadOptions {
   since?: Date;
   until?: Date;
+}
+
+/**
+ * Result of a memory expire operation.
+ */
+export interface IMemoryExpireResult {
+  status: 'ok';
+  action: 'expire';
+  group: string;
+  uuid: string;
+  found: boolean;
+  mode: 'neo4j';
+}
+
+/**
+ * Result of a memory cleanup operation.
+ */
+export interface IMemoryCleanupResult {
+  status: 'ok';
+  action: 'cleanup';
+  group: string;
+  expiredCount: number;
+  dryRun: boolean;
+  mode: 'neo4j';
 }
 
 /**
@@ -93,4 +118,28 @@ export interface IMemoryService {
     groupId: string,
     options: IMemoryAddOptions
   ): Promise<IMemoryAddResult>;
+
+  /**
+   * Expire a single fact by UUID.
+   * Uses Neo4j direct to set expired_at.
+   *
+   * @param groupId - Group identifier
+   * @param uuid - UUID of the fact to expire
+   */
+  expire(
+    groupId: string,
+    uuid: string
+  ): Promise<IMemoryExpireResult>;
+
+  /**
+   * Clean up expired facts based on lifecycle TTL defaults.
+   * Expires session facts >24h and ephemeral facts >1h.
+   *
+   * @param groupId - Group identifier
+   * @param dryRun - If true, count without expiring
+   */
+  cleanup(
+    groupId: string,
+    dryRun: boolean
+  ): Promise<IMemoryCleanupResult>;
 }

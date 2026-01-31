@@ -8,9 +8,11 @@
 import type { IMemoryItem } from '../../../../domain/interfaces/types/IMemoryResult';
 import type {
   IMemoryRepository,
+  IMemoryRepositoryExpiration,
   IMemorySaveOptions,
   IQueryOptions,
   IMemoryQueryResult,
+  IExpirationFilter,
 } from '../../../../domain/interfaces/dal';
 import { applyQueryDefaults } from '../../../../domain/interfaces/dal';
 import { McpConnectionManager } from '../../connections/McpConnectionManager';
@@ -41,7 +43,7 @@ interface McpFact {
  * MCP Memory Repository implementation.
  * Full read/write support via Graphiti MCP.
  */
-export class McpMemoryRepository implements IMemoryRepository {
+export class McpMemoryRepository implements IMemoryRepository, IMemoryRepositoryExpiration {
   constructor(private readonly connection: McpConnectionManager) {}
 
   /**
@@ -162,6 +164,26 @@ export class McpMemoryRepository implements IMemoryRepository {
     }
 
     return results;
+  }
+
+  /**
+   * MCP does not support direct expiration.
+   * Expiration must be performed via Neo4j direct.
+   */
+  async expire(_groupId: string, _uuid: string): Promise<void> {
+    throw new Error(
+      'MCP does not support direct expiration. Use Neo4j repository instead.'
+    );
+  }
+
+  /**
+   * MCP does not support direct expiration by filter.
+   * Expiration must be performed via Neo4j direct.
+   */
+  async expireByFilter(_groupId: string, _filter: IExpirationFilter): Promise<number> {
+    throw new Error(
+      'MCP does not support direct expiration. Use Neo4j repository instead.'
+    );
   }
 
   /**

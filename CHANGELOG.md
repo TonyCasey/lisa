@@ -24,6 +24,40 @@ Added domain types and interfaces for memory lifecycle tiers, enabling retention
 
 Part of Epic [#110](https://github.com/TonyCasey/lisa/issues/110)
 
+#### Repository Expiration Support ([#112](https://github.com/TonyCasey/lisa/issues/112))
+
+Implemented expiration methods in Neo4j and MCP repository layers.
+
+- Neo4j `expire()`: Sets `expired_at` via Cypher WRITE session
+- Neo4j `expireByFilter()`: Count-then-write approach (READ for count, WRITE for expiration) with lifecycle, date, and tag filters
+- MCP stubs: Throw descriptive errors since MCP does not support direct expiration
+- 13 unit tests covering Neo4j expiration and MCP stubs
+
+#### Service Layer Lifecycle Support ([#113](https://github.com/TonyCasey/lisa/issues/113))
+
+Added lifecycle-aware methods to the MemoryService and updated handlers to use lifecycle tagging.
+
+- `addFactWithLifecycle()`: Enriches tags with `lifecycle:<tier>` tag, delegates to `addFact()`
+- `expireFact()`: Routes to Neo4j repository's `expire()` via DAL router
+- `cleanupExpired()`: Expires session facts >24h and ephemeral facts >1h
+- `SessionStopHandler`: Now saves facts with `lifecycle: 'session'` via `addFactWithLifecycle()`
+- `PromptSubmitHandler`: Now saves prompts with `lifecycle: 'ephemeral'` via `addFactWithLifecycle()`
+- Extended `IMemoryWriter` interface with three new lifecycle methods
+- 10 new service-level tests, updated 5 existing handler tests
+
+#### CLI Lifecycle Commands ([#114](https://github.com/TonyCasey/lisa/issues/114))
+
+Added CLI commands and flags for memory lifecycle management: expire, cleanup, and lifecycle-aware add.
+
+- `lisa memory expire <uuid>` — Expire a single memory by UUID via Neo4j direct
+- `lisa memory cleanup [--dry-run]` — Clean up expired session/ephemeral memories based on TTL
+- `lisa memory add --lifecycle <tier>` — Add memory with lifecycle tier tag (permanent, project, session, ephemeral)
+- `lisa memory add --ttl <duration>` — Validate custom TTL duration (e.g. 30s, 5m, 2h, 7d, 1w)
+- `parseTtlDuration()` helper for human-readable duration parsing
+- Added `write()` method to skill-level `INeo4jClient` interface and implementation
+- Added lifecycle entries to `type-mappings.ts` (permanent, project, session, ephemeral)
+- 20 new tests covering TTL parser, expire, cleanup, and lifecycle CLI args
+
 ---
 
 ## [2.12.0] - 2026-01-31

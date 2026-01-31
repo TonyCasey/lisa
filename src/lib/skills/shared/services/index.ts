@@ -18,9 +18,11 @@ export {
 } from './TaskCliService';
 export {
   createMemoryCliService,
+  parseTtlDuration,
   type IMemoryCliService,
   type IMemoryCliDependencies,
   type IMemoryCliArgs,
+  type MemoryCliResult,
 } from './MemoryCliService';
 
 // Domain services
