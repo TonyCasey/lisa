@@ -12,7 +12,11 @@ import type {
   IMemoryAddResult,
   IMemoryAddOptions,
   IMemoryLoadOptions,
+  IMemoryExpireResult,
+  IMemoryCleanupResult,
 } from './interfaces';
+import { LIFECYCLE_DEFAULTS, resolveLifecycleTag } from '../../../domain/interfaces/types/IMemoryLifecycle';
+import type { MemoryLifecycle } from '../../../domain/interfaces/types/IMemoryLifecycle';
 
 /**
  * Neo4j record structure for fact queries.
@@ -201,12 +205,17 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
 
       // Use MCP
       await mcpClient.initialize();
+      // Tags already containing ':' are namespaced (e.g. lifecycle:session, code:decision)
+      // and should be stored as-is. Simple tags (DECISION, PATTERN) get 'type:' prefix.
+      const mcpTag = tag
+        ? (tag.includes(':') ? tag.toLowerCase() : `type:${tag.toLowerCase()}`)
+        : undefined;
       const params = {
         name: tag ? `${tag}: ${text.slice(0, 60)}` : text.slice(0, 80),
         episode_body: text,
         source: options.source || 'text',
         group_id: groupId,
-        tags: tag ? [`type:${tag.toLowerCase()}`] : undefined,
+        tags: mcpTag ? [mcpTag] : undefined,
       };
       const result = await mcpClient.rpcCall<unknown>('add_memory', params);
 
@@ -219,6 +228,102 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
         result,
         mode: 'mcp',
       };
+    },
+
+    async expire(
+      groupId: string,
+      uuid: string
+    ): Promise<IMemoryExpireResult> {
+      await neo4jClient.connect();
+      try {
+        // Atomic SET + RETURN to know if a record was actually expired
+        const cypher = `
+          MATCH (s:Entity)-[r]->(t:Entity)
+          WHERE r.group_id = $groupId AND r.uuid = $uuid AND r.expired_at IS NULL
+          SET r.expired_at = datetime()
+          RETURN count(r) AS affected
+        `;
+        const result = await neo4jClient.writeQuery<{ affected: number }>(
+          cypher, { groupId, uuid }
+        );
+        const affected = result[0]?.affected ?? 0;
+
+        return {
+          status: 'ok',
+          action: 'expire',
+          group: groupId,
+          uuid,
+          found: affected > 0,
+          mode: 'neo4j',
+        };
+      } finally {
+        await neo4jClient.disconnect();
+      }
+    },
+
+    async cleanup(
+      groupId: string,
+      dryRun: boolean
+    ): Promise<IMemoryCleanupResult> {
+      await neo4jClient.connect();
+      try {
+        const now = new Date();
+        let totalExpired = 0;
+
+        const tiers: MemoryLifecycle[] = ['session', 'ephemeral'];
+
+        for (const tier of tiers) {
+          const ttl = LIFECYCLE_DEFAULTS[tier];
+          if (ttl === null) continue;
+
+          const cutoff = new Date(now.getTime() - ttl);
+          const lifecycleTag = resolveLifecycleTag(tier);
+
+          if (dryRun) {
+            // Count only (READ session)
+            const countCypher = `
+              MATCH (s:Entity)-[r]->(t:Entity)
+              WHERE r.group_id = $groupId
+                AND r.expired_at IS NULL
+                AND $lifecycleTag IN r.tags
+                AND r.created_at <= datetime($cutoff)
+              RETURN count(r) AS count
+            `;
+            const countResult = await neo4jClient.query<{ count: number }>(
+              countCypher,
+              { groupId, lifecycleTag, cutoff: cutoff.toISOString() }
+            );
+            totalExpired += countResult[0]?.count ?? 0;
+          } else {
+            // Atomic SET + RETURN count (WRITE session, no TOCTOU race)
+            const expireCypher = `
+              MATCH (s:Entity)-[r]->(t:Entity)
+              WHERE r.group_id = $groupId
+                AND r.expired_at IS NULL
+                AND $lifecycleTag IN r.tags
+                AND r.created_at <= datetime($cutoff)
+              SET r.expired_at = datetime()
+              RETURN count(r) AS expired
+            `;
+            const writeResult = await neo4jClient.writeQuery<{ expired: number }>(
+              expireCypher,
+              { groupId, lifecycleTag, cutoff: cutoff.toISOString() }
+            );
+            totalExpired += writeResult[0]?.expired ?? 0;
+          }
+        }
+
+        return {
+          status: 'ok',
+          action: 'cleanup',
+          group: groupId,
+          expiredCount: totalExpired,
+          dryRun,
+          mode: 'neo4j',
+        };
+      } finally {
+        await neo4jClient.disconnect();
+      }
     },
   };
 }

@@ -8,9 +8,14 @@ import type {
   IMemoryService,
   IMemoryLoadResult,
   IMemoryAddResult,
+  IMemoryExpireResult,
+  IMemoryCleanupResult,
   IMemoryLoadOptions,
 } from './interfaces';
 import { parseDate } from '../../../utils/dateParser';
+
+/** CLI result union for all memory commands. */
+export type MemoryCliResult = IMemoryLoadResult | IMemoryAddResult | IMemoryExpireResult | IMemoryCleanupResult;
 
 /**
  * Parsed memory CLI arguments.
@@ -26,6 +31,10 @@ export interface IMemoryCliArgs {
   source: string;
   since: string | null;
   until: string | null;
+  lifecycle: string | null;
+  ttl: string | null;
+  dryRun: boolean;
+  uuid: string | null;
 }
 
 /**
@@ -45,7 +54,52 @@ export interface IMemoryCliDependencies {
  * Memory CLI service interface.
  */
 export interface IMemoryCliService {
-  run(args: IMemoryCliArgs): Promise<IMemoryLoadResult | IMemoryAddResult>;
+  run(args: IMemoryCliArgs): Promise<MemoryCliResult>;
+}
+
+/**
+ * Parse a human-readable TTL duration string into milliseconds.
+ *
+ * Supported formats:
+ *   - `30s` / `30sec` → 30 seconds
+ *   - `5m` / `5min` → 5 minutes
+ *   - `2h` / `2hr` → 2 hours
+ *   - `7d` → 7 days
+ *   - `1w` → 1 week
+ *   - Plain number → treated as milliseconds
+ *
+ * @returns milliseconds, or null if the string is not a valid duration
+ */
+export function parseTtlDuration(input: string): number | null {
+  const trimmed = input.trim().toLowerCase();
+  if (!trimmed) return null;
+
+  // Plain number → milliseconds
+  if (/^\d+$/.test(trimmed)) {
+    return parseInt(trimmed, 10);
+  }
+
+  const match = trimmed.match(/^(\d+(?:\.\d+)?)\s*(s|sec|m|min|h|hr|d|w)$/);
+  if (!match) return null;
+
+  const value = parseFloat(match[1]);
+  const unit = match[2];
+
+  const multipliers: Record<string, number> = {
+    s: 1_000,
+    sec: 1_000,
+    m: 60_000,
+    min: 60_000,
+    h: 3_600_000,
+    hr: 3_600_000,
+    d: 86_400_000,
+    w: 604_800_000,
+  };
+
+  const multiplier = multipliers[unit];
+  if (multiplier === undefined) return null;
+
+  return Math.round(value * multiplier);
 }
 
 /**
@@ -55,11 +109,15 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
   const { env, logger, cache, memoryService, getGroupIds, getCurrentGroupId, resolveTag } = deps;
 
   return {
-    async run(args: IMemoryCliArgs): Promise<IMemoryLoadResult | IMemoryAddResult> {
-      const { command, payload, explicitGroup, query, limit, explicitTag, entityType, source, since, until } = args;
+    async run(args: IMemoryCliArgs): Promise<MemoryCliResult> {
+      const {
+        command, payload, explicitGroup, query, limit,
+        explicitTag, entityType, source, since, until,
+        lifecycle, ttl, dryRun, uuid,
+      } = args;
 
-      if (!['add', 'load'].includes(command)) {
-        throw new Error('command must be add|load');
+      if (!['add', 'load', 'expire', 'cleanup'].includes(command)) {
+        throw new Error('command must be add|load|expire|cleanup');
       }
 
       // Use explicit --group if provided, otherwise use canonical folder-based group ID
@@ -67,13 +125,13 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
 
       logger.info(`Executing command: ${command}`, { mode: env.STORAGE_MODE, group: groupId });
 
-      let result: IMemoryLoadResult | IMemoryAddResult;
+      let result: MemoryCliResult;
 
       if (command === 'load') {
         // Always use canonical group IDs for loading (hierarchical lookup)
         const groupIds = explicitGroup ? [explicitGroup] : getGroupIds();
         logger.debug('Using Neo4j direct mode for load');
-        
+
         // Parse date filters - throw error on invalid values
         const loadOptions: IMemoryLoadOptions = {};
         if (since) {
@@ -90,12 +148,41 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
           }
           loadOptions.until = parsedUntil;
         }
-        
+
         result = await memoryService.load(groupIds, query, limit, loadOptions);
+      } else if (command === 'expire') {
+        const targetUuid = uuid || payload;
+        if (!targetUuid) throw new Error('expire requires a UUID (--uuid <id> or positional argument)');
+        result = await memoryService.expire(groupId, targetUuid);
+      } else if (command === 'cleanup') {
+        result = await memoryService.cleanup(groupId, dryRun);
       } else {
+        // add
         if (!payload) throw new Error('add requires text payload');
-        const tag = resolveTag(payload, explicitTag, entityType);
-        result = await memoryService.add(payload, groupId, { tag, type: entityType ?? undefined, source });
+
+        // Resolve tag: explicit --tag > --type > --lifecycle > text prefix
+        const tag = resolveTag(
+          payload,
+          explicitTag,
+          entityType ?? (lifecycle && !explicitTag ? lifecycle : null)
+        );
+
+        // Parse and validate --ttl if provided
+        let ttlMs: number | undefined;
+        if (ttl) {
+          const parsed = parseTtlDuration(ttl);
+          if (parsed === null) {
+            throw new Error(`Invalid --ttl duration: "${ttl}". Use formats like: 30s, 5m, 2h, 7d, 1w`);
+          }
+          ttlMs = parsed;
+        }
+
+        result = await memoryService.add(payload, groupId, {
+          tag,
+          type: entityType ?? lifecycle ?? undefined,
+          source,
+          ttl: ttlMs,
+        });
       }
 
       const factsCount = 'facts' in result ? result.facts?.length ?? 0 : 0;

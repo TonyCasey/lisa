@@ -17,6 +17,24 @@ export interface INeo4jClient {
   query<T>(cypher: string, params?: Record<string, unknown>): Promise<T[]>;
 
   /**
+   * Execute a write transaction (Cypher mutation).
+   * Uses WRITE access mode session.
+   * @param cypher - The Cypher mutation query
+   * @param params - Optional query parameters
+   */
+  write(cypher: string, params?: Record<string, unknown>): Promise<void>;
+
+  /**
+   * Execute a write transaction that returns typed results.
+   * Uses WRITE access mode session with result mapping.
+   * Useful for atomic SET + RETURN patterns.
+   * @param cypher - The Cypher mutation query with RETURN clause
+   * @param params - Optional query parameters
+   * @returns Array of query results
+   */
+  writeQuery<T>(cypher: string, params?: Record<string, unknown>): Promise<T[]>;
+
+  /**
    * Close the database connection.
    */
   disconnect(): Promise<void>;
