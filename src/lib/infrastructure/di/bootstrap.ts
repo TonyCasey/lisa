@@ -41,6 +41,7 @@ import {
   EventEmitter,
   SessionCaptureService,
   RecursionService,
+  TaskTypeDetector,
 } from '../services';
 import { createRepositoryRouter, closeConnections } from '../dal';
 import { createLogger, createNullLogger } from '../logging';
@@ -194,6 +195,13 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
       const tasks = await container.resolve<TaskService>(TOKENS.TaskService);
       return new RecursionService(memory, tasks);
     },
+    'transient'
+  );
+
+  // Task Type Detector (transient - stateless, no dependencies)
+  container.register(
+    TOKENS.TaskTypeDetector,
+    async () => new TaskTypeDetector(),
     'transient'
   );
 
