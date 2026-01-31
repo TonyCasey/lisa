@@ -31,6 +31,7 @@ import {
 } from '../../../domain/interfaces/types/IMemoryQuality';
 import type { ConfidenceLevel } from '../../../domain/interfaces/types/IMemoryQuality';
 import { parseDate } from '../../../utils/dateParser';
+import { MemoryError } from '../../../domain/errors/LisaError';
 
 /**
  * Neo4j record structure for fact queries.
@@ -399,7 +400,7 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
           loadCypher, { groupId, uuid }
         );
         if (records.length === 0) {
-          throw new Error(`Fact not found: ${uuid}`);
+          throw new MemoryError(`Fact not found: ${uuid}`, { groupId, uuid });
         }
 
         const currentTags = records[0].tags ?? [];
@@ -416,7 +417,16 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
           SET r.tags = $newTags
           RETURN count(r) AS affected
         `;
-        await neo4jClient.writeQuery(updateCypher, { groupId, uuid, newTags });
+        const writeResult = await neo4jClient.writeQuery<{ affected: number }>(
+          updateCypher, { groupId, uuid, newTags }
+        );
+        const affected = writeResult[0]?.affected ?? 0;
+        if (affected === 0) {
+          throw new MemoryError(
+            `Fact expired or not found during verify: ${uuid}`,
+            { groupId, uuid }
+          );
+        }
 
         return {
           status: 'ok',
@@ -476,7 +486,11 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
           const confidence = parseConfidenceTag(tags);
           const source = parseSourceTag(tags);
           const lifecycle = parseLifecycleTag(tags);
-          const createdMs = r.created_at ? new Date(r.created_at).getTime() : now;
+          const createdDate = r.created_at ? new Date(r.created_at) : null;
+          const createdMs =
+            createdDate && !Number.isNaN(createdDate.getTime())
+              ? createdDate.getTime()
+              : now;
           const age = formatAge(now - createdMs);
 
           return {
