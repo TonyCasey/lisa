@@ -36,7 +36,12 @@ export class TaskTypeDetector implements ITaskTypeDetector {
       return { taskType: 'execution', confidence: 0, signals: [] };
     }
 
-    const normalised = prompt.toLowerCase();
+    // Normalise: lowercase and strip punctuation so "stack-trace" matches "stack trace"
+    const normalised = prompt
+      .toLowerCase()
+      .replace(/[^\w\s]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
 
     let bestType: TaskType = 'execution';
     let bestScore = 0;
@@ -49,9 +54,9 @@ export class TaskTypeDetector implements ITaskTypeDetector {
       const matched: string[] = [];
 
       for (const signal of signals) {
+        const isPhrase = signal.includes(' ');
+        const weight = isPhrase ? PHRASE_BONUS : 1;
         if (normalised.includes(signal)) {
-          const isPhrase = signal.includes(' ');
-          const weight = isPhrase ? PHRASE_BONUS : 1;
           score += weight;
           matched.push(signal);
         }
@@ -66,9 +71,9 @@ export class TaskTypeDetector implements ITaskTypeDetector {
       }
     }
 
-    // Compute confidence as proportion of winning score to total
+    // Confidence = dominance ratio (what fraction of all matched signals belong to winning type)
     const confidence = totalScore > 0
-      ? Math.min(bestScore / Math.max(totalScore, bestScore + 1), 1.0)
+      ? Math.min(bestScore / totalScore, 1.0)
       : 0;
 
     // Below threshold, default to execution
