@@ -1,0 +1,5 @@
+# Ensure shell scripts always use LF line endings (critical for Docker containers)
+*.sh text eol=lf
+
+# Ensure Cypher init scripts use LF line endings
+*.cypher text eol=lf
