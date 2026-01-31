@@ -11,6 +11,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Memory Quality & Source Tracking Domain Types ([#125](https://github.com/TonyCasey/lisa/issues/125))
+
+Added domain types and interfaces for fact quality tracking and provenance, enabling confidence scoring and source attribution for memory facts.
+
+- `ConfidenceLevel` type with five levels: `verified`, `high`, `medium`, `low`, `uncertain`
+- `SourceType` type with six source categories: `user-explicit`, `session-capture`, `prompt-capture`, `code-analysis`, `auto-inferred`, `external-sync`
+- Score mappings (`CONFIDENCE_SCORES`) and default confidence per source (`DEFAULT_CONFIDENCE`)
+- Utility functions: `resolveConfidenceTag()`, `parseConfidenceTag()`, `isValidConfidence()`, `confidenceToScore()`, `scoreToConfidence()`, `resolveSourceTag()`, `parseSourceTag()`, `isValidSource()`, `defaultConfidenceForSource()`
+- `IQualityFilter` and `IConflictGroup` interfaces for quality-based queries
+- `IMemoryRepositoryQuality` interface with `findByMinConfidence()` and `findConflicts()` methods
+- `IReadOnlyMemoryRepositoryWithQuality` composite interface
+- Extended `IMemorySaveOptions` with `confidence` and `sourceType` fields
+- Extended `IQueryOptions` with optional `quality` filter
+
+Part of Epic [#124](https://github.com/TonyCasey/lisa/issues/124)
+
 #### Memory Lifecycle Domain Types ([#111](https://github.com/TonyCasey/lisa/issues/111))
 
 Added domain types and interfaces for memory lifecycle tiers, enabling retention control and TTL-based expiration for memory facts.

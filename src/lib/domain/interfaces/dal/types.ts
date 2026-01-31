@@ -7,6 +7,7 @@
 import { IMemoryItem } from '../types/IMemoryResult';
 import { ITask } from '../types/ITask';
 import type { MemoryLifecycle } from '../types/IMemoryLifecycle';
+import type { ConfidenceLevel, SourceType } from '../types/IMemoryQuality';
 
 /**
  * Fields that can be used for sorting.
@@ -46,6 +47,8 @@ export interface IQueryOptions {
   readonly until?: Date;
   /** Include expired/invalidated facts */
   readonly includeExpired?: boolean;
+  /** Quality-based filtering */
+  readonly quality?: IQualityFilter;
 }
 
 /**
@@ -118,4 +121,28 @@ export interface IExpirationFilter {
   readonly olderThan?: Date;
   /** Filter by tags (all must match) */
   readonly tags?: readonly string[];
+}
+
+/**
+ * Filter criteria for quality-based queries.
+ */
+export interface IQualityFilter {
+  /** Minimum confidence level (inclusive) */
+  readonly minConfidence?: ConfidenceLevel;
+  /** Filter by source type */
+  readonly sourceType?: SourceType;
+  /** Only include facts marked as curated */
+  readonly curatedOnly?: boolean;
+}
+
+/**
+ * A group of potentially conflicting facts sharing a topic.
+ */
+export interface IConflictGroup {
+  /** Shared topic or tag that links these facts */
+  readonly topic: string;
+  /** The conflicting facts */
+  readonly facts: readonly IMemoryItem[];
+  /** When the conflict was detected */
+  readonly detectedAt: string;
 }

@@ -7,7 +7,8 @@
 
 import { IMemoryItem } from '../types/IMemoryResult';
 import type { MemoryLifecycle } from '../types/IMemoryLifecycle';
-import { IQueryOptions, IMemoryQueryResult, IExpirationFilter } from './types';
+import type { ConfidenceLevel, SourceType } from '../types/IMemoryQuality';
+import { IQueryOptions, IMemoryQueryResult, IExpirationFilter, IConflictGroup } from './types';
 
 /**
  * Options for saving memory.
@@ -21,6 +22,10 @@ export interface IMemorySaveOptions {
   readonly lifecycle?: MemoryLifecycle;
   /** Custom TTL override in milliseconds (overrides lifecycle default) */
   readonly ttlMs?: number;
+  /** Confidence level for the fact */
+  readonly confidence?: ConfidenceLevel;
+  /** Source type for provenance tracking */
+  readonly sourceType?: SourceType;
 }
 
 /**
@@ -138,6 +143,37 @@ export interface IMemoryRepositoryExpiration {
 }
 
 /**
+ * Quality operations for memory repositories.
+ * Separated interface since not all backends support quality queries.
+ */
+export interface IMemoryRepositoryQuality {
+  /**
+   * Find facts at or above a minimum confidence level.
+   * @param groupIds - Group IDs to search
+   * @param minLevel - Minimum confidence level (inclusive)
+   * @param options - Additional query options
+   */
+  findByMinConfidence(
+    groupIds: readonly string[],
+    minLevel: ConfidenceLevel,
+    options?: IQueryOptions
+  ): Promise<IMemoryQueryResult>;
+
+  /**
+   * Find groups of potentially conflicting facts.
+   * Detects facts sharing topic tags but with differing content.
+   * @param groupIds - Group IDs to search
+   * @param topic - Optional topic to filter conflicts by
+   * @param options - Additional query options
+   */
+  findConflicts(
+    groupIds: readonly string[],
+    topic?: string,
+    options?: IQueryOptions
+  ): Promise<readonly IConflictGroup[]>;
+}
+
+/**
  * Complete memory repository interface.
  */
 export interface IMemoryRepository
@@ -158,3 +194,10 @@ export interface IReadOnlyMemoryRepository
 export interface IReadOnlyMemoryRepositoryWithExpiration
   extends IReadOnlyMemoryRepository,
     IMemoryRepositoryExpiration {}
+
+/**
+ * Read-only memory repository with expiration and quality support.
+ */
+export interface IReadOnlyMemoryRepositoryWithQuality
+  extends IReadOnlyMemoryRepositoryWithExpiration,
+    IMemoryRepositoryQuality {}
