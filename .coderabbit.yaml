@@ -6,4 +6,4 @@ reviews:
     enabled: true
     # Review all PRs regardless of target branch (not just main)
     base_branches:
-      - "**"
+      - ".*"
