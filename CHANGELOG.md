@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+#### Decompose cli.ts ([#81](https://github.com/TonyCasey/lisa/issues/81))
+
+Refactored the monolithic `src/lib/cli.ts` (1,951 lines) into focused command modules. The CLI entry point is now a thin wiring layer (~320 lines) that delegates to dedicated modules.
+
+**New command modules:**
+- `src/lib/commands/cli-utils.ts` — shared utilities (`getSkillCacheEnv`, `spawnAndWait`, `runPrWatchLoop`)
+- `src/lib/commands/hooks.ts` — hook commands (session-start, session-stop, user-prompt-submit)
+- `src/lib/commands/knowledge.ts` — memory, tasks, and storage commands
+- `src/lib/commands/skills.ts` — skill passthrough commands (jira, GitHub, prompt, etc.)
+- `src/lib/commands/issue.ts` — GitHub issue management with auto-labeling
+- `src/lib/commands/pr.ts` — PR workflow commands (create, review, checks, comments, watch, poll, cron)
+
+**Pattern:** Each module exports a `register*Commands(parent: Command)` function that handles both Commander wiring and action logic, keeping related code together.
+
 ---
 
 ## [2.11.5] - 2026-01-28

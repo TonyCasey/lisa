@@ -1,7 +1,7 @@
 /**
  * CLI Command Modules
  *
- * Exports command handlers for the Lisa CLI.
+ * Exports command handlers and register functions for the Lisa CLI.
  */
 
 export {
@@ -44,3 +44,18 @@ export {
   type CliSupport,
   type IGraphitiConfig,
 } from './shared';
+
+// Extracted command group registrations
+export { registerHookCommands } from './hooks';
+export { registerKnowledgeCommands } from './knowledge';
+export { registerSkillCommands } from './skills';
+export { registerIssueCommands } from './issue';
+export { registerPrCommands } from './pr';
+
+// CLI utilities
+export {
+  getSkillCacheEnv,
+  spawnAndWait,
+  runPrWatchLoop,
+  type IPrWatchLoopOptions,
+} from './cli-utils';

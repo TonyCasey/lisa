@@ -1,0 +1,144 @@
+/**
+ * Knowledge Command Module
+ *
+ * Commands for memory, tasks, and storage operations.
+ * These are passthrough commands that delegate to skill scripts.
+ */
+
+import type {Command} from 'commander';
+import path from 'path';
+import {getSkillCacheEnv, spawnAndWait} from './cli-utils';
+
+export function registerKnowledgeCommands(program: Command): void {
+  // Subcommand: lisa memory
+  const memoryCmd = program
+    .command('memory')
+    .description('Memory operations (load, add)');
+
+  memoryCmd
+    .command('load')
+    .description('Load memories from storage')
+    .option('-g, --group <id>', 'Group ID')
+    .option('-q, --query <query>', 'Search query')
+    .option('-l, --limit <n>', 'Max results', '10')
+    .option('--since <date>', 'Filter memories created after date (ISO or relative: today, yesterday, 7d, 1w, 1m)')
+    .option('--until <date>', 'Filter memories created before date')
+    .option('--cache', 'Use cache fallback')
+    .action(async (opts) => {
+      const args = ['load'];
+      if (opts.group) args.push('--group', opts.group);
+      if (opts.query) args.push('--query', opts.query);
+      if (opts.limit) args.push('--limit', String(parseInt(opts.limit, 10)));
+      if (opts.since) args.push('--since', opts.since);
+      if (opts.until) args.push('--until', opts.until);
+      if (opts.cache) args.push('--cache');
+      const scriptPath = path.join(__dirname, '..', 'skills', 'memory', 'memory.js');
+      await spawnAndWait(scriptPath, args, getSkillCacheEnv('memory'));
+    });
+
+  memoryCmd
+    .command('add <text>')
+    .description('Add a memory')
+    .option('-g, --group <id>', 'Group ID')
+    .option('-t, --tag <tag>', 'Tag for the memory')
+    .option('--type <type>', 'Memory type')
+    .option('--source <source>', 'Source identifier')
+    .option('--cache', 'Use cache fallback')
+    .action(async (text, opts) => {
+      const args = ['add', text];
+      if (opts.group) args.push('--group', opts.group);
+      if (opts.tag) args.push('--tag', opts.tag);
+      if (opts.type) args.push('--type', opts.type);
+      if (opts.source) args.push('--source', opts.source);
+      if (opts.cache) args.push('--cache');
+      const scriptPath = path.join(__dirname, '..', 'skills', 'memory', 'memory.js');
+      await spawnAndWait(scriptPath, args, getSkillCacheEnv('memory'));
+    });
+
+  // Subcommand: lisa tasks
+  const tasksCmd = program
+    .command('tasks')
+    .description('Task operations (list, add, update)');
+
+  tasksCmd
+    .command('list')
+    .description('List tasks')
+    .option('-g, --group <id>', 'Group ID')
+    .option('-l, --limit <n>', 'Max results', '20')
+    .option('--since <date>', 'Filter tasks created after date (ISO or relative: today, yesterday, 7d, 1w, 1m)')
+    .option('--until <date>', 'Filter tasks created before date')
+    .option('--all', 'Include tasks from all time (disables default --since today)')
+    .option('--cache', 'Use cache fallback')
+    .action(async (opts) => {
+      const args = ['list'];
+      if (opts.group) args.push('--group', opts.group);
+      if (opts.limit) args.push('--limit', String(parseInt(opts.limit, 10)));
+      if (opts.since) args.push('--since', opts.since);
+      if (opts.until) args.push('--until', opts.until);
+      if (opts.all) args.push('--all');
+      if (opts.cache) args.push('--cache');
+      const scriptPath = path.join(__dirname, '..', 'skills', 'tasks', 'tasks.js');
+      await spawnAndWait(scriptPath, args, getSkillCacheEnv('tasks'));
+    });
+
+  tasksCmd
+    .command('add <text>')
+    .description('Add a task')
+    .option('-g, --group <id>', 'Group ID')
+    .option('-s, --status <status>', 'Task status (todo, doing, done)', 'todo')
+    .option('-t, --tag <tag>', 'Tag for the task')
+    .option('--cache', 'Use cache fallback')
+    .action(async (text, opts) => {
+      const args = ['add', text];
+      if (opts.group) args.push('--group', opts.group);
+      if (opts.status) args.push('--status', opts.status);
+      if (opts.tag) args.push('--tag', opts.tag);
+      if (opts.cache) args.push('--cache');
+      const scriptPath = path.join(__dirname, '..', 'skills', 'tasks', 'tasks.js');
+      await spawnAndWait(scriptPath, args, getSkillCacheEnv('tasks'));
+    });
+
+  tasksCmd
+    .command('update <text>')
+    .description('Update a task')
+    .option('-g, --group <id>', 'Group ID')
+    .option('-s, --status <status>', 'Task status (todo, doing, done)')
+    .option('-t, --tag <tag>', 'Tag for the task')
+    .option('--cache', 'Use cache fallback')
+    .action(async (text, opts) => {
+      const args = ['update', text];
+      if (opts.group) args.push('--group', opts.group);
+      if (opts.status) args.push('--status', opts.status);
+      if (opts.tag) args.push('--tag', opts.tag);
+      if (opts.cache) args.push('--cache');
+      const scriptPath = path.join(__dirname, '..', 'skills', 'tasks', 'tasks.js');
+      await spawnAndWait(scriptPath, args, getSkillCacheEnv('tasks'));
+    });
+
+  // Subcommand: lisa storage
+  const storageCmd = program
+    .command('storage')
+    .description('Storage operations (status, switch)');
+
+  storageCmd
+    .command('status')
+    .description('Show current storage mode and connection status')
+    .option('--cache', 'Use cache fallback')
+    .action(async (opts) => {
+      const args = ['status'];
+      if (opts.cache) args.push('--cache');
+      const scriptPath = path.join(__dirname, '..', 'skills', 'lisa', 'storage.js');
+      await spawnAndWait(scriptPath, args, getSkillCacheEnv('lisa'));
+    });
+
+  storageCmd
+    .command('switch <mode>')
+    .description('Switch storage mode (local, zep-cloud)')
+    .option('--cache', 'Use cache fallback')
+    .action(async (mode, opts) => {
+      const args = ['switch', mode];
+      if (opts.cache) args.push('--cache');
+      const scriptPath = path.join(__dirname, '..', 'skills', 'lisa', 'storage.js');
+      await spawnAndWait(scriptPath, args, getSkillCacheEnv('lisa'));
+    });
+}
