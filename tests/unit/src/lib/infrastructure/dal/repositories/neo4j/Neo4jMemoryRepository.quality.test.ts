@@ -9,6 +9,7 @@ import { Neo4jMemoryRepository } from '../../../../../../../../src/lib/infrastru
 import type { Neo4jConnectionManager } from '../../../../../../../../src/lib/infrastructure/dal/connections/Neo4jConnectionManager';
 import {
   CONFIDENCE_VALUES,
+  resolveConfidenceTag,
 } from '../../../../../../../../src/lib/domain/interfaces/types/IMemoryQuality';
 
 function createMockConnection(): Neo4jConnectionManager {
@@ -38,7 +39,7 @@ describe('Neo4jMemoryRepository - quality', () => {
   });
 
   describe('findByMinConfidence()', () => {
-    it('should query with confidence tags at or above requested level', async () => {
+    it('should use parameterized query with confidence tags at or above requested level', async () => {
       (mockConnection.query as ReturnType<typeof mock.fn>).mock.mockImplementation(
         async () => [
           {
@@ -56,13 +57,19 @@ describe('Neo4jMemoryRepository - quality', () => {
       const queryFn = mockConnection.query as ReturnType<typeof mock.fn>;
       assert.strictEqual(queryFn.mock.calls.length, 1);
 
-      const [cypher] = queryFn.mock.calls[0].arguments;
+      const [cypher, params] = queryFn.mock.calls[0].arguments;
+      // Cypher should use parameterized $groupIds and $acceptedTags
+      assert.ok(cypher.includes('$groupIds'), 'should use parameterized $groupIds');
+      assert.ok(cypher.includes('$acceptedTags'), 'should use parameterized $acceptedTags');
+
+      // Params should contain the correct values
+      assert.deepStrictEqual(params.groupIds, ['g1']);
       // 'medium' has score 0.5 — should include verified (1.0), high (0.8), medium (0.5)
-      assert.ok(cypher.includes('confidence:verified'), 'should include confidence:verified');
-      assert.ok(cypher.includes('confidence:high'), 'should include confidence:high');
-      assert.ok(cypher.includes('confidence:medium'), 'should include confidence:medium');
-      assert.ok(!cypher.includes('confidence:low'), 'should NOT include confidence:low');
-      assert.ok(!cypher.includes('confidence:uncertain'), 'should NOT include confidence:uncertain');
+      assert.ok(params.acceptedTags.includes('confidence:verified'));
+      assert.ok(params.acceptedTags.includes('confidence:high'));
+      assert.ok(params.acceptedTags.includes('confidence:medium'));
+      assert.ok(!params.acceptedTags.includes('confidence:low'));
+      assert.ok(!params.acceptedTags.includes('confidence:uncertain'));
 
       assert.strictEqual(result.items.length, 1);
       assert.strictEqual(result.items[0].uuid, 'u1');
@@ -77,12 +84,12 @@ describe('Neo4jMemoryRepository - quality', () => {
       await repo.findByMinConfidence(['g1'], 'uncertain');
 
       const queryFn = mockConnection.query as ReturnType<typeof mock.fn>;
-      const [cypher] = queryFn.mock.calls[0].arguments;
+      const [, params] = queryFn.mock.calls[0].arguments;
 
-      // 'uncertain' is the lowest — all 5 levels should be present
+      // 'uncertain' is the lowest — all 5 levels should be present in params
       for (const level of CONFIDENCE_VALUES) {
         assert.ok(
-          cypher.includes(`confidence:${level}`),
+          params.acceptedTags.includes(resolveConfidenceTag(level)),
           `should include confidence:${level}`
         );
       }
@@ -96,13 +103,9 @@ describe('Neo4jMemoryRepository - quality', () => {
       await repo.findByMinConfidence(['g1'], 'verified');
 
       const queryFn = mockConnection.query as ReturnType<typeof mock.fn>;
-      const [cypher] = queryFn.mock.calls[0].arguments;
+      const [, params] = queryFn.mock.calls[0].arguments;
 
-      assert.ok(cypher.includes('confidence:verified'), 'should include confidence:verified');
-      assert.ok(!cypher.includes('confidence:high'), 'should NOT include confidence:high');
-      assert.ok(!cypher.includes('confidence:medium'), 'should NOT include confidence:medium');
-      assert.ok(!cypher.includes('confidence:low'), 'should NOT include confidence:low');
-      assert.ok(!cypher.includes('confidence:uncertain'), 'should NOT include confidence:uncertain');
+      assert.deepStrictEqual(params.acceptedTags, ['confidence:verified']);
     });
 
     it('should exclude expired facts by default', async () => {
@@ -143,7 +146,7 @@ describe('Neo4jMemoryRepository - quality', () => {
       assert.strictEqual(result.hasMore, false);
     });
 
-    it('should apply limit and offset from options', async () => {
+    it('should apply limit and offset from options via params', async () => {
       (mockConnection.query as ReturnType<typeof mock.fn>).mock.mockImplementation(
         async () => []
       );
@@ -151,9 +154,11 @@ describe('Neo4jMemoryRepository - quality', () => {
       await repo.findByMinConfidence(['g1'], 'medium', { limit: 5, offset: 10 });
 
       const queryFn = mockConnection.query as ReturnType<typeof mock.fn>;
-      const [cypher] = queryFn.mock.calls[0].arguments;
-      assert.ok(cypher.includes('SKIP 10'), 'should contain SKIP 10');
-      assert.ok(cypher.includes('LIMIT 5'), 'should contain LIMIT 5');
+      const [cypher, params] = queryFn.mock.calls[0].arguments;
+      assert.ok(cypher.includes('SKIP $offset'), 'should use parameterized $offset');
+      assert.ok(cypher.includes('LIMIT $limit'), 'should use parameterized $limit');
+      assert.strictEqual(params.offset, 10);
+      assert.strictEqual(params.limit, 5);
     });
 
     it('should propagate errors from connection.query', async () => {
@@ -191,7 +196,20 @@ describe('Neo4jMemoryRepository - quality', () => {
       assert.strictEqual(result[0].facts[1].uuid, 'u2');
     });
 
-    it('should filter by topic when provided', async () => {
+    it('should use parameterized query with $groupIds', async () => {
+      (mockConnection.query as ReturnType<typeof mock.fn>).mock.mockImplementation(
+        async () => []
+      );
+
+      await repo.findConflicts(['g1', 'g2']);
+
+      const queryFn = mockConnection.query as ReturnType<typeof mock.fn>;
+      const [cypher, params] = queryFn.mock.calls[0].arguments;
+      assert.ok(cypher.includes('$groupIds'), 'should use parameterized $groupIds');
+      assert.deepStrictEqual(params.groupIds, ['g1', 'g2']);
+    });
+
+    it('should filter by topic using parameterized $topic', async () => {
       (mockConnection.query as ReturnType<typeof mock.fn>).mock.mockImplementation(
         async () => []
       );
@@ -199,11 +217,9 @@ describe('Neo4jMemoryRepository - quality', () => {
       await repo.findConflicts(['g1'], 'type:decision');
 
       const queryFn = mockConnection.query as ReturnType<typeof mock.fn>;
-      const [cypher] = queryFn.mock.calls[0].arguments;
-      assert.ok(
-        cypher.includes('"type:decision" IN r.tags'),
-        'should contain topic filter in Cypher'
-      );
+      const [cypher, params] = queryFn.mock.calls[0].arguments;
+      assert.ok(cypher.includes('$topic IN r.tags'), 'should use parameterized $topic');
+      assert.strictEqual(params.topic, 'type:decision');
     });
 
     it('should only return groups with 2+ facts (WHERE SIZE(facts) > 1)', async () => {
@@ -221,7 +237,7 @@ describe('Neo4jMemoryRepository - quality', () => {
       );
     });
 
-    it('should exclude expired facts', async () => {
+    it('should exclude expired facts by default', async () => {
       (mockConnection.query as ReturnType<typeof mock.fn>).mock.mockImplementation(
         async () => []
       );
@@ -233,6 +249,21 @@ describe('Neo4jMemoryRepository - quality', () => {
       assert.ok(
         cypher.includes('r.expired_at IS NULL'),
         'should exclude expired facts'
+      );
+    });
+
+    it('should include expired facts when includeExpired is true', async () => {
+      (mockConnection.query as ReturnType<typeof mock.fn>).mock.mockImplementation(
+        async () => []
+      );
+
+      await repo.findConflicts(['g1'], undefined, { includeExpired: true });
+
+      const queryFn = mockConnection.query as ReturnType<typeof mock.fn>;
+      const [cypher] = queryFn.mock.calls[0].arguments;
+      assert.ok(
+        !cypher.includes('r.expired_at IS NULL'),
+        'should NOT contain expired_at IS NULL when includeExpired is true'
       );
     });
 

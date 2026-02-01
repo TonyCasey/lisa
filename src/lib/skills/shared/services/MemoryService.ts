@@ -355,8 +355,8 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
           WHERE ${whereClause}
           WITH [tag IN r.tags WHERE tag STARTS WITH 'type:' | tag][0] AS topicTag,
                r.uuid AS uuid, r.name AS name, r.fact AS fact,
-               r.created_at AS created_at
-          WITH topicTag, COLLECT({ uuid: uuid, name: name, fact: fact, created_at: created_at }) AS facts
+               r.group_id AS group_id, r.created_at AS created_at
+          WITH topicTag, COLLECT({ uuid: uuid, name: name, fact: fact, group_id: group_id, created_at: created_at }) AS facts
           WHERE SIZE(facts) > 1
           RETURN topicTag, facts
           LIMIT 20
@@ -364,7 +364,7 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
 
         const records = await neo4jClient.query<{
           topicTag: string;
-          facts: Array<{ uuid: string; name: string; fact: string; created_at: string }>;
+          facts: Array<{ uuid: string; name: string; fact: string; group_id: string; created_at: string }>;
         }>(cypher, params);
 
         const conflictGroups: IConflictGroup[] = records.map((record) => ({
@@ -373,7 +373,7 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
             uuid: f.uuid,
             name: f.name,
             fact: f.fact,
-            group_id: groupIds[0] || '',
+            group_id: f.group_id,
             created_at: f.created_at,
           })),
           detectedAt: new Date().toISOString(),

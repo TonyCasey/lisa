@@ -264,15 +264,20 @@ export class Neo4jMemoryRepository implements IReadOnlyMemoryRepositoryWithQuali
       .filter((level) => CONFIDENCE_SCORES[level] >= minScore)
       .map(resolveConfidenceTag);
 
-    const groupList = groupIds.map((g) => `"${g}"`).join(', ');
-    const tagList = acceptedTags.map((t) => `"${t}"`).join(', ');
     const sortField = `r.${sort?.field || 'created_at'}`;
     const sortOrder = sort?.order === 'asc' ? 'ASC' : 'DESC';
 
+    const params: Record<string, unknown> = {
+      groupIds: [...groupIds],
+      acceptedTags: [...acceptedTags],
+      offset,
+      limit,
+    };
+
     const whereClauses: string[] = [
-      `r.group_id IN [${groupList}]`,
+      `r.group_id IN $groupIds`,
       `r.fact IS NOT NULL`,
-      `ANY(tag IN r.tags WHERE tag IN [${tagList}])`,
+      `ANY(tag IN r.tags WHERE tag IN $acceptedTags)`,
     ];
 
     if (!includeExpired) {
@@ -289,11 +294,11 @@ export class Neo4jMemoryRepository implements IReadOnlyMemoryRepositoryWithQuali
              r.valid_at AS valid_at, r.invalid_at AS invalid_at,
              r.expired_at AS expired_at
       ORDER BY ${sortField} ${sortOrder}
-      SKIP ${offset}
-      LIMIT ${limit}
+      SKIP $offset
+      LIMIT $limit
     `;
 
-    const records = await this.connection.query<Neo4jFactRecord>(cypher);
+    const records = await this.connection.query<Neo4jFactRecord>(cypher, params);
     const items = records.map(this.toMemoryItem);
 
     return {
@@ -313,19 +318,26 @@ export class Neo4jMemoryRepository implements IReadOnlyMemoryRepositoryWithQuali
     options?: IQueryOptions
   ): Promise<readonly IConflictGroup[]> {
     const opts = applyQueryDefaults(options);
-    const { limit } = opts;
+    const { limit, includeExpired } = opts;
 
-    const groupList = groupIds.map((g) => `"${g}"`).join(', ');
+    const params: Record<string, unknown> = {
+      groupIds: [...groupIds],
+      limit,
+    };
 
     const whereClauses: string[] = [
-      `r.group_id IN [${groupList}]`,
+      `r.group_id IN $groupIds`,
       `r.fact IS NOT NULL`,
-      `r.expired_at IS NULL`,
       `ANY(tag IN r.tags WHERE tag STARTS WITH 'type:')`,
     ];
 
+    if (!includeExpired) {
+      whereClauses.push(`r.expired_at IS NULL`);
+    }
+
     if (topic) {
-      whereClauses.push(`"${topic}" IN r.tags`);
+      whereClauses.push(`$topic IN r.tags`);
+      params.topic = topic;
     }
 
     const whereClause = whereClauses.join(' AND ');
@@ -339,13 +351,13 @@ export class Neo4jMemoryRepository implements IReadOnlyMemoryRepositoryWithQuali
       WITH topicTag, COLLECT({ uuid: uuid, name: name, fact: fact, created_at: created_at }) AS facts
       WHERE SIZE(facts) > 1
       RETURN topicTag, facts
-      LIMIT ${limit}
+      LIMIT $limit
     `;
 
     const records = await this.connection.query<{
       topicTag: string;
       facts: Array<{ uuid: string; name: string; fact: string; created_at: string }>;
-    }>(cypher);
+    }>(cypher, params);
 
     return records.map((record) => ({
       topic: record.topicTag,
