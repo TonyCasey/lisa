@@ -70,8 +70,8 @@ else
 fi
 
 # Wait for Graphiti to process (LLM fact extraction takes time)
-echo "  Waiting for processing (10s)..."
-sleep 10
+echo "  Waiting for processing (15s)..."
+sleep 15
 
 # =============================================================================
 # Test 2: Load memories
@@ -145,7 +145,7 @@ echo "=== Test 5: Group Isolation ==="
 ISOLATED_DIR=$(mktemp -d "/tmp/isolated-test-group-$$-XXXXXX")
 
 # Initialize a minimal project so lisa can run
-(cd "$ISOLATED_DIR" && npm init -y >/dev/null 2>&1 && npm install "$(ls /home/testuser/tonycasey-lisa-*.tgz 2>/dev/null | head -1)" >/dev/null 2>&1 && npx lisa init -y --mode skip >/dev/null 2>&1) || true
+(cd "$ISOLATED_DIR" && npm init -y >/dev/null 2>&1 && npm install "$(ls /home/testuser/tonycasey-lisa-*.tgz 2>/dev/null | head -1)" >/dev/null 2>&1 && ./node_modules/.bin/lisa init -y --mode skip >/dev/null 2>&1) || true
 
 ISOLATED_OUTPUT=$(cd "$ISOLATED_DIR" && lisa memory load --limit 10 2>&1)
 
