@@ -14,3 +14,10 @@ export {
   type CancellableResult,
   type Deferred,
 } from './cancellation';
+
+export {
+  normalizeText,
+  extractWords,
+  jaccardSimilarity,
+  detectDuplicatesFromFacts,
+} from './deduplication';

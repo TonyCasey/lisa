@@ -17,7 +17,7 @@ Added a three-pass deduplication detection service for finding duplicate memory 
 
 - `DeduplicationService` with three-pass algorithm: exact match, tag overlap, Jaccard word-set similarity
 - `IDeduplicationService`, `IDuplicateGroup`, `IDeduplicationResult` domain interfaces
-- `lisa memory dedupe` CLI command with `--min-similarity`, `--limit`, `--since` options
+- `lisa memory dedupe` CLI command with `--group`, `--min-similarity`, `--limit`, `--since` options
 - Skill-level `dedupe` command in `MemoryCliService` and `MemoryService`
 - DI registration for `DeduplicationService` with `IMemoryServiceWithQuality` dependency
 - Exported pure algorithm functions (`normalizeText`, `extractWords`, `jaccardSimilarity`, `detectDuplicatesFromFacts`) for reuse

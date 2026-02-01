@@ -18,7 +18,7 @@ import type {
   IMemoryDedupeResult,
   IConflictGroup,
 } from './interfaces';
-import { detectDuplicatesFromFacts } from '../../../infrastructure/services/DeduplicationService';
+import { detectDuplicatesFromFacts } from '../../../domain/utils/deduplication';
 import { LIFECYCLE_DEFAULTS, resolveLifecycleTag } from '../../../domain/interfaces/types/IMemoryLifecycle';
 import type { MemoryLifecycle } from '../../../domain/interfaces/types/IMemoryLifecycle';
 
@@ -443,11 +443,19 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
 
         // Load conflict groups for tag overlap pass
         const conflictParams: Record<string, unknown> = { groupIds: [groupId] };
+        const conflictDateFilters: string[] = [];
+        if (options?.since) {
+          conflictDateFilters.push('r.created_at >= datetime($since)');
+          conflictParams.since = options.since.toISOString();
+        }
+        const conflictDateFilterClause =
+          conflictDateFilters.length > 0 ? `AND ${conflictDateFilters.join(' AND ')}` : '';
         const conflictCypher = `
           MATCH (s:Entity)-[r]->(t:Entity)
           WHERE r.group_id IN $groupIds
             AND r.fact IS NOT NULL
             AND r.expired_at IS NULL
+            ${conflictDateFilterClause}
             AND ANY(tag IN r.tags WHERE tag STARTS WITH 'type:')
           WITH [tag IN r.tags WHERE tag STARTS WITH 'type:' | tag][0] AS topicTag,
                r.uuid AS uuid, r.name AS name, r.fact AS fact,
@@ -493,13 +501,14 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
           similarity: g.similarity,
         }));
 
+        const totalDuplicates = skillGroups.reduce((sum, group) => sum + group.facts.length, 0);
         return {
           status: 'ok',
           action: 'dedupe',
           group: groupId,
           totalFactsScanned: facts.length,
           duplicateGroups: skillGroups,
-          totalDuplicates: skillGroups.length,
+          totalDuplicates,
           minSimilarity,
           mode: 'neo4j',
         };

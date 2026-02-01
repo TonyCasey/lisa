@@ -45,7 +45,12 @@ async function main(): Promise<void> {
   const uuid = popFlag(args, '--uuid', null);
   const topic = popFlag(args, '--topic', null);
   const minSimilarityRaw = popFlag(args, '--min-similarity', null);
-  const minSimilarity = minSimilarityRaw !== null ? parseFloat(minSimilarityRaw) || null : null;
+  const minSimilarity = minSimilarityRaw !== null
+    ? (() => {
+        const parsed = Number(minSimilarityRaw);
+        return Number.isNaN(parsed) ? null : parsed;
+      })()
+    : null;
   const dryRun = hasFlag(args, '--dry-run');
   const useCache = hasFlag(args, '--cache');
   const payload = args.join(' ').trim();
