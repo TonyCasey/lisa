@@ -95,21 +95,23 @@ describe('LlmUsageTracker', () => {
 
     it('should create .lisa directory if missing', async () => {
       const dirWithoutLisa = await fsp.mkdtemp(path.join(os.tmpdir(), 'lisa-usage-nodir-'));
-      const tracker = createLlmUsageTracker(dirWithoutLisa, createMockPreferenceStore());
+      try {
+        const tracker = createLlmUsageTracker(dirWithoutLisa, createMockPreferenceStore());
 
-      await tracker.record({
-        provider: 'ollama',
-        model: 'llama3',
-        feature: 'test',
-        inputTokens: 10,
-        outputTokens: 5,
-        estimatedCostUsd: 0,
-      });
+        await tracker.record({
+          provider: 'ollama',
+          model: 'llama3',
+          feature: 'test',
+          inputTokens: 10,
+          outputTokens: 5,
+          estimatedCostUsd: 0,
+        });
 
-      const records = await tracker.getUsage();
-      assert.strictEqual(records.length, 1);
-
-      await fsp.rm(dirWithoutLisa, { recursive: true, force: true });
+        const records = await tracker.getUsage();
+        assert.strictEqual(records.length, 1);
+      } finally {
+        await fsp.rm(dirWithoutLisa, { recursive: true, force: true });
+      }
     });
   });
 

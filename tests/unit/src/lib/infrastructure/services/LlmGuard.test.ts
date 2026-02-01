@@ -205,6 +205,7 @@ describe('LlmGuard', () => {
         systemPrompt: 'You are helpful.',
       });
 
+      assert.ok(capturedOptions, 'capturedOptions should be defined');
       assert.strictEqual(capturedOptions.maxTokens, 2048);
       assert.strictEqual(capturedOptions.temperature, 0.5);
       assert.strictEqual(capturedOptions.systemPrompt, 'You are helpful.');

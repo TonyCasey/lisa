@@ -115,7 +115,7 @@ export function createLlmUsageTracker(
         records.push(record);
         await writeLog(records);
       });
-      writeQueue = pending.catch(() => { /* prevent unhandled rejection from blocking queue */ });
+      writeQueue = pending.catch((err) => { logger?.warn('LlmUsageTracker: write failed', { error: err }); });
       await pending;
     },
 
