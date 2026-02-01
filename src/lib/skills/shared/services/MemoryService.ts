@@ -14,6 +14,9 @@ import type {
   IMemoryLoadOptions,
   IMemoryExpireResult,
   IMemoryCleanupResult,
+  IMemoryLinkResult,
+  IMemoryLinksResult,
+  IMemoryRelationshipItem,
 } from './interfaces';
 import { LIFECYCLE_DEFAULTS, resolveLifecycleTag } from '../../../domain/interfaces/types/IMemoryLifecycle';
 import type { MemoryLifecycle } from '../../../domain/interfaces/types/IMemoryLifecycle';
@@ -319,6 +322,149 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
           group: groupId,
           expiredCount: totalExpired,
           dryRun,
+          mode: 'neo4j',
+        };
+      } finally {
+        await neo4jClient.disconnect();
+      }
+    },
+
+    async linkFacts(
+      groupId: string,
+      sourceUuid: string,
+      targetUuid: string,
+      relationType: string,
+      metadata?: string
+    ): Promise<IMemoryLinkResult> {
+      await neo4jClient.connect();
+      try {
+        // Preflight: verify both facts exist
+        const checkCypher = `
+          OPTIONAL MATCH (s1:Entity)-[sr]->(t1:Entity)
+          WHERE sr.uuid = $sourceUuid AND sr.group_id IN $groupIds
+          WITH count(sr) > 0 AS sourceExists
+          OPTIONAL MATCH (s2:Entity)-[tr]->(t2:Entity)
+          WHERE tr.uuid = $targetUuid AND tr.group_id IN $groupIds
+          RETURN sourceExists, count(tr) > 0 AS targetExists
+        `;
+        const checkResults = await neo4jClient.query<{ sourceExists: boolean; targetExists: boolean }>(
+          checkCypher,
+          { sourceUuid, targetUuid, groupIds: [groupId] }
+        );
+        const check = checkResults[0];
+        if (!check?.sourceExists) {
+          throw new Error(`Source fact not found: ${sourceUuid}`);
+        }
+        if (!check?.targetExists) {
+          throw new Error(`Target fact not found: ${targetUuid}`);
+        }
+
+        const cypher = `
+          MATCH (s1:Entity)-[sr]->(t1:Entity)
+          WHERE sr.uuid = $sourceUuid AND sr.group_id IN $groupIds
+          WITH t1, sr
+          LIMIT 1
+          MATCH (s2:Entity)-[tr]->(t2:Entity)
+          WHERE tr.uuid = $targetUuid AND tr.group_id IN $groupIds
+          WITH t1, t2, sr, tr
+          LIMIT 1
+          MERGE (t1)-[rel:MEMORY_RELATION {type: $relationType, source_uuid: $sourceUuid, target_uuid: $targetUuid, group_id: $groupId}]->(t2)
+          SET rel.created_at = datetime(),
+              rel.metadata = $metadata
+        `;
+
+        await neo4jClient.write(cypher, {
+          sourceUuid,
+          targetUuid,
+          relationType,
+          metadata: metadata ?? null,
+          groupId,
+          groupIds: [groupId],
+        });
+
+        return {
+          status: 'ok',
+          action: 'link',
+          group: groupId,
+          sourceUuid,
+          targetUuid,
+          relationType,
+          mode: 'neo4j',
+        };
+      } finally {
+        await neo4jClient.disconnect();
+      }
+    },
+
+    async getRelatedFacts(
+      groupId: string,
+      uuid: string,
+      relationType?: string
+    ): Promise<IMemoryLinksResult> {
+      await neo4jClient.connect();
+      try {
+        const typeFilter = relationType ? 'AND rel.type = $relationType' : '';
+
+        // Query outgoing relationships
+        const outgoingCypher = `
+          MATCH (t1:Entity)-[rel:MEMORY_RELATION]->(t2:Entity)
+          WHERE rel.source_uuid = $uuid
+            AND rel.group_id = $groupId
+            ${typeFilter}
+          RETURN rel.source_uuid AS sourceUuid,
+                 rel.target_uuid AS targetUuid,
+                 rel.type AS relationType,
+                 rel.metadata AS metadata,
+                 rel.created_at AS created_at
+        `;
+
+        // Query incoming relationships
+        const incomingCypher = `
+          MATCH (t1:Entity)-[rel:MEMORY_RELATION]->(t2:Entity)
+          WHERE rel.target_uuid = $uuid
+            AND rel.group_id = $groupId
+            ${typeFilter}
+          RETURN rel.source_uuid AS sourceUuid,
+                 rel.target_uuid AS targetUuid,
+                 rel.type AS relationType,
+                 rel.metadata AS metadata,
+                 rel.created_at AS created_at
+        `;
+
+        const params = {
+          uuid,
+          groupId,
+          relationType: relationType ?? null,
+        };
+
+        const [outgoing, incoming] = await Promise.all([
+          neo4jClient.query<IMemoryRelationshipItem>(outgoingCypher, params),
+          neo4jClient.query<IMemoryRelationshipItem>(incomingCypher, params),
+        ]);
+
+        const relationships: IMemoryRelationshipItem[] = [
+          ...outgoing.map((r) => ({
+            sourceUuid: r.sourceUuid,
+            targetUuid: r.targetUuid,
+            relationType: r.relationType,
+            metadata: r.metadata ?? undefined,
+            created_at: r.created_at ?? undefined,
+          })),
+          ...incoming.map((r) => ({
+            sourceUuid: r.sourceUuid,
+            targetUuid: r.targetUuid,
+            relationType: r.relationType,
+            metadata: r.metadata ?? undefined,
+            created_at: r.created_at ?? undefined,
+          })),
+        ];
+
+        return {
+          status: 'ok',
+          action: 'links',
+          group: groupId,
+          uuid,
+          relationships,
           mode: 'neo4j',
         };
       } finally {

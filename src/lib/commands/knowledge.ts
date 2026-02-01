@@ -13,7 +13,7 @@ export function registerKnowledgeCommands(program: Command): void {
   // Subcommand: lisa memory
   const memoryCmd = program
     .command('memory')
-    .description('Memory operations (load, add, expire, cleanup)');
+    .description('Memory operations (load, add, expire, cleanup, link, links)');
 
   memoryCmd
     .command('load')
@@ -82,6 +82,38 @@ export function registerKnowledgeCommands(program: Command): void {
       const args = ['cleanup'];
       if (opts.group) args.push('--group', opts.group);
       if (opts.dryRun) args.push('--dry-run');
+      if (opts.cache) args.push('--cache');
+      const scriptPath = path.join(__dirname, '..', 'skills', 'memory', 'memory.js');
+      await spawnAndWait(scriptPath, args, getSkillCacheEnv('memory'));
+    });
+
+  memoryCmd
+    .command('link <sourceUuid> <targetUuid>')
+    .description('Create a relationship between two facts')
+    .option('-g, --group <id>', 'Group ID')
+    .option('--type <relationType>', 'Relation type (supersedes, supports, contradicts, implements, relates_to, refines)', 'relates_to')
+    .option('--note <text>', 'Optional annotation')
+    .option('--cache', 'Use cache fallback')
+    .action(async (sourceUuid: string, targetUuid: string, opts) => {
+      const args = ['link', sourceUuid, targetUuid];
+      if (opts.group) args.push('--group', opts.group);
+      if (opts.type) args.push('--type', opts.type);
+      if (opts.note) args.push('--note', opts.note);
+      if (opts.cache) args.push('--cache');
+      const scriptPath = path.join(__dirname, '..', 'skills', 'memory', 'memory.js');
+      await spawnAndWait(scriptPath, args, getSkillCacheEnv('memory'));
+    });
+
+  memoryCmd
+    .command('links <uuid>')
+    .description('Show relationships for a fact')
+    .option('-g, --group <id>', 'Group ID')
+    .option('--type <relationType>', 'Filter by relation type')
+    .option('--cache', 'Use cache fallback')
+    .action(async (uuid: string, opts) => {
+      const args = ['links', uuid];
+      if (opts.group) args.push('--group', opts.group);
+      if (opts.type) args.push('--type', opts.type);
       if (opts.cache) args.push('--cache');
       const scriptPath = path.join(__dirname, '..', 'skills', 'memory', 'memory.js');
       await spawnAndWait(scriptPath, args, getSkillCacheEnv('memory'));

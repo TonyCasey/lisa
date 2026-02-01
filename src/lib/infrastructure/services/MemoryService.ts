@@ -9,6 +9,8 @@ import type {
   ILogContext,
   IMemorySaveOptions,
 } from '../../domain';
+import type { IMemoryRelationship, MemoryRelationType } from '../../domain/interfaces/types/IMemoryRelationship';
+import type { IMemoryRelationshipRepository } from '../../domain/interfaces/dal/IMemoryRelationshipRepository';
 import {
   createMemoryResultBuilder,
   withCancellation,
@@ -51,7 +53,8 @@ export class MemoryService implements IMemoryService {
   constructor(
     private readonly mcp: IMcpClient,
     private readonly router?: IRepositoryRouter,
-    logger?: ILogger
+    logger?: ILogger,
+    private readonly relationshipRepo?: IMemoryRelationshipRepository
   ) {
     const nullLogger = new NullLogger();
     this.logger = logger ?? nullLogger;
@@ -558,5 +561,63 @@ export class MemoryService implements IMemoryService {
       });
       return [];
     }
+  }
+
+  // ============================================================
+  // Relationship Operations (optional — requires relationship repo)
+  // ============================================================
+
+  /**
+   * Create a typed relationship between two facts.
+   */
+  async linkFacts(
+    groupId: string,
+    sourceUuid: string,
+    targetUuid: string,
+    relationType: MemoryRelationType,
+    metadata?: string
+  ): Promise<void> {
+    if (!this.relationshipRepo) {
+      throw new Error('Relationship storage requires Neo4j backend');
+    }
+    await this.relationshipRepo.createRelationship(groupId, {
+      sourceUuid,
+      targetUuid,
+      relationType,
+      metadata,
+    });
+  }
+
+  /**
+   * Remove a typed relationship between two facts.
+   */
+  async unlinkFacts(
+    groupId: string,
+    sourceUuid: string,
+    targetUuid: string,
+    relationType: MemoryRelationType
+  ): Promise<void> {
+    if (!this.relationshipRepo) {
+      throw new Error('Relationship storage requires Neo4j backend');
+    }
+    await this.relationshipRepo.removeRelationship(groupId, sourceUuid, targetUuid, relationType);
+  }
+
+  /**
+   * Get all relationships for a fact.
+   */
+  async getRelatedFacts(
+    groupId: string,
+    uuid: string,
+    relationType?: MemoryRelationType
+  ): Promise<IMemoryRelationship[]> {
+    if (!this.relationshipRepo) {
+      throw new Error('Relationship storage requires Neo4j backend');
+    }
+    const results = await this.relationshipRepo.findRelationships(groupId, uuid, {
+      relationType,
+      direction: 'both',
+    });
+    return [...results];
   }
 }

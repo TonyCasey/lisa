@@ -50,6 +50,7 @@ export {
   Neo4jMemoryRepository,
   Neo4jTaskRepository,
   Neo4jPullRequestRepository,
+  Neo4jMemoryRelationshipRepository,
   ZepMemoryRepository,
   ZepTaskRepository,
 } from './repositories';

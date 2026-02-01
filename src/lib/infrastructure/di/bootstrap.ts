@@ -18,7 +18,6 @@ import type {
   IRecursionService,
 } from '../../domain/interfaces';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
-import type { IConnectionManagers } from '../dal';
 import type { IRequestHandler } from '../../application/mediator';
 import type { ISessionStartResult } from '../../application/interfaces';
 import type {
@@ -42,7 +41,9 @@ import {
   SessionCaptureService,
   RecursionService,
 } from '../services';
-import { createRepositoryRouter, closeConnections } from '../dal';
+import { createRepositoryRouter, closeConnections, Neo4jMemoryRelationshipRepository } from '../dal';
+import type { IMemoryRelationshipRepository } from '../../domain/interfaces/dal/IMemoryRelationshipRepository';
+import type { IConnectionManagers } from '../dal';
 import { createLogger, createNullLogger } from '../logging';
 
 /**
@@ -144,6 +145,12 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
   }
   container.registerInstance(TOKENS.ConnectionManagers, connections);
 
+  // Memory Relationship Repository (singleton - conditional on Neo4j)
+  if (connections.neo4j) {
+    const relRepo = new Neo4jMemoryRelationshipRepository(connections.neo4j);
+    container.registerInstance(TOKENS.MemoryRelationshipRepository, relRepo);
+  }
+
   // ============================================================
   // Infrastructure Layer - Transient Services
   // ============================================================
@@ -157,7 +164,10 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
       const repoRouter = container.isRegistered(TOKENS.RepositoryRouter)
         ? await container.resolve<IRepositoryRouter>(TOKENS.RepositoryRouter)
         : undefined;
-      return new MemoryService(mcpClient, repoRouter, log.child({ service: 'memory' }));
+      const relRepo = container.isRegistered(TOKENS.MemoryRelationshipRepository)
+        ? await container.resolve<IMemoryRelationshipRepository>(TOKENS.MemoryRelationshipRepository)
+        : undefined;
+      return new MemoryService(mcpClient, repoRouter, log.child({ service: 'memory' }), relRepo);
     },
     'transient'
   );

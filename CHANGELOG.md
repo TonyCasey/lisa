@@ -11,6 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Neo4j Memory Relationships with CLI Commands ([#151](https://github.com/TonyCasey/lisa/issues/151))
+
+Implemented Neo4j storage and CLI commands for typed relationships between memory facts.
+
+- `Neo4jMemoryRelationshipRepository` using `MEMORY_RELATION` edges between Entity nodes
+- `MemoryService` integration with optional relationship repository (backward compatible)
+- DI container registration (conditional on Neo4j availability)
+- Skill-level `linkFacts()` and `getRelatedFacts()` implementations
+- `lisa memory link <sourceUuid> <targetUuid>` CLI command with `--type` and `--note` options
+- `lisa memory links <uuid>` CLI command with optional `--type` filter
+- Full test coverage for repository and CLI commands
+
+Part of Epic [#149](https://github.com/TonyCasey/lisa/issues/149)
+
 #### Memory Relationship Domain Types ([#150](https://github.com/TonyCasey/lisa/issues/150))
 
 Added domain types and interfaces for typed relationships between memory facts, enabling structured knowledge graphs where decisions can supersede others, facts can support or contradict each other, and implementations can be linked to decisions.
