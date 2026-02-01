@@ -45,16 +45,22 @@ export function createPreferenceStore(
       const parsed: unknown = JSON.parse(content);
       if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
         logger?.warn('Invalid preferences.json structure, resetting to empty store', { filePath });
+        await writeStore({});
         return {};
       }
       return parsed as PreferenceData;
     } catch (err: unknown) {
       if (err instanceof SyntaxError) {
         logger?.warn('Invalid JSON in preferences.json, resetting to empty store', { filePath });
+        await writeStore({});
         return {};
       }
-      // File not found or other read error — return empty
-      return {};
+      // ENOENT (file not found) — empty store, no error
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        return {};
+      }
+      // Other I/O errors (permissions, etc.) — surface them
+      throw err;
     }
   }
 
@@ -72,8 +78,10 @@ export function createPreferenceStore(
   return {
     async get(key: string): Promise<string | null> {
       const data = await readStore();
-      const entry = data[key];
-      return entry ? entry.value : null;
+      const entry = data[key] as unknown;
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null;
+      const value = (entry as { value?: unknown }).value;
+      return typeof value === 'string' ? value : null;
     },
 
     async set(key: string, value: string): Promise<void> {
@@ -95,11 +103,14 @@ export function createPreferenceStore(
 
     async list(): Promise<readonly IPreference[]> {
       const data = await readStore();
-      return Object.entries(data).map(([key, entry]) => ({
-        key,
-        value: entry.value,
-        updatedAt: entry.updatedAt,
-      }));
+      return Object.entries(data).flatMap(([key, raw]) => {
+        const entry = raw as unknown;
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return [];
+        const value = (entry as { value?: unknown }).value;
+        const updatedAt = (entry as { updatedAt?: unknown }).updatedAt;
+        if (typeof value !== 'string' || typeof updatedAt !== 'string') return [];
+        return [{ key, value, updatedAt }];
+      });
     },
 
     async has(key: string): Promise<boolean> {

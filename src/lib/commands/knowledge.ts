@@ -166,7 +166,7 @@ export function registerKnowledgeCommands(program: Command): void {
     .description('Get a preference value')
     .action(async (key: string) => {
       const { createPreferenceStore } = await import('../infrastructure/services/PreferenceStore');
-      const store = createPreferenceStore(process.cwd());
+      const store = createPreferenceStore(process.cwd(), console);
       const value = await store.get(key);
       if (value === null) {
         console.log(JSON.stringify({ status: 'ok', action: 'get', key, found: false }, null, 2));
@@ -180,7 +180,7 @@ export function registerKnowledgeCommands(program: Command): void {
     .description('Set a preference value')
     .action(async (key: string, value: string) => {
       const { createPreferenceStore } = await import('../infrastructure/services/PreferenceStore');
-      const store = createPreferenceStore(process.cwd());
+      const store = createPreferenceStore(process.cwd(), console);
       await store.set(key, value);
       console.log(JSON.stringify({ status: 'ok', action: 'set', key, value }, null, 2));
     });
@@ -190,7 +190,7 @@ export function registerKnowledgeCommands(program: Command): void {
     .description('Delete a preference')
     .action(async (key: string) => {
       const { createPreferenceStore } = await import('../infrastructure/services/PreferenceStore');
-      const store = createPreferenceStore(process.cwd());
+      const store = createPreferenceStore(process.cwd(), console);
       const deleted = await store.delete(key);
       console.log(JSON.stringify({ status: 'ok', action: 'delete', key, deleted }, null, 2));
     });
@@ -200,7 +200,7 @@ export function registerKnowledgeCommands(program: Command): void {
     .description('List all preferences')
     .action(async () => {
       const { createPreferenceStore } = await import('../infrastructure/services/PreferenceStore');
-      const store = createPreferenceStore(process.cwd());
+      const store = createPreferenceStore(process.cwd(), console);
       const preferences = await store.list();
       console.log(JSON.stringify({ status: 'ok', action: 'list', preferences, count: preferences.length }, null, 2));
     });

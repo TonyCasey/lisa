@@ -174,7 +174,7 @@ describe('PreferenceStore', () => {
       assert.deepStrictEqual(await store.list(), []);
     });
 
-    it('should handle invalid JSON gracefully', async () => {
+    it('should handle invalid JSON gracefully and reset file', async () => {
       // Create .lisa dir and write invalid JSON
       const lisaDir = path.join(tmpDir, '.lisa');
       fs.mkdirSync(lisaDir, { recursive: true });
@@ -189,9 +189,13 @@ describe('PreferenceStore', () => {
       const value = await storeWithLogger.get('key');
       assert.strictEqual(value, null);
       assert.ok(warnings.some((w) => w.includes('Invalid JSON')));
+
+      // File should be reset to empty JSON
+      const content = fs.readFileSync(prefFile, 'utf-8');
+      assert.deepStrictEqual(JSON.parse(content), {});
     });
 
-    it('should handle non-object JSON gracefully', async () => {
+    it('should handle non-object JSON gracefully and reset file', async () => {
       const lisaDir = path.join(tmpDir, '.lisa');
       fs.mkdirSync(lisaDir, { recursive: true });
       fs.writeFileSync(prefFile, '"just a string"', 'utf-8');
@@ -204,9 +208,13 @@ describe('PreferenceStore', () => {
       const value = await storeWithLogger.get('key');
       assert.strictEqual(value, null);
       assert.ok(warnings.some((w) => w.includes('Invalid preferences.json structure')));
+
+      // File should be reset to empty JSON
+      const content = fs.readFileSync(prefFile, 'utf-8');
+      assert.deepStrictEqual(JSON.parse(content), {});
     });
 
-    it('should handle array JSON gracefully', async () => {
+    it('should handle array JSON gracefully and reset file', async () => {
       const lisaDir = path.join(tmpDir, '.lisa');
       fs.mkdirSync(lisaDir, { recursive: true });
       fs.writeFileSync(prefFile, '[1, 2, 3]', 'utf-8');
@@ -219,6 +227,42 @@ describe('PreferenceStore', () => {
       const prefs = await storeWithLogger.list();
       assert.deepStrictEqual(prefs, []);
       assert.ok(warnings.some((w) => w.includes('Invalid preferences.json structure')));
+
+      // File should be reset to empty JSON
+      const content = fs.readFileSync(prefFile, 'utf-8');
+      assert.deepStrictEqual(JSON.parse(content), {});
+    });
+
+    it('should skip malformed entries in get()', async () => {
+      const lisaDir = path.join(tmpDir, '.lisa');
+      fs.mkdirSync(lisaDir, { recursive: true });
+      // Write store with a malformed entry (value is not a string)
+      fs.writeFileSync(prefFile, JSON.stringify({
+        good: { value: 'valid', updatedAt: '2026-01-01T00:00:00Z' },
+        bad_number: { value: 42, updatedAt: '2026-01-01T00:00:00Z' },
+        bad_shape: 'just a string',
+        bad_null: null,
+      }), 'utf-8');
+
+      assert.strictEqual(await store.get('good'), 'valid');
+      assert.strictEqual(await store.get('bad_number'), null);
+      assert.strictEqual(await store.get('bad_shape'), null);
+      assert.strictEqual(await store.get('bad_null'), null);
+    });
+
+    it('should skip malformed entries in list()', async () => {
+      const lisaDir = path.join(tmpDir, '.lisa');
+      fs.mkdirSync(lisaDir, { recursive: true });
+      fs.writeFileSync(prefFile, JSON.stringify({
+        good: { value: 'valid', updatedAt: '2026-01-01T00:00:00Z' },
+        bad_number: { value: 42, updatedAt: '2026-01-01T00:00:00Z' },
+        bad_shape: 'just a string',
+      }), 'utf-8');
+
+      const prefs = await store.list();
+      assert.strictEqual(prefs.length, 1);
+      assert.strictEqual(prefs[0].key, 'good');
+      assert.strictEqual(prefs[0].value, 'valid');
     });
 
     it('should produce human-readable JSON output', async () => {
