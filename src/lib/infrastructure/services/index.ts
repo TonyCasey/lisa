@@ -18,3 +18,4 @@ export { createLlmUsageTracker, estimateCost } from './LlmUsageTracker';
 export { createLlmGuard } from './LlmGuard';
 export { createSummarizationService } from './SummarizationService';
 export { createTranscriptEnricher } from './TranscriptEnricher';
+export { createLlmDeduplicationEnhancer } from './LlmDeduplicationEnhancer';

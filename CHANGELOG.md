@@ -11,6 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Intelligent LLM-Assisted Deduplication ([#171](https://github.com/TonyCasey/lisa/issues/171))
+
+Added an optional 4th-pass LLM semantic deduplication to the existing 3-pass algorithm, enabling detection of semantically equivalent facts that differ textually.
+
+- `ILlmDeduplicationEnhancer` interface with `findSemanticDuplicates()` for LLM-based analysis
+- `LlmDeduplicationEnhancer` implementation with batch processing, JSON parsing, and graceful fallback
+- Deduplication prompt builder in `prompts/deduplication.ts` with structured JSON output
+- `'llm-semantic'` added to `DuplicateReason` union type
+- `suggestedMerge` optional field added to `IDuplicateGroup` for LLM-suggested merged text
+- `aiAssist` option added to `IDeduplicationOptions` (opt-in, default: `false`)
+- `DeduplicationService` extended with optional `ILlmDeduplicationEnhancer` injection for Pass 4
+- DI registration: `LlmDeduplicationEnhancer` (transient), `DeduplicationService` updated to inject enhancer
+- Skills-layer `IDuplicateGroup` updated with `'llm-semantic'` reason and `suggestedMerge`
+- 18 unit tests for `LlmDeduplicationEnhancer`, 8 integration tests for service-level LLM enhancement
+
 #### Enhanced Session Transcript Extraction ([#170](https://github.com/TonyCasey/lisa/issues/170))
 
 Added LLM-powered extraction of structured facts from session transcripts, enhancing the existing pattern-based capture.

@@ -59,6 +59,8 @@ import { createLlmUsageTracker } from '../services/LlmUsageTracker';
 import { createLlmGuard } from '../services/LlmGuard';
 import { createSummarizationService } from '../services/SummarizationService';
 import { createTranscriptEnricher } from '../services/TranscriptEnricher';
+import { createLlmDeduplicationEnhancer } from '../services/LlmDeduplicationEnhancer';
+import type { ILlmDeduplicationEnhancer } from '../services/LlmDeduplicationEnhancer';
 import { createRepositoryRouter, closeConnections } from '../dal';
 import { createLogger, createNullLogger } from '../logging';
 
@@ -228,12 +230,26 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
     'transient'
   );
 
-  // Deduplication Service (transient - stateless algorithm)
+  // LLM Deduplication Enhancer (transient - stateless LLM-powered semantic dedup)
+  container.register(
+    TOKENS.LlmDeduplicationEnhancer,
+    async () => {
+      const guard = await container.resolve<ILlmGuard>(TOKENS.LlmGuard);
+      const log = logger.child({ service: 'llm-dedup-enhancer' });
+      return createLlmDeduplicationEnhancer(guard, log);
+    },
+    'transient'
+  );
+
+  // Deduplication Service (transient - stateless algorithm, optional LLM enhancement)
   container.register(
     TOKENS.DeduplicationService,
     async () => {
       const memory = await container.resolve<MemoryService>(TOKENS.MemoryService);
-      return createDeduplicationService(memory as unknown as IMemoryServiceWithQuality);
+      const enhancer = container.isRegistered(TOKENS.LlmDeduplicationEnhancer)
+        ? await container.resolve<ILlmDeduplicationEnhancer>(TOKENS.LlmDeduplicationEnhancer)
+        : undefined;
+      return createDeduplicationService(memory as unknown as IMemoryServiceWithQuality, enhancer);
     },
     'transient'
   );

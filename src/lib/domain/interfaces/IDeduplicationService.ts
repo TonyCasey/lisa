@@ -10,7 +10,7 @@ import type { IMemoryItem } from './types';
 /**
  * Reason why facts were grouped as duplicates.
  */
-export type DuplicateReason = 'exact-match' | 'tag-overlap' | 'similar-content';
+export type DuplicateReason = 'exact-match' | 'tag-overlap' | 'similar-content' | 'llm-semantic';
 
 /**
  * A group of duplicate facts.
@@ -22,6 +22,8 @@ export interface IDuplicateGroup {
   readonly facts: readonly IMemoryItem[];
   /** Similarity score between group members (0.0–1.0) */
   readonly similarity: number;
+  /** LLM-suggested merged text for the group (only for llm-semantic groups) */
+  readonly suggestedMerge?: string;
 }
 
 /**
@@ -46,6 +48,8 @@ export interface IDeduplicationOptions {
   readonly limit?: number;
   /** Only scan facts created after this date */
   readonly since?: Date;
+  /** Enable LLM-assisted semantic deduplication as a 4th pass (default: false) */
+  readonly aiAssist?: boolean;
 }
 
 /**
