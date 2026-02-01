@@ -14,3 +14,6 @@ export { createConsolidationService } from './ConsolidationService';
 export { createPreferenceStore } from './PreferenceStore';
 export { createLlmConfigService } from './LlmConfigService';
 export { createLlmService } from './LlmService';
+export { createLlmUsageTracker, estimateCost } from './LlmUsageTracker';
+export { createLlmGuard } from './LlmGuard';
+export { createSummarizationService } from './SummarizationService';

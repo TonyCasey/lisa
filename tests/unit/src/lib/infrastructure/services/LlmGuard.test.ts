@@ -1,0 +1,298 @@
+/**
+ * LlmGuard Tests.
+ *
+ * Tests policy enforcement: feature toggles, budget limits,
+ * usage recording, and delegation to underlying LlmService.
+ */
+
+import { describe, it, beforeEach } from 'node:test';
+import assert from 'node:assert';
+import { createLlmGuard } from '../../../../../../src/lib/infrastructure/services/LlmGuard';
+import type { ILlmService, ILlmResponse, ILlmConfig } from '../../../../../../src/lib/domain/interfaces/ILlmService';
+import { getDefaultLlmConfig } from '../../../../../../src/lib/domain/interfaces/ILlmService';
+import type { ILlmConfigService } from '../../../../../../src/lib/domain/interfaces/ILlmConfigService';
+import type { ILlmUsageTracker, ILlmUsageRecord } from '../../../../../../src/lib/domain/interfaces/ILlmUsageTracker';
+import type { IPreferenceStore } from '../../../../../../src/lib/domain/interfaces/IPreferenceStore';
+
+// ── Mock LLM service ───────────────────────────────────────
+
+function createMockLlmService(): ILlmService & { calls: string[] } {
+  const calls: string[] = [];
+  const mockResponse: ILlmResponse = {
+    text: 'Mock response',
+    usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
+    model: 'claude-sonnet-4-20250514',
+    provider: 'anthropic',
+  };
+
+  return {
+    calls,
+    async complete(prompt: string) {
+      calls.push(prompt);
+      return mockResponse;
+    },
+    async isAvailable() { return true; },
+    async getConfig() { return getDefaultLlmConfig(); },
+  };
+}
+
+// ── Mock usage tracker ─────────────────────────────────────
+
+function createMockUsageTracker(overrides: { withinBudget?: boolean; totalCost?: number } = {}): ILlmUsageTracker & { recorded: Array<Omit<ILlmUsageRecord, 'timestamp'>> } {
+  const recorded: Array<Omit<ILlmUsageRecord, 'timestamp'>> = [];
+  return {
+    recorded,
+    async record(usage) { recorded.push(usage); },
+    async getUsage() { return []; },
+    async getTotalCost() { return overrides.totalCost ?? 0; },
+    async isWithinBudget() { return overrides.withinBudget ?? true; },
+  };
+}
+
+// ── Mock config service ────────────────────────────────────
+
+function createMockConfigService(overrides: Partial<ILlmConfig> = {}): ILlmConfigService {
+  const config: ILlmConfig = {
+    ...getDefaultLlmConfig(),
+    enabled: true,
+    ...overrides,
+  };
+  return {
+    async getConfig() { return config; },
+    async setProvider() { /* no-op */ },
+    async setModel() { /* no-op */ },
+    async setEndpoint() { /* no-op */ },
+    async setApiKey() { /* no-op */ },
+    async setEnabled() { /* no-op */ },
+    async setMaxTokens() { /* no-op */ },
+    async setTemperature() { /* no-op */ },
+    async reset() { /* no-op */ },
+  };
+}
+
+// ── Mock preference store ──────────────────────────────────
+
+function createMockPreferenceStore(prefs: Record<string, string> = {}): IPreferenceStore {
+  const store = new Map<string, string>(Object.entries(prefs));
+  return {
+    async get(key: string) { return store.get(key) ?? null; },
+    async set(key: string, value: string) { store.set(key, value); },
+    async delete(key: string) { return store.delete(key); },
+    async list() { return []; },
+    async has(key: string) { return store.has(key); },
+  };
+}
+
+// ── Tests ──────────────────────────────────────────────────
+
+describe('LlmGuard', () => {
+  describe('complete()', () => {
+    it('should delegate to LlmService when enabled and within budget', async () => {
+      const llmSvc = createMockLlmService();
+      const tracker = createMockUsageTracker();
+      const configSvc = createMockConfigService({ enabled: true });
+      const prefs = createMockPreferenceStore();
+
+      const guard = createLlmGuard(llmSvc, tracker, configSvc, prefs);
+      const response = await guard.complete('Test prompt', 'test');
+
+      assert.strictEqual(response.text, 'Mock response');
+      assert.strictEqual(llmSvc.calls.length, 1);
+      assert.strictEqual(llmSvc.calls[0], 'Test prompt');
+    });
+
+    it('should record usage after successful call', async () => {
+      const llmSvc = createMockLlmService();
+      const tracker = createMockUsageTracker();
+      const configSvc = createMockConfigService({ enabled: true });
+      const prefs = createMockPreferenceStore();
+
+      const guard = createLlmGuard(llmSvc, tracker, configSvc, prefs);
+      await guard.complete('Test prompt', 'summarization');
+
+      assert.strictEqual(tracker.recorded.length, 1);
+      assert.strictEqual(tracker.recorded[0]?.feature, 'summarization');
+      assert.strictEqual(tracker.recorded[0]?.provider, 'anthropic');
+      assert.strictEqual(tracker.recorded[0]?.inputTokens, 10);
+      assert.strictEqual(tracker.recorded[0]?.outputTokens, 5);
+      assert.ok(typeof tracker.recorded[0]?.estimatedCostUsd === 'number');
+    });
+
+    it('should throw LlmFeatureDisabledError when feature is disabled', async () => {
+      const llmSvc = createMockLlmService();
+      const tracker = createMockUsageTracker();
+      const configSvc = createMockConfigService({ enabled: true });
+      const prefs = createMockPreferenceStore({ 'llm:features': 'summarization,extraction' });
+
+      const guard = createLlmGuard(llmSvc, tracker, configSvc, prefs);
+
+      await assert.rejects(
+        async () => guard.complete('Test', 'deduplication'),
+        (error: any) => {
+          assert.strictEqual(error.name, 'LlmFeatureDisabledError');
+          assert.strictEqual(error.feature, 'deduplication');
+          return true;
+        }
+      );
+    });
+
+    it('should throw LlmFeatureDisabledError when master switch is off', async () => {
+      const llmSvc = createMockLlmService();
+      const tracker = createMockUsageTracker();
+      const configSvc = createMockConfigService({ enabled: false });
+      const prefs = createMockPreferenceStore();
+
+      const guard = createLlmGuard(llmSvc, tracker, configSvc, prefs);
+
+      await assert.rejects(
+        async () => guard.complete('Test', 'test'),
+        (error: any) => {
+          assert.strictEqual(error.name, 'LlmFeatureDisabledError');
+          return true;
+        }
+      );
+    });
+
+    it('should throw LlmBudgetExceededError when over budget', async () => {
+      const llmSvc = createMockLlmService();
+      const tracker = createMockUsageTracker({ withinBudget: false, totalCost: 15.50 });
+      const configSvc = createMockConfigService({ enabled: true });
+      const prefs = createMockPreferenceStore({ 'llm:monthlyLimit': '10.00' });
+
+      const guard = createLlmGuard(llmSvc, tracker, configSvc, prefs);
+
+      await assert.rejects(
+        async () => guard.complete('Test', 'test'),
+        (error: any) => {
+          assert.strictEqual(error.name, 'LlmBudgetExceededError');
+          assert.strictEqual(error.currentCost, 15.50);
+          assert.strictEqual(error.budgetLimit, 10.00);
+          return true;
+        }
+      );
+
+      // Should not have called the LLM
+      assert.strictEqual(llmSvc.calls.length, 0);
+    });
+
+    it('should pass options through to LlmService', async () => {
+      let capturedOptions: any;
+      const llmSvc: ILlmService = {
+        async complete(_prompt, options) {
+          capturedOptions = options;
+          return {
+            text: 'Response',
+            usage: { inputTokens: 5, outputTokens: 3, totalTokens: 8 },
+            model: 'claude-sonnet-4-20250514',
+            provider: 'anthropic',
+          };
+        },
+        async isAvailable() { return true; },
+        async getConfig() { return getDefaultLlmConfig(); },
+      };
+      const tracker = createMockUsageTracker();
+      const configSvc = createMockConfigService({ enabled: true });
+      const prefs = createMockPreferenceStore();
+
+      const guard = createLlmGuard(llmSvc, tracker, configSvc, prefs);
+      await guard.complete('Test', 'test', {
+        maxTokens: 2048,
+        temperature: 0.5,
+        systemPrompt: 'You are helpful.',
+      });
+
+      assert.strictEqual(capturedOptions.maxTokens, 2048);
+      assert.strictEqual(capturedOptions.temperature, 0.5);
+      assert.strictEqual(capturedOptions.systemPrompt, 'You are helpful.');
+    });
+
+    it('should include cost estimate in recorded usage', async () => {
+      const llmSvc: ILlmService = {
+        async complete() {
+          return {
+            text: 'Response',
+            usage: { inputTokens: 1000, outputTokens: 500, totalTokens: 1500 },
+            model: 'claude-sonnet-4-20250514',
+            provider: 'anthropic',
+          };
+        },
+        async isAvailable() { return true; },
+        async getConfig() { return getDefaultLlmConfig(); },
+      };
+      const tracker = createMockUsageTracker();
+      const configSvc = createMockConfigService({ enabled: true });
+      const prefs = createMockPreferenceStore();
+
+      const guard = createLlmGuard(llmSvc, tracker, configSvc, prefs);
+      await guard.complete('Test', 'test');
+
+      assert.strictEqual(tracker.recorded.length, 1);
+      assert.ok(tracker.recorded[0]!.estimatedCostUsd > 0);
+    });
+  });
+
+  describe('isFeatureEnabled()', () => {
+    it('should return false when master switch is off', async () => {
+      const llmSvc = createMockLlmService();
+      const tracker = createMockUsageTracker();
+      const configSvc = createMockConfigService({ enabled: false });
+      const prefs = createMockPreferenceStore();
+
+      const guard = createLlmGuard(llmSvc, tracker, configSvc, prefs);
+      const result = await guard.isFeatureEnabled('test');
+      assert.strictEqual(result, false);
+    });
+
+    it('should return true when master switch on and no feature filter', async () => {
+      const llmSvc = createMockLlmService();
+      const tracker = createMockUsageTracker();
+      const configSvc = createMockConfigService({ enabled: true });
+      const prefs = createMockPreferenceStore();
+
+      const guard = createLlmGuard(llmSvc, tracker, configSvc, prefs);
+      const result = await guard.isFeatureEnabled('summarization');
+      assert.strictEqual(result, true);
+    });
+
+    it('should return true when feature is in the enabled list', async () => {
+      const llmSvc = createMockLlmService();
+      const tracker = createMockUsageTracker();
+      const configSvc = createMockConfigService({ enabled: true });
+      const prefs = createMockPreferenceStore({ 'llm:features': 'summarization,test' });
+
+      const guard = createLlmGuard(llmSvc, tracker, configSvc, prefs);
+      assert.strictEqual(await guard.isFeatureEnabled('summarization'), true);
+      assert.strictEqual(await guard.isFeatureEnabled('test'), true);
+    });
+
+    it('should return false when feature is not in the enabled list', async () => {
+      const llmSvc = createMockLlmService();
+      const tracker = createMockUsageTracker();
+      const configSvc = createMockConfigService({ enabled: true });
+      const prefs = createMockPreferenceStore({ 'llm:features': 'summarization' });
+
+      const guard = createLlmGuard(llmSvc, tracker, configSvc, prefs);
+      assert.strictEqual(await guard.isFeatureEnabled('deduplication'), false);
+    });
+
+    it('should treat wildcard * as all enabled', async () => {
+      const llmSvc = createMockLlmService();
+      const tracker = createMockUsageTracker();
+      const configSvc = createMockConfigService({ enabled: true });
+      const prefs = createMockPreferenceStore({ 'llm:features': '*' });
+
+      const guard = createLlmGuard(llmSvc, tracker, configSvc, prefs);
+      assert.strictEqual(await guard.isFeatureEnabled('deduplication'), true);
+    });
+
+    it('should treat empty string as all enabled', async () => {
+      const llmSvc = createMockLlmService();
+      const tracker = createMockUsageTracker();
+      const configSvc = createMockConfigService({ enabled: true });
+      const prefs = createMockPreferenceStore({ 'llm:features': '' });
+
+      const guard = createLlmGuard(llmSvc, tracker, configSvc, prefs);
+      assert.strictEqual(await guard.isFeatureEnabled('curation'), true);
+    });
+  });
+});

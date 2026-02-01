@@ -354,6 +354,151 @@ export function registerKnowledgeCommands(program: Command): void {
       }
     });
 
+  llmCmd
+    .command('usage')
+    .description('Show LLM token usage and estimated cost')
+    .option('--since <date>', 'Show usage since date (ISO format)')
+    .action(async (opts) => {
+      const { createPreferenceStore } = await import('../infrastructure/services/PreferenceStore');
+      const { createLlmUsageTracker } = await import('../infrastructure/services/LlmUsageTracker');
+      const store = createPreferenceStore(process.cwd(), console);
+      const tracker = createLlmUsageTracker(process.cwd(), store);
+
+      const since = opts.since ? new Date(opts.since) : undefined;
+      const records = await tracker.getUsage(since);
+      const totalCost = await tracker.getTotalCost(since);
+      const withinBudget = await tracker.isWithinBudget();
+
+      console.log(JSON.stringify({
+        status: 'ok',
+        action: 'usage',
+        records: records.length,
+        totalCostUsd: totalCost,
+        withinBudget,
+        since: since?.toISOString() ?? 'current month',
+      }, null, 2));
+    });
+
+  llmCmd
+    .command('features')
+    .description('Show or toggle LLM feature availability')
+    .option('--enable <feature>', 'Enable a specific feature')
+    .option('--disable <feature>', 'Disable a specific feature')
+    .action(async (opts) => {
+      const { createPreferenceStore } = await import('../infrastructure/services/PreferenceStore');
+      const { LLM_FEATURE_VALUES, isValidLlmFeature } = await import('../domain/interfaces/ILlmUsageTracker');
+      const store = createPreferenceStore(process.cwd(), console);
+      const FEATURES_KEY = 'llm:features';
+
+      if (opts.enable) {
+        if (!isValidLlmFeature(opts.enable)) {
+          console.log(JSON.stringify({ status: 'error', error: `Invalid feature: ${opts.enable}. Valid: ${LLM_FEATURE_VALUES.join(', ')}` }, null, 2));
+          process.exitCode = 1;
+          return;
+        }
+        const current = await store.get(FEATURES_KEY);
+        const features = current ? new Set(current.split(',').map((f: string) => f.trim()).filter((f: string) => f)) : new Set<string>();
+        features.add(opts.enable);
+        await store.set(FEATURES_KEY, Array.from(features).join(','));
+        console.log(JSON.stringify({ status: 'ok', action: 'enable', feature: opts.enable, enabledFeatures: Array.from(features) }, null, 2));
+        return;
+      }
+
+      if (opts.disable) {
+        if (!isValidLlmFeature(opts.disable)) {
+          console.log(JSON.stringify({ status: 'error', error: `Invalid feature: ${opts.disable}. Valid: ${LLM_FEATURE_VALUES.join(', ')}` }, null, 2));
+          process.exitCode = 1;
+          return;
+        }
+        const current = await store.get(FEATURES_KEY);
+        if (!current) {
+          // All were enabled; now we need to set all minus the disabled one
+          const features = new Set(LLM_FEATURE_VALUES as readonly string[]);
+          features.delete(opts.disable);
+          await store.set(FEATURES_KEY, Array.from(features).join(','));
+          console.log(JSON.stringify({ status: 'ok', action: 'disable', feature: opts.disable, enabledFeatures: Array.from(features) }, null, 2));
+        } else {
+          const features = new Set(current.split(',').map((f: string) => f.trim()).filter((f: string) => f));
+          features.delete(opts.disable);
+          await store.set(FEATURES_KEY, Array.from(features).join(','));
+          console.log(JSON.stringify({ status: 'ok', action: 'disable', feature: opts.disable, enabledFeatures: Array.from(features) }, null, 2));
+        }
+        return;
+      }
+
+      // Display current features
+      const current = await store.get(FEATURES_KEY);
+      const enabledFeatures = current
+        ? current.split(',').map((f: string) => f.trim()).filter((f: string) => f)
+        : [...LLM_FEATURE_VALUES];
+      console.log(JSON.stringify({
+        status: 'ok',
+        action: 'display',
+        allFeatures: [...LLM_FEATURE_VALUES],
+        enabledFeatures,
+        allEnabled: current === null || current.trim() === '' || current.trim() === '*',
+      }, null, 2));
+    });
+
+  // Subcommand: lisa memory summarize
+  memoryCmd
+    .command('summarize')
+    .description('Summarize recent memories using LLM')
+    .option('-g, --group <id>', 'Group ID')
+    .option('--since <date>', 'Summarize memories since date (ISO format)')
+    .option('--topic <topic>', 'Summarize memories about a topic')
+    .option('--style <style>', 'Summary style (concise, detailed)', 'concise')
+    .option('--max-facts <n>', 'Maximum facts to include', '50')
+    .action(async (opts) => {
+      const { createPreferenceStore } = await import('../infrastructure/services/PreferenceStore');
+      const { createLlmConfigService } = await import('../infrastructure/services/LlmConfigService');
+      const { createLlmService } = await import('../infrastructure/services/LlmService');
+      const { createLlmUsageTracker } = await import('../infrastructure/services/LlmUsageTracker');
+      const { createLlmGuard } = await import('../infrastructure/services/LlmGuard');
+      const { createSummarizationService } = await import('../infrastructure/services/SummarizationService');
+
+      try {
+        // Bootstrap minimal services
+        const cwd = process.cwd();
+        const prefStore = createPreferenceStore(cwd, console);
+        const configSvc = createLlmConfigService(prefStore);
+        const llmSvc = createLlmService(configSvc);
+        const tracker = createLlmUsageTracker(cwd, prefStore);
+        const guard = createLlmGuard(llmSvc, tracker, configSvc, prefStore);
+
+        // Memory service requires MCP — import and bootstrap
+        const { bootstrapContainer } = await import('../infrastructure/di/bootstrap');
+        const { container, dispose } = await bootstrapContainer({ projectRoot: cwd });
+        type IMemorySvc = import('../domain/interfaces/IMemoryService').IMemoryService;
+        const memory = await container.resolve<IMemorySvc>(Symbol.for('Lisa.MemoryService'));
+
+        const summarizer = createSummarizationService(memory, guard);
+
+        const groupId = opts.group || 'default';
+        const result = await summarizer.summarize(groupId, {
+          since: opts.since ? new Date(opts.since) : undefined,
+          topic: opts.topic,
+          style: opts.style === 'detailed' ? 'detailed' : 'concise',
+          maxFacts: parseInt(opts.maxFacts, 10) || 50,
+        });
+
+        console.log(JSON.stringify({
+          status: 'ok',
+          action: 'summarize',
+          ...result,
+        }, null, 2));
+
+        await dispose();
+      } catch (error) {
+        console.log(JSON.stringify({
+          status: 'error',
+          action: 'summarize',
+          error: error instanceof Error ? error.message : String(error),
+        }, null, 2));
+        process.exitCode = 1;
+      }
+    });
+
   // Subcommand: lisa storage
   const storageCmd = program
     .command('storage')
