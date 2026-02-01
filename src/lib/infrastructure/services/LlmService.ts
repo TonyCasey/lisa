@@ -19,6 +19,9 @@ import type {
 import type { ILogger } from '../../domain/interfaces/ILogger';
 import { LlmDisabledError, LlmProviderError, LlmConfigError } from '../../domain/errors/LlmErrors';
 
+/** Timeout for completion requests (2 minutes). */
+const COMPLETION_TIMEOUT_MS = 120_000;
+
 /** Default endpoints per provider. */
 const DEFAULT_ENDPOINTS: Record<LlmProvider, string> = {
   anthropic: 'https://api.anthropic.com',
@@ -89,6 +92,7 @@ export function createLlmService(
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(COMPLETION_TIMEOUT_MS),
     });
 
     if (!response.ok) {
@@ -147,6 +151,7 @@ export function createLlmService(
         temperature,
         messages,
       }),
+      signal: AbortSignal.timeout(COMPLETION_TIMEOUT_MS),
     });
 
     if (!response.ok) {
@@ -202,6 +207,7 @@ export function createLlmService(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(COMPLETION_TIMEOUT_MS),
     });
 
     if (!response.ok) {
@@ -277,14 +283,14 @@ export function createLlmService(
         switch (config.provider) {
           case 'anthropic': {
             if (!config.apiKey) return false;
-            const resp = await fetch(`${endpoint}/v1/messages`, {
-              method: 'POST',
+            // Use GET to /v1/models to verify connectivity without consuming tokens.
+            // Falls back to accepting any non-5xx as "reachable" since Anthropic
+            // may return 404/405 for unrecognized routes.
+            const resp = await fetch(`${endpoint}/v1/models`, {
               headers: {
-                'Content-Type': 'application/json',
                 'x-api-key': config.apiKey,
                 'anthropic-version': '2023-06-01',
               },
-              body: JSON.stringify({ model: config.model, max_tokens: 1, messages: [{ role: 'user', content: 'hi' }] }),
               signal: AbortSignal.timeout(10000),
             });
             return resp.ok || resp.status < 500;
