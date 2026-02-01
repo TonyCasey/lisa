@@ -8,6 +8,7 @@
  *   node memory.js expire [--uuid <uuid>] [--group <id>] [--cache]   (uuid can also be positional)
  *   node memory.js cleanup [--group <id>] [--dry-run] [--cache]
  *   node memory.js conflicts [--group <id>] [--topic <tag>] [--cache]
+ *   node memory.js dedupe [--group <id>] [--min-similarity <n>] [--limit N] [--since <d>] [--cache]
  */
 
 export {};
@@ -43,6 +44,13 @@ async function main(): Promise<void> {
   const ttl = popFlag(args, '--ttl', null);
   const uuid = popFlag(args, '--uuid', null);
   const topic = popFlag(args, '--topic', null);
+  const minSimilarityRaw = popFlag(args, '--min-similarity', null);
+  const minSimilarity = minSimilarityRaw !== null
+    ? (() => {
+        const parsed = Number(minSimilarityRaw);
+        return Number.isNaN(parsed) ? null : parsed;
+      })()
+    : null;
   const dryRun = hasFlag(args, '--dry-run');
   const useCache = hasFlag(args, '--cache');
   const payload = args.join(' ').trim();
@@ -62,7 +70,7 @@ async function main(): Promise<void> {
   try {
     const result = await cliService.run({
       command, payload, explicitGroup, query, limit, explicitTag,
-      entityType, source, since, until, lifecycle, ttl, dryRun, uuid, topic,
+      entityType, source, since, until, lifecycle, ttl, dryRun, uuid, topic, minSimilarity,
     });
     console.log(JSON.stringify(result, null, 2));
   } catch (err: unknown) {

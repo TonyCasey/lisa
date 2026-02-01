@@ -15,8 +15,10 @@ import type {
   IMemoryExpireResult,
   IMemoryCleanupResult,
   IMemoryConflictsResult,
+  IMemoryDedupeResult,
   IConflictGroup,
 } from './interfaces';
+import { detectDuplicatesFromFacts } from '../../../domain/utils/deduplication';
 import { LIFECYCLE_DEFAULTS, resolveLifecycleTag } from '../../../domain/interfaces/types/IMemoryLifecycle';
 import type { MemoryLifecycle } from '../../../domain/interfaces/types/IMemoryLifecycle';
 
@@ -387,6 +389,127 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
           topic: topic || '',
           conflictGroups,
           totalConflicts: conflictGroups.length,
+          mode: 'neo4j',
+        };
+      } finally {
+        await neo4jClient.disconnect();
+      }
+    },
+
+    async dedupe(
+      groupId: string,
+      options?: { minSimilarity?: number; limit?: number; since?: Date }
+    ): Promise<IMemoryDedupeResult> {
+      const minSimilarity = options?.minSimilarity ?? 0.6;
+      const limit = options?.limit ?? 10;
+
+      await neo4jClient.connect();
+      try {
+        // Load all non-expired facts (up to 500)
+        const params: Record<string, unknown> = {
+          groupIds: [groupId],
+          limit: 500,
+        };
+
+        const dateFilters: string[] = [];
+        if (options?.since) {
+          dateFilters.push('r.created_at >= datetime($since)');
+          params.since = options.since.toISOString();
+        }
+
+        const dateFilterClause = dateFilters.length > 0 ? `AND ${dateFilters.join(' AND ')}` : '';
+
+        const factsCypher = `
+          MATCH (s:Entity)-[r]->(t:Entity)
+          WHERE r.group_id IN $groupIds
+            AND r.expired_at IS NULL
+            AND r.fact IS NOT NULL
+            ${dateFilterClause}
+          RETURN r.uuid AS uuid, r.name AS name, r.fact AS fact,
+                 r.group_id AS group_id, r.created_at AS created_at
+          ORDER BY r.created_at DESC
+          LIMIT $limit
+        `;
+
+        const factRecords: Neo4jFactRecord[] = await neo4jClient.query(factsCypher, params);
+
+        // Convert to IMemoryItem-compatible shape for the algorithm
+        const facts = factRecords.map((r) => ({
+          uuid: r.uuid,
+          name: r.name,
+          fact: r.fact,
+          created_at: r.created_at,
+        }));
+
+        // Load conflict groups for tag overlap pass
+        const conflictParams: Record<string, unknown> = { groupIds: [groupId] };
+        const conflictDateFilters: string[] = [];
+        if (options?.since) {
+          conflictDateFilters.push('r.created_at >= datetime($since)');
+          conflictParams.since = options.since.toISOString();
+        }
+        const conflictDateFilterClause =
+          conflictDateFilters.length > 0 ? `AND ${conflictDateFilters.join(' AND ')}` : '';
+        const conflictCypher = `
+          MATCH (s:Entity)-[r]->(t:Entity)
+          WHERE r.group_id IN $groupIds
+            AND r.fact IS NOT NULL
+            AND r.expired_at IS NULL
+            ${conflictDateFilterClause}
+            AND ANY(tag IN r.tags WHERE tag STARTS WITH 'type:')
+          WITH [tag IN r.tags WHERE tag STARTS WITH 'type:' | tag][0] AS topicTag,
+               r.uuid AS uuid, r.name AS name, r.fact AS fact,
+               r.group_id AS group_id, r.created_at AS created_at
+          WITH topicTag, COLLECT({ uuid: uuid, name: name, fact: fact, group_id: group_id, created_at: created_at }) AS facts
+          WHERE SIZE(facts) > 1
+          RETURN topicTag, facts
+          LIMIT 20
+        `;
+
+        const conflictRecords = await neo4jClient.query<{
+          topicTag: string;
+          facts: Array<{ uuid: string; name: string; fact: string; group_id: string; created_at: string }>;
+        }>(conflictCypher, conflictParams);
+
+        const conflictGroups = conflictRecords.map((record) => ({
+          topic: record.topicTag,
+          facts: record.facts.map((f) => ({
+            uuid: f.uuid,
+            name: f.name,
+            fact: f.fact,
+            created_at: f.created_at,
+          })),
+          detectedAt: new Date().toISOString(),
+        }));
+
+        // Run the three-pass detection algorithm
+        const duplicateGroups = detectDuplicatesFromFacts(facts, conflictGroups, {
+          minSimilarity,
+          limit,
+        });
+
+        // Map IDuplicateGroup to skill-level format
+        const skillGroups = duplicateGroups.map((g) => ({
+          reason: g.reason,
+          facts: g.facts.map((f) => ({
+            uuid: f.uuid ?? '',
+            name: f.name ?? '',
+            fact: f.fact ?? '',
+            group_id: groupId,
+            created_at: f.created_at ?? '',
+          })),
+          similarity: g.similarity,
+        }));
+
+        const totalDuplicates = skillGroups.reduce((sum, group) => sum + group.facts.length, 0);
+        return {
+          status: 'ok',
+          action: 'dedupe',
+          group: groupId,
+          totalFactsScanned: facts.length,
+          duplicateGroups: skillGroups,
+          totalDuplicates,
+          minSimilarity,
           mode: 'neo4j',
         };
       } finally {

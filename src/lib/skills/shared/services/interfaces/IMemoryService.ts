@@ -109,6 +109,29 @@ export interface IMemoryConflictsResult {
 }
 
 /**
+ * A group of duplicate facts detected by deduplication.
+ */
+export interface IDuplicateGroup {
+  reason: 'exact-match' | 'tag-overlap' | 'similar-content';
+  facts: IFact[];
+  similarity: number;
+}
+
+/**
+ * Result of a memory deduplication scan.
+ */
+export interface IMemoryDedupeResult {
+  status: 'ok';
+  action: 'dedupe';
+  group: string;
+  totalFactsScanned: number;
+  duplicateGroups: IDuplicateGroup[];
+  totalDuplicates: number;
+  minSimilarity: number;
+  mode: 'neo4j';
+}
+
+/**
  * Memory service interface.
  */
 export interface IMemoryService {
@@ -177,4 +200,16 @@ export interface IMemoryService {
     groupIds: string[],
     topic?: string
   ): Promise<IMemoryConflictsResult>;
+
+  /**
+   * Detect duplicate facts within a group.
+   * Three-pass detection: exact match, tag overlap, Jaccard similarity.
+   *
+   * @param groupId - Group identifier to scan
+   * @param options - Detection options
+   */
+  dedupe(
+    groupId: string,
+    options?: { minSimilarity?: number; limit?: number; since?: Date }
+  ): Promise<IMemoryDedupeResult>;
 }

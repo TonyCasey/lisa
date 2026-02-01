@@ -17,6 +17,7 @@ import type {
   IMemoryExpireResult,
   IMemoryCleanupResult,
   IMemoryConflictsResult,
+  IMemoryDedupeResult,
 } from '../../../../../../../src/lib/skills/shared/services/interfaces';
 
 const noopLogger: ILogger = {
@@ -106,6 +107,7 @@ describe('MemoryCliService', () => {
   let cleanupCalls: Array<{ groupId: string; dryRun: boolean }>;
   let addCalls: Array<{ text: string; groupId: string; options: unknown }>;
   let conflictsCalls: Array<{ groupIds: string[]; topic?: string }>;
+  let dedupeCalls: Array<{ groupId: string; options?: unknown }>;
 
   const memoryService: IMemoryService = {
     load: async (groupIds): Promise<IMemoryLoadResult> => ({
@@ -162,6 +164,19 @@ describe('MemoryCliService', () => {
         mode: 'neo4j',
       };
     },
+    dedupe: async (groupId, options): Promise<IMemoryDedupeResult> => {
+      dedupeCalls.push({ groupId, options });
+      return {
+        status: 'ok',
+        action: 'dedupe',
+        group: groupId,
+        totalFactsScanned: 0,
+        duplicateGroups: [],
+        totalDuplicates: 0,
+        minSimilarity: (options as Record<string, unknown>)?.minSimilarity as number ?? 0.6,
+        mode: 'neo4j',
+      };
+    },
   };
 
   function defaultArgs() {
@@ -181,6 +196,7 @@ describe('MemoryCliService', () => {
       dryRun: false,
       uuid: null,
       topic: null,
+      minSimilarity: null,
     };
   }
 
@@ -189,6 +205,7 @@ describe('MemoryCliService', () => {
     cleanupCalls = [];
     addCalls = [];
     conflictsCalls = [];
+    dedupeCalls = [];
   });
 
   const cliService = createMemoryCliService({
@@ -368,11 +385,81 @@ describe('MemoryCliService', () => {
     });
   });
 
+  describe('dedupe command', () => {
+    it('should call memoryService.dedupe with default options', async () => {
+      const result = await cliService.run({
+        ...defaultArgs(),
+        command: 'dedupe',
+      });
+
+      assert.strictEqual(dedupeCalls.length, 1);
+      assert.strictEqual(dedupeCalls[0].groupId, 'test-group');
+      assert.strictEqual(result.action, 'dedupe');
+    });
+
+    it('should pass minSimilarity when provided', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'dedupe',
+        minSimilarity: 0.8,
+      });
+
+      assert.strictEqual(dedupeCalls.length, 1);
+      const opts = dedupeCalls[0].options as Record<string, unknown>;
+      assert.strictEqual(opts.minSimilarity, 0.8);
+    });
+
+    it('should pass limit when provided', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'dedupe',
+        limit: 5,
+      });
+
+      assert.strictEqual(dedupeCalls.length, 1);
+      const opts = dedupeCalls[0].options as Record<string, unknown>;
+      assert.strictEqual(opts.limit, 5);
+    });
+
+    it('should pass since date when provided', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'dedupe',
+        since: '7d',
+      });
+
+      assert.strictEqual(dedupeCalls.length, 1);
+      const opts = dedupeCalls[0].options as Record<string, unknown>;
+      assert.ok(opts.since instanceof Date);
+    });
+
+    it('should throw for invalid --since date', async () => {
+      await assert.rejects(
+        () => cliService.run({
+          ...defaultArgs(),
+          command: 'dedupe',
+          since: 'not-a-date',
+        }),
+        { message: /Invalid --since date/ }
+      );
+    });
+
+    it('should use explicit group if provided', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'dedupe',
+        explicitGroup: 'custom-group',
+      });
+
+      assert.strictEqual(dedupeCalls[0].groupId, 'custom-group');
+    });
+  });
+
   describe('invalid command', () => {
     it('should throw for unknown commands', async () => {
       await assert.rejects(
         () => cliService.run({ ...defaultArgs(), command: 'unknown' }),
-        { message: /command must be add\|load\|expire\|cleanup\|conflicts/ }
+        { message: /command must be add\|load\|expire\|cleanup\|conflicts\|dedupe/ }
       );
     });
   });

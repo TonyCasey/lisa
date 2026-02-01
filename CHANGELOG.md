@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Deduplication Detection Service with CLI Command ([#160](https://github.com/TonyCasey/lisa/issues/160))
+
+Added a three-pass deduplication detection service for finding duplicate memory facts without mutating them.
+
+- `DeduplicationService` with three-pass algorithm: exact match, tag overlap, Jaccard word-set similarity
+- `IDeduplicationService`, `IDuplicateGroup`, `IDeduplicationResult` domain interfaces
+- `lisa memory dedupe` CLI command with `--group`, `--min-similarity`, `--limit`, `--since` options
+- Skill-level `dedupe` command in `MemoryCliService` and `MemoryService`
+- DI registration for `DeduplicationService` with `IMemoryServiceWithQuality` dependency
+- Exported pure algorithm functions (`normalizeText`, `extractWords`, `jaccardSimilarity`, `detectDuplicatesFromFacts`) for reuse
+
+Part of Epic [#158](https://github.com/TonyCasey/lisa/issues/158)
+
 #### Neo4j Quality Repository with Confidence Filtering and Conflict Detection ([#159](https://github.com/TonyCasey/lisa/issues/159))
 
 Implemented quality-aware queries for the Neo4j memory repository, enabling confidence-based filtering and conflict detection across memory facts.

@@ -17,6 +17,7 @@ import type {
   IEventEmitter,
   IRecursionService,
 } from '../../domain/interfaces';
+import type { IMemoryServiceWithQuality } from '../../domain/interfaces/IMemoryService';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
 import type { IConnectionManagers } from '../dal';
 import type { IRequestHandler } from '../../application/mediator';
@@ -42,6 +43,7 @@ import {
   SessionCaptureService,
   RecursionService,
 } from '../services';
+import { createDeduplicationService } from '../services/DeduplicationService';
 import { createRepositoryRouter, closeConnections } from '../dal';
 import { createLogger, createNullLogger } from '../logging';
 
@@ -193,6 +195,16 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
       const memory = await container.resolve<MemoryService>(TOKENS.MemoryService);
       const tasks = await container.resolve<TaskService>(TOKENS.TaskService);
       return new RecursionService(memory, tasks);
+    },
+    'transient'
+  );
+
+  // Deduplication Service (transient - stateless algorithm)
+  container.register(
+    TOKENS.DeduplicationService,
+    async () => {
+      const memory = await container.resolve<MemoryService>(TOKENS.MemoryService);
+      return createDeduplicationService(memory as unknown as IMemoryServiceWithQuality);
     },
     'transient'
   );
