@@ -114,9 +114,10 @@ export interface IMemoryConflictsResult {
  * A group of duplicate facts detected by deduplication.
  */
 export interface IDuplicateGroup {
-  reason: 'exact-match' | 'tag-overlap' | 'similar-content';
+  reason: 'exact-match' | 'tag-overlap' | 'similar-content' | 'llm-semantic';
   facts: IFact[];
   similarity: number;
+  suggestedMerge?: string;
 }
 
 /**

@@ -356,3 +356,217 @@ describe('DeduplicationService', () => {
     });
   });
 });
+
+// ── createDeduplicationService integration tests ────────
+
+import { createDeduplicationService } from '../../../../../../src/lib/infrastructure/services/DeduplicationService';
+import type { IMemoryServiceWithQuality } from '../../../../../../src/lib/domain/interfaces/IMemoryService';
+import type { ILlmDeduplicationEnhancer } from '../../../../../../src/lib/infrastructure/services/LlmDeduplicationEnhancer';
+import type { IDuplicateGroup } from '../../../../../../src/lib/domain/interfaces/IDeduplicationService';
+
+function createMockMemoryService(facts: IMemoryItem[]): IMemoryServiceWithQuality {
+  return {
+    async loadFactsDateOrdered() { return facts; },
+    async findConflicts() { return []; },
+    // Stub unused IMemoryService methods
+    async addMemory() { return undefined; },
+    async searchFacts() { return []; },
+    async loadFacts() { return []; },
+    async addFact() {},
+    async getRecentFacts() { return []; },
+    async getRelevantFacts() { return []; },
+    async getFactsByTags() { return []; },
+    async expireFact() {},
+    async updateFact() {},
+  } as unknown as IMemoryServiceWithQuality;
+}
+
+describe('createDeduplicationService (LLM integration)', () => {
+  it('should return algorithmic results when no enhancer provided', async () => {
+    const facts = [
+      makeFact({ uuid: 'a1', fact: 'exact duplicate text' }),
+      makeFact({ uuid: 'a2', fact: 'exact duplicate text' }),
+    ];
+    const mockMemory = createMockMemoryService(facts);
+    const service = createDeduplicationService(mockMemory);
+
+    const result = await service.detectDuplicates('test-group');
+
+    assert.ok(result.duplicateGroups.length >= 1);
+    assert.strictEqual(result.duplicateGroups[0]?.reason, 'exact-match');
+  });
+
+  it('should skip LLM pass when aiAssist is false', async () => {
+    const facts = [
+      makeFact({ uuid: 'a1', fact: 'We decided to use PostgreSQL' }),
+      makeFact({ uuid: 'a2', fact: 'Database is Postgres with pgvector' }),
+    ];
+    const mockMemory = createMockMemoryService(facts);
+
+    let llmCalled = false;
+    const mockEnhancer: ILlmDeduplicationEnhancer = {
+      async findSemanticDuplicates() {
+        llmCalled = true;
+        return [];
+      },
+    };
+
+    const service = createDeduplicationService(mockMemory, mockEnhancer);
+    await service.detectDuplicates('test-group', { aiAssist: false });
+
+    assert.strictEqual(llmCalled, false);
+  });
+
+  it('should skip LLM pass when aiAssist is not set (default false)', async () => {
+    const facts = [
+      makeFact({ uuid: 'a1', fact: 'fact one' }),
+      makeFact({ uuid: 'a2', fact: 'fact two' }),
+    ];
+    const mockMemory = createMockMemoryService(facts);
+
+    let llmCalled = false;
+    const mockEnhancer: ILlmDeduplicationEnhancer = {
+      async findSemanticDuplicates() {
+        llmCalled = true;
+        return [];
+      },
+    };
+
+    const service = createDeduplicationService(mockMemory, mockEnhancer);
+    await service.detectDuplicates('test-group');
+
+    assert.strictEqual(llmCalled, false);
+  });
+
+  it('should run LLM 4th pass when aiAssist is true', async () => {
+    const facts = [
+      makeFact({ uuid: 'a1', fact: 'We decided to use PostgreSQL' }),
+      makeFact({ uuid: 'a2', fact: 'Database is Postgres with pgvector' }),
+    ];
+    const mockMemory = createMockMemoryService(facts);
+
+    let llmCalled = false;
+    const llmGroup: IDuplicateGroup = {
+      reason: 'llm-semantic',
+      facts,
+      similarity: 0.8,
+      suggestedMerge: 'We use PostgreSQL with pgvector',
+    };
+    const mockEnhancer: ILlmDeduplicationEnhancer = {
+      async findSemanticDuplicates() {
+        llmCalled = true;
+        return [llmGroup];
+      },
+    };
+
+    const service = createDeduplicationService(mockMemory, mockEnhancer);
+    const result = await service.detectDuplicates('test-group', { aiAssist: true });
+
+    assert.strictEqual(llmCalled, true);
+    assert.ok(result.duplicateGroups.some(g => g.reason === 'llm-semantic'));
+  });
+
+  it('should append LLM groups after algorithmic groups', async () => {
+    const facts = [
+      makeFact({ uuid: 'a1', fact: 'exact duplicate' }),
+      makeFact({ uuid: 'a2', fact: 'exact duplicate' }),
+      makeFact({ uuid: 'b1', fact: 'We decided to use PostgreSQL' }),
+      makeFact({ uuid: 'b2', fact: 'Database is Postgres with pgvector' }),
+    ];
+    const mockMemory = createMockMemoryService(facts);
+
+    const llmGroup: IDuplicateGroup = {
+      reason: 'llm-semantic',
+      facts: [facts[2]!, facts[3]!],
+      similarity: 0.8,
+      suggestedMerge: 'We use PostgreSQL with pgvector',
+    };
+    const mockEnhancer: ILlmDeduplicationEnhancer = {
+      async findSemanticDuplicates() {
+        return [llmGroup];
+      },
+    };
+
+    const service = createDeduplicationService(mockMemory, mockEnhancer);
+    const result = await service.detectDuplicates('test-group', { aiAssist: true, limit: 20 });
+
+    // Both algorithmic and LLM groups present
+    const reasons = result.duplicateGroups.map(g => g.reason);
+    assert.ok(reasons.includes('exact-match'));
+    assert.ok(reasons.includes('llm-semantic'));
+  });
+
+  it('should sort combined results by similarity descending', async () => {
+    const facts = [
+      makeFact({ uuid: 'a1', fact: 'different text one' }),
+      makeFact({ uuid: 'a2', fact: 'different text two' }),
+    ];
+    const mockMemory = createMockMemoryService(facts);
+
+    const llmGroup: IDuplicateGroup = {
+      reason: 'llm-semantic',
+      facts,
+      similarity: 0.9,
+    };
+    const mockEnhancer: ILlmDeduplicationEnhancer = {
+      async findSemanticDuplicates() {
+        return [llmGroup];
+      },
+    };
+
+    const service = createDeduplicationService(mockMemory, mockEnhancer);
+    const result = await service.detectDuplicates('test-group', { aiAssist: true });
+
+    // Verify descending similarity order
+    for (let i = 1; i < result.duplicateGroups.length; i++) {
+      assert.ok(result.duplicateGroups[i - 1]!.similarity >= result.duplicateGroups[i]!.similarity);
+    }
+  });
+
+  it('should gracefully handle LLM enhancer failure', async () => {
+    const facts = [
+      makeFact({ uuid: 'a1', fact: 'exact dup' }),
+      makeFact({ uuid: 'a2', fact: 'exact dup' }),
+    ];
+    const mockMemory = createMockMemoryService(facts);
+
+    const mockEnhancer: ILlmDeduplicationEnhancer = {
+      async findSemanticDuplicates() {
+        throw new Error('LLM provider unavailable');
+      },
+    };
+
+    const service = createDeduplicationService(mockMemory, mockEnhancer);
+    const result = await service.detectDuplicates('test-group', { aiAssist: true });
+
+    // Should still return algorithmic results
+    assert.ok(result.duplicateGroups.length >= 1);
+    assert.strictEqual(result.duplicateGroups[0]?.reason, 'exact-match');
+  });
+
+  it('should respect limit on combined results', async () => {
+    const facts = [
+      makeFact({ uuid: 'a1', fact: 'exact one' }),
+      makeFact({ uuid: 'a2', fact: 'exact one' }),
+      makeFact({ uuid: 'b1', fact: 'semantic dup 1' }),
+      makeFact({ uuid: 'b2', fact: 'semantic dup 2' }),
+    ];
+    const mockMemory = createMockMemoryService(facts);
+
+    const llmGroup: IDuplicateGroup = {
+      reason: 'llm-semantic',
+      facts: [facts[2]!, facts[3]!],
+      similarity: 0.8,
+    };
+    const mockEnhancer: ILlmDeduplicationEnhancer = {
+      async findSemanticDuplicates() {
+        return [llmGroup];
+      },
+    };
+
+    const service = createDeduplicationService(mockMemory, mockEnhancer);
+    const result = await service.detectDuplicates('test-group', { aiAssist: true, limit: 1 });
+
+    assert.strictEqual(result.duplicateGroups.length, 1);
+  });
+});
