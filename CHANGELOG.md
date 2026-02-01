@@ -11,6 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Preference Key-Value Store ([#162](https://github.com/TonyCasey/lisa/issues/162))
+
+Added a file-based preference store for persistent user/project settings.
+
+- `IPreferenceStore` domain interface with `get()`, `set()`, `delete()`, `list()`, `has()` operations
+- `IPreference` type with key, value, and updatedAt fields
+- File-based implementation in `.lisa/preferences.json` (human-readable, editable)
+- `lisa pref get <key>` — retrieve a preference value
+- `lisa pref set <key> <value>` — store a preference
+- `lisa pref delete <key>` — remove a preference
+- `lisa pref list` — display all stored preferences
+- DI registration as singleton in bootstrap container
+- Graceful handling of missing file (empty store) and invalid JSON (reset with warning)
+- 23 unit tests covering all operations and edge cases
+
+Part of Epic [#158](https://github.com/TonyCasey/lisa/issues/158)
+
 #### Curation Workflow and Fact Consolidation Services ([#161](https://github.com/TonyCasey/lisa/issues/161))
 
 Added curation and consolidation services for managing memory fact quality and deduplication resolution.

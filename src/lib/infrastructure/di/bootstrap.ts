@@ -46,6 +46,7 @@ import {
 import { createDeduplicationService } from '../services/DeduplicationService';
 import { createCurationService } from '../services/CurationService';
 import { createConsolidationService } from '../services/ConsolidationService';
+import { createPreferenceStore } from '../services/PreferenceStore';
 import { createRepositoryRouter, closeConnections } from '../dal';
 import { createLogger, createNullLogger } from '../logging';
 
@@ -229,6 +230,12 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
       return createConsolidationService(memory, memory);
     },
     'transient'
+  );
+
+  // Preference Store (singleton - file-based, no connection state)
+  container.registerInstance(
+    TOKENS.PreferenceStore,
+    createPreferenceStore(projectRoot, logger.child({ service: 'preferences' }))
   );
 
   // GitHub Sync Service (singleton - optional, may not be available)

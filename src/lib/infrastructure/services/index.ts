@@ -11,3 +11,4 @@ export { LabelInferenceService, createLabelInferenceService } from './LabelInfer
 export { createDeduplicationService, normalizeText, extractWords, jaccardSimilarity, detectDuplicatesFromFacts } from './DeduplicationService';
 export { createCurationService, computeRecencyBonus } from './CurationService';
 export { createConsolidationService } from './ConsolidationService';
+export { createPreferenceStore } from './PreferenceStore';

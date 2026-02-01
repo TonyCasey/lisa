@@ -30,6 +30,7 @@ export const INFRA_TOKENS = {
   DeduplicationService: Symbol.for('Lisa.DeduplicationService'),
   CurationService: Symbol.for('Lisa.CurationService'),
   ConsolidationService: Symbol.for('Lisa.ConsolidationService'),
+  PreferenceStore: Symbol.for('Lisa.PreferenceStore'),
 } as const;
 
 /**
