@@ -56,3 +56,6 @@ export * from './events';
 
 // Type interfaces (data structures)
 export * from './types';
+
+// Re-export project context types at top level for convenience
+export type { IProjectContext, IProjectContextUpdates, IProjectContextService } from './types/IProjectContext';

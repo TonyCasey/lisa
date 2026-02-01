@@ -11,6 +11,8 @@ import type {
   ILogger,
   IMemoryDateOptions,
   IGitClient,
+  IProjectContext,
+  IProjectContextService,
 } from '../../domain';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
 import type { IGitHubSyncService } from '../../skills/shared/services/GitHubSyncService';
@@ -43,6 +45,7 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
   private readonly router?: IRepositoryRouter;
   private readonly logger?: ILogger;
   private readonly githubSync?: IGitHubSyncService;
+  private readonly projectContextService?: IProjectContextService;
 
   // Extracted services
   private readonly formatter: SessionContextFormatter;
@@ -78,6 +81,7 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
     logger?: ILogger,
     githubSync?: IGitHubSyncService,
     gitClient?: IGitClient,
+    projectContextService?: IProjectContextService,
   );
 
   constructor(
@@ -89,6 +93,7 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
     logger?: ILogger,
     githubSync?: IGitHubSyncService,
     gitClient?: IGitClient,
+    projectContextService?: IProjectContextService,
   ) {
     let resolvedGitClient: IGitClient | undefined;
 
@@ -113,6 +118,7 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
       this.logger = logger;
       this.githubSync = githubSync;
       resolvedGitClient = gitClient;
+      this.projectContextService = projectContextService;
     }
 
     // Lazy-load default GitClient if none provided
@@ -161,6 +167,16 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
     const tasks = this.processTasks(memories.tasks);
     const taskCounts = this.countTasks(tasks);
 
+    // Load project context (non-blocking, optional)
+    let projectContext: IProjectContext | null = null;
+    if (this.projectContextService) {
+      try {
+        projectContext = await this.projectContextService.load(projectRoot);
+      } catch {
+        // Don't fail session start if project context load fails
+      }
+    }
+
     // Build context content
     const contextContent = this.formatter.formatContextContent(
       request.trigger,
@@ -170,6 +186,7 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
       { projectName, userName, folderType, projectRoot, branch },
       gitCommits,
       dateOptions.since,
+      projectContext ?? undefined,
     );
 
     // Build message

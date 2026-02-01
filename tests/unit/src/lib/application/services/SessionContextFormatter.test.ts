@@ -1175,4 +1175,126 @@ describe('SessionContextFormatter', () => {
       assert.ok(!result.includes('... and'));
     });
   });
+
+  // ========================================================================
+  // Project Context Display
+  // ========================================================================
+
+  describe('formatContextContent with projectContext', () => {
+    it('should display project context when provided', () => {
+      const projectContext = {
+        projectName: 'test-project',
+        techStack: ['TypeScript', 'Node.js', 'Neo4j'],
+        keyDecisions: ['Using Clean Architecture'],
+        activeConstraints: ['No external API calls in domain layer'],
+        conventions: ['Interfaces prefixed with I'],
+        updatedAt: '2026-01-30T00:00:00.000Z',
+      };
+
+      const result = formatter.formatContextContent(
+        'startup',
+        createFormattableMemories(),
+        [],
+        createTaskCounts(),
+        createSessionContext(),
+        [],
+        undefined,
+        projectContext,
+      );
+
+      assert.ok(result.includes('Project context:'));
+      assert.ok(result.includes('Stack: TypeScript, Node.js, Neo4j'));
+      assert.ok(result.includes('Decisions: Using Clean Architecture'));
+      assert.ok(result.includes('Constraints: No external API calls in domain layer'));
+      assert.ok(result.includes('Conventions: Interfaces prefixed with I'));
+    });
+
+    it('should not display project context when not provided', () => {
+      const result = formatter.formatContextContent(
+        'startup',
+        createFormattableMemories(),
+        [],
+        createTaskCounts(),
+        createSessionContext(),
+      );
+
+      assert.ok(!result.includes('Project context:'));
+    });
+
+    it('should truncate long lists with +N more', () => {
+      const projectContext = {
+        projectName: 'test-project',
+        techStack: ['TypeScript', 'Node.js', 'Neo4j', 'Docker', 'Redis'],
+        keyDecisions: [],
+        activeConstraints: [],
+        conventions: [],
+        updatedAt: '2026-01-30T00:00:00.000Z',
+      };
+
+      const result = formatter.formatContextContent(
+        'startup',
+        createFormattableMemories(),
+        [],
+        createTaskCounts(),
+        createSessionContext(),
+        [],
+        undefined,
+        projectContext,
+      );
+
+      assert.ok(result.includes('Stack: TypeScript, Node.js, Neo4j (+2 more)'));
+    });
+
+    it('should skip empty categories', () => {
+      const projectContext = {
+        projectName: 'test-project',
+        techStack: ['TypeScript'],
+        keyDecisions: [],
+        activeConstraints: [],
+        conventions: [],
+        updatedAt: '2026-01-30T00:00:00.000Z',
+      };
+
+      const result = formatter.formatContextContent(
+        'startup',
+        createFormattableMemories(),
+        [],
+        createTaskCounts(),
+        createSessionContext(),
+        [],
+        undefined,
+        projectContext,
+      );
+
+      assert.ok(result.includes('Stack: TypeScript'));
+      assert.ok(!result.includes('Decisions:'));
+      assert.ok(!result.includes('Constraints:'));
+      assert.ok(!result.includes('Conventions:'));
+    });
+
+    it('should show exactly max items without +N more suffix', () => {
+      const projectContext = {
+        projectName: 'test-project',
+        techStack: ['TypeScript', 'Node.js', 'Neo4j'],
+        keyDecisions: [],
+        activeConstraints: [],
+        conventions: [],
+        updatedAt: '2026-01-30T00:00:00.000Z',
+      };
+
+      const result = formatter.formatContextContent(
+        'startup',
+        createFormattableMemories(),
+        [],
+        createTaskCounts(),
+        createSessionContext(),
+        [],
+        undefined,
+        projectContext,
+      );
+
+      assert.ok(result.includes('Stack: TypeScript, Node.js, Neo4j'));
+      assert.ok(!result.includes('+'));
+    });
+  });
 });

@@ -11,6 +11,7 @@ import type {
   IMemoryItem,
   ITask,
   ITaskCounts,
+  IProjectContext,
 } from '../../domain';
 
 /**
@@ -110,7 +111,8 @@ export class SessionContextFormatter {
     taskCounts: ITaskCounts,
     context: ISessionContext,
     gitCommits: readonly IGitCommit[] = [],
-    querySince?: Date
+    querySince?: Date,
+    projectContext?: IProjectContext,
   ): string {
     const { projectName, userName, folderType, projectRoot, branch } = context;
     const lines: string[] = [];
@@ -132,6 +134,28 @@ export class SessionContextFormatter {
     const folderDisplay = projectRoot.replace(process.env.HOME || process.env.USERPROFILE || '', '~');
     lines.push(`User: ${userName} | Folder: ${folderDisplay} (${folderType})`);
     lines.push(`Repo: ${projectName}${branch ? ' (' + branch + ')' : ''}`);
+
+    // Project context (structured knowledge)
+    if (projectContext) {
+      lines.push('');
+      lines.push('Project context:');
+      if (projectContext.techStack.length) {
+        const stack = truncateList(projectContext.techStack, 3);
+        lines.push(`  Stack: ${stack}`);
+      }
+      if (projectContext.keyDecisions.length) {
+        const decisions = truncateList(projectContext.keyDecisions, 3);
+        lines.push(`  Decisions: ${decisions}`);
+      }
+      if (projectContext.activeConstraints.length) {
+        const constraints = truncateList(projectContext.activeConstraints, 3);
+        lines.push(`  Constraints: ${constraints}`);
+      }
+      if (projectContext.conventions.length) {
+        const conventions = truncateList(projectContext.conventions, 3);
+        lines.push(`  Conventions: ${conventions}`);
+      }
+    }
 
     // Init review (codebase summary)
     if (memories.initReview) {
@@ -358,4 +382,13 @@ export class SessionContextFormatter {
       return `${month} ${day} ${time}`;
     }
   }
+}
+
+/**
+ * Truncate a list to a maximum number of items with "+N more" suffix.
+ */
+function truncateList(items: readonly string[], max: number): string {
+  if (items.length <= max) return items.join(', ');
+  const shown = items.slice(0, max).join(', ');
+  return `${shown} (+${items.length - max} more)`;
 }

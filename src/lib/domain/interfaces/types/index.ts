@@ -62,3 +62,8 @@ export {
   INVERSE_RELATIONS,
   isValidRelationType,
 } from './IMemoryRelationship';
+export {
+  IProjectContext,
+  IProjectContextUpdates,
+  IProjectContextService,
+} from './IProjectContext';
