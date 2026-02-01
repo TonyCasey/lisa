@@ -312,7 +312,8 @@ export function createLlmService(
           default:
             return false;
         }
-      } catch {
+      } catch (error) {
+        logger?.debug('LLM availability check failed', { error });
         return false;
       }
     },
