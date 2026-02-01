@@ -13,12 +13,13 @@ import type {
   IMemoryLoadOptions,
   IMemoryLinkResult,
   IMemoryLinksResult,
+  IMemoryCompactResult,
 } from './interfaces';
 import { isValidRelationType } from '../../../domain/interfaces/types/IMemoryRelationship';
 import { parseDate } from '../../../utils/dateParser';
 
 /** CLI result union for all memory commands. */
-export type MemoryCliResult = IMemoryLoadResult | IMemoryAddResult | IMemoryExpireResult | IMemoryCleanupResult | IMemoryLinkResult | IMemoryLinksResult;
+export type MemoryCliResult = IMemoryLoadResult | IMemoryAddResult | IMemoryExpireResult | IMemoryCleanupResult | IMemoryLinkResult | IMemoryLinksResult | IMemoryCompactResult;
 
 /**
  * Parsed memory CLI arguments.
@@ -39,6 +40,8 @@ export interface IMemoryCliArgs {
   dryRun: boolean;
   uuid: string | null;
   note: string | null;
+  before: string | null;
+  minGroup: number;
 }
 
 /**
@@ -117,11 +120,11 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
       const {
         command, payload, explicitGroup, query, limit,
         explicitTag, entityType, source, since, until,
-        lifecycle, ttl, dryRun, uuid, note,
+        lifecycle, ttl, dryRun, uuid, note, before, minGroup,
       } = args;
 
-      if (!['add', 'load', 'expire', 'cleanup', 'link', 'links'].includes(command)) {
-        throw new Error('command must be add|load|expire|cleanup|link|links');
+      if (!['add', 'load', 'expire', 'cleanup', 'link', 'links', 'compact'].includes(command)) {
+        throw new Error('command must be add|load|expire|cleanup|link|links|compact');
       }
 
       // Use explicit --group if provided, otherwise use canonical folder-based group ID
@@ -183,6 +186,19 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
           throw new Error(`Invalid relation type: "${relationType}". Valid types: supersedes, supports, contradicts, implements, relates_to, refines`);
         }
         result = await memoryService.getRelatedFacts(groupId, targetUuid, relationType);
+      } else if (command === 'compact') {
+        if (!before) {
+          throw new Error('compact requires --before <date>: lisa memory compact --before 30d');
+        }
+        const parsedBefore = parseDate(before);
+        if (!parsedBefore) {
+          throw new Error(`Invalid --before date: "${before}". Use formats like: 30d, 3m, 1y, or ISO date (2026-01-01)`);
+        }
+        result = await memoryService.compact(groupId, {
+          olderThan: parsedBefore,
+          dryRun,
+          minGroupSize: minGroup,
+        });
       } else {
         // add
         if (!payload) throw new Error('add requires text payload');

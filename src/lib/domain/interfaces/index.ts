@@ -59,3 +59,11 @@ export * from './types';
 
 // Re-export project context types at top level for convenience
 export type { IProjectContext, IProjectContextUpdates, IProjectContextService } from './types/IProjectContext';
+
+// Compaction service
+export type {
+  ICompactionSummary,
+  ICompactionResult,
+  ICompactionOptions,
+  ICompactionService,
+} from './ICompactionService';

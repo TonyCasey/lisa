@@ -29,6 +29,7 @@ export const INFRA_TOKENS = {
   GitHubSyncService: Symbol.for('Lisa.GitHubSyncService'),
   MemoryRelationshipRepository: Symbol.for('Lisa.MemoryRelationshipRepository'),
   ProjectContextService: Symbol.for('Lisa.ProjectContextService'),
+  CompactionService: Symbol.for('Lisa.CompactionService'),
 } as const;
 
 /**

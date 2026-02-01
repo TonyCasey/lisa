@@ -122,6 +122,40 @@ export interface IMemoryLinksResult {
 }
 
 /**
+ * Summary of a compacted group of facts.
+ */
+export interface ICompactGroupSummary {
+  topic: string;
+  factCount: number;
+  summaryText: string;
+  archivedUuids: string[];
+}
+
+/**
+ * Result of a memory compact operation.
+ */
+export interface IMemoryCompactResult {
+  status: 'ok';
+  action: 'compact';
+  group: string;
+  groupsProcessed: number;
+  factsArchived: number;
+  summariesCreated: number;
+  summaries: ICompactGroupSummary[];
+  dryRun: boolean;
+  mode: 'neo4j';
+}
+
+/**
+ * Options for memory compaction.
+ */
+export interface IMemoryCompactOptions {
+  olderThan: Date;
+  dryRun: boolean;
+  minGroupSize: number;
+}
+
+/**
  * Memory service interface.
  */
 export interface IMemoryService {
@@ -210,4 +244,17 @@ export interface IMemoryService {
     uuid: string,
     relationType?: string
   ): Promise<IMemoryLinksResult>;
+
+  /**
+   * Compact old facts into summaries.
+   * Groups old non-expired facts by category, creates template-based summaries,
+   * and archives (expires) the originals.
+   *
+   * @param groupId - Group identifier
+   * @param options - Compaction options (date cutoff, dry run, min group size)
+   */
+  compact(
+    groupId: string,
+    options: IMemoryCompactOptions
+  ): Promise<IMemoryCompactResult>;
 }

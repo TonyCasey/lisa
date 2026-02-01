@@ -17,6 +17,9 @@ import type {
   IMemoryLinkResult,
   IMemoryLinksResult,
   IMemoryRelationshipItem,
+  IMemoryCompactResult,
+  IMemoryCompactOptions,
+  ICompactGroupSummary,
 } from './interfaces';
 import { LIFECYCLE_DEFAULTS, resolveLifecycleTag } from '../../../domain/interfaces/types/IMemoryLifecycle';
 import type { MemoryLifecycle } from '../../../domain/interfaces/types/IMemoryLifecycle';
@@ -471,5 +474,169 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
         await neo4jClient.disconnect();
       }
     },
+
+    async compact(
+      groupId: string,
+      options: IMemoryCompactOptions
+    ): Promise<IMemoryCompactResult> {
+      const { olderThan, dryRun, minGroupSize } = options;
+
+      await neo4jClient.connect();
+      try {
+        // Step 1: Load old non-expired facts with tags
+        const loadCypher = `
+          MATCH (s:Entity)-[r]->(t:Entity)
+          WHERE r.group_id = $groupId
+            AND r.expired_at IS NULL
+            AND r.created_at <= datetime($before)
+          RETURN r.uuid AS uuid, r.name AS name, r.fact AS fact,
+                 r.group_id AS group_id, r.created_at AS created_at,
+                 coalesce(r.tags, []) AS tags
+          ORDER BY r.created_at ASC
+        `;
+        const facts = await neo4jClient.query<{
+          uuid: string;
+          name: string;
+          fact: string;
+          group_id: string;
+          created_at: string;
+          tags: string[];
+        }>(loadCypher, {
+          groupId,
+          before: olderThan.toISOString(),
+        });
+
+        // Step 2: Group by category
+        const categoryMap = new Map<string, typeof facts>();
+        for (const f of facts) {
+          const category = extractFactCategory(f.name, f.tags);
+          const existing = categoryMap.get(category);
+          if (existing) {
+            existing.push(f);
+          } else {
+            categoryMap.set(category, [f]);
+          }
+        }
+
+        // Step 3: Filter groups smaller than threshold
+        const qualifying = Array.from(categoryMap.entries())
+          .filter(([, items]) => items.length >= minGroupSize);
+
+        let factsArchived = 0;
+        let summariesCreated = 0;
+        const summaries: ICompactGroupSummary[] = [];
+
+        for (const [topic, items] of qualifying) {
+          const summary = generateCompactSummary(topic, items);
+          summaries.push(summary);
+
+          if (!dryRun) {
+            // Save summary fact via MCP
+            const summaryTag = `type:compaction-summary`;
+            const mcpTag = `compacted:${topic}`;
+
+            if (zepClient) {
+              await zepClient.addMemory(groupId, summary.summaryText, {
+                tag: summaryTag,
+                source: 'compaction',
+              });
+            } else {
+              await mcpClient.initialize();
+              await mcpClient.rpcCall('add_memory', {
+                name: `[Compacted] ${topic}: ${items.length} items`,
+                episode_body: summary.summaryText,
+                source: 'compaction',
+                group_id: groupId,
+                tags: [summaryTag, mcpTag],
+              });
+            }
+
+            // Expire original facts
+            for (const uuid of summary.archivedUuids) {
+              const expireCypher = `
+                MATCH (s:Entity)-[r]->(t:Entity)
+                WHERE r.group_id = $groupId AND r.uuid = $uuid AND r.expired_at IS NULL
+                SET r.expired_at = datetime()
+              `;
+              await neo4jClient.writeQuery(expireCypher, { groupId, uuid });
+            }
+
+            factsArchived += summary.archivedUuids.length;
+            summariesCreated++;
+          } else {
+            factsArchived += summary.archivedUuids.length;
+            summariesCreated++;
+          }
+        }
+
+        return {
+          status: 'ok',
+          action: 'compact',
+          group: groupId,
+          groupsProcessed: qualifying.length,
+          factsArchived,
+          summariesCreated,
+          summaries,
+          dryRun,
+          mode: 'neo4j',
+        };
+      } finally {
+        await neo4jClient.disconnect();
+      }
+    },
+  };
+}
+
+/**
+ * Extract a category from a fact's name prefix or tags.
+ */
+function extractFactCategory(name: string, tags: string[]): string {
+  // Check name for PREFIX: pattern (e.g., "DECISION: ...", "MILESTONE: ...")
+  if (name) {
+    const prefixMatch = name.match(/^([A-Z_]+):\s/);
+    if (prefixMatch) return prefixMatch[1].toLowerCase();
+  }
+
+  // Check tags for type:* tag
+  for (const tag of tags) {
+    if (tag.startsWith('type:') && tag !== 'type:compaction-summary') {
+      return tag.slice(5);
+    }
+  }
+
+  return 'general';
+}
+
+/**
+ * Generate a template-based summary for a group of facts.
+ */
+function generateCompactSummary(
+  topic: string,
+  items: ReadonlyArray<{ uuid: string; name: string; fact: string; created_at: string }>
+): ICompactGroupSummary {
+  const earliest = items[0]?.created_at
+    ? new Date(items[0].created_at).toISOString().split('T')[0]
+    : 'unknown';
+  const latest = items[items.length - 1]?.created_at
+    ? new Date(items[items.length - 1].created_at).toISOString().split('T')[0]
+    : 'unknown';
+
+  // Build snippet list from first 3 facts
+  const snippets = items.slice(0, 3).map(f => {
+    const text = f.fact || f.name || '';
+    return text.length > 50 ? text.slice(0, 47) + '...' : text;
+  });
+  const snippetText = snippets.join('; ');
+
+  const topicLabel = topic.charAt(0).toUpperCase() + topic.slice(1);
+  const summaryText = `[Compacted] ${topicLabel}: ${items.length} items from ${earliest} to ${latest}: ${snippetText}`;
+
+  const archivedUuids = items.map(f => f.uuid).filter(Boolean);
+
+  return {
+    topic,
+    factCount: items.length,
+    summaryText,
+    archivedUuids,
   };
 }
