@@ -16,6 +16,7 @@ import type {
   ISessionCaptureService,
   IEventEmitter,
   IRecursionService,
+  IProjectContextService,
 } from '../../domain/interfaces';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
 import type { IRequestHandler } from '../../application/mediator';
@@ -40,6 +41,7 @@ import {
   EventEmitter,
   SessionCaptureService,
   RecursionService,
+  ProjectContextService,
 } from '../services';
 import { createRepositoryRouter, closeConnections, Neo4jMemoryRelationshipRepository } from '../dal';
 import type { IMemoryRelationshipRepository } from '../../domain/interfaces/dal/IMemoryRelationshipRepository';
@@ -150,6 +152,10 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
     const relRepo = new Neo4jMemoryRelationshipRepository(connections.neo4j);
     container.registerInstance(TOKENS.MemoryRelationshipRepository, relRepo);
   }
+
+  // Project Context Service (singleton - file-based, lightweight)
+  const projectContextService = new ProjectContextService();
+  container.registerInstance(TOKENS.ProjectContextService, projectContextService);
 
   // ============================================================
   // Infrastructure Layer - Transient Services
@@ -282,7 +288,8 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
       const ghSync = container.isRegistered(TOKENS.GitHubSyncService)
         ? await container.resolve<IGitHubSyncService | undefined>(TOKENS.GitHubSyncService)
         : undefined;
-      return new SessionStartHandler(ctx, mem, tsk, mcp, rtr, log, ghSync);
+      const pcs = await container.resolve<IProjectContextService>(TOKENS.ProjectContextService);
+      return new SessionStartHandler(ctx, mem, tsk, mcp, rtr, log, ghSync, undefined, pcs);
     },
     'transient'
   );

@@ -8,6 +8,7 @@
 import type {Command} from 'commander';
 import path from 'path';
 import {getSkillCacheEnv, spawnAndWait} from './cli-utils';
+import {ProjectContextService} from '../infrastructure/services/ProjectContextService';
 
 export function registerKnowledgeCommands(program: Command): void {
   // Subcommand: lisa memory
@@ -204,5 +205,59 @@ export function registerKnowledgeCommands(program: Command): void {
       if (opts.cache) args.push('--cache');
       const scriptPath = path.join(__dirname, '..', 'skills', 'lisa', 'storage.js');
       await spawnAndWait(scriptPath, args, getSkillCacheEnv('lisa'));
+    });
+
+  // Subcommand: lisa context
+  const contextCmd = program
+    .command('context')
+    .description('Project context operations (init, show, update)');
+
+  const contextService = new ProjectContextService();
+
+  contextCmd
+    .command('init')
+    .description('Initialize project context with auto-detected tech stack')
+    .action(async () => {
+      const projectRoot = process.cwd();
+      const projectName = path.basename(projectRoot);
+      const context = await contextService.init(projectRoot, projectName);
+      console.log(JSON.stringify({ status: 'ok', action: 'init', context }, null, 2));
+    });
+
+  contextCmd
+    .command('show')
+    .description('Show current project context')
+    .action(async () => {
+      const projectRoot = process.cwd();
+      const context = await contextService.load(projectRoot);
+      if (!context) {
+        console.log('No project context found. Run `lisa context init` to create one.');
+        return;
+      }
+      console.log(JSON.stringify({ status: 'ok', action: 'show', context }, null, 2));
+    });
+
+  contextCmd
+    .command('update')
+    .description('Update project context')
+    .option('--add-stack <item>', 'Add to tech stack')
+    .option('--add-decision <text>', 'Add a key decision')
+    .option('--add-constraint <text>', 'Add an active constraint')
+    .option('--add-convention <text>', 'Add a convention')
+    .action(async (opts) => {
+      const projectRoot = process.cwd();
+      const updates: Record<string, string[]> = {};
+      if (opts.addStack) updates.techStack = [opts.addStack];
+      if (opts.addDecision) updates.keyDecisions = [opts.addDecision];
+      if (opts.addConstraint) updates.activeConstraints = [opts.addConstraint];
+      if (opts.addConvention) updates.conventions = [opts.addConvention];
+
+      if (Object.keys(updates).length === 0) {
+        console.error('Provide at least one update: --add-stack, --add-decision, --add-constraint, or --add-convention');
+        process.exit(1);
+      }
+
+      const context = await contextService.update(projectRoot, updates);
+      console.log(JSON.stringify({ status: 'ok', action: 'update', context }, null, 2));
     });
 }

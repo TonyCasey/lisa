@@ -8,3 +8,4 @@ export { EventEmitter } from './EventEmitter';
 export { SessionCaptureService } from './SessionCaptureService';
 export { RecursionService } from './RecursionService';
 export { LabelInferenceService, createLabelInferenceService } from './LabelInferenceService';
+export { ProjectContextService } from './ProjectContextService';

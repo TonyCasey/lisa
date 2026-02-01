@@ -11,6 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Structured ProjectContext with Session Integration ([#152](https://github.com/TonyCasey/lisa/issues/152))
+
+Added structured project context — a curated snapshot of tech stack, key decisions, constraints, and conventions that loads automatically at session start.
+
+- `IProjectContext` and `IProjectContextService` domain types
+- `ProjectContextService` with file-based storage in `.lisa/.project-context.json`
+- Auto-detection of tech stack from project files (package.json, tsconfig.json, Dockerfile, docker-compose, go.mod, requirements.txt, Cargo.toml)
+- `lisa context init` — initialize with auto-detected tech stack
+- `lisa context show` — display current project context
+- `lisa context update --add-stack|--add-decision|--add-constraint|--add-convention`
+- Session start integration: project context loaded and displayed in session context
+- `SessionContextFormatter` extended with optional project context display (backward compatible)
+
+Part of Epic [#149](https://github.com/TonyCasey/lisa/issues/149)
+
 #### Neo4j Memory Relationships with CLI Commands ([#151](https://github.com/TonyCasey/lisa/issues/151))
 
 Implemented Neo4j storage and CLI commands for typed relationships between memory facts.
