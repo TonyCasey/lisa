@@ -19,3 +19,4 @@ export { createLlmGuard } from './LlmGuard';
 export { createSummarizationService } from './SummarizationService';
 export { createTranscriptEnricher } from './TranscriptEnricher';
 export { createLlmDeduplicationEnhancer } from './LlmDeduplicationEnhancer';
+export { createNlCurationService } from './NlCurationService';
