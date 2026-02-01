@@ -346,7 +346,7 @@ describe('MemoryCliService', () => {
   });
 
   describe('link command', () => {
-    it('should call memoryService.linkFacts with parsed UUIDs', async () => {
+    it('link_givenTwoUuidsAndType_shouldCallLinkFactsWithParsedParams', async () => {
       const result = await cliService.run({
         ...defaultArgs(),
         command: 'link',
@@ -362,7 +362,7 @@ describe('MemoryCliService', () => {
       assert.strictEqual(result.action, 'link');
     });
 
-    it('should default to relates_to when no --type provided', async () => {
+    it('link_givenNoType_shouldDefaultToRelatesTo', async () => {
       await cliService.run({
         ...defaultArgs(),
         command: 'link',
@@ -372,7 +372,7 @@ describe('MemoryCliService', () => {
       assert.strictEqual(linkCalls[0].relationType, 'relates_to');
     });
 
-    it('should pass note as metadata', async () => {
+    it('link_givenNote_shouldPassNoteAsMetadata', async () => {
       await cliService.run({
         ...defaultArgs(),
         command: 'link',
@@ -383,7 +383,7 @@ describe('MemoryCliService', () => {
       assert.strictEqual(linkCalls[0].metadata, 'Updated per review');
     });
 
-    it('should use explicit group if provided', async () => {
+    it('link_givenExplicitGroup_shouldUseProvidedGroup', async () => {
       await cliService.run({
         ...defaultArgs(),
         command: 'link',
@@ -394,21 +394,21 @@ describe('MemoryCliService', () => {
       assert.strictEqual(linkCalls[0].groupId, 'custom-group');
     });
 
-    it('should throw if less than two UUIDs provided', async () => {
+    it('link_givenOneUuid_shouldThrowError', async () => {
       await assert.rejects(
         () => cliService.run({ ...defaultArgs(), command: 'link', payload: 'uuid-a' }),
         { message: /link requires two UUIDs/ }
       );
     });
 
-    it('should throw if no UUIDs provided', async () => {
+    it('link_givenEmptyPayload_shouldThrowError', async () => {
       await assert.rejects(
         () => cliService.run({ ...defaultArgs(), command: 'link', payload: '' }),
         { message: /link requires two UUIDs/ }
       );
     });
 
-    it('should throw for invalid relation type', async () => {
+    it('link_givenInvalidRelationType_shouldThrowError', async () => {
       await assert.rejects(
         () => cliService.run({
           ...defaultArgs(),
@@ -422,7 +422,7 @@ describe('MemoryCliService', () => {
   });
 
   describe('links command', () => {
-    it('should call memoryService.getRelatedFacts with uuid', async () => {
+    it('links_givenUuid_shouldCallGetRelatedFacts', async () => {
       const result = await cliService.run({
         ...defaultArgs(),
         command: 'links',
@@ -435,7 +435,7 @@ describe('MemoryCliService', () => {
       assert.strictEqual(result.action, 'links');
     });
 
-    it('should use payload as uuid fallback', async () => {
+    it('links_givenPayloadAsUuid_shouldUsePayloadFallback', async () => {
       await cliService.run({
         ...defaultArgs(),
         command: 'links',
@@ -445,7 +445,7 @@ describe('MemoryCliService', () => {
       assert.strictEqual(linksCalls[0].uuid, 'uuid-b');
     });
 
-    it('should pass relationType filter from --type', async () => {
+    it('links_givenRelationType_shouldPassTypeFilter', async () => {
       await cliService.run({
         ...defaultArgs(),
         command: 'links',
@@ -456,7 +456,7 @@ describe('MemoryCliService', () => {
       assert.strictEqual(linksCalls[0].relationType, 'supersedes');
     });
 
-    it('should not filter when no --type provided', async () => {
+    it('links_givenNoType_shouldNotFilterByRelationType', async () => {
       await cliService.run({
         ...defaultArgs(),
         command: 'links',
@@ -466,7 +466,7 @@ describe('MemoryCliService', () => {
       assert.strictEqual(linksCalls[0].relationType, undefined);
     });
 
-    it('should use explicit group if provided', async () => {
+    it('links_givenExplicitGroup_shouldUseProvidedGroup', async () => {
       await cliService.run({
         ...defaultArgs(),
         command: 'links',
@@ -477,14 +477,14 @@ describe('MemoryCliService', () => {
       assert.strictEqual(linksCalls[0].groupId, 'custom-group');
     });
 
-    it('should throw if no uuid provided', async () => {
+    it('links_givenNoUuid_shouldThrowError', async () => {
       await assert.rejects(
         () => cliService.run({ ...defaultArgs(), command: 'links' }),
         { message: /links requires a UUID/ }
       );
     });
 
-    it('should throw for invalid relation type filter', async () => {
+    it('links_givenInvalidRelationType_shouldThrowError', async () => {
       await assert.rejects(
         () => cliService.run({
           ...defaultArgs(),
