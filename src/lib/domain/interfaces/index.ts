@@ -117,6 +117,15 @@ export {
 export {
   type IWorkSummary,
 } from './IWorkSummary';
+export {
+  type NlCurationIntent,
+  NL_CURATION_INTENT_VALUES,
+  isValidNlCurationIntent,
+  type INlOperation,
+  type INlCurationPlan,
+  type INlCurationResult,
+  type INlCurationService,
+} from './INlCurationService';
 
 // Event interfaces
 export * from './events';

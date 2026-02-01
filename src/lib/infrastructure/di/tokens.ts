@@ -38,6 +38,7 @@ export const INFRA_TOKENS = {
   SummarizationService: Symbol.for('Lisa.SummarizationService'),
   TranscriptEnricher: Symbol.for('Lisa.TranscriptEnricher'),
   LlmDeduplicationEnhancer: Symbol.for('Lisa.LlmDeduplicationEnhancer'),
+  NlCurationService: Symbol.for('Lisa.NlCurationService'),
 } as const;
 
 /**

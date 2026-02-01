@@ -11,6 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Natural Language Curation ([#172](https://github.com/TonyCasey/lisa/issues/172))
+
+Added LLM-powered natural language interface for memory management, translating commands like "forget everything about the old API" into structured operations with plan-then-execute workflow.
+
+- `INlCurationService` interface with `plan()` and `execute()` methods
+- `NlCurationIntent` type: `query`, `mark`, `expire`, `summarize`, `consolidate`
+- `INlCurationPlan` with intent classification, destructive flag, and operations list
+- `INlOperation` interface for structured operation steps (search, mark, expire, summarize, consolidate)
+- `NlCurationService` implementation with LLM intent classification, JSON parsing, and graceful fallback
+- Curation prompt builder in `prompts/curation.ts` with few-shot examples for each intent
+- Plan-then-execute workflow: destructive operations (expire, consolidate) return plan for confirmation
+- Operation execution delegates to existing services (MemoryService, CurationService, ConsolidationService, SummarizationService)
+- DI registration: `NlCurationService` (transient)
+- 25 unit tests covering intent classification, plan generation, all operation types, error handling
+
 #### Intelligent LLM-Assisted Deduplication ([#171](https://github.com/TonyCasey/lisa/issues/171))
 
 Added an optional 4th-pass LLM semantic deduplication to the existing 3-pass algorithm, enabling detection of semantically equivalent facts that differ textually.

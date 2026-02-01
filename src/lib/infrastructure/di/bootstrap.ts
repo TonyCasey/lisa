@@ -61,6 +61,10 @@ import { createSummarizationService } from '../services/SummarizationService';
 import { createTranscriptEnricher } from '../services/TranscriptEnricher';
 import { createLlmDeduplicationEnhancer } from '../services/LlmDeduplicationEnhancer';
 import type { ILlmDeduplicationEnhancer } from '../services/LlmDeduplicationEnhancer';
+import { createNlCurationService } from '../services/NlCurationService';
+import type { ICurationService } from '../../domain/interfaces/ICurationService';
+import type { IConsolidationService } from '../../domain/interfaces/IConsolidationService';
+import type { ISummarizationService } from '../../domain/interfaces/ISummarizationService';
 import { createRepositoryRouter, closeConnections } from '../dal';
 import { createLogger, createNullLogger } from '../logging';
 
@@ -334,6 +338,21 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
       const guard = await container.resolve<ILlmGuard>(TOKENS.LlmGuard);
       const log = logger.child({ service: 'summarization' });
       return createSummarizationService(memory, guard, log);
+    },
+    'transient'
+  );
+
+  // NL Curation Service (transient - stateless, depends on multiple services)
+  container.register(
+    TOKENS.NlCurationService,
+    async () => {
+      const guard = await container.resolve<ILlmGuard>(TOKENS.LlmGuard);
+      const memory = await container.resolve<IMemoryService>(TOKENS.MemoryService);
+      const curation = await container.resolve<ICurationService>(TOKENS.CurationService);
+      const consolidation = await container.resolve<IConsolidationService>(TOKENS.ConsolidationService);
+      const summarization = await container.resolve<ISummarizationService>(TOKENS.SummarizationService);
+      const log = logger.child({ service: 'nl-curation' });
+      return createNlCurationService(guard, memory, curation, consolidation, summarization, log);
     },
     'transient'
   );
