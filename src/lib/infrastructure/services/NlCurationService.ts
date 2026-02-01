@@ -139,11 +139,6 @@ function parsePlanResponse(
     ? obj.description.trim()
     : 'Execute memory operation';
 
-  // Extract isDestructive
-  const isDestructive = typeof obj.isDestructive === 'boolean'
-    ? obj.isDestructive
-    : intent === 'expire' || intent === 'consolidate';
-
   // Extract operations
   const rawOps = Array.isArray(obj.operations) ? obj.operations : [];
   const operations: INlOperation[] = [];
@@ -178,6 +173,17 @@ function parsePlanResponse(
       description: `Search for relevant facts`,
     });
   }
+
+  // Compute isDestructive: OR the LLM flag with intent and operation types.
+  // Destructive intents (expire, consolidate) must always be flagged,
+  // even if the LLM incorrectly returns isDestructive: false.
+  const hasDestructiveOp = operations.some(
+    (op) => op.type === 'expire' || op.type === 'consolidate'
+  );
+  const llmFlag = typeof obj.isDestructive === 'boolean' ? obj.isDestructive : false;
+  const isDestructive = llmFlag
+    || intent === 'expire' || intent === 'consolidate'
+    || hasDestructiveOp;
 
   return { intent, description, isDestructive, operations };
 }

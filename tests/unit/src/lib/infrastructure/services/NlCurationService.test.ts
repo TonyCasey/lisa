@@ -389,7 +389,7 @@ describe('NlCurationService', () => {
       assert.strictEqual(plan.operations[0]?.type, 'search');
     });
 
-    it('should infer isDestructive for expire even if LLM says false', async () => {
+    it('should force isDestructive for expire even if LLM says false', async () => {
       const response = JSON.stringify({
         intent: 'expire',
         description: 'Expire facts',
@@ -404,11 +404,9 @@ describe('NlCurationService', () => {
 
       const plan = await service.plan('forget old stuff', 'test-group');
 
-      // The service should use the LLM's value when it's explicitly a boolean
-      // but the intent being expire means the LLM said isDestructive: false explicitly
+      // Expire is always destructive regardless of the LLM boolean
       assert.strictEqual(plan.intent, 'expire');
-      // We trust the LLM's explicit boolean value
-      assert.strictEqual(plan.isDestructive, false);
+      assert.strictEqual(plan.isDestructive, true);
     });
   });
 
