@@ -44,6 +44,8 @@ import {
   RecursionService,
 } from '../services';
 import { createDeduplicationService } from '../services/DeduplicationService';
+import { createCurationService } from '../services/CurationService';
+import { createConsolidationService } from '../services/ConsolidationService';
 import { createRepositoryRouter, closeConnections } from '../dal';
 import { createLogger, createNullLogger } from '../logging';
 
@@ -205,6 +207,26 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
     async () => {
       const memory = await container.resolve<MemoryService>(TOKENS.MemoryService);
       return createDeduplicationService(memory as unknown as IMemoryServiceWithQuality);
+    },
+    'transient'
+  );
+
+  // Curation Service (transient - stateless)
+  container.register(
+    TOKENS.CurationService,
+    async () => {
+      const memory = await container.resolve<MemoryService>(TOKENS.MemoryService);
+      return createCurationService(memory);
+    },
+    'transient'
+  );
+
+  // Consolidation Service (transient - stateless)
+  container.register(
+    TOKENS.ConsolidationService,
+    async () => {
+      const memory = await container.resolve<MemoryService>(TOKENS.MemoryService);
+      return createConsolidationService(memory, memory);
     },
     'transient'
   );

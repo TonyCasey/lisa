@@ -11,6 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Curation Workflow and Fact Consolidation Services ([#161](https://github.com/TonyCasey/lisa/issues/161))
+
+Added curation and consolidation services for managing memory fact quality and deduplication resolution.
+
+- `CurationService` with `markFact()` (authoritative, draft, deprecated, needs-review), `computeQualityScore()` (confidence × sourceWeight × recencyBonus), and `rankByQuality()`
+- `ConsolidationService` with `consolidate()` supporting merge, archive-duplicates, and keep-all actions with supersedes relationship tracking
+- `ICurationService`, `IConsolidationService` domain interfaces with `CurationMark`, `ConsolidationAction` types
+- `lisa memory curate <uuid> --mark <mark>` CLI command with group and cache support
+- `lisa memory consolidate <uuid...> --action <action>` CLI command with `--retain`, `--text`, `--group`, `--cache` options
+- Skill-level `curate` and `consolidate` commands in `MemoryCliService` and `MemoryService`
+- DI registration for both services in bootstrap container
+- Quality scoring formula: confidence (0.1–1.0) × source weight (0.3–1.0) × recency bonus (0.5–1.0)
+- Recency decay: 1.0 for <7 days, linear decay to 0.5 at 90+ days
+- Helper functions: `isValidCurationMark()`, `resolveCurationTag()`, `parseCurationTag()`, `computeRecencyBonus()`
+
+Part of Epic [#158](https://github.com/TonyCasey/lisa/issues/158)
+
 #### Deduplication Detection Service with CLI Command ([#160](https://github.com/TonyCasey/lisa/issues/160))
 
 Added a three-pass deduplication detection service for finding duplicate memory facts without mutating them.

@@ -9,6 +9,8 @@
  *   node memory.js cleanup [--group <id>] [--dry-run] [--cache]
  *   node memory.js conflicts [--group <id>] [--topic <tag>] [--cache]
  *   node memory.js dedupe [--group <id>] [--min-similarity <n>] [--limit N] [--since <d>] [--cache]
+ *   node memory.js curate [--uuid <uuid>] [--group <id>] [--mark <mark>] [--cache]
+ *   node memory.js consolidate <uuid1> <uuid2> [...] [--group <id>] [--action <action>] [--retain <uuid>] [--text <text>] [--cache]
  */
 
 export {};
@@ -51,6 +53,10 @@ async function main(): Promise<void> {
         return Number.isNaN(parsed) ? null : parsed;
       })()
     : null;
+  const mark = popFlag(args, '--mark', null);
+  const action = popFlag(args, '--action', null);
+  const retain = popFlag(args, '--retain', null);
+  const mergedText = popFlag(args, '--text', null);
   const dryRun = hasFlag(args, '--dry-run');
   const useCache = hasFlag(args, '--cache');
   const payload = args.join(' ').trim();
@@ -71,6 +77,7 @@ async function main(): Promise<void> {
     const result = await cliService.run({
       command, payload, explicitGroup, query, limit, explicitTag,
       entityType, source, since, until, lifecycle, ttl, dryRun, uuid, topic, minSimilarity,
+      mark, action, retain, mergedText,
     });
     console.log(JSON.stringify(result, null, 2));
   } catch (err: unknown) {
