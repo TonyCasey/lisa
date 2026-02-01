@@ -46,6 +46,7 @@ export interface ISummarizationService {
    * @param options - Optional filters and style settings
    * @throws LlmDisabledError if LLM is disabled
    * @throws LlmFeatureDisabledError if summarization feature is disabled
+   * @throws LlmBudgetExceededError if monthly budget limit is exceeded
    */
   summarize(
     groupId: string,

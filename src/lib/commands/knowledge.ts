@@ -365,6 +365,11 @@ export function registerKnowledgeCommands(program: Command): void {
       const tracker = createLlmUsageTracker(process.cwd(), store);
 
       const since = opts.since ? new Date(opts.since) : undefined;
+      if (since !== undefined && isNaN(since.getTime())) {
+        console.log(JSON.stringify({ status: 'error', action: 'usage', error: `Invalid date: ${opts.since}` }, null, 2));
+        process.exitCode = 1;
+        return;
+      }
       const records = await tracker.getUsage(since);
       const totalCost = await tracker.getTotalCost(since);
       const withinBudget = await tracker.isWithinBudget();
@@ -397,7 +402,10 @@ export function registerKnowledgeCommands(program: Command): void {
           return;
         }
         const current = await store.get(FEATURES_KEY);
-        const features = current ? new Set(current.split(',').map((f: string) => f.trim()).filter((f: string) => f)) : new Set<string>();
+        // When no list is set (all enabled by default), materialize the full list before adding
+        const features = (current && current.trim() !== '' && current.trim() !== '*')
+          ? new Set(current.split(',').map((f: string) => f.trim()).filter((f: string) => f))
+          : new Set<string>(LLM_FEATURE_VALUES as readonly string[]);
         features.add(opts.enable);
         await store.set(FEATURES_KEY, Array.from(features).join(','));
         console.log(JSON.stringify({ status: 'ok', action: 'enable', feature: opts.enable, enabledFeatures: Array.from(features) }, null, 2));
@@ -457,6 +465,7 @@ export function registerKnowledgeCommands(program: Command): void {
       const { createLlmGuard } = await import('../infrastructure/services/LlmGuard');
       const { createSummarizationService } = await import('../infrastructure/services/SummarizationService');
 
+      let dispose: (() => Promise<void>) | undefined;
       try {
         // Bootstrap minimal services
         const cwd = process.cwd();
@@ -468,9 +477,10 @@ export function registerKnowledgeCommands(program: Command): void {
 
         // Memory service requires MCP — import and bootstrap
         const { bootstrapContainer } = await import('../infrastructure/di/bootstrap');
-        const { container, dispose } = await bootstrapContainer({ projectRoot: cwd });
+        const bootstrapped = await bootstrapContainer({ projectRoot: cwd });
+        dispose = bootstrapped.dispose;
         type IMemorySvc = import('../domain/interfaces/IMemoryService').IMemoryService;
-        const memory = await container.resolve<IMemorySvc>(Symbol.for('Lisa.MemoryService'));
+        const memory = await bootstrapped.container.resolve<IMemorySvc>(Symbol.for('Lisa.MemoryService'));
 
         const summarizer = createSummarizationService(memory, guard);
 
@@ -487,8 +497,6 @@ export function registerKnowledgeCommands(program: Command): void {
           action: 'summarize',
           ...result,
         }, null, 2));
-
-        await dispose();
       } catch (error) {
         console.log(JSON.stringify({
           status: 'error',
@@ -496,6 +504,8 @@ export function registerKnowledgeCommands(program: Command): void {
           error: error instanceof Error ? error.message : String(error),
         }, null, 2));
         process.exitCode = 1;
+      } finally {
+        if (dispose) await dispose();
       }
     });
 

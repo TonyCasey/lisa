@@ -5,11 +5,11 @@
  * topic/date filtering, and empty fact handling.
  */
 
-import { describe, it, beforeEach } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { createSummarizationService } from '../../../../../../src/lib/infrastructure/services/SummarizationService';
 import type { ILlmGuard } from '../../../../../../src/lib/domain/interfaces/ILlmGuard';
-import type { ILlmResponse } from '../../../../../../src/lib/domain/interfaces/ILlmService';
+import type { ILlmRequestOptions } from '../../../../../../src/lib/domain/interfaces/ILlmService';
 import type { IMemoryService, IMemoryDateOptions } from '../../../../../../src/lib/domain/interfaces/IMemoryService';
 import type { IMemoryItem, IMemoryResult } from '../../../../../../src/lib/domain/interfaces/types';
 import type { LlmFeature } from '../../../../../../src/lib/domain/interfaces/ILlmUsageTracker';
@@ -39,9 +39,12 @@ const mockFacts: IMemoryItem[] = [
 
 // ── Mock memory service ────────────────────────────────────
 
-function createMockMemoryService(facts: IMemoryItem[] = mockFacts): IMemoryService & { loadCalls: any[]; searchCalls: any[] } {
-  const loadCalls: any[] = [];
-  const searchCalls: any[] = [];
+interface ILoadCall { groupIds: readonly string[]; limit?: number; options?: IMemoryDateOptions }
+interface ISearchCall { groupIds: readonly string[]; query: string; limit?: number }
+
+function createMockMemoryService(facts: IMemoryItem[] = mockFacts): IMemoryService & { loadCalls: ILoadCall[]; searchCalls: ISearchCall[] } {
+  const loadCalls: ILoadCall[] = [];
+  const searchCalls: ISearchCall[] = [];
 
   return {
     loadCalls,
@@ -71,8 +74,10 @@ function createMockMemoryService(facts: IMemoryItem[] = mockFacts): IMemoryServi
 
 // ── Mock LLM guard ─────────────────────────────────────────
 
-function createMockLlmGuard(responseText?: string): ILlmGuard & { calls: any[] } {
-  const calls: any[] = [];
+interface IGuardCall { prompt: string; feature: LlmFeature; options?: ILlmRequestOptions }
+
+function createMockLlmGuard(responseText?: string): ILlmGuard & { calls: IGuardCall[] } {
+  const calls: IGuardCall[] = [];
   const text = responseText ?? [
     'The project uses PostgreSQL for data storage and Express.js with TypeScript for the API layer.',
     'Authentication is handled via JWT tokens with refresh rotation for security.',
@@ -82,7 +87,7 @@ function createMockLlmGuard(responseText?: string): ILlmGuard & { calls: any[] }
 
   return {
     calls,
-    async complete(prompt: string, feature: LlmFeature, options?: any) {
+    async complete(prompt: string, feature: LlmFeature, options?: ILlmRequestOptions) {
       calls.push({ prompt, feature, options });
       return {
         text,
@@ -249,6 +254,47 @@ describe('SummarizationService', () => {
       const result = await svc.summarize('group-1');
       assert.strictEqual(result.summary, 'Summary text');
       assert.strictEqual(result.topics.length, 0);
+    });
+
+    it('should propagate LLM guard errors to caller', async () => {
+      const memory = createMockMemoryService();
+      const guard: ILlmGuard & { calls: unknown[] } = {
+        calls: [],
+        async complete() {
+          throw new Error('LLM provider unavailable');
+        },
+        async isFeatureEnabled() { return true; },
+      };
+      const svc = createSummarizationService(memory, guard);
+
+      await assert.rejects(
+        async () => svc.summarize('group-1'),
+        (error: unknown) => {
+          assert.ok(error instanceof Error);
+          assert.ok(error.message.includes('LLM provider unavailable'));
+          return true;
+        }
+      );
+    });
+
+    it('should apply since filter when topic is also provided', async () => {
+      // Create facts where two match 'decision' but only one is after the since date
+      const factsWithDates: IMemoryItem[] = [
+        { uuid: 'old', fact: 'Old decision about X', tags: ['type:decision'], created_at: '2025-01-05T10:00:00.000Z' },
+        { uuid: 'new', fact: 'New decision about Y', tags: ['type:decision'], created_at: '2025-01-15T10:00:00.000Z' },
+      ];
+      const memory = createMockMemoryService(factsWithDates);
+      const guard = createMockLlmGuard();
+      const svc = createSummarizationService(memory, guard);
+
+      const since = new Date('2025-01-10T00:00:00.000Z');
+      const result = await svc.summarize('group-1', { topic: 'decision', since });
+
+      // searchFacts should be called (topic path)
+      assert.strictEqual(memory.searchCalls.length, 1);
+      // Both facts match 'decision', but only 'new' is after since date
+      assert.strictEqual(result.factCount, 1);
+      assert.strictEqual(guard.calls.length, 1);
     });
 
     it('should include system prompt in LLM call', async () => {

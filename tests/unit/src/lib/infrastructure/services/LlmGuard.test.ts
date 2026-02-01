@@ -5,14 +5,15 @@
  * usage recording, and delegation to underlying LlmService.
  */
 
-import { describe, it, beforeEach } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { createLlmGuard } from '../../../../../../src/lib/infrastructure/services/LlmGuard';
-import type { ILlmService, ILlmResponse, ILlmConfig } from '../../../../../../src/lib/domain/interfaces/ILlmService';
+import type { ILlmService, ILlmResponse, ILlmConfig, ILlmRequestOptions } from '../../../../../../src/lib/domain/interfaces/ILlmService';
 import { getDefaultLlmConfig } from '../../../../../../src/lib/domain/interfaces/ILlmService';
 import type { ILlmConfigService } from '../../../../../../src/lib/domain/interfaces/ILlmConfigService';
 import type { ILlmUsageTracker, ILlmUsageRecord } from '../../../../../../src/lib/domain/interfaces/ILlmUsageTracker';
 import type { IPreferenceStore } from '../../../../../../src/lib/domain/interfaces/IPreferenceStore';
+import { LlmFeatureDisabledError, LlmBudgetExceededError } from '../../../../../../src/lib/domain/errors/LlmErrors';
 
 // ── Mock LLM service ───────────────────────────────────────
 
@@ -128,7 +129,8 @@ describe('LlmGuard', () => {
 
       await assert.rejects(
         async () => guard.complete('Test', 'deduplication'),
-        (error: any) => {
+        (error: unknown) => {
+          assert.ok(error instanceof LlmFeatureDisabledError);
           assert.strictEqual(error.name, 'LlmFeatureDisabledError');
           assert.strictEqual(error.feature, 'deduplication');
           return true;
@@ -146,7 +148,8 @@ describe('LlmGuard', () => {
 
       await assert.rejects(
         async () => guard.complete('Test', 'test'),
-        (error: any) => {
+        (error: unknown) => {
+          assert.ok(error instanceof LlmFeatureDisabledError);
           assert.strictEqual(error.name, 'LlmFeatureDisabledError');
           return true;
         }
@@ -163,7 +166,8 @@ describe('LlmGuard', () => {
 
       await assert.rejects(
         async () => guard.complete('Test', 'test'),
-        (error: any) => {
+        (error: unknown) => {
+          assert.ok(error instanceof LlmBudgetExceededError);
           assert.strictEqual(error.name, 'LlmBudgetExceededError');
           assert.strictEqual(error.currentCost, 15.50);
           assert.strictEqual(error.budgetLimit, 10.00);
@@ -176,7 +180,7 @@ describe('LlmGuard', () => {
     });
 
     it('should pass options through to LlmService', async () => {
-      let capturedOptions: any;
+      let capturedOptions: ILlmRequestOptions | undefined;
       const llmSvc: ILlmService = {
         async complete(_prompt, options) {
           capturedOptions = options;

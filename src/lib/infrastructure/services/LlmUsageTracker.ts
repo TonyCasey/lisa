@@ -100,15 +100,23 @@ export function createLlmUsageTracker(
     await fsp.writeFile(filePath, JSON.stringify(records, null, 2) + '\n', 'utf-8');
   }
 
+  /** Write queue to serialize concurrent writes and prevent lost records. */
+  let writeQueue: Promise<void> = Promise.resolve();
+
   return {
     async record(usage: Omit<ILlmUsageRecord, 'timestamp'>): Promise<void> {
       const record: ILlmUsageRecord = {
         ...usage,
         timestamp: new Date().toISOString(),
       };
-      const records = await readLog();
-      records.push(record);
-      await writeLog(records);
+      // Serialize writes: each record() waits for previous to complete before read-modify-write
+      const pending = writeQueue.then(async () => {
+        const records = await readLog();
+        records.push(record);
+        await writeLog(records);
+      });
+      writeQueue = pending.catch(() => { /* prevent unhandled rejection from blocking queue */ });
+      await pending;
     },
 
     async getUsage(since?: Date): Promise<readonly ILlmUsageRecord[]> {

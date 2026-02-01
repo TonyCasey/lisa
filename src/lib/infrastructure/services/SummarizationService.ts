@@ -89,6 +89,14 @@ export function createSummarizationService(
 
       if (options.topic) {
         facts = await memoryService.searchFacts([groupId], options.topic, maxFacts);
+        // Post-filter by since date — searchFacts doesn't support date filtering
+        if (options.since) {
+          const sinceMs = options.since.getTime();
+          facts = facts.filter(f => {
+            if (!f.created_at) return true; // Keep facts without timestamps
+            return new Date(f.created_at).getTime() >= sinceMs;
+          });
+        }
       } else {
         const dateOpts: IMemoryDateOptions = {};
         if (options.since) dateOpts.since = options.since;
