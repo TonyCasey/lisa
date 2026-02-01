@@ -61,6 +61,22 @@ export function createLlmService(
   }
 
   /**
+   * Safely parse JSON from a provider response.
+   * Wraps malformed JSON in a LlmProviderError with context.
+   */
+  async function parseJsonResponse<T>(response: Response, provider: LlmProvider, model: string): Promise<T> {
+    try {
+      return await response.json() as T;
+    } catch {
+      throw new LlmProviderError(
+        `${provider} API returned invalid JSON`,
+        response.status,
+        { provider, model }
+      );
+    }
+  }
+
+  /**
    * Send a completion request to Anthropic.
    */
   async function completeAnthropic(
@@ -104,11 +120,11 @@ export function createLlmService(
       );
     }
 
-    const data = await response.json() as {
+    const data = await parseJsonResponse<{
       content?: Array<{ type: string; text?: string }>;
       usage?: { input_tokens?: number; output_tokens?: number };
       model?: string;
-    };
+    }>(response, 'anthropic', config.model);
 
     const text = data.content?.find(c => c.type === 'text')?.text ?? '';
     const usage: ILlmUsage = {
@@ -163,11 +179,11 @@ export function createLlmService(
       );
     }
 
-    const data = await response.json() as {
+    const data = await parseJsonResponse<{
       choices?: Array<{ message?: { content?: string } }>;
       usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
       model?: string;
-    };
+    }>(response, 'openai', config.model);
 
     const text = data.choices?.[0]?.message?.content ?? '';
     const usage: ILlmUsage = {
@@ -219,12 +235,12 @@ export function createLlmService(
       );
     }
 
-    const data = await response.json() as {
+    const data = await parseJsonResponse<{
       response?: string;
       model?: string;
       prompt_eval_count?: number;
       eval_count?: number;
-    };
+    }>(response, 'ollama', config.model);
 
     const text = data.response ?? '';
     const inputTokens = data.prompt_eval_count ?? 0;
