@@ -3,6 +3,11 @@ import path from 'path';
 import { execFileSync } from 'child_process';
 import type { ISessionCaptureService, ICapturedWork, ILogger } from '../../domain';
 import { emptyCapturedWork } from '../../domain';
+import type { ITranscriptEnricher } from '../../domain/interfaces/ITranscriptEnricher';
+import type { IWorkSummary } from '../../domain/interfaces/IWorkSummary';
+
+// Re-export IWorkSummary for backward compatibility with existing consumers
+export type { IWorkSummary } from '../../domain/interfaces/IWorkSummary';
 
 /**
  * Transcript message structure from Claude Code's JSONL files.
@@ -14,20 +19,6 @@ interface ITranscriptMessage {
     content?: string | Array<{ type: string; text?: string }>;
   };
   summary?: string;
-}
-
-/**
- * Parsed work summary from transcript.
- */
-export interface IWorkSummary {
-  messageCount: number;
-  userPrompts: number;
-  assistantResponses: number;
-  toolCalls: number;
-  filesCreated: string[];
-  filesModified: string[];
-  duration: number;
-  summary: string;
 }
 
 /**
@@ -51,9 +42,11 @@ interface ITranscriptCandidate {
  */
 export class SessionCaptureService implements ISessionCaptureService {
   private readonly logger?: ILogger;
+  private readonly transcriptEnricher?: ITranscriptEnricher;
 
-  constructor(logger?: ILogger) {
+  constructor(logger?: ILogger, transcriptEnricher?: ITranscriptEnricher) {
     this.logger = logger;
+    this.transcriptEnricher = transcriptEnricher;
   }
 
   /**
@@ -89,10 +82,40 @@ export class SessionCaptureService implements ISessionCaptureService {
       const facts = this.buildFacts(work, sessionId);
       const complexity = this.rateComplexity(work);
 
+      // 5. Optionally enrich with LLM extraction
+      let enrichedFacts: string[] = [];
+      let enrichedSummary: string | undefined;
+
+      if (this.transcriptEnricher) {
+        try {
+          const snippet = this.getTranscriptSnippet(foundPath);
+          const enrichment = await this.transcriptEnricher.enrich(work, snippet);
+
+          if (enrichment.facts.length > 0) {
+            enrichedFacts = enrichment.facts.map(f => {
+              // Filter out any pre-existing metadata tags before appending canonical ones
+              const baseTags = f.tags.filter(t =>
+                !t.startsWith('type:') && !t.startsWith('confidence:') && !t.startsWith('source:')
+              );
+              const tags = [...baseTags, `type:${f.type}`, `confidence:${f.confidence}`, 'source:llm-extracted'];
+              return `${f.text} [${tags.join(', ')}]`;
+            });
+          }
+
+          if (enrichment.summary && enrichment.summary.length > 0) {
+            enrichedSummary = enrichment.summary;
+          }
+        } catch (error) {
+          this.logger?.warn('LLM enrichment failed, using pattern-based extraction only', {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
       return {
-        facts,
+        facts: [...facts, ...enrichedFacts],
         complexity,
-        summary: work.summary || undefined,
+        summary: enrichedSummary ?? work.summary ?? undefined,
       };
     } catch (error) {
       this.logger?.warn('Session capture failed', {
@@ -372,6 +395,47 @@ export class SessionCaptureService implements ISessionCaptureService {
     }
 
     return 'low';
+  }
+
+  /**
+   * Extract a snippet of conversation text from the transcript for LLM analysis.
+   * Concatenates user and assistant text content, truncated to a reasonable length.
+   */
+  private getTranscriptSnippet(transcriptPath: string, maxLength = 4000): string {
+    const content = fs.readFileSync(transcriptPath, 'utf8');
+    const lines = content.trim().split('\n').filter(line => line.trim());
+    const parts: string[] = [];
+    let totalLength = 0;
+
+    for (const line of lines) {
+      try {
+        const msg: ITranscriptMessage = JSON.parse(line);
+        const role = msg.message?.role ?? msg.type;
+        if (role === 'user' || role === 'assistant') {
+          const msgContent = msg.message?.content;
+          let text = '';
+          if (typeof msgContent === 'string') {
+            text = msgContent;
+          } else if (Array.isArray(msgContent)) {
+            const textBlock = msgContent.find(c => c.type === 'text');
+            if (textBlock?.text) {
+              text = textBlock.text;
+            }
+          }
+          if (text) {
+            const part = `[${role}] ${text.slice(0, 500)}`;
+            parts.push(part);
+            totalLength += part.length;
+          }
+        }
+      } catch {
+        // Skip malformed lines
+      }
+
+      if (totalLength >= maxLength) break;
+    }
+
+    return parts.join('\n\n').slice(0, maxLength);
   }
 
   /**

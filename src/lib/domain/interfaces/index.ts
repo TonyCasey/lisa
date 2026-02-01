@@ -105,6 +105,18 @@ export {
   type ISummarizationOptions,
   type ISummarizationService,
 } from './ISummarizationService';
+export {
+  type ExtractedFactType,
+  EXTRACTED_FACT_TYPE_VALUES,
+  isValidExtractedFactType,
+  type IExtractedFact,
+  type IEnrichmentResult,
+  type IEnrichmentOptions,
+  type ITranscriptEnricher,
+} from './ITranscriptEnricher';
+export {
+  type IWorkSummary,
+} from './IWorkSummary';
 
 // Event interfaces
 export * from './events';

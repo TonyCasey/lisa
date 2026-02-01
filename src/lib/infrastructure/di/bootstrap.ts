@@ -22,6 +22,7 @@ import type { ILlmConfigService } from '../../domain/interfaces/ILlmConfigServic
 import type { ILlmService } from '../../domain/interfaces/ILlmService';
 import type { ILlmUsageTracker } from '../../domain/interfaces/ILlmUsageTracker';
 import type { ILlmGuard } from '../../domain/interfaces/ILlmGuard';
+import type { ITranscriptEnricher } from '../../domain/interfaces/ITranscriptEnricher';
 import type { IMemoryServiceWithQuality } from '../../domain/interfaces/IMemoryService';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
 import type { IConnectionManagers } from '../dal';
@@ -57,6 +58,7 @@ import { createLlmService } from '../services/LlmService';
 import { createLlmUsageTracker } from '../services/LlmUsageTracker';
 import { createLlmGuard } from '../services/LlmGuard';
 import { createSummarizationService } from '../services/SummarizationService';
+import { createTranscriptEnricher } from '../services/TranscriptEnricher';
 import { createRepositoryRouter, closeConnections } from '../dal';
 import { createLogger, createNullLogger } from '../logging';
 
@@ -191,12 +193,26 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
     'transient'
   );
 
-  // Session Capture Service (transient - stateless)
+  // Transcript Enricher (transient - stateless LLM-powered extraction)
+  container.register(
+    TOKENS.TranscriptEnricher,
+    async () => {
+      const guard = await container.resolve<ILlmGuard>(TOKENS.LlmGuard);
+      const log = logger.child({ service: 'transcript-enricher' });
+      return createTranscriptEnricher(guard, log);
+    },
+    'transient'
+  );
+
+  // Session Capture Service (transient - stateless, optional LLM enrichment)
   container.register(
     TOKENS.SessionCaptureService,
     async () => {
       const log = await container.resolve<ILogger>(TOKENS.Logger);
-      return new SessionCaptureService(log.child({ service: 'session-capture' }));
+      const enricher = container.isRegistered(TOKENS.TranscriptEnricher)
+        ? await container.resolve<ITranscriptEnricher>(TOKENS.TranscriptEnricher)
+        : undefined;
+      return new SessionCaptureService(log.child({ service: 'session-capture' }), enricher);
     },
     'transient'
   );

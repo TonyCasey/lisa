@@ -1,9 +1,11 @@
-import { describe, it, beforeEach, afterEach, mock } from 'node:test';
+import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { SessionCaptureService } from '../../../../../../src/lib/infrastructure/services/SessionCaptureService';
+import type { ITranscriptEnricher, IEnrichmentResult } from '../../../../../../src/lib/domain/interfaces/ITranscriptEnricher';
+import type { IWorkSummary } from '../../../../../../src/lib/infrastructure/services/SessionCaptureService';
 
 describe('SessionCaptureService', () => {
   describe('findTranscript - deterministic resolution', () => {
@@ -340,6 +342,155 @@ describe('SessionCaptureService', () => {
       };
 
       assert.strictEqual(service.rateComplexity(work), 'low');
+    });
+  });
+
+  describe('enricher integration', () => {
+    let tempDir: string;
+
+    beforeEach(() => {
+      tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lisa-enricher-test-'));
+    });
+
+    afterEach(() => {
+      try {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      } catch {
+        // Ignore cleanup errors
+      }
+    });
+
+    function createTranscriptFile(): string {
+      const transcriptPath = path.join(tempDir, 'transcript.jsonl');
+      const content = [
+        '{"type":"user","message":{"role":"user","content":"Add caching"}}',
+        '{"type":"assistant","message":{"role":"assistant","content":"I will add Redis caching."}}',
+        '{"type":"tool_use","name":"edit"}',
+        '{"type":"tool_result","result":"done"}',
+        '{"type":"tool_use","name":"write"}',
+        '{"type":"user","message":{"role":"user","content":"Good, now add tests"}}',
+        '{"type":"assistant","message":{"role":"assistant","content":"Done, tests added."}}',
+        '{"summary":"Created: src/cache.ts"}',
+        '{"summary":"Modified: src/api.ts"}',
+      ].join('\n');
+      fs.writeFileSync(transcriptPath, content);
+      return transcriptPath;
+    }
+
+    function createMockEnricher(result?: Partial<IEnrichmentResult>): ITranscriptEnricher & { calls: Array<{ workSummary: IWorkSummary; snippet: string }> } {
+      const calls: Array<{ workSummary: IWorkSummary; snippet: string }> = [];
+      const defaultResult: IEnrichmentResult = {
+        facts: [
+          {
+            text: 'Redis caching added to the API',
+            type: 'decision',
+            confidence: 'high',
+            tags: ['redis', 'caching'],
+            rationale: 'Explicit decision',
+          },
+        ],
+        summary: 'Added Redis caching layer.',
+        usage: { inputTokens: 100, outputTokens: 50, totalTokens: 150 },
+        ...result,
+      };
+
+      return {
+        calls,
+        async enrich(workSummary: IWorkSummary, snippet: string) {
+          calls.push({ workSummary, snippet });
+          return defaultResult;
+        },
+      };
+    }
+
+    it('should work without enricher (behavior unchanged)', async () => {
+      const transcriptPath = createTranscriptFile();
+      const service = new SessionCaptureService();
+
+      const result = await service.captureSessionWork(undefined, transcriptPath);
+
+      assert.ok(result.facts.length > 0);
+      // No LLM-extracted facts should be present
+      assert.ok(result.facts.every(f => !f.includes('source:llm-extracted')));
+    });
+
+    it('should append LLM-extracted facts when enricher is provided', async () => {
+      const transcriptPath = createTranscriptFile();
+      const enricher = createMockEnricher();
+      const service = new SessionCaptureService(undefined, enricher);
+
+      const result = await service.captureSessionWork(undefined, transcriptPath);
+
+      // Should have both pattern-extracted and LLM-extracted facts
+      const llmFacts = result.facts.filter(f => f.includes('source:llm-extracted'));
+      assert.ok(llmFacts.length > 0, 'Should have LLM-extracted facts');
+      assert.ok(llmFacts[0].includes('Redis caching added to the API'));
+    });
+
+    it('should tag LLM-extracted facts with source:llm-extracted', async () => {
+      const transcriptPath = createTranscriptFile();
+      const enricher = createMockEnricher();
+      const service = new SessionCaptureService(undefined, enricher);
+
+      const result = await service.captureSessionWork(undefined, transcriptPath);
+
+      const llmFacts = result.facts.filter(f => f.includes('source:llm-extracted'));
+      assert.ok(llmFacts.length >= 1);
+      assert.ok(llmFacts[0].includes('source:llm-extracted'));
+      assert.ok(llmFacts[0].includes('type:decision'));
+      assert.ok(llmFacts[0].includes('confidence:high'));
+    });
+
+    it('should use LLM summary when available', async () => {
+      const transcriptPath = createTranscriptFile();
+      const enricher = createMockEnricher({ summary: 'LLM-generated session summary.' });
+      const service = new SessionCaptureService(undefined, enricher);
+
+      const result = await service.captureSessionWork(undefined, transcriptPath);
+
+      assert.strictEqual(result.summary, 'LLM-generated session summary.');
+    });
+
+    it('should fall back to pattern summary when LLM summary is empty', async () => {
+      const transcriptPath = createTranscriptFile();
+      const enricher = createMockEnricher({ summary: '' });
+      const service = new SessionCaptureService(undefined, enricher);
+
+      const result = await service.captureSessionWork(undefined, transcriptPath);
+
+      // Should use the pattern-extracted summary (last assistant message)
+      assert.ok(result.summary !== undefined);
+      assert.ok(result.summary !== '');
+    });
+
+    it('should gracefully fall back on enricher failure', async () => {
+      const transcriptPath = createTranscriptFile();
+      const failingEnricher: ITranscriptEnricher = {
+        async enrich() {
+          throw new Error('LLM provider unavailable');
+        },
+      };
+      const service = new SessionCaptureService(undefined, failingEnricher);
+
+      const result = await service.captureSessionWork(undefined, transcriptPath);
+
+      // Should still have pattern-extracted facts
+      assert.ok(result.facts.length > 0);
+      // No LLM-extracted facts
+      assert.ok(result.facts.every(f => !f.includes('source:llm-extracted')));
+    });
+
+    it('should pass work summary and transcript snippet to enricher', async () => {
+      const transcriptPath = createTranscriptFile();
+      const enricher = createMockEnricher();
+      const service = new SessionCaptureService(undefined, enricher);
+
+      await service.captureSessionWork(undefined, transcriptPath);
+
+      assert.strictEqual(enricher.calls.length, 1);
+      assert.ok(enricher.calls[0].workSummary.userPrompts >= 1);
+      assert.ok(enricher.calls[0].snippet.length > 0);
+      assert.ok(enricher.calls[0].snippet.includes('Add caching'));
     });
   });
 });

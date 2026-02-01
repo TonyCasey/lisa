@@ -11,6 +11,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Enhanced Session Transcript Extraction ([#170](https://github.com/TonyCasey/lisa/issues/170))
+
+Added LLM-powered extraction of structured facts from session transcripts, enhancing the existing pattern-based capture.
+
+- `ITranscriptEnricher` interface with `enrich()` for LLM-based transcript analysis
+- `IExtractedFact` interface with typed facts (`decision`, `learning`, `blocker`, `task`, `preference`, `convention`, `gotcha`), confidence levels, and tags
+- `IEnrichmentResult` interface returning extracted facts, session summary, and LLM usage stats
+- `IEnrichmentOptions` supporting `depth` (`fast`/`thorough`), `extractTypes` filter, and `maxSnippetLength`
+- `TranscriptEnricher` implementation with JSON response parsing, fact validation, and graceful fallback
+- Extraction prompt builder in `prompts/extraction.ts` with structured JSON output format
+- `SessionCaptureService` modified to optionally accept `ITranscriptEnricher` via constructor injection
+- LLM-extracted facts tagged with `source:llm-extracted`, `type:<type>`, and `confidence:<level>`
+- LLM-generated session summary used when available (falls back to pattern-extracted summary)
+- DI registration: `TranscriptEnricher` (transient), `SessionCaptureService` updated to inject enricher
+- 24 unit tests for `TranscriptEnricher`, 7 integration tests in `SessionCaptureService`
+
 #### Cost/Privacy Controls and Memory Summarization ([#169](https://github.com/TonyCasey/lisa/issues/169))
 
 Added LLM cost tracking, per-feature toggles, budget enforcement, and AI-powered memory summarization.
