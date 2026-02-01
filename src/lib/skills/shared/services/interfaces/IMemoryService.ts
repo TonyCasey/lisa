@@ -2,6 +2,8 @@
  * Memory service interface for skill scripts.
  * Provides a clean API for memory/fact CRUD operations.
  */
+import type { CurationMark } from '../../../../domain/interfaces/ICurationService';
+import type { ConsolidationAction } from '../../../../domain/interfaces/IConsolidationService';
 
 /**
  * A memory/fact item.
@@ -139,7 +141,7 @@ export interface IMemoryCurateResult {
   action: 'curate';
   group: string;
   uuid: string;
-  mark: string;
+  mark: CurationMark;
   mode: 'neo4j';
 }
 
@@ -150,7 +152,7 @@ export interface IMemoryConsolidateResult {
   status: 'ok';
   action: 'consolidate';
   group: string;
-  consolidationAction: string;
+  consolidationAction: ConsolidationAction;
   retainedUuid: string;
   archivedUuids: string[];
   relationshipsCreated: number;
@@ -249,7 +251,7 @@ export interface IMemoryService {
   curate(
     groupId: string,
     uuid: string,
-    mark: string
+    mark: CurationMark
   ): Promise<IMemoryCurateResult>;
 
   /**
@@ -263,7 +265,7 @@ export interface IMemoryService {
   consolidate(
     groupId: string,
     factUuids: string[],
-    action: string,
+    action: ConsolidationAction,
     options?: { retainUuid?: string; mergedText?: string }
   ): Promise<IMemoryConsolidateResult>;
 }

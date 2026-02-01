@@ -22,6 +22,7 @@ import type {
 } from './interfaces';
 import { detectDuplicatesFromFacts } from '../../../domain/utils/deduplication';
 import { isValidCurationMark, resolveCurationTag } from '../../../domain/interfaces/ICurationService';
+import type { CurationMark } from '../../../domain/interfaces/ICurationService';
 import { resolveConfidenceTag } from '../../../domain/interfaces/types/IMemoryQuality';
 import { CONSOLIDATION_ACTION_VALUES } from '../../../domain/interfaces/IConsolidationService';
 import type { ConsolidationAction } from '../../../domain/interfaces/IConsolidationService';
@@ -526,7 +527,7 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
     async curate(
       groupId: string,
       uuid: string,
-      mark: string
+      mark: CurationMark
     ): Promise<IMemoryCurateResult> {
       if (!isValidCurationMark(mark)) {
         throw new Error(`Invalid curation mark: "${mark}". Valid marks: authoritative, draft, deprecated, needs-review`);
@@ -536,50 +537,59 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
       try {
         const curationTag = resolveCurationTag(mark);
 
-        // Add the curation tag to the fact's tags array
-        const addTagCypher = `
-          MATCH (s:Entity)-[r]->(t:Entity)
-          WHERE r.group_id = $groupId AND r.uuid = $uuid AND r.expired_at IS NULL
-          SET r.tags = CASE
-            WHEN r.tags IS NULL THEN [$curationTag]
-            ELSE [tag IN r.tags WHERE NOT tag STARTS WITH 'curated:'] + [$curationTag]
-          END
-          RETURN count(r) AS affected
-        `;
-        const result = await neo4jClient.writeQuery<{ affected: number }>(
-          addTagCypher, { groupId, uuid, curationTag }
-        );
-        const affected = result[0]?.affected ?? 0;
-
-        if (affected === 0) {
-          throw new Error(`Fact not found: uuid="${uuid}" in group="${groupId}"`);
-        }
-
-        // Side effects
         if (mark === 'deprecated') {
-          // Expire the fact
-          const expireCypher = `
+          // Atomic: add curation tag + expire in a single query
+          const cypher = `
             MATCH (s:Entity)-[r]->(t:Entity)
-            WHERE r.group_id = $groupId AND r.uuid = $uuid
-            SET r.expired_at = datetime()
+            WHERE r.group_id = $groupId AND r.uuid = $uuid AND r.expired_at IS NULL
+            SET r.tags = CASE
+              WHEN r.tags IS NULL THEN [$curationTag]
+              ELSE [tag IN r.tags WHERE NOT tag STARTS WITH 'curated:'] + [$curationTag]
+            END,
+            r.expired_at = datetime()
             RETURN count(r) AS affected
           `;
-          await neo4jClient.writeQuery(expireCypher, { groupId, uuid });
-        }
-
-        if (mark === 'authoritative') {
-          // Promote confidence to verified
+          const result = await neo4jClient.writeQuery<{ affected: number }>(
+            cypher, { groupId, uuid, curationTag }
+          );
+          if ((result[0]?.affected ?? 0) === 0) {
+            throw new Error(`Fact not found: uuid="${uuid}" in group="${groupId}"`);
+          }
+        } else if (mark === 'authoritative') {
+          // Atomic: add curation tag + promote confidence in a single query
           const confidenceTag = resolveConfidenceTag('verified');
-          const promoteCypher = `
+          const cypher = `
             MATCH (s:Entity)-[r]->(t:Entity)
-            WHERE r.group_id = $groupId AND r.uuid = $uuid
+            WHERE r.group_id = $groupId AND r.uuid = $uuid AND r.expired_at IS NULL
             SET r.tags = CASE
-              WHEN r.tags IS NULL THEN [$confidenceTag]
-              ELSE [tag IN r.tags WHERE NOT tag STARTS WITH 'confidence:'] + [$confidenceTag]
+              WHEN r.tags IS NULL THEN [$curationTag, $confidenceTag]
+              ELSE [tag IN r.tags WHERE NOT tag STARTS WITH 'curated:' AND NOT tag STARTS WITH 'confidence:'] + [$curationTag, $confidenceTag]
             END
             RETURN count(r) AS affected
           `;
-          await neo4jClient.writeQuery(promoteCypher, { groupId, uuid, confidenceTag });
+          const result = await neo4jClient.writeQuery<{ affected: number }>(
+            cypher, { groupId, uuid, curationTag, confidenceTag }
+          );
+          if ((result[0]?.affected ?? 0) === 0) {
+            throw new Error(`Fact not found: uuid="${uuid}" in group="${groupId}"`);
+          }
+        } else {
+          // draft / needs-review: just add the curation tag
+          const cypher = `
+            MATCH (s:Entity)-[r]->(t:Entity)
+            WHERE r.group_id = $groupId AND r.uuid = $uuid AND r.expired_at IS NULL
+            SET r.tags = CASE
+              WHEN r.tags IS NULL THEN [$curationTag]
+              ELSE [tag IN r.tags WHERE NOT tag STARTS WITH 'curated:'] + [$curationTag]
+            END
+            RETURN count(r) AS affected
+          `;
+          const result = await neo4jClient.writeQuery<{ affected: number }>(
+            cypher, { groupId, uuid, curationTag }
+          );
+          if ((result[0]?.affected ?? 0) === 0) {
+            throw new Error(`Fact not found: uuid="${uuid}" in group="${groupId}"`);
+          }
         }
 
         return {
@@ -598,10 +608,10 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
     async consolidate(
       groupId: string,
       factUuids: string[],
-      action: string,
+      action: ConsolidationAction,
       options?: { retainUuid?: string; mergedText?: string }
     ): Promise<IMemoryConsolidateResult> {
-      if (!CONSOLIDATION_ACTION_VALUES.includes(action as ConsolidationAction)) {
+      if (!CONSOLIDATION_ACTION_VALUES.includes(action)) {
         throw new Error(`Invalid consolidation action: "${action}". Valid actions: merge, archive-duplicates, keep-all`);
       }
       if (factUuids.length < 2) {
@@ -643,18 +653,14 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
           };
           await mcpClient.rpcCall<unknown>('add_memory', mcpParams);
 
-          // Expire all original facts
-          const archivedUuids: string[] = [];
-          for (const uuid of factUuids) {
-            const expireCypher = `
-              MATCH (s:Entity)-[r]->(t:Entity)
-              WHERE r.group_id = $groupId AND r.uuid = $uuid AND r.expired_at IS NULL
-              SET r.expired_at = datetime()
-              RETURN count(r) AS affected
-            `;
-            await neo4jClient.writeQuery(expireCypher, { groupId, uuid });
-            archivedUuids.push(uuid);
-          }
+          // Batch expire all original facts with IN clause
+          const batchExpireCypher = `
+            MATCH (s:Entity)-[r]->(t:Entity)
+            WHERE r.group_id = $groupId AND r.uuid IN $uuids AND r.expired_at IS NULL
+            SET r.expired_at = datetime()
+            RETURN collect(r.uuid) AS expiredUuids
+          `;
+          await neo4jClient.writeQuery(batchExpireCypher, { groupId, uuids: factUuids });
 
           return {
             status: 'ok',
@@ -662,7 +668,7 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
             group: groupId,
             consolidationAction: 'merge',
             retainedUuid: 'new-merged-fact',
-            archivedUuids,
+            archivedUuids: [...factUuids],
             relationshipsCreated: 0,
             mode: 'neo4j',
           };
@@ -673,35 +679,28 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
 
         if (!retainUuid) {
           // Find the newest fact in the list
-          const placeholders = factUuids.map((_, i) => `$uuid_${i}`);
-          const uuidParams: Record<string, unknown> = { groupId };
-          factUuids.forEach((uuid, i) => { uuidParams[`uuid_${i}`] = uuid; });
-
           const findNewestCypher = `
             MATCH (s:Entity)-[r]->(t:Entity)
-            WHERE r.group_id = $groupId AND r.uuid IN [${placeholders.join(',')}] AND r.expired_at IS NULL
+            WHERE r.group_id = $groupId AND r.uuid IN $uuids AND r.expired_at IS NULL
             RETURN r.uuid AS uuid
             ORDER BY r.created_at DESC
             LIMIT 1
           `;
-          const newestResult = await neo4jClient.query<{ uuid: string }>(findNewestCypher, uuidParams);
+          const newestResult = await neo4jClient.query<{ uuid: string }>(
+            findNewestCypher, { groupId, uuids: factUuids }
+          );
           retainUuid = newestResult[0]?.uuid ?? factUuids[0];
         }
 
-        // Expire all except retained
-        const archivedUuids: string[] = [];
-        for (const uuid of factUuids) {
-          if (uuid !== retainUuid) {
-            const expireCypher = `
-              MATCH (s:Entity)-[r]->(t:Entity)
-              WHERE r.group_id = $groupId AND r.uuid = $uuid AND r.expired_at IS NULL
-              SET r.expired_at = datetime()
-              RETURN count(r) AS affected
-            `;
-            await neo4jClient.writeQuery(expireCypher, { groupId, uuid });
-            archivedUuids.push(uuid);
-          }
-        }
+        // Batch expire all except retained with IN clause
+        const archiveUuids = factUuids.filter((uuid) => uuid !== retainUuid);
+        const batchExpireCypher = `
+          MATCH (s:Entity)-[r]->(t:Entity)
+          WHERE r.group_id = $groupId AND r.uuid IN $uuids AND r.expired_at IS NULL
+          SET r.expired_at = datetime()
+          RETURN collect(r.uuid) AS expiredUuids
+        `;
+        await neo4jClient.writeQuery(batchExpireCypher, { groupId, uuids: archiveUuids });
 
         return {
           status: 'ok',
@@ -709,7 +708,7 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
           group: groupId,
           consolidationAction: 'archive-duplicates',
           retainedUuid: retainUuid,
-          archivedUuids,
+          archivedUuids: archiveUuids,
           relationshipsCreated: 0,
           mode: 'neo4j',
         };

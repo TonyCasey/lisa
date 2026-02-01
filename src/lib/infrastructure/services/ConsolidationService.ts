@@ -81,11 +81,14 @@ export function createConsolidationService(
     // Add the new merged fact
     await memoryWriter.addFact(groupId, mergedText);
 
-    // Find the UUID of the newly created fact by loading recent facts
-    // and matching the text. We load the most recent fact.
-    const recentFacts = await memoryReader.loadFactsDateOrdered([groupId], 1);
-    const newFact = recentFacts[0];
-    const retainedUuid = newFact?.uuid ?? 'unknown';
+    // Find the UUID of the newly created fact by searching recent facts
+    // for the merged text. Load enough to find it deterministically.
+    const recentFacts = await memoryReader.loadFactsDateOrdered([groupId], 20);
+    const newFact = recentFacts.find((fact) => fact.fact === mergedText);
+    if (!newFact?.uuid) {
+      throw new Error('Unable to locate merged fact after creation');
+    }
+    const retainedUuid = newFact.uuid;
 
     // Expire all original facts
     const archivedUuids: string[] = [];
@@ -96,7 +99,7 @@ export function createConsolidationService(
 
     // Create supersedes relationships
     let relationshipsCreated = 0;
-    if (relationshipWriter && retainedUuid !== 'unknown') {
+    if (relationshipWriter) {
       for (const uuid of factUuids) {
         try {
           await relationshipWriter.linkFacts(groupId, retainedUuid, uuid, 'supersedes');
@@ -127,7 +130,7 @@ export function createConsolidationService(
 
     // Default to the newest fact if no retainUuid specified
     if (!retainUuid) {
-      const facts = await memoryReader.loadFactsDateOrdered([groupId], factUuids.length + 10);
+      const facts = await memoryReader.loadFactsDateOrdered([groupId]);
       // Find the newest fact that's in our UUID list
       const uuidSet = new Set(factUuids);
       const newest = facts.find((f) => f.uuid && uuidSet.has(f.uuid));

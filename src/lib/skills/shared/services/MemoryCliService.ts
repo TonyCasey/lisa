@@ -17,6 +17,8 @@ import type {
   IMemoryLoadOptions,
 } from './interfaces';
 import { parseDate } from '../../../utils/dateParser';
+import type { CurationMark } from '../../../domain/interfaces/ICurationService';
+import type { ConsolidationAction } from '../../../domain/interfaces/IConsolidationService';
 
 /** CLI result union for all memory commands. */
 export type MemoryCliResult = IMemoryLoadResult | IMemoryAddResult | IMemoryExpireResult | IMemoryCleanupResult | IMemoryConflictsResult | IMemoryDedupeResult | IMemoryCurateResult | IMemoryConsolidateResult;
@@ -186,12 +188,12 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
         const targetUuid = uuid || payload;
         if (!targetUuid) throw new Error('curate requires a UUID (--uuid <id> or positional argument)');
         if (!mark) throw new Error('curate requires --mark (authoritative, draft, deprecated, needs-review)');
-        result = await memoryService.curate(groupId, targetUuid, mark);
+        result = await memoryService.curate(groupId, targetUuid, mark as CurationMark);
       } else if (command === 'consolidate') {
         // Parse UUIDs from payload (space-separated)
         const factUuids = payload ? payload.split(/\s+/).filter(Boolean) : [];
         if (factUuids.length < 2) throw new Error('consolidate requires at least 2 fact UUIDs');
-        const consolidateAction = action || 'archive-duplicates';
+        const consolidateAction = (action || 'archive-duplicates') as ConsolidationAction;
         const consolidateOptions: { retainUuid?: string; mergedText?: string } = {};
         if (retain) consolidateOptions.retainUuid = retain;
         if (mergedText) consolidateOptions.mergedText = mergedText;

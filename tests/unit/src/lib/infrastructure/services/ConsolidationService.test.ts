@@ -12,10 +12,10 @@ import type { IMemoryWriter, IMemoryReader, IMemoryRelationshipWriter } from '..
 import type { IMemoryItem, IMemoryResult } from '../../../../../../src/lib/domain/interfaces/types';
 import type { IMemoryRelationship, MemoryRelationType } from '../../../../../../src/lib/domain/interfaces/types/IMemoryRelationship';
 
-interface MockCall { method: string; args: unknown[] }
+interface IMockCall { method: string; args: unknown[] }
 
-function createMockWriter(): IMemoryWriter & { calls: MockCall[] } {
-  const calls: MockCall[] = [];
+function createMockWriter(): IMemoryWriter & { calls: IMockCall[] } {
+  const calls: IMockCall[] = [];
   return {
     calls,
     async saveMemory(groupId: string, facts: readonly string[]): Promise<void> {
@@ -37,8 +37,8 @@ function createMockWriter(): IMemoryWriter & { calls: MockCall[] } {
   };
 }
 
-function createMockReader(facts: IMemoryItem[] = []): IMemoryReader & { calls: MockCall[] } {
-  const calls: MockCall[] = [];
+function createMockReader(facts: IMemoryItem[] = []): IMemoryReader & { calls: IMockCall[] } {
+  const calls: IMockCall[] = [];
   return {
     calls,
     async loadMemory(groupIds: readonly string[]): Promise<IMemoryResult> {
@@ -56,8 +56,8 @@ function createMockReader(facts: IMemoryItem[] = []): IMemoryReader & { calls: M
   };
 }
 
-function createMockRelationshipWriter(): IMemoryRelationshipWriter & { calls: MockCall[] } {
-  const calls: MockCall[] = [];
+function createMockRelationshipWriter(): IMemoryRelationshipWriter & { calls: IMockCall[] } {
+  const calls: IMockCall[] = [];
   return {
     calls,
     async linkFacts(
@@ -106,7 +106,7 @@ describe('ConsolidationService', () => {
   beforeEach(() => {
     mockWriter = createMockWriter();
     mockReader = createMockReader([
-      makeItem('new-uuid', 'Merged content', '2026-01-20T00:00:00Z'),
+      makeItem('new-uuid', 'Merged content of A and B', '2026-01-20T00:00:00Z'),
       makeItem('uuid-a', 'Fact A', '2026-01-15T00:00:00Z'),
       makeItem('uuid-b', 'Fact B', '2026-01-10T00:00:00Z'),
     ]);
@@ -192,7 +192,7 @@ describe('ConsolidationService', () => {
         'group1',
         ['uuid-a', 'uuid-b'],
         'merge',
-        { mergedText: 'Merged content' }
+        { mergedText: 'Merged content of A and B' }
       );
 
       assert.strictEqual(result.relationshipsCreated, 2);
@@ -202,6 +202,24 @@ describe('ConsolidationService', () => {
       // Each should be 'supersedes'
       assert.strictEqual(linkCalls[0].args[3], 'supersedes');
       assert.strictEqual(linkCalls[1].args[3], 'supersedes');
+    });
+
+    it('should throw when merged fact cannot be located', async () => {
+      const emptyReader = createMockReader([]); // No facts returned
+      const svc = createConsolidationService(mockWriter, emptyReader, mockRelWriter);
+
+      await assert.rejects(
+        () => svc.consolidate(
+          'group1',
+          ['uuid-a', 'uuid-b'],
+          'merge',
+          { mergedText: 'Text that wont be found' }
+        ),
+        (err: Error) => {
+          assert.ok(err.message.includes('Unable to locate merged fact'));
+          return true;
+        }
+      );
     });
 
     it('should require mergedText for merge action', async () => {
@@ -292,7 +310,12 @@ describe('ConsolidationService', () => {
     });
 
     it('should merge without relationships', async () => {
-      const svc = createConsolidationService(mockWriter, mockReader); // No rel writer
+      const readerWithMerged = createMockReader([
+        makeItem('new-uuid', 'Combined fact', '2026-01-20T00:00:00Z'),
+        makeItem('uuid-a', 'Fact A', '2026-01-15T00:00:00Z'),
+        makeItem('uuid-b', 'Fact B', '2026-01-10T00:00:00Z'),
+      ]);
+      const svc = createConsolidationService(mockWriter, readerWithMerged); // No rel writer
 
       const result = await svc.consolidate(
         'group1',

@@ -63,6 +63,7 @@ export function computeRecencyBonus(createdAt: string | Date | undefined, now: D
   if (!createdAt) return RECENCY_MIN_BONUS;
 
   const created = typeof createdAt === 'string' ? new Date(createdAt) : createdAt;
+  if (isNaN(created.getTime())) return RECENCY_MIN_BONUS;
   const ageMs = now.getTime() - created.getTime();
 
   if (ageMs <= RECENCY_FULL_BONUS_MS) return 1.0;
