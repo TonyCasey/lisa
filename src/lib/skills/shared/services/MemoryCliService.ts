@@ -11,12 +11,13 @@ import type {
   IMemoryExpireResult,
   IMemoryCleanupResult,
   IMemoryConflictsResult,
+  IMemoryDedupeResult,
   IMemoryLoadOptions,
 } from './interfaces';
 import { parseDate } from '../../../utils/dateParser';
 
 /** CLI result union for all memory commands. */
-export type MemoryCliResult = IMemoryLoadResult | IMemoryAddResult | IMemoryExpireResult | IMemoryCleanupResult | IMemoryConflictsResult;
+export type MemoryCliResult = IMemoryLoadResult | IMemoryAddResult | IMemoryExpireResult | IMemoryCleanupResult | IMemoryConflictsResult | IMemoryDedupeResult;
 
 /**
  * Parsed memory CLI arguments.
@@ -37,6 +38,7 @@ export interface IMemoryCliArgs {
   dryRun: boolean;
   uuid: string | null;
   topic: string | null;
+  minSimilarity: number | null;
 }
 
 /**
@@ -115,11 +117,11 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
       const {
         command, payload, explicitGroup, query, limit,
         explicitTag, entityType, source, since, until,
-        lifecycle, ttl, dryRun, uuid, topic,
+        lifecycle, ttl, dryRun, uuid, topic, minSimilarity,
       } = args;
 
-      if (!['add', 'load', 'expire', 'cleanup', 'conflicts'].includes(command)) {
-        throw new Error('command must be add|load|expire|cleanup|conflicts');
+      if (!['add', 'load', 'expire', 'cleanup', 'conflicts', 'dedupe'].includes(command)) {
+        throw new Error('command must be add|load|expire|cleanup|conflicts|dedupe');
       }
 
       // Use explicit --group if provided, otherwise use canonical folder-based group ID
@@ -161,6 +163,18 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
       } else if (command === 'conflicts') {
         const groupIds = explicitGroup ? [explicitGroup] : getGroupIds();
         result = await memoryService.conflicts(groupIds, topic ?? undefined);
+      } else if (command === 'dedupe') {
+        const dedupeOptions: { minSimilarity?: number; limit?: number; since?: Date } = {};
+        if (minSimilarity !== null) dedupeOptions.minSimilarity = minSimilarity;
+        if (limit) dedupeOptions.limit = limit;
+        if (since) {
+          const parsedSince = parseDate(since);
+          if (!parsedSince) {
+            throw new Error(`Invalid --since date: "${since}". Use formats like: today, yesterday, 7d, 1w, 1m, or ISO date (2026-01-27)`);
+          }
+          dedupeOptions.since = parsedSince;
+        }
+        result = await memoryService.dedupe(groupId, dedupeOptions);
       } else {
         // add
         if (!payload) throw new Error('add requires text payload');

@@ -13,7 +13,7 @@ export function registerKnowledgeCommands(program: Command): void {
   // Subcommand: lisa memory
   const memoryCmd = program
     .command('memory')
-    .description('Memory operations (load, add, expire, cleanup, conflicts)');
+    .description('Memory operations (load, add, expire, cleanup, conflicts, dedupe)');
 
   memoryCmd
     .command('load')
@@ -97,6 +97,25 @@ export function registerKnowledgeCommands(program: Command): void {
       const args = ['conflicts'];
       if (opts.group) args.push('--group', opts.group);
       if (opts.topic) args.push('--topic', opts.topic);
+      if (opts.cache) args.push('--cache');
+      const scriptPath = path.join(__dirname, '..', 'skills', 'memory', 'memory.js');
+      await spawnAndWait(scriptPath, args, getSkillCacheEnv('memory'));
+    });
+
+  memoryCmd
+    .command('dedupe')
+    .description('Detect duplicate facts (detection only, no mutations)')
+    .option('-g, --group <id>', 'Group ID')
+    .option('--min-similarity <n>', 'Minimum similarity threshold (default: 0.6)')
+    .option('-l, --limit <n>', 'Max duplicate groups to display (default: 10)')
+    .option('--since <date>', 'Only scan facts created after date')
+    .option('--cache', 'Use cache fallback')
+    .action(async (opts) => {
+      const args = ['dedupe'];
+      if (opts.group) args.push('--group', opts.group);
+      if (opts.minSimilarity) args.push('--min-similarity', opts.minSimilarity);
+      if (opts.limit) args.push('--limit', String(parseInt(opts.limit, 10)));
+      if (opts.since) args.push('--since', opts.since);
       if (opts.cache) args.push('--cache');
       const scriptPath = path.join(__dirname, '..', 'skills', 'memory', 'memory.js');
       await spawnAndWait(scriptPath, args, getSkillCacheEnv('memory'));

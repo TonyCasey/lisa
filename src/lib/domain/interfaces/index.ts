@@ -50,6 +50,13 @@ export {
 } from './ICronService';
 export type { IGitClient, IGitLogOptions, IGitDiffOptions } from './IGitClient';
 export type { IClaudeCliClient, IClaudePromptOptions } from './IClaudeCliClient';
+export {
+  type DuplicateReason,
+  type IDuplicateGroup,
+  type IDeduplicationResult,
+  type IDeduplicationOptions,
+  type IDeduplicationService,
+} from './IDeduplicationService';
 
 // Event interfaces
 export * from './events';
