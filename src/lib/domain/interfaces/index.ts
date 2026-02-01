@@ -5,7 +5,7 @@
 
 // Service interfaces
 export { ILisaContext } from './ILisaContext';
-export { IMemoryReader, IMemoryWriter, IMemoryService, IMemoryDateOptions, IMemoryRelationshipWriter, IMemoryServiceWithRelationships } from './IMemoryService';
+export { IMemoryReader, IMemoryWriter, IMemoryService, IMemoryDateOptions, IMemoryRelationshipWriter, IMemoryServiceWithRelationships, IMemoryQualityReader, IMemoryServiceWithQuality } from './IMemoryService';
 export type { IMemorySaveOptions } from './dal/IMemoryRepository';
 export { ITaskReader, ITaskWriter, ITaskService } from './ITaskService';
 export { IMcpClient } from './IMcpClient';

@@ -7,6 +7,7 @@
  *   node memory.js load [--group <id>] [--query <q>] [--limit N] [--since <d>] [--until <d>] [--cache]
  *   node memory.js expire [--uuid <uuid>] [--group <id>] [--cache]   (uuid can also be positional)
  *   node memory.js cleanup [--group <id>] [--dry-run] [--cache]
+ *   node memory.js conflicts [--group <id>] [--topic <tag>] [--cache]
  */
 
 export {};
@@ -41,6 +42,7 @@ async function main(): Promise<void> {
   const lifecycle = popFlag(args, '--lifecycle', null);
   const ttl = popFlag(args, '--ttl', null);
   const uuid = popFlag(args, '--uuid', null);
+  const topic = popFlag(args, '--topic', null);
   const dryRun = hasFlag(args, '--dry-run');
   const useCache = hasFlag(args, '--cache');
   const payload = args.join(' ').trim();
@@ -60,7 +62,7 @@ async function main(): Promise<void> {
   try {
     const result = await cliService.run({
       command, payload, explicitGroup, query, limit, explicitTag,
-      entityType, source, since, until, lifecycle, ttl, dryRun, uuid,
+      entityType, source, since, until, lifecycle, ttl, dryRun, uuid, topic,
     });
     console.log(JSON.stringify(result, null, 2));
   } catch (err: unknown) {

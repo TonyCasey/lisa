@@ -1,6 +1,8 @@
 import type { IMemoryResult, IMemoryItem } from './types';
 import type { IMemorySaveOptions } from './dal/IMemoryRepository';
 import type { IMemoryRelationship, MemoryRelationType } from './types/IMemoryRelationship';
+import type { ConfidenceLevel } from './types/IMemoryQuality';
+import type { IQueryOptions, IConflictGroup } from './dal/types';
 
 /**
  * Options for date-filtered memory queries.
@@ -168,3 +170,39 @@ export interface IMemoryService extends IMemoryReader, IMemoryWriter {}
  * Consumers that need relationship operations can check/cast to this interface.
  */
 export interface IMemoryServiceWithRelationships extends IMemoryService, IMemoryRelationshipWriter {}
+
+/**
+ * Quality read operations for memory.
+ * Provides confidence filtering and conflict detection.
+ * Separated for Interface Segregation Principle.
+ */
+export interface IMemoryQualityReader {
+  /**
+   * Find facts at or above a minimum confidence level.
+   * @param groupIds - Group IDs to search
+   * @param minLevel - Minimum confidence level (inclusive)
+   * @param options - Additional query options
+   */
+  findByMinConfidence(
+    groupIds: readonly string[],
+    minLevel: ConfidenceLevel,
+    options?: IQueryOptions
+  ): Promise<IMemoryItem[]>;
+
+  /**
+   * Find groups of potentially conflicting facts.
+   * Detects facts sharing topic tags but with differing content.
+   * @param groupIds - Group IDs to search
+   * @param topic - Optional topic to filter conflicts by
+   */
+  findConflicts(
+    groupIds: readonly string[],
+    topic?: string
+  ): Promise<readonly IConflictGroup[]>;
+}
+
+/**
+ * Extended memory service with quality query support.
+ * Consumers that need quality operations can check/cast to this interface.
+ */
+export interface IMemoryServiceWithQuality extends IMemoryService, IMemoryQualityReader {}

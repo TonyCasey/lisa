@@ -16,6 +16,7 @@ import type {
   IMemoryAddResult,
   IMemoryExpireResult,
   IMemoryCleanupResult,
+  IMemoryConflictsResult,
 } from '../../../../../../../src/lib/skills/shared/services/interfaces';
 
 const noopLogger: ILogger = {
@@ -104,6 +105,7 @@ describe('MemoryCliService', () => {
   let expireCalls: Array<{ groupId: string; uuid: string }>;
   let cleanupCalls: Array<{ groupId: string; dryRun: boolean }>;
   let addCalls: Array<{ text: string; groupId: string; options: unknown }>;
+  let conflictsCalls: Array<{ groupIds: string[]; topic?: string }>;
 
   const memoryService: IMemoryService = {
     load: async (groupIds): Promise<IMemoryLoadResult> => ({
@@ -147,6 +149,19 @@ describe('MemoryCliService', () => {
         mode: 'neo4j',
       };
     },
+    conflicts: async (groupIds, topic): Promise<IMemoryConflictsResult> => {
+      conflictsCalls.push({ groupIds, topic });
+      return {
+        status: 'ok',
+        action: 'conflicts',
+        group: groupIds[0] || '',
+        groups: groupIds,
+        topic: topic || '',
+        conflictGroups: [],
+        totalConflicts: 0,
+        mode: 'neo4j',
+      };
+    },
   };
 
   function defaultArgs() {
@@ -165,6 +180,7 @@ describe('MemoryCliService', () => {
       ttl: null,
       dryRun: false,
       uuid: null,
+      topic: null,
     };
   }
 
@@ -172,6 +188,7 @@ describe('MemoryCliService', () => {
     expireCalls = [];
     cleanupCalls = [];
     addCalls = [];
+    conflictsCalls = [];
   });
 
   const cliService = createMemoryCliService({
@@ -315,11 +332,47 @@ describe('MemoryCliService', () => {
     });
   });
 
+  describe('conflicts command', () => {
+    it('should call memoryService.conflicts with default group IDs', async () => {
+      const result = await cliService.run({
+        ...defaultArgs(),
+        command: 'conflicts',
+      });
+
+      assert.strictEqual(conflictsCalls.length, 1);
+      assert.deepStrictEqual(conflictsCalls[0].groupIds, ['test-group']);
+      assert.strictEqual(conflictsCalls[0].topic, undefined);
+      assert.strictEqual(result.action, 'conflicts');
+    });
+
+    it('should pass topic when --topic is provided', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'conflicts',
+        topic: 'type:decision',
+      });
+
+      assert.strictEqual(conflictsCalls.length, 1);
+      assert.strictEqual(conflictsCalls[0].topic, 'type:decision');
+    });
+
+    it('should use explicit group if provided', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'conflicts',
+        explicitGroup: 'custom-group',
+      });
+
+      assert.strictEqual(conflictsCalls.length, 1);
+      assert.deepStrictEqual(conflictsCalls[0].groupIds, ['custom-group']);
+    });
+  });
+
   describe('invalid command', () => {
     it('should throw for unknown commands', async () => {
       await assert.rejects(
         () => cliService.run({ ...defaultArgs(), command: 'unknown' }),
-        { message: /command must be add\|load\|expire\|cleanup/ }
+        { message: /command must be add\|load\|expire\|cleanup\|conflicts/ }
       );
     });
   });
