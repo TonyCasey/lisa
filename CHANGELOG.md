@@ -11,6 +11,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Cost/Privacy Controls and Memory Summarization ([#169](https://github.com/TonyCasey/lisa/issues/169))
+
+Added LLM cost tracking, per-feature toggles, budget enforcement, and AI-powered memory summarization.
+
+- `ILlmUsageTracker` interface with `record()`, `getUsage()`, `getTotalCost()`, `isWithinBudget()`
+- `LlmFeature` type for per-feature tracking: `summarization`, `extraction`, `deduplication`, `curation`, `test`
+- `ILlmGuard` policy decorator over `ILlmService` enforcing budget limits and feature toggles
+- `ISummarizationService` interface with `summarize()` for LLM-generated memory digests
+- `LlmUsageTracker` append-only JSON log at `.lisa/llm-usage.json` with cost estimation per provider
+- `LlmGuard` checks master switch, per-feature `llm:features` preference, and monthly budget `llm:monthlyLimit`
+- `SummarizationService` loads facts, builds prompts, calls LLM, parses topics and summary
+- Prompt templates in `prompts/summarization.ts` with concise/detailed styles
+- Error classes: `LlmFeatureDisabledError`, `LlmBudgetExceededError`
+- `lisa llm usage` — display token usage and estimated cost
+- `lisa llm features` — show/toggle per-feature LLM availability
+- `lisa memory summarize` — LLM-generated summary of project memories
+- DI registrations: `LlmUsageTracker` (singleton), `LlmGuard` (singleton), `SummarizationService` (transient)
+- 45 unit tests covering usage tracking, budget enforcement, feature toggles, and summarization
+
+Part of Epic [#167](https://github.com/TonyCasey/lisa/issues/167)
+
 #### LLM Provider Abstraction Layer ([#168](https://github.com/TonyCasey/lisa/issues/168))
 
 Added multi-provider LLM abstraction with configuration management and CLI commands.

@@ -42,3 +42,38 @@ export class LlmConfigError extends LisaError {
     this.name = 'LlmConfigError';
   }
 }
+
+/**
+ * Error thrown when a specific LLM feature is disabled.
+ */
+export class LlmFeatureDisabledError extends LisaError {
+  constructor(
+    public readonly feature: string,
+    data?: Record<string, unknown>
+  ) {
+    super(
+      `LLM feature '${feature}' is disabled. Enable with: lisa llm features --enable ${feature}`,
+      'LLM_FEATURE_DISABLED',
+      { ...data, feature }
+    );
+    this.name = 'LlmFeatureDisabledError';
+  }
+}
+
+/**
+ * Error thrown when the monthly LLM budget has been exceeded.
+ */
+export class LlmBudgetExceededError extends LisaError {
+  constructor(
+    public readonly currentCost: number,
+    public readonly budgetLimit: number,
+    data?: Record<string, unknown>
+  ) {
+    super(
+      `Monthly LLM budget exceeded: $${currentCost.toFixed(4)} / $${budgetLimit.toFixed(2)} limit`,
+      'LLM_BUDGET_EXCEEDED',
+      { ...data, currentCost, budgetLimit }
+    );
+    this.name = 'LlmBudgetExceededError';
+  }
+}

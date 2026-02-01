@@ -19,6 +19,9 @@ import type {
   IPreferenceStore,
 } from '../../domain/interfaces';
 import type { ILlmConfigService } from '../../domain/interfaces/ILlmConfigService';
+import type { ILlmService } from '../../domain/interfaces/ILlmService';
+import type { ILlmUsageTracker } from '../../domain/interfaces/ILlmUsageTracker';
+import type { ILlmGuard } from '../../domain/interfaces/ILlmGuard';
 import type { IMemoryServiceWithQuality } from '../../domain/interfaces/IMemoryService';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
 import type { IConnectionManagers } from '../dal';
@@ -51,6 +54,9 @@ import { createConsolidationService } from '../services/ConsolidationService';
 import { createPreferenceStore } from '../services/PreferenceStore';
 import { createLlmConfigService } from '../services/LlmConfigService';
 import { createLlmService } from '../services/LlmService';
+import { createLlmUsageTracker } from '../services/LlmUsageTracker';
+import { createLlmGuard } from '../services/LlmGuard';
+import { createSummarizationService } from '../services/SummarizationService';
 import { createRepositoryRouter, closeConnections } from '../dal';
 import { createLogger, createNullLogger } from '../logging';
 
@@ -261,6 +267,43 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
       return createLlmService(configSvc, log);
     },
     'singleton'
+  );
+
+  // LLM Usage Tracker (singleton - append-only log file)
+  container.register(
+    TOKENS.LlmUsageTracker,
+    async () => {
+      const prefs = await container.resolve<IPreferenceStore>(TOKENS.PreferenceStore);
+      const log = logger.child({ service: 'llm-usage' });
+      return createLlmUsageTracker(projectRoot, prefs, log);
+    },
+    'singleton'
+  );
+
+  // LLM Guard (singleton - policy decorator over LlmService)
+  container.register(
+    TOKENS.LlmGuard,
+    async () => {
+      const llmSvc = await container.resolve<ILlmService>(TOKENS.LlmService);
+      const tracker = await container.resolve<ILlmUsageTracker>(TOKENS.LlmUsageTracker);
+      const configSvc = await container.resolve<ILlmConfigService>(TOKENS.LlmConfigService);
+      const prefs = await container.resolve<IPreferenceStore>(TOKENS.PreferenceStore);
+      const log = logger.child({ service: 'llm-guard' });
+      return createLlmGuard(llmSvc, tracker, configSvc, prefs, log);
+    },
+    'singleton'
+  );
+
+  // Summarization Service (transient - stateless)
+  container.register(
+    TOKENS.SummarizationService,
+    async () => {
+      const memory = await container.resolve<IMemoryService>(TOKENS.MemoryService);
+      const guard = await container.resolve<ILlmGuard>(TOKENS.LlmGuard);
+      const log = logger.child({ service: 'summarization' });
+      return createSummarizationService(memory, guard, log);
+    },
+    'transient'
   );
 
   // GitHub Sync Service (singleton - optional, may not be available)

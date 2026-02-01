@@ -90,6 +90,21 @@ export {
 export {
   type ILlmConfigService,
 } from './ILlmConfigService';
+export {
+  type LlmFeature,
+  LLM_FEATURE_VALUES,
+  isValidLlmFeature,
+  type ILlmUsageRecord,
+  type ILlmUsageTracker,
+} from './ILlmUsageTracker';
+export {
+  type ILlmGuard,
+} from './ILlmGuard';
+export {
+  type ISummarizationResult,
+  type ISummarizationOptions,
+  type ISummarizationService,
+} from './ISummarizationService';
 
 // Event interfaces
 export * from './events';
