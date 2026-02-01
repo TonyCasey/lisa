@@ -114,6 +114,9 @@ export {
   type IEnrichmentOptions,
   type ITranscriptEnricher,
 } from './ITranscriptEnricher';
+export {
+  type IWorkSummary,
+} from './IWorkSummary';
 
 // Event interfaces
 export * from './events';

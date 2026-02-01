@@ -8,7 +8,7 @@
  * Part of Phase 6C: Enhanced Session Transcript Extraction.
  */
 
-import type { IWorkSummary } from '../SessionCaptureService';
+import type { IWorkSummary } from '../../../domain/interfaces/IWorkSummary';
 import type { IEnrichmentOptions, ExtractedFactType } from '../../../domain/interfaces/ITranscriptEnricher';
 
 /**

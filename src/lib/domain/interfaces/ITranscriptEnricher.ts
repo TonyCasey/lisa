@@ -10,7 +10,7 @@
 
 import type { ILlmUsage } from './ILlmService';
 import type { ConfidenceLevel } from './types/IMemoryQuality';
-import type { IWorkSummary } from '../../infrastructure/services/SessionCaptureService';
+import type { IWorkSummary } from './IWorkSummary';
 
 /**
  * Fact type extracted from a session transcript.

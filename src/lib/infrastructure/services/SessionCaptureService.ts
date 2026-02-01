@@ -4,6 +4,10 @@ import { execFileSync } from 'child_process';
 import type { ISessionCaptureService, ICapturedWork, ILogger } from '../../domain';
 import { emptyCapturedWork } from '../../domain';
 import type { ITranscriptEnricher } from '../../domain/interfaces/ITranscriptEnricher';
+import type { IWorkSummary } from '../../domain/interfaces/IWorkSummary';
+
+// Re-export IWorkSummary for backward compatibility with existing consumers
+export type { IWorkSummary } from '../../domain/interfaces/IWorkSummary';
 
 /**
  * Transcript message structure from Claude Code's JSONL files.
@@ -15,20 +19,6 @@ interface ITranscriptMessage {
     content?: string | Array<{ type: string; text?: string }>;
   };
   summary?: string;
-}
-
-/**
- * Parsed work summary from transcript.
- */
-export interface IWorkSummary {
-  messageCount: number;
-  userPrompts: number;
-  assistantResponses: number;
-  toolCalls: number;
-  filesCreated: string[];
-  filesModified: string[];
-  duration: number;
-  summary: string;
 }
 
 /**
@@ -103,7 +93,11 @@ export class SessionCaptureService implements ISessionCaptureService {
 
           if (enrichment.facts.length > 0) {
             enrichedFacts = enrichment.facts.map(f => {
-              const tags = [...f.tags, `type:${f.type}`, `confidence:${f.confidence}`, 'source:llm-extracted'];
+              // Filter out any pre-existing metadata tags before appending canonical ones
+              const baseTags = f.tags.filter(t =>
+                !t.startsWith('type:') && !t.startsWith('confidence:') && !t.startsWith('source:')
+              );
+              const tags = [...baseTags, `type:${f.type}`, `confidence:${f.confidence}`, 'source:llm-extracted'];
               return `${f.text} [${tags.join(', ')}]`;
             });
           }
@@ -411,6 +405,7 @@ export class SessionCaptureService implements ISessionCaptureService {
     const content = fs.readFileSync(transcriptPath, 'utf8');
     const lines = content.trim().split('\n').filter(line => line.trim());
     const parts: string[] = [];
+    let totalLength = 0;
 
     for (const line of lines) {
       try {
@@ -428,15 +423,15 @@ export class SessionCaptureService implements ISessionCaptureService {
             }
           }
           if (text) {
-            parts.push(`[${role}] ${text.slice(0, 500)}`);
+            const part = `[${role}] ${text.slice(0, 500)}`;
+            parts.push(part);
+            totalLength += part.length;
           }
         }
       } catch {
         // Skip malformed lines
       }
 
-      // Check total length
-      const totalLength = parts.reduce((sum, p) => sum + p.length, 0);
       if (totalLength >= maxLength) break;
     }
 

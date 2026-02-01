@@ -209,12 +209,9 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
     TOKENS.SessionCaptureService,
     async () => {
       const log = await container.resolve<ILogger>(TOKENS.Logger);
-      let enricher: ITranscriptEnricher | undefined;
-      try {
-        enricher = await container.resolve<ITranscriptEnricher>(TOKENS.TranscriptEnricher);
-      } catch {
-        // LLM enricher not available; proceed without it
-      }
+      const enricher = container.isRegistered(TOKENS.TranscriptEnricher)
+        ? await container.resolve<ITranscriptEnricher>(TOKENS.TranscriptEnricher)
+        : undefined;
       return new SessionCaptureService(log.child({ service: 'session-capture' }), enricher);
     },
     'transient'

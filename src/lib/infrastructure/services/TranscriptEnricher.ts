@@ -24,7 +24,7 @@ import type {
 import { isValidExtractedFactType } from '../../domain/interfaces/ITranscriptEnricher';
 import { isValidConfidence } from '../../domain/interfaces/types/IMemoryQuality';
 import type { ConfidenceLevel } from '../../domain/interfaces/types/IMemoryQuality';
-import type { IWorkSummary } from './SessionCaptureService';
+import type { IWorkSummary } from '../../domain/interfaces/IWorkSummary';
 import { buildExtractionPrompt } from './prompts/extraction';
 
 /** Default maximum transcript snippet length in characters. */
@@ -131,23 +131,28 @@ function parseExtractionResponse(
 /**
  * Extract JSON from LLM response text.
  * Handles responses that may have text before/after the JSON block.
+ * Uses progressive try-parse from each '{' to handle braces inside strings.
  */
 function extractJson(text: string): string | null {
-  // Try the full text first
   const trimmed = text.trim();
-  if (trimmed.startsWith('{')) {
-    // Find the matching closing brace
-    let depth = 0;
-    for (let i = 0; i < trimmed.length; i++) {
-      if (trimmed[i] === '{') depth++;
-      else if (trimmed[i] === '}') depth--;
-      if (depth === 0) return trimmed.slice(0, i + 1);
+
+  // Try each '{' as a potential JSON start
+  let start = trimmed.indexOf('{');
+  while (start !== -1) {
+    // Try parsing progressively longer substrings from this start
+    for (let end = trimmed.lastIndexOf('}'); end > start; end = trimmed.lastIndexOf('}', end - 1)) {
+      const candidate = trimmed.slice(start, end + 1);
+      try {
+        JSON.parse(candidate);
+        return candidate;
+      } catch {
+        // Try a shorter substring
+      }
     }
+    start = trimmed.indexOf('{', start + 1);
   }
 
-  // Try to find a JSON block in the text
-  const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
-  return jsonMatch ? jsonMatch[0] : null;
+  return null;
 }
 
 /**
