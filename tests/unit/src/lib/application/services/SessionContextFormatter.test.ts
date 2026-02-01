@@ -577,10 +577,15 @@ describe('SessionContextFormatter', () => {
     });
 
     it('should return "last Xh" for times within 24 hours', () => {
-      const since = new Date(Date.now() - 12 * 60 * 60 * 1000); // 12 hours ago
+      // Use just before midnight today (yesterday 23:59:59) to guarantee:
+      // - Different calendar day (yesterday) so "today" check fails
+      // - Always within 24 hours of now so "last Xh" path is taken
+      const now = new Date();
+      const midnightToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const since = new Date(midnightToday.getTime() - 1); // yesterday 23:59:59.999
       const result = formatter.formatDateRangeDescription(since);
-      assert.ok(result.startsWith('last '));
-      assert.ok(result.endsWith('h'));
+      assert.ok(result.startsWith('last '), `Expected "last Xh", got "${result}"`);
+      assert.ok(result.endsWith('h'), `Expected "last Xh", got "${result}"`);
     });
 
     it('should return "last X days" for times beyond 24 hours', () => {

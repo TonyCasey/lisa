@@ -11,13 +11,24 @@ if (!fs.existsSync(distDir)) {
 
 const rootPkg = JSON.parse(fs.readFileSync(rootPkgPath, 'utf8'));
 
+// Rewrite exports so paths are relative to dist/ (strip "./dist/" prefix).
+const distExports = {};
+if (rootPkg.exports) {
+  for (const [key, value] of Object.entries(rootPkg.exports)) {
+    distExports[key] = typeof value === 'string'
+      ? value.replace(/^\.\/dist\//, './')
+      : value;
+  }
+}
+
 const distPkg = {
   ...rootPkg,
-  main: 'cli.js',
+  main: 'lib/cli.js',
   bin: {
-    remember: 'cli.js',
-    'lisa': 'cli.js',
+    remember: 'lib/cli.js',
+    'lisa': 'lib/cli.js',
   },
+  exports: distExports,
   files: ['**/*'],
 };
 

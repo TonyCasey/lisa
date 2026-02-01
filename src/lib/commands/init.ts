@@ -467,10 +467,10 @@ export async function initCommand(opts: IInitOptions, services: ICliServices): P
     }
   }
 
-  // Skills scaffolding
+  // Skills scaffolding (awaited immediately — symlink creation below depends on skills being present)
   const skillsSrc = path.join(TEMPLATE_ROOT, '.lisa', 'skills');
   await fs.ensureDir(skillsDir);
-  copies.push(fs.copy(skillsSrc, skillsDir, {
+  await fs.copy(skillsSrc, skillsDir, {
     overwrite: true,
     filter: (src: string) => {
       const basename = path.basename(src);
@@ -484,7 +484,7 @@ export async function initCommand(opts: IInitOptions, services: ICliServices): P
 
       return fs.statSync(src).isDirectory();
     }
-  }));
+  });
 
   // Assets scaffolding (notification icons, etc.)
   // Copy to both project-local .lisa/assets/ and global ~/.lisa/assets/
