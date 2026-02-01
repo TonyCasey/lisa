@@ -76,6 +76,20 @@ export {
   type IPreference,
   type IPreferenceStore,
 } from './IPreferenceStore';
+export {
+  type LlmProvider,
+  LLM_PROVIDER_VALUES,
+  isValidLlmProvider,
+  getDefaultLlmConfig,
+  type ILlmConfig,
+  type ILlmUsage,
+  type ILlmResponse,
+  type ILlmRequestOptions,
+  type ILlmService,
+} from './ILlmService';
+export {
+  type ILlmConfigService,
+} from './ILlmConfigService';
 
 // Event interfaces
 export * from './events';

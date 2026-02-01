@@ -11,6 +11,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### LLM Provider Abstraction Layer ([#168](https://github.com/TonyCasey/lisa/issues/168))
+
+Added multi-provider LLM abstraction with configuration management and CLI commands.
+
+- `ILlmService` domain interface with `complete()`, `isAvailable()`, `getConfig()` operations
+- `ILlmConfig`, `ILlmResponse`, `ILlmUsage`, `ILlmRequestOptions` domain types
+- `LlmProvider` type supporting `anthropic`, `openai`, and `ollama` providers
+- `ILlmConfigService` interface for configuration management with getters and setters
+- `LlmConfigService` implementation using PreferenceStore (`llm:*` keys) with environment variable overrides
+- `LlmService` implementation with native `fetch()` — no external HTTP dependencies
+- Provider-specific request formatting and response parsing for all three providers
+- Environment variable overrides: `LISA_LLM_PROVIDER`, `LISA_LLM_MODEL`, `LISA_LLM_ENDPOINT`, `LISA_LLM_API_KEY`, `LISA_LLM_ENABLED`
+- Fallback API key detection from `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`
+- Error hierarchy: `LlmDisabledError`, `LlmProviderError`, `LlmConfigError`
+- `lisa llm config` — display and set LLM configuration
+- `lisa llm test [prompt]` — verify provider connectivity
+- DI registration as singletons in bootstrap container
+- 51 unit tests covering configuration, all providers, error handling, and custom endpoints
+
+Part of Epic [#167](https://github.com/TonyCasey/lisa/issues/167)
+
 #### Preference Key-Value Store ([#162](https://github.com/TonyCasey/lisa/issues/162))
 
 Added a file-based preference store for persistent user/project settings.
