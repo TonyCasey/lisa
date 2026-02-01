@@ -364,21 +364,15 @@ import type { IMemoryServiceWithQuality } from '../../../../../../src/lib/domain
 import type { ILlmDeduplicationEnhancer } from '../../../../../../src/lib/infrastructure/services/LlmDeduplicationEnhancer';
 import type { IDuplicateGroup } from '../../../../../../src/lib/domain/interfaces/IDeduplicationService';
 
+/** Only the methods exercised by createDeduplicationService. */
+type MockedMemoryService = Pick<IMemoryServiceWithQuality, 'loadFactsDateOrdered' | 'findConflicts'>;
+
 function createMockMemoryService(facts: IMemoryItem[]): IMemoryServiceWithQuality {
-  return {
+  const mock: MockedMemoryService = {
     async loadFactsDateOrdered() { return facts; },
     async findConflicts() { return []; },
-    // Stub unused IMemoryService methods
-    async addMemory() { return undefined; },
-    async searchFacts() { return []; },
-    async loadFacts() { return []; },
-    async addFact() {},
-    async getRecentFacts() { return []; },
-    async getRelevantFacts() { return []; },
-    async getFactsByTags() { return []; },
-    async expireFact() {},
-    async updateFact() {},
-  } as unknown as IMemoryServiceWithQuality;
+  };
+  return mock as IMemoryServiceWithQuality;
 }
 
 describe('createDeduplicationService (LLM integration)', () => {

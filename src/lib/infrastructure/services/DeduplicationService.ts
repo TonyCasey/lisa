@@ -84,8 +84,9 @@ export function createDeduplicationService(
           if (llmGroups.length > 0) {
             allGroups = [...algorithmicGroups, ...llmGroups];
           }
-        } catch {
+        } catch (_error) {
           // LLM enhancer failed; proceed with algorithmic results only
+          // The enhancer logs its own failures; this is a fallback safety net
         }
       }
 
