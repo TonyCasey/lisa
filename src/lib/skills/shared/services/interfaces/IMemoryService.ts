@@ -86,6 +86,42 @@ export interface IMemoryCleanupResult {
 }
 
 /**
+ * A relationship between two memory facts.
+ */
+export interface IMemoryRelationshipItem {
+  sourceUuid: string;
+  targetUuid: string;
+  relationType: string;
+  metadata?: string;
+  created_at?: string;
+}
+
+/**
+ * Result of a memory link operation.
+ */
+export interface IMemoryLinkResult {
+  status: 'ok';
+  action: 'link';
+  group: string;
+  sourceUuid: string;
+  targetUuid: string;
+  relationType: string;
+  mode: 'neo4j';
+}
+
+/**
+ * Result of a memory links query operation.
+ */
+export interface IMemoryLinksResult {
+  status: 'ok';
+  action: 'links';
+  group: string;
+  uuid: string;
+  relationships: IMemoryRelationshipItem[];
+  mode: 'neo4j';
+}
+
+/**
  * Memory service interface.
  */
 export interface IMemoryService {
@@ -142,4 +178,36 @@ export interface IMemoryService {
     groupId: string,
     dryRun: boolean
   ): Promise<IMemoryCleanupResult>;
+
+  /**
+   * Create a typed relationship between two facts.
+   * Requires Neo4j backend.
+   *
+   * @param groupId - Group identifier
+   * @param sourceUuid - UUID of the source fact
+   * @param targetUuid - UUID of the target fact
+   * @param relationType - Type of relationship
+   * @param metadata - Optional annotation
+   */
+  linkFacts(
+    groupId: string,
+    sourceUuid: string,
+    targetUuid: string,
+    relationType: string,
+    metadata?: string
+  ): Promise<IMemoryLinkResult>;
+
+  /**
+   * Get relationships for a fact.
+   * Requires Neo4j backend.
+   *
+   * @param groupId - Group identifier
+   * @param uuid - UUID of the fact to query
+   * @param relationType - Optional filter by relation type
+   */
+  getRelatedFacts(
+    groupId: string,
+    uuid: string,
+    relationType?: string
+  ): Promise<IMemoryLinksResult>;
 }

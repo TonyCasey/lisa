@@ -16,6 +16,8 @@ import type {
   IMemoryAddResult,
   IMemoryExpireResult,
   IMemoryCleanupResult,
+  IMemoryLinkResult,
+  IMemoryLinksResult,
 } from '../../../../../../../src/lib/skills/shared/services/interfaces';
 
 const noopLogger: ILogger = {
@@ -104,6 +106,8 @@ describe('MemoryCliService', () => {
   let expireCalls: Array<{ groupId: string; uuid: string }>;
   let cleanupCalls: Array<{ groupId: string; dryRun: boolean }>;
   let addCalls: Array<{ text: string; groupId: string; options: unknown }>;
+  let linkCalls: Array<{ groupId: string; sourceUuid: string; targetUuid: string; relationType: string; metadata?: string }>;
+  let linksCalls: Array<{ groupId: string; uuid: string; relationType?: string }>;
 
   const memoryService: IMemoryService = {
     load: async (groupIds): Promise<IMemoryLoadResult> => ({
@@ -147,6 +151,29 @@ describe('MemoryCliService', () => {
         mode: 'neo4j',
       };
     },
+    linkFacts: async (groupId, sourceUuid, targetUuid, relationType, metadata): Promise<IMemoryLinkResult> => {
+      linkCalls.push({ groupId, sourceUuid, targetUuid, relationType, metadata });
+      return {
+        status: 'ok',
+        action: 'link',
+        group: groupId,
+        sourceUuid,
+        targetUuid,
+        relationType,
+        mode: 'neo4j',
+      };
+    },
+    getRelatedFacts: async (groupId, uuid, relationType): Promise<IMemoryLinksResult> => {
+      linksCalls.push({ groupId, uuid, relationType });
+      return {
+        status: 'ok',
+        action: 'links',
+        group: groupId,
+        uuid,
+        relationships: [],
+        mode: 'neo4j',
+      };
+    },
   };
 
   function defaultArgs() {
@@ -165,6 +192,7 @@ describe('MemoryCliService', () => {
       ttl: null,
       dryRun: false,
       uuid: null,
+      note: null,
     };
   }
 
@@ -172,6 +200,8 @@ describe('MemoryCliService', () => {
     expireCalls = [];
     cleanupCalls = [];
     addCalls = [];
+    linkCalls = [];
+    linksCalls = [];
   });
 
   const cliService = createMemoryCliService({
@@ -315,11 +345,163 @@ describe('MemoryCliService', () => {
     });
   });
 
+  describe('link command', () => {
+    it('should call memoryService.linkFacts with parsed UUIDs', async () => {
+      const result = await cliService.run({
+        ...defaultArgs(),
+        command: 'link',
+        payload: 'uuid-a uuid-b',
+        entityType: 'supersedes',
+      });
+
+      assert.strictEqual(linkCalls.length, 1);
+      assert.strictEqual(linkCalls[0].sourceUuid, 'uuid-a');
+      assert.strictEqual(linkCalls[0].targetUuid, 'uuid-b');
+      assert.strictEqual(linkCalls[0].relationType, 'supersedes');
+      assert.strictEqual(linkCalls[0].groupId, 'test-group');
+      assert.strictEqual(result.action, 'link');
+    });
+
+    it('should default to relates_to when no --type provided', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'link',
+        payload: 'uuid-a uuid-b',
+      });
+
+      assert.strictEqual(linkCalls[0].relationType, 'relates_to');
+    });
+
+    it('should pass note as metadata', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'link',
+        payload: 'uuid-a uuid-b',
+        note: 'Updated per review',
+      });
+
+      assert.strictEqual(linkCalls[0].metadata, 'Updated per review');
+    });
+
+    it('should use explicit group if provided', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'link',
+        payload: 'uuid-a uuid-b',
+        explicitGroup: 'custom-group',
+      });
+
+      assert.strictEqual(linkCalls[0].groupId, 'custom-group');
+    });
+
+    it('should throw if less than two UUIDs provided', async () => {
+      await assert.rejects(
+        () => cliService.run({ ...defaultArgs(), command: 'link', payload: 'uuid-a' }),
+        { message: /link requires two UUIDs/ }
+      );
+    });
+
+    it('should throw if no UUIDs provided', async () => {
+      await assert.rejects(
+        () => cliService.run({ ...defaultArgs(), command: 'link', payload: '' }),
+        { message: /link requires two UUIDs/ }
+      );
+    });
+
+    it('should throw for invalid relation type', async () => {
+      await assert.rejects(
+        () => cliService.run({
+          ...defaultArgs(),
+          command: 'link',
+          payload: 'uuid-a uuid-b',
+          entityType: 'invalid-type',
+        }),
+        { message: /Invalid relation type/ }
+      );
+    });
+  });
+
+  describe('links command', () => {
+    it('should call memoryService.getRelatedFacts with uuid', async () => {
+      const result = await cliService.run({
+        ...defaultArgs(),
+        command: 'links',
+        uuid: 'uuid-a',
+      });
+
+      assert.strictEqual(linksCalls.length, 1);
+      assert.strictEqual(linksCalls[0].uuid, 'uuid-a');
+      assert.strictEqual(linksCalls[0].groupId, 'test-group');
+      assert.strictEqual(result.action, 'links');
+    });
+
+    it('should use payload as uuid fallback', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'links',
+        payload: 'uuid-b',
+      });
+
+      assert.strictEqual(linksCalls[0].uuid, 'uuid-b');
+    });
+
+    it('should pass relationType filter from --type', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'links',
+        uuid: 'uuid-a',
+        entityType: 'supersedes',
+      });
+
+      assert.strictEqual(linksCalls[0].relationType, 'supersedes');
+    });
+
+    it('should not filter when no --type provided', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'links',
+        uuid: 'uuid-a',
+      });
+
+      assert.strictEqual(linksCalls[0].relationType, undefined);
+    });
+
+    it('should use explicit group if provided', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'links',
+        uuid: 'uuid-a',
+        explicitGroup: 'custom-group',
+      });
+
+      assert.strictEqual(linksCalls[0].groupId, 'custom-group');
+    });
+
+    it('should throw if no uuid provided', async () => {
+      await assert.rejects(
+        () => cliService.run({ ...defaultArgs(), command: 'links' }),
+        { message: /links requires a UUID/ }
+      );
+    });
+
+    it('should throw for invalid relation type filter', async () => {
+      await assert.rejects(
+        () => cliService.run({
+          ...defaultArgs(),
+          command: 'links',
+          uuid: 'uuid-a',
+          entityType: 'bad-type',
+        }),
+        { message: /Invalid relation type/ }
+      );
+    });
+  });
+
   describe('invalid command', () => {
     it('should throw for unknown commands', async () => {
       await assert.rejects(
         () => cliService.run({ ...defaultArgs(), command: 'unknown' }),
-        { message: /command must be add\|load\|expire\|cleanup/ }
+        { message: /command must be add\|load\|expire\|cleanup\|link\|links/ }
       );
     });
   });

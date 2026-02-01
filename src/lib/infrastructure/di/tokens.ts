@@ -27,6 +27,7 @@ export const INFRA_TOKENS = {
   SessionCaptureService: Symbol.for('Lisa.SessionCaptureService'),
   RecursionService: Symbol.for('Lisa.RecursionService'),
   GitHubSyncService: Symbol.for('Lisa.GitHubSyncService'),
+  MemoryRelationshipRepository: Symbol.for('Lisa.MemoryRelationshipRepository'),
 } as const;
 
 /**

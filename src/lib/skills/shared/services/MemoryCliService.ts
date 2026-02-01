@@ -11,11 +11,14 @@ import type {
   IMemoryExpireResult,
   IMemoryCleanupResult,
   IMemoryLoadOptions,
+  IMemoryLinkResult,
+  IMemoryLinksResult,
 } from './interfaces';
+import { isValidRelationType } from '../../../domain/interfaces/types/IMemoryRelationship';
 import { parseDate } from '../../../utils/dateParser';
 
 /** CLI result union for all memory commands. */
-export type MemoryCliResult = IMemoryLoadResult | IMemoryAddResult | IMemoryExpireResult | IMemoryCleanupResult;
+export type MemoryCliResult = IMemoryLoadResult | IMemoryAddResult | IMemoryExpireResult | IMemoryCleanupResult | IMemoryLinkResult | IMemoryLinksResult;
 
 /**
  * Parsed memory CLI arguments.
@@ -35,6 +38,7 @@ export interface IMemoryCliArgs {
   ttl: string | null;
   dryRun: boolean;
   uuid: string | null;
+  note: string | null;
 }
 
 /**
@@ -113,11 +117,11 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
       const {
         command, payload, explicitGroup, query, limit,
         explicitTag, entityType, source, since, until,
-        lifecycle, ttl, dryRun, uuid,
+        lifecycle, ttl, dryRun, uuid, note,
       } = args;
 
-      if (!['add', 'load', 'expire', 'cleanup'].includes(command)) {
-        throw new Error('command must be add|load|expire|cleanup');
+      if (!['add', 'load', 'expire', 'cleanup', 'link', 'links'].includes(command)) {
+        throw new Error('command must be add|load|expire|cleanup|link|links');
       }
 
       // Use explicit --group if provided, otherwise use canonical folder-based group ID
@@ -156,6 +160,29 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
         result = await memoryService.expire(groupId, targetUuid);
       } else if (command === 'cleanup') {
         result = await memoryService.cleanup(groupId, dryRun);
+      } else if (command === 'link') {
+        // payload = "sourceUuid targetUuid"
+        const parts = payload.split(/\s+/).filter(Boolean);
+        const sourceUuid = parts[0];
+        const targetUuid = parts[1];
+        if (!sourceUuid || !targetUuid) {
+          throw new Error('link requires two UUIDs: lisa memory link <sourceUuid> <targetUuid>');
+        }
+        const relationType = entityType || 'relates_to';
+        if (!isValidRelationType(relationType)) {
+          throw new Error(`Invalid relation type: "${relationType}". Valid types: supersedes, supports, contradicts, implements, relates_to, refines`);
+        }
+        result = await memoryService.linkFacts(groupId, sourceUuid, targetUuid, relationType, note ?? undefined);
+      } else if (command === 'links') {
+        const targetUuid = uuid || payload;
+        if (!targetUuid) {
+          throw new Error('links requires a UUID: lisa memory links <uuid>');
+        }
+        const relationType = entityType || undefined;
+        if (relationType && !isValidRelationType(relationType)) {
+          throw new Error(`Invalid relation type: "${relationType}". Valid types: supersedes, supports, contradicts, implements, relates_to, refines`);
+        }
+        result = await memoryService.getRelatedFacts(groupId, targetUuid, relationType);
       } else {
         // add
         if (!payload) throw new Error('add requires text payload');
