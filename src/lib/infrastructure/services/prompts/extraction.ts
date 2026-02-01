@@ -96,7 +96,10 @@ export function buildExtractionPrompt(
     contextParts.push(`- Files modified: ${workSummary.filesModified.join(', ')}`);
   }
   if (workSummary.summary) {
-    contextParts.push(`- Session summary: ${workSummary.summary.slice(0, 300)}`);
+    const truncatedSummary = workSummary.summary.length > 300
+      ? workSummary.summary.slice(0, 300) + '...'
+      : workSummary.summary;
+    contextParts.push(`- Session summary: ${truncatedSummary}`);
   }
 
   contextParts.push('');

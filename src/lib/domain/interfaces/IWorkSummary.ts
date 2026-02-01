@@ -13,12 +13,12 @@
  * Parsed work summary from a session transcript.
  */
 export interface IWorkSummary {
-  messageCount: number;
-  userPrompts: number;
-  assistantResponses: number;
-  toolCalls: number;
-  filesCreated: string[];
-  filesModified: string[];
-  duration: number;
-  summary: string;
+  readonly messageCount: number;
+  readonly userPrompts: number;
+  readonly assistantResponses: number;
+  readonly toolCalls: number;
+  readonly filesCreated: readonly string[];
+  readonly filesModified: readonly string[];
+  readonly duration: number;
+  readonly summary: string;
 }
