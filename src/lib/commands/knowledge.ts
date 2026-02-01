@@ -120,6 +120,25 @@ export function registerKnowledgeCommands(program: Command): void {
       await spawnAndWait(scriptPath, args, getSkillCacheEnv('memory'));
     });
 
+  memoryCmd
+    .command('compact')
+    .description('Compact old memories into summaries (e.g. lisa memory compact --before 30d --dry-run)')
+    .requiredOption('--before <date>', 'Compact facts older than date (relative: 30d, 3m, 1y; or ISO date)')
+    .option('--dry-run', 'Preview without making changes')
+    .option('--min-group <n>', 'Minimum facts per group to compact', '3')
+    .option('-g, --group <id>', 'Group ID')
+    .option('--cache', 'Use cache fallback')
+    .action(async (opts) => {
+      const args = ['compact'];
+      args.push('--before', opts.before);
+      if (opts.dryRun) args.push('--dry-run');
+      if (opts.minGroup) args.push('--min-group', String(parseInt(opts.minGroup, 10)));
+      if (opts.group) args.push('--group', opts.group);
+      if (opts.cache) args.push('--cache');
+      const scriptPath = path.join(__dirname, '..', 'skills', 'memory', 'memory.js');
+      await spawnAndWait(scriptPath, args, getSkillCacheEnv('memory'));
+    });
+
   // Subcommand: lisa tasks
   const tasksCmd = program
     .command('tasks')

@@ -11,6 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Memory Compaction Service ([#153](https://github.com/TonyCasey/lisa/issues/153))
+
+Added memory compaction — groups old facts by topic category, creates template-based summaries, and archives (expires) the originals.
+
+- `ICompactionService`, `ICompactionResult`, `ICompactionSummary` domain types
+- `CompactionService` infrastructure implementation with DI registration
+- Fact grouping by name prefix (e.g., `DECISION:`) or `type:` tag, with `general` fallback
+- Template-based summaries: `[Compacted] Topic: N items from <earliest> to <latest>: <snippets>`
+- Skill-level `compact()` method with Neo4j Cypher queries including tag retrieval
+- `lisa memory compact --before <date>` CLI command with `--dry-run` and `--min-group` options
+- Full test coverage: 15 CompactionService tests, 8 MemoryCliService compact tests
+
+Part of Epic [#149](https://github.com/TonyCasey/lisa/issues/149)
+
 #### Structured ProjectContext with Session Integration ([#152](https://github.com/TonyCasey/lisa/issues/152))
 
 Added structured project context — a curated snapshot of tech stack, key decisions, constraints, and conventions that loads automatically at session start.

@@ -18,6 +18,7 @@ import type {
   IMemoryCleanupResult,
   IMemoryLinkResult,
   IMemoryLinksResult,
+  IMemoryCompactResult,
 } from '../../../../../../../src/lib/skills/shared/services/interfaces';
 
 const noopLogger: ILogger = {
@@ -108,6 +109,7 @@ describe('MemoryCliService', () => {
   let addCalls: Array<{ text: string; groupId: string; options: unknown }>;
   let linkCalls: Array<{ groupId: string; sourceUuid: string; targetUuid: string; relationType: string; metadata?: string }>;
   let linksCalls: Array<{ groupId: string; uuid: string; relationType?: string }>;
+  let compactCalls: Array<{ groupId: string; olderThan: Date; dryRun: boolean; minGroupSize: number }>;
 
   const memoryService: IMemoryService = {
     load: async (groupIds): Promise<IMemoryLoadResult> => ({
@@ -174,6 +176,25 @@ describe('MemoryCliService', () => {
         mode: 'neo4j',
       };
     },
+    compact: async (groupId, options): Promise<IMemoryCompactResult> => {
+      compactCalls.push({ groupId, ...options });
+      return {
+        status: 'ok',
+        action: 'compact',
+        group: groupId,
+        groupsProcessed: 1,
+        factsArchived: 5,
+        summariesCreated: 1,
+        summaries: [{
+          topic: 'decision',
+          factCount: 5,
+          summaryText: '[Compacted] Decision: 5 items',
+          archivedUuids: ['a', 'b', 'c', 'd', 'e'],
+        }],
+        dryRun: options.dryRun,
+        mode: 'neo4j',
+      };
+    },
   };
 
   function defaultArgs() {
@@ -193,6 +214,8 @@ describe('MemoryCliService', () => {
       dryRun: false,
       uuid: null,
       note: null,
+      before: null,
+      minGroup: 3,
     };
   }
 
@@ -202,6 +225,7 @@ describe('MemoryCliService', () => {
     addCalls = [];
     linkCalls = [];
     linksCalls = [];
+    compactCalls = [];
   });
 
   const cliService = createMemoryCliService({
@@ -497,11 +521,112 @@ describe('MemoryCliService', () => {
     });
   });
 
+  describe('compact command', () => {
+    it('should call memoryService.compact with parsed date and options', async () => {
+      const result = await cliService.run({
+        ...defaultArgs(),
+        command: 'compact',
+        before: '30d',
+        dryRun: false,
+        minGroup: 5,
+      });
+
+      assert.strictEqual(compactCalls.length, 1);
+      assert.strictEqual(compactCalls[0].groupId, 'test-group');
+      assert.strictEqual(compactCalls[0].dryRun, false);
+      assert.strictEqual(compactCalls[0].minGroupSize, 5);
+      assert.ok(compactCalls[0].olderThan instanceof Date);
+      assert.strictEqual(result.action, 'compact');
+    });
+
+    it('should pass dryRun=true when set', async () => {
+      const result = await cliService.run({
+        ...defaultArgs(),
+        command: 'compact',
+        before: '30d',
+        dryRun: true,
+      });
+
+      assert.strictEqual(compactCalls[0].dryRun, true);
+      const compactResult = result as IMemoryCompactResult;
+      assert.strictEqual(compactResult.dryRun, true);
+    });
+
+    it('should use default minGroup of 3', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'compact',
+        before: '7d',
+      });
+
+      assert.strictEqual(compactCalls[0].minGroupSize, 3);
+    });
+
+    it('should use explicit group if provided', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'compact',
+        before: '30d',
+        explicitGroup: 'custom-group',
+      });
+
+      assert.strictEqual(compactCalls[0].groupId, 'custom-group');
+    });
+
+    it('should throw if --before is not provided', async () => {
+      await assert.rejects(
+        () => cliService.run({ ...defaultArgs(), command: 'compact' }),
+        { message: /compact requires --before/ }
+      );
+    });
+
+    it('should throw for invalid --before date', async () => {
+      await assert.rejects(
+        () => cliService.run({
+          ...defaultArgs(),
+          command: 'compact',
+          before: 'not-a-date',
+        }),
+        { message: /Invalid --before date/ }
+      );
+    });
+
+    it('should parse ISO date for --before', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'compact',
+        before: '2025-12-01',
+      });
+
+      assert.strictEqual(compactCalls.length, 1);
+      const olderThan = compactCalls[0].olderThan;
+      // Should be Dec 1 2025
+      assert.strictEqual(olderThan.getFullYear(), 2025);
+      assert.strictEqual(olderThan.getMonth(), 11); // 0-indexed
+      assert.strictEqual(olderThan.getDate(), 1);
+    });
+
+    it('should parse relative date for --before', async () => {
+      await cliService.run({
+        ...defaultArgs(),
+        command: 'compact',
+        before: 'today',
+      });
+
+      assert.strictEqual(compactCalls.length, 1);
+      const olderThan = compactCalls[0].olderThan;
+      const today = new Date();
+      assert.strictEqual(olderThan.getFullYear(), today.getFullYear());
+      assert.strictEqual(olderThan.getMonth(), today.getMonth());
+      assert.strictEqual(olderThan.getDate(), today.getDate());
+    });
+  });
+
   describe('invalid command', () => {
     it('should throw for unknown commands', async () => {
       await assert.rejects(
         () => cliService.run({ ...defaultArgs(), command: 'unknown' }),
-        { message: /command must be add\|load\|expire\|cleanup\|link\|links/ }
+        { message: /command must be add\|load\|expire\|cleanup\|link\|links\|compact/ }
       );
     });
   });

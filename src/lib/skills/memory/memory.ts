@@ -9,6 +9,7 @@
  *   node memory.js cleanup [--group <id>] [--dry-run] [--cache]
  *   node memory.js link <sourceUuid> <targetUuid> [--type <relationType>] [--note <text>] [--group <id>] [--cache]
  *   node memory.js links <uuid> [--type <relationType>] [--group <id>] [--cache]
+ *   node memory.js compact --before <date> [--dry-run] [--min-group N] [--group <id>] [--cache]
  */
 
 export {};
@@ -44,6 +45,8 @@ async function main(): Promise<void> {
   const ttl = popFlag(args, '--ttl', null);
   const uuid = popFlag(args, '--uuid', null);
   const note = popFlag(args, '--note', null);
+  const before = popFlag(args, '--before', null);
+  const minGroup = Number(popFlag(args, '--min-group', '3')) || 3;
   const dryRun = hasFlag(args, '--dry-run');
   const useCache = hasFlag(args, '--cache');
   const payload = args.join(' ').trim();
@@ -63,7 +66,7 @@ async function main(): Promise<void> {
   try {
     const result = await cliService.run({
       command, payload, explicitGroup, query, limit, explicitTag,
-      entityType, source, since, until, lifecycle, ttl, dryRun, uuid, note,
+      entityType, source, since, until, lifecycle, ttl, dryRun, uuid, note, before, minGroup,
     });
     console.log(JSON.stringify(result, null, 2));
   } catch (err: unknown) {

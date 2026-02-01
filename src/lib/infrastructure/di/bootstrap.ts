@@ -42,6 +42,7 @@ import {
   SessionCaptureService,
   RecursionService,
   ProjectContextService,
+  CompactionService,
 } from '../services';
 import { createRepositoryRouter, closeConnections, Neo4jMemoryRelationshipRepository } from '../dal';
 import type { IMemoryRelationshipRepository } from '../../domain/interfaces/dal/IMemoryRelationshipRepository';
@@ -209,6 +210,16 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
       const memory = await container.resolve<MemoryService>(TOKENS.MemoryService);
       const tasks = await container.resolve<TaskService>(TOKENS.TaskService);
       return new RecursionService(memory, tasks);
+    },
+    'transient'
+  );
+
+  // Compaction Service (transient - stateless)
+  container.register(
+    TOKENS.CompactionService,
+    async () => {
+      const mem = await container.resolve<IMemoryService>(TOKENS.MemoryService);
+      return new CompactionService(mem);
     },
     'transient'
   );
