@@ -35,7 +35,7 @@ describe('Neo4jMemoryRelationshipRepository', () => {
   });
 
   describe('createRelationship()', () => {
-    it('should call write with correct Cypher and params', async () => {
+    it('createRelationship_givenValidRelationship_shouldWriteCorrectCypherAndParams', async () => {
       await repo.createRelationship('group-1', {
         sourceUuid: 'uuid-a',
         targetUuid: 'uuid-b',
@@ -51,9 +51,9 @@ describe('Neo4jMemoryRelationshipRepository', () => {
       assert.ok(cypher.includes('type: $relationType'));
       assert.ok(cypher.includes('source_uuid: $sourceUuid'));
       assert.ok(cypher.includes('target_uuid: $targetUuid'));
+      assert.ok(cypher.includes('group_id: $groupId'));
       assert.ok(cypher.includes('SET rel.created_at = datetime()'));
       assert.ok(cypher.includes('rel.metadata = $metadata'));
-      assert.ok(cypher.includes('rel.group_id = $groupId'));
       assert.strictEqual(params.sourceUuid, 'uuid-a');
       assert.strictEqual(params.targetUuid, 'uuid-b');
       assert.strictEqual(params.relationType, 'supersedes');
@@ -62,7 +62,7 @@ describe('Neo4jMemoryRelationshipRepository', () => {
       assert.deepStrictEqual(params.groupIds, ['group-1']);
     });
 
-    it('should pass null metadata when not provided', async () => {
+    it('createRelationship_givenNoMetadata_shouldPassNull', async () => {
       await repo.createRelationship('group-1', {
         sourceUuid: 'uuid-a',
         targetUuid: 'uuid-b',
@@ -74,7 +74,7 @@ describe('Neo4jMemoryRelationshipRepository', () => {
       assert.strictEqual(params.metadata, null);
     });
 
-    it('should propagate errors from connection.write', async () => {
+    it('createRelationship_givenConnectionError_shouldPropagateError', async () => {
       (mockConnection.write as ReturnType<typeof mock.fn>).mock.mockImplementation(
         async () => { throw new Error('Connection failed'); }
       );
@@ -91,7 +91,7 @@ describe('Neo4jMemoryRelationshipRepository', () => {
   });
 
   describe('findRelationships()', () => {
-    it('should query both directions by default', async () => {
+    it('findRelationships_givenNoDirection_shouldQueryBothDirections', async () => {
       await repo.findRelationships('group-1', 'uuid-a');
 
       const queryFn = mockConnection.query as ReturnType<typeof mock.fn>;
@@ -110,7 +110,7 @@ describe('Neo4jMemoryRelationshipRepository', () => {
       assert.strictEqual(inParams.groupId, 'group-1');
     });
 
-    it('should query only outgoing when direction is outgoing', async () => {
+    it('findRelationships_givenOutgoingDirection_shouldQueryOnlyOutgoing', async () => {
       await repo.findRelationships('group-1', 'uuid-a', { direction: 'outgoing' });
 
       const queryFn = mockConnection.query as ReturnType<typeof mock.fn>;
@@ -120,7 +120,7 @@ describe('Neo4jMemoryRelationshipRepository', () => {
       assert.ok(cypher.includes('rel.source_uuid = $uuid'));
     });
 
-    it('should query only incoming when direction is incoming', async () => {
+    it('findRelationships_givenIncomingDirection_shouldQueryOnlyIncoming', async () => {
       await repo.findRelationships('group-1', 'uuid-a', { direction: 'incoming' });
 
       const queryFn = mockConnection.query as ReturnType<typeof mock.fn>;
@@ -130,7 +130,7 @@ describe('Neo4jMemoryRelationshipRepository', () => {
       assert.ok(cypher.includes('rel.target_uuid = $uuid'));
     });
 
-    it('should filter by relationType when provided', async () => {
+    it('findRelationships_givenRelationType_shouldFilterByType', async () => {
       await repo.findRelationships('group-1', 'uuid-a', { relationType: 'supersedes' });
 
       const queryFn = mockConnection.query as ReturnType<typeof mock.fn>;
@@ -142,7 +142,7 @@ describe('Neo4jMemoryRelationshipRepository', () => {
       assert.strictEqual(outParams.relationType, 'supersedes');
     });
 
-    it('should not include relationType filter when not provided', async () => {
+    it('findRelationships_givenNoRelationType_shouldOmitTypeFilter', async () => {
       await repo.findRelationships('group-1', 'uuid-a');
 
       const queryFn = mockConnection.query as ReturnType<typeof mock.fn>;
@@ -152,7 +152,7 @@ describe('Neo4jMemoryRelationshipRepository', () => {
       assert.strictEqual(outParams.relationType, null);
     });
 
-    it('should return combined outgoing and incoming results', async () => {
+    it('findRelationships_givenBothDirections_shouldReturnCombinedResults', async () => {
       const queryFn = mockConnection.query as ReturnType<typeof mock.fn>;
       let callCount = 0;
       queryFn.mock.mockImplementation(async () => {
@@ -184,7 +184,7 @@ describe('Neo4jMemoryRelationshipRepository', () => {
       assert.strictEqual(results[0].targetUuid, 'uuid-b');
       assert.strictEqual(results[0].relationType, 'supersedes');
       assert.strictEqual(results[0].metadata, undefined);
-      assert.strictEqual(results[0].created_at, '2026-01-30T00:00:00Z');
+      assert.strictEqual(results[0].createdAt, '2026-01-30T00:00:00Z');
 
       assert.strictEqual(results[1].sourceUuid, 'uuid-c');
       assert.strictEqual(results[1].targetUuid, 'uuid-a');
@@ -192,12 +192,12 @@ describe('Neo4jMemoryRelationshipRepository', () => {
       assert.strictEqual(results[1].metadata, 'note');
     });
 
-    it('should return empty array when no relationships found', async () => {
+    it('findRelationships_givenNoMatches_shouldReturnEmptyArray', async () => {
       const results = await repo.findRelationships('group-1', 'uuid-a');
       assert.strictEqual(results.length, 0);
     });
 
-    it('should propagate errors from connection.query', async () => {
+    it('findRelationships_givenQueryError_shouldPropagateError', async () => {
       (mockConnection.query as ReturnType<typeof mock.fn>).mock.mockImplementation(
         async () => { throw new Error('Query failed'); }
       );
@@ -210,7 +210,7 @@ describe('Neo4jMemoryRelationshipRepository', () => {
   });
 
   describe('removeRelationship()', () => {
-    it('should call write with correct Cypher and params', async () => {
+    it('removeRelationship_givenValidParams_shouldWriteCorrectCypherAndParams', async () => {
       await repo.removeRelationship('group-1', 'uuid-a', 'uuid-b', 'supersedes');
 
       const writeFn = mockConnection.write as ReturnType<typeof mock.fn>;
@@ -229,7 +229,7 @@ describe('Neo4jMemoryRelationshipRepository', () => {
       assert.strictEqual(params.groupId, 'group-1');
     });
 
-    it('should propagate errors from connection.write', async () => {
+    it('removeRelationship_givenWriteError_shouldPropagateError', async () => {
       (mockConnection.write as ReturnType<typeof mock.fn>).mock.mockImplementation(
         async () => { throw new Error('Write failed'); }
       );

@@ -25,11 +25,11 @@ export interface IMemoryRelationshipRepository {
    * Create a relationship between two memory facts.
    *
    * @param groupId - Group ID for scoping
-   * @param relationship - The relationship to create (without created_at)
+   * @param relationship - The relationship to create (without createdAt)
    */
   createRelationship(
     groupId: string,
-    relationship: Omit<IMemoryRelationship, 'created_at'>
+    relationship: Omit<IMemoryRelationship, 'createdAt'>
   ): Promise<void>;
 
   /**

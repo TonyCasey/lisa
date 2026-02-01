@@ -38,7 +38,7 @@ export class Neo4jMemoryRelationshipRepository implements IMemoryRelationshipRep
    */
   async createRelationship(
     groupId: string,
-    relationship: Omit<IMemoryRelationship, 'created_at'>
+    relationship: Omit<IMemoryRelationship, 'createdAt'>
   ): Promise<void> {
     const { sourceUuid, targetUuid, relationType, metadata } = relationship;
 
@@ -52,7 +52,7 @@ export class Neo4jMemoryRelationshipRepository implements IMemoryRelationshipRep
       WHERE tr.uuid = $targetUuid AND tr.group_id IN $groupIds
       WITH t1, t2, sr, tr
       LIMIT 1
-      MERGE (t1)-[rel:MEMORY_RELATION {type: $relationType, source_uuid: $sourceUuid, target_uuid: $targetUuid}]->(t2)
+      MERGE (t1)-[rel:MEMORY_RELATION {type: $relationType, source_uuid: $sourceUuid, target_uuid: $targetUuid, group_id: $groupId}]->(t2)
       SET rel.created_at = datetime(),
           rel.metadata = $metadata,
           rel.group_id = $groupId
@@ -188,7 +188,7 @@ export class Neo4jMemoryRelationshipRepository implements IMemoryRelationshipRep
       targetUuid: record.targetUuid,
       relationType: record.relationType as MemoryRelationType,
       metadata: record.metadata ?? undefined,
-      created_at: record.created_at ?? undefined,
+      createdAt: record.created_at ?? undefined,
     };
   }
 }

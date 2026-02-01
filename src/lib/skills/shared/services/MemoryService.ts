@@ -338,6 +338,27 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
     ): Promise<IMemoryLinkResult> {
       await neo4jClient.connect();
       try {
+        // Preflight: verify both facts exist
+        const checkCypher = `
+          OPTIONAL MATCH (s1:Entity)-[sr]->(t1:Entity)
+          WHERE sr.uuid = $sourceUuid AND sr.group_id IN $groupIds
+          WITH count(sr) > 0 AS sourceExists
+          OPTIONAL MATCH (s2:Entity)-[tr]->(t2:Entity)
+          WHERE tr.uuid = $targetUuid AND tr.group_id IN $groupIds
+          RETURN sourceExists, count(tr) > 0 AS targetExists
+        `;
+        const checkResults = await neo4jClient.query<{ sourceExists: boolean; targetExists: boolean }>(
+          checkCypher,
+          { sourceUuid, targetUuid, groupIds: [groupId] }
+        );
+        const check = checkResults[0];
+        if (!check?.sourceExists) {
+          throw new Error(`Source fact not found: ${sourceUuid}`);
+        }
+        if (!check?.targetExists) {
+          throw new Error(`Target fact not found: ${targetUuid}`);
+        }
+
         const cypher = `
           MATCH (s1:Entity)-[sr]->(t1:Entity)
           WHERE sr.uuid = $sourceUuid AND sr.group_id IN $groupIds
@@ -347,10 +368,9 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
           WHERE tr.uuid = $targetUuid AND tr.group_id IN $groupIds
           WITH t1, t2, sr, tr
           LIMIT 1
-          MERGE (t1)-[rel:MEMORY_RELATION {type: $relationType, source_uuid: $sourceUuid, target_uuid: $targetUuid}]->(t2)
+          MERGE (t1)-[rel:MEMORY_RELATION {type: $relationType, source_uuid: $sourceUuid, target_uuid: $targetUuid, group_id: $groupId}]->(t2)
           SET rel.created_at = datetime(),
-              rel.metadata = $metadata,
-              rel.group_id = $groupId
+              rel.metadata = $metadata
         `;
 
         await neo4jClient.write(cypher, {
