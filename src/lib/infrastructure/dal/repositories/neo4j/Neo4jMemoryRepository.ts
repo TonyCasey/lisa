@@ -347,8 +347,8 @@ export class Neo4jMemoryRepository implements IReadOnlyMemoryRepositoryWithQuali
       WHERE ${whereClause}
       WITH [tag IN r.tags WHERE tag STARTS WITH 'type:' | tag][0] AS topicTag,
            r.uuid AS uuid, r.name AS name, r.fact AS fact,
-           r.created_at AS created_at
-      WITH topicTag, COLLECT({ uuid: uuid, name: name, fact: fact, created_at: created_at }) AS facts
+           r.group_id AS group_id, r.created_at AS created_at
+      WITH topicTag, COLLECT({ uuid: uuid, name: name, fact: fact, group_id: group_id, created_at: created_at }) AS facts
       WHERE SIZE(facts) > 1
       RETURN topicTag, facts
       LIMIT $limit
@@ -356,7 +356,7 @@ export class Neo4jMemoryRepository implements IReadOnlyMemoryRepositoryWithQuali
 
     const records = await this.connection.query<{
       topicTag: string;
-      facts: Array<{ uuid: string; name: string; fact: string; created_at: string }>;
+      facts: Array<{ uuid: string; name: string; fact: string; group_id: string; created_at: string }>;
     }>(cypher, params);
 
     return records.map((record) => ({
