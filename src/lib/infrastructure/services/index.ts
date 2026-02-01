@@ -12,3 +12,5 @@ export { createDeduplicationService, normalizeText, extractWords, jaccardSimilar
 export { createCurationService, computeRecencyBonus } from './CurationService';
 export { createConsolidationService } from './ConsolidationService';
 export { createPreferenceStore } from './PreferenceStore';
+export { createLlmConfigService } from './LlmConfigService';
+export { createLlmService } from './LlmService';

@@ -16,7 +16,9 @@ import type {
   ISessionCaptureService,
   IEventEmitter,
   IRecursionService,
+  IPreferenceStore,
 } from '../../domain/interfaces';
+import type { ILlmConfigService } from '../../domain/interfaces/ILlmConfigService';
 import type { IMemoryServiceWithQuality } from '../../domain/interfaces/IMemoryService';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
 import type { IConnectionManagers } from '../dal';
@@ -47,6 +49,8 @@ import { createDeduplicationService } from '../services/DeduplicationService';
 import { createCurationService } from '../services/CurationService';
 import { createConsolidationService } from '../services/ConsolidationService';
 import { createPreferenceStore } from '../services/PreferenceStore';
+import { createLlmConfigService } from '../services/LlmConfigService';
+import { createLlmService } from '../services/LlmService';
 import { createRepositoryRouter, closeConnections } from '../dal';
 import { createLogger, createNullLogger } from '../logging';
 
@@ -236,6 +240,27 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
   container.registerInstance(
     TOKENS.PreferenceStore,
     createPreferenceStore(projectRoot, logger.child({ service: 'preferences' }))
+  );
+
+  // LLM Config Service (singleton - reads from preferences + env)
+  container.register(
+    TOKENS.LlmConfigService,
+    async () => {
+      const prefs = await container.resolve<IPreferenceStore>(TOKENS.PreferenceStore);
+      return createLlmConfigService(prefs);
+    },
+    'singleton'
+  );
+
+  // LLM Service (singleton - stateless HTTP client)
+  container.register(
+    TOKENS.LlmService,
+    async () => {
+      const configSvc = await container.resolve<ILlmConfigService>(TOKENS.LlmConfigService);
+      const log = logger.child({ service: 'llm' });
+      return createLlmService(configSvc, log);
+    },
+    'singleton'
   );
 
   // GitHub Sync Service (singleton - optional, may not be available)

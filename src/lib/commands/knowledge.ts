@@ -265,6 +265,95 @@ export function registerKnowledgeCommands(program: Command): void {
       await spawnAndWait(scriptPath, args, getSkillCacheEnv('tasks'));
     });
 
+  // Subcommand: lisa llm
+  const llmCmd = program
+    .command('llm')
+    .description('LLM provider configuration and testing');
+
+  llmCmd
+    .command('config')
+    .description('Display or set LLM configuration')
+    .option('--provider <provider>', 'Set provider (anthropic, openai, ollama)')
+    .option('--model <model>', 'Set model name')
+    .option('--endpoint <url>', 'Set custom endpoint URL')
+    .option('--api-key <key>', 'Set API key')
+    .option('--enable', 'Enable LLM features')
+    .option('--disable', 'Disable LLM features')
+    .option('--max-tokens <n>', 'Set default max output tokens')
+    .option('--temperature <n>', 'Set default temperature (0–2)')
+    .option('--reset', 'Reset all LLM configuration to defaults')
+    .action(async (opts) => {
+      const { createPreferenceStore } = await import('../infrastructure/services/PreferenceStore');
+      const { createLlmConfigService } = await import('../infrastructure/services/LlmConfigService');
+      const store = createPreferenceStore(process.cwd(), console);
+      const configSvc = createLlmConfigService(store);
+
+      if (opts.reset) {
+        await configSvc.reset();
+        console.log(JSON.stringify({ status: 'ok', action: 'reset', message: 'LLM configuration reset to defaults' }, null, 2));
+        return;
+      }
+
+      let changed = false;
+      if (opts.provider) { await configSvc.setProvider(opts.provider); changed = true; }
+      if (opts.model) { await configSvc.setModel(opts.model); changed = true; }
+      if (opts.endpoint) { await configSvc.setEndpoint(opts.endpoint); changed = true; }
+      if (opts.apiKey) { await configSvc.setApiKey(opts.apiKey); changed = true; }
+      if (opts.enable) { await configSvc.setEnabled(true); changed = true; }
+      if (opts.disable) { await configSvc.setEnabled(false); changed = true; }
+      if (opts.maxTokens) {
+        await configSvc.setMaxTokens(parseInt(opts.maxTokens, 10));
+        changed = true;
+      }
+      if (opts.temperature) {
+        await configSvc.setTemperature(parseFloat(opts.temperature));
+        changed = true;
+      }
+
+      const config = await configSvc.getConfig();
+      const safeConfig = {
+        ...config,
+        apiKey: config.apiKey ? `${config.apiKey.slice(0, 8)}...` : undefined,
+      };
+      console.log(JSON.stringify({
+        status: 'ok',
+        action: changed ? 'updated' : 'display',
+        config: safeConfig,
+      }, null, 2));
+    });
+
+  llmCmd
+    .command('test [prompt]')
+    .description('Send a test prompt to verify LLM connectivity')
+    .action(async (prompt?: string) => {
+      const { createPreferenceStore } = await import('../infrastructure/services/PreferenceStore');
+      const { createLlmConfigService } = await import('../infrastructure/services/LlmConfigService');
+      const { createLlmService } = await import('../infrastructure/services/LlmService');
+      const store = createPreferenceStore(process.cwd(), console);
+      const configSvc = createLlmConfigService(store);
+      const llmSvc = createLlmService(configSvc);
+
+      const testPrompt = prompt || 'Say hello in one sentence.';
+      try {
+        const response = await llmSvc.complete(testPrompt);
+        console.log(JSON.stringify({
+          status: 'ok',
+          action: 'test',
+          response: response.text,
+          provider: response.provider,
+          model: response.model,
+          usage: response.usage,
+        }, null, 2));
+      } catch (error) {
+        console.log(JSON.stringify({
+          status: 'error',
+          action: 'test',
+          error: error instanceof Error ? error.message : String(error),
+        }, null, 2));
+        process.exitCode = 1;
+      }
+    });
+
   // Subcommand: lisa storage
   const storageCmd = program
     .command('storage')
