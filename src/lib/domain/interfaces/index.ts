@@ -72,6 +72,10 @@ export {
   type IConsolidationOptions,
   type IConsolidationService,
 } from './IConsolidationService';
+export {
+  type IPreference,
+  type IPreferenceStore,
+} from './IPreferenceStore';
 
 // Event interfaces
 export * from './events';
