@@ -4,7 +4,9 @@ import { execFileSync } from 'child_process';
 import type { ISessionCaptureService, ICapturedWork, ILogger } from '../../domain';
 import { emptyCapturedWork } from '../../domain';
 import type { ITranscriptEnricher } from '../../domain/interfaces/ITranscriptEnricher';
-import type { IWorkSummary } from '../../domain/interfaces/IWorkSummary';
+import type { IWorkSummary, IDetectedDecision, IDetectedError, IFilePromptCorrelation } from '../../domain/interfaces/IWorkSummary';
+import type { TaskType } from '../../domain/interfaces/types/ITaskType';
+import { DETECTION_SIGNALS } from '../../domain/interfaces/types/ITaskType';
 
 // Re-export IWorkSummary for backward compatibility with existing consumers
 export type { IWorkSummary } from '../../domain/interfaces/IWorkSummary';
@@ -16,15 +18,48 @@ interface ITranscriptMessage {
   type: string;
   message?: {
     role?: string;
-    content?: string | Array<{ type: string; text?: string }>;
+    content?: string | Array<{ type: string; text?: string; name?: string; is_error?: boolean }>;
   };
   summary?: string;
+}
+
+/**
+ * Parsed message with role and text for heuristic analysis.
+ */
+interface IParsedMessage {
+  role: 'user' | 'assistant' | 'tool_use' | 'tool_result' | 'other';
+  text: string;
+  toolName?: string;
+  isError?: boolean;
 }
 
 /**
  * Minimum messages required for capture.
  */
 const MIN_MESSAGES_FOR_CAPTURE = 3;
+
+/**
+ * Maximum heuristic detection caps.
+ */
+const MAX_DECISIONS = 3;
+const MAX_ERRORS = 2;
+const MAX_CORRELATIONS = 3;
+
+/**
+ * User confirmation patterns for decision detection.
+ */
+const CONFIRMATION_PATTERN = /^(yes|ok|sounds good|let'?s go with|do that|go ahead|approved?|agreed?)\b/i;
+
+/**
+ * Assistant option-presenting language for decision context.
+ */
+const OPTION_PRESENTING_PATTERN = /\b(option|approach|alternative|should we|we could|either|or we|recommend|suggest)\b/i;
+
+/**
+ * Error patterns in message content.
+ */
+const STACK_TRACE_PATTERN = /^\s+at\s+/m;
+const ERROR_TYPE_PATTERN = /\b(Error|TypeError|ReferenceError|SyntaxError|RangeError):\s+/;
 
 /**
  * Transcript candidate with path and modification time.
@@ -116,6 +151,7 @@ export class SessionCaptureService implements ISessionCaptureService {
         facts: [...facts, ...enrichedFacts],
         complexity,
         summary: enrichedSummary ?? work.summary ?? undefined,
+        work,
       };
     } catch (error) {
       this.logger?.warn('Session capture failed', {
@@ -244,7 +280,7 @@ export class SessionCaptureService implements ISessionCaptureService {
   }
 
   /**
-   * Parse transcript file to extract work summary.
+   * Parse transcript file to extract work summary including heuristic detections.
    */
   parseTranscript(transcriptPath: string): IWorkSummary {
     const content = fs.readFileSync(transcriptPath, 'utf8');
@@ -256,6 +292,7 @@ export class SessionCaptureService implements ISessionCaptureService {
     const filesCreated: string[] = [];
     const filesModified: string[] = [];
     let summaryText = '';
+    const parsedMessages: IParsedMessage[] = [];
 
     for (const line of lines) {
       try {
@@ -264,21 +301,28 @@ export class SessionCaptureService implements ISessionCaptureService {
         // Track message types
         if (msg.type === 'user' || msg.message?.role === 'user') {
           userPrompts++;
+          const text = this.extractMessageText(msg);
+          parsedMessages.push({ role: 'user', text });
         } else if (msg.type === 'assistant' || msg.message?.role === 'assistant') {
           assistantResponses++;
+          const text = this.extractMessageText(msg);
+          parsedMessages.push({ role: 'assistant', text });
 
           // Extract summary from last assistant message
-          const content = msg.message?.content;
-          if (typeof content === 'string') {
-            summaryText = content.slice(0, 500);
-          } else if (Array.isArray(content)) {
-            const textBlock = content.find(c => c.type === 'text');
-            if (textBlock?.text) {
-              summaryText = textBlock.text.slice(0, 500);
-            }
+          if (text) {
+            summaryText = text.slice(0, 500);
           }
-        } else if (msg.type === 'tool_use' || msg.type === 'tool_result') {
+        } else if (msg.type === 'tool_use') {
           toolCalls++;
+          const toolName = this.extractToolName(msg);
+          parsedMessages.push({ role: 'tool_use', text: '', toolName });
+        } else if (msg.type === 'tool_result') {
+          toolCalls++;
+          const isError = this.extractToolError(msg);
+          const text = this.extractMessageText(msg);
+          parsedMessages.push({ role: 'tool_result', text, isError });
+        } else {
+          parsedMessages.push({ role: 'other', text: '' });
         }
 
         // Track file operations from summary
@@ -294,18 +338,34 @@ export class SessionCaptureService implements ISessionCaptureService {
         }
       } catch {
         // Skip malformed lines
+        parsedMessages.push({ role: 'other', text: '' });
       }
     }
+
+    const uniqueFilesCreated = [...new Set(filesCreated)];
+    const uniqueFilesModified = [...new Set(filesModified)];
+
+    // Run heuristic detectors
+    const detectedDecisions = this.detectDecisions(parsedMessages);
+    const detectedErrors = this.detectErrors(parsedMessages);
+    const filePromptCorrelations = this.correlateFilePrompts(
+      parsedMessages, uniqueFilesCreated, uniqueFilesModified
+    );
+    const detectedTaskType = this.detectTaskType(parsedMessages);
 
     return {
       messageCount: lines.length,
       userPrompts,
       assistantResponses,
       toolCalls,
-      filesCreated: [...new Set(filesCreated)],
-      filesModified: [...new Set(filesModified)],
-      duration: 0, // TODO: Could calculate from timestamps
+      filesCreated: uniqueFilesCreated,
+      filesModified: uniqueFilesModified,
+      duration: 0,
       summary: summaryText,
+      detectedDecisions: detectedDecisions.length > 0 ? detectedDecisions : undefined,
+      detectedErrors: detectedErrors.length > 0 ? detectedErrors : undefined,
+      filePromptCorrelations: filePromptCorrelations.length > 0 ? filePromptCorrelations : undefined,
+      detectedTaskType,
     };
   }
 
@@ -338,7 +398,7 @@ export class SessionCaptureService implements ISessionCaptureService {
   }
 
   /**
-   * Build facts from work summary.
+   * Build facts from work summary including heuristic-detected facts.
    */
   buildFacts(work: IWorkSummary, sessionId?: string): string[] {
     const facts: string[] = [];
@@ -375,6 +435,27 @@ export class SessionCaptureService implements ISessionCaptureService {
       }
     }
 
+    // Add heuristic-detected decision facts
+    if (work.detectedDecisions) {
+      for (const decision of work.detectedDecisions) {
+        facts.push(`DECISION: ${decision.text} [source:session-capture, confidence:medium, type:decision]`);
+      }
+    }
+
+    // Add heuristic-detected error facts
+    if (work.detectedErrors) {
+      for (const error of work.detectedErrors) {
+        facts.push(`ERROR: ${error.text} [source:session-capture, confidence:medium, type:error]`);
+      }
+    }
+
+    // Add file-prompt correlation facts
+    if (work.filePromptCorrelations) {
+      for (const corr of work.filePromptCorrelations) {
+        facts.push(`FILE-CONTEXT: ${corr.filePath} — triggered by: ${corr.triggerSnippet} [source:session-capture, confidence:low, type:correlation, file:${corr.filePath}]`);
+      }
+    }
+
     return facts;
   }
 
@@ -395,6 +476,284 @@ export class SessionCaptureService implements ISessionCaptureService {
     }
 
     return 'low';
+  }
+
+  // ============================================================
+  // Heuristic Detection Methods
+  // ============================================================
+
+  /**
+   * Detect user decisions from confirmation patterns.
+   *
+   * Scans for user messages matching confirmation patterns (yes, ok, sounds good, etc.)
+   * preceded by assistant messages that present options or recommendations.
+   */
+  private detectDecisions(messages: IParsedMessage[]): IDetectedDecision[] {
+    const decisions: IDetectedDecision[] = [];
+
+    for (let i = 0; i < messages.length; i++) {
+      if (decisions.length >= MAX_DECISIONS) break;
+
+      const msg = messages[i];
+      if (msg.role !== 'user') continue;
+      if (!CONFIRMATION_PATTERN.test(msg.text.trim())) continue;
+
+      // Look backward within 3 messages for an assistant message with options
+      for (let j = i - 1; j >= Math.max(0, i - 3); j--) {
+        const prev = messages[j];
+        if (prev.role !== 'assistant') continue;
+        if (!OPTION_PRESENTING_PATTERN.test(prev.text)) continue;
+
+        // Extract decision topic from the assistant's message (first sentence or first 120 chars)
+        const topic = this.extractDecisionTopic(prev.text);
+        if (topic) {
+          decisions.push({
+            text: topic,
+            userMessage: msg.text.slice(0, 100),
+            confidence: 0.6,
+          });
+        }
+        break;
+      }
+    }
+
+    return decisions;
+  }
+
+  /**
+   * Detect errors from stack traces, error types, tool failures, and retry patterns.
+   */
+  private detectErrors(messages: IParsedMessage[]): IDetectedError[] {
+    const errors: IDetectedError[] = [];
+
+    // 1. Detect stack traces and Error: patterns in message content
+    for (const msg of messages) {
+      if (errors.length >= MAX_ERRORS) break;
+      if (!msg.text) continue;
+
+      if (STACK_TRACE_PATTERN.test(msg.text)) {
+        const errorLine = this.extractErrorLine(msg.text);
+        if (errorLine) {
+          errors.push({
+            text: errorLine,
+            errorType: 'stack-trace',
+            context: msg.text.slice(0, 200),
+          });
+        }
+      } else if (ERROR_TYPE_PATTERN.test(msg.text)) {
+        const match = msg.text.match(ERROR_TYPE_PATTERN);
+        if (match) {
+          const errorText = msg.text.slice(msg.text.indexOf(match[0]), msg.text.indexOf(match[0]) + 150).split('\n')[0];
+          errors.push({
+            text: errorText.trim(),
+            errorType: 'stack-trace',
+          });
+        }
+      }
+    }
+
+    // 2. Detect tool failures
+    if (errors.length < MAX_ERRORS) {
+      for (const msg of messages) {
+        if (errors.length >= MAX_ERRORS) break;
+        if (msg.role === 'tool_result' && msg.isError) {
+          errors.push({
+            text: `Tool failure: ${msg.text.slice(0, 100)}`,
+            errorType: 'tool-failure',
+          });
+        }
+      }
+    }
+
+    // 3. Detect retry patterns (same tool_use name >2 times in sequence)
+    if (errors.length < MAX_ERRORS) {
+      let consecutiveCount = 0;
+      let lastToolName = '';
+      for (const msg of messages) {
+        if (msg.role === 'tool_use' && msg.toolName) {
+          if (msg.toolName === lastToolName) {
+            consecutiveCount++;
+          } else {
+            consecutiveCount = 1;
+            lastToolName = msg.toolName;
+          }
+          if (consecutiveCount > 2 && errors.length < MAX_ERRORS) {
+            errors.push({
+              text: `Retry pattern detected: tool "${lastToolName}" called ${consecutiveCount}+ times consecutively`,
+              errorType: 'retry-pattern',
+            });
+            break;
+          }
+        } else if (msg.role !== 'tool_result') {
+          // Reset on non-tool messages (but tool_result follows tool_use so skip that)
+          consecutiveCount = 0;
+          lastToolName = '';
+        }
+      }
+    }
+
+    return errors;
+  }
+
+  /**
+   * Correlate file changes with preceding user prompts.
+   *
+   * For each changed file, find preceding user prompt (within 3-message window)
+   * whose text mentions the file name or related keywords.
+   */
+  private correlateFilePrompts(
+    messages: IParsedMessage[],
+    filesCreated: readonly string[],
+    filesModified: readonly string[]
+  ): IFilePromptCorrelation[] {
+    const correlations: IFilePromptCorrelation[] = [];
+    const allFiles = [...filesCreated, ...filesModified];
+    const matchedFiles = new Set<string>();
+
+    // Collect all user messages for matching
+    const userMessages: Array<{ index: number; text: string }> = [];
+    for (let i = 0; i < messages.length; i++) {
+      if (messages[i].role === 'user' && messages[i].text) {
+        userMessages.push({ index: i, text: messages[i].text });
+      }
+    }
+
+    for (const filePath of allFiles) {
+      if (correlations.length >= MAX_CORRELATIONS) break;
+      if (matchedFiles.has(filePath)) continue;
+
+      const fileName = path.basename(filePath);
+      const fileNameNoExt = fileName.replace(/\.[^.]+$/, '');
+
+      // Search user messages for mentions of this file
+      for (const userMsg of userMessages) {
+        const textLower = userMsg.text.toLowerCase();
+        if (
+          textLower.includes(fileName.toLowerCase()) ||
+          textLower.includes(fileNameNoExt.toLowerCase())
+        ) {
+          correlations.push({
+            filePath,
+            triggerSnippet: userMsg.text.slice(0, 100),
+          });
+          matchedFiles.add(filePath);
+          break;
+        }
+      }
+    }
+
+    return correlations;
+  }
+
+  /**
+   * Detect the dominant task type from user prompts using DETECTION_SIGNALS.
+   */
+  private detectTaskType(messages: IParsedMessage[]): TaskType | undefined {
+    const scores: Record<TaskType, number> = {
+      planning: 0,
+      execution: 0,
+      exploration: 0,
+      debugging: 0,
+    };
+
+    for (const msg of messages) {
+      if (msg.role !== 'user' || !msg.text) continue;
+      const textLower = msg.text.toLowerCase();
+
+      for (const [taskType, signals] of Object.entries(DETECTION_SIGNALS)) {
+        for (const signal of signals) {
+          if (textLower.includes(signal.toLowerCase())) {
+            scores[taskType as TaskType]++;
+          }
+        }
+      }
+    }
+
+    // Find dominant type
+    let maxScore = 0;
+    let dominant: TaskType | undefined;
+    for (const [taskType, score] of Object.entries(scores)) {
+      if (score > maxScore) {
+        maxScore = score;
+        dominant = taskType as TaskType;
+      }
+    }
+
+    // Only return if there's a meaningful signal
+    return maxScore > 0 ? dominant : undefined;
+  }
+
+  // ============================================================
+  // Helper Methods
+  // ============================================================
+
+  /**
+   * Extract text content from a transcript message.
+   */
+  private extractMessageText(msg: ITranscriptMessage): string {
+    const content = msg.message?.content;
+    if (typeof content === 'string') {
+      return content;
+    }
+    if (Array.isArray(content)) {
+      const textBlock = content.find(c => c.type === 'text');
+      if (textBlock?.text) {
+        return textBlock.text;
+      }
+    }
+    return '';
+  }
+
+  /**
+   * Extract tool name from a transcript message.
+   */
+  private extractToolName(msg: ITranscriptMessage): string | undefined {
+    const content = msg.message?.content;
+    if (Array.isArray(content)) {
+      const toolBlock = content.find(c => c.name);
+      if (toolBlock?.name) return toolBlock.name;
+    }
+    return undefined;
+  }
+
+  /**
+   * Check if a tool_result message indicates an error.
+   */
+  private extractToolError(msg: ITranscriptMessage): boolean {
+    const content = msg.message?.content;
+    if (Array.isArray(content)) {
+      return content.some(c => c.is_error === true);
+    }
+    return false;
+  }
+
+  /**
+   * Extract the first Error: line from text containing a stack trace.
+   */
+  private extractErrorLine(text: string): string | null {
+    const lines = text.split('\n');
+    for (const line of lines) {
+      if (ERROR_TYPE_PATTERN.test(line)) {
+        return line.trim().slice(0, 150);
+      }
+    }
+    // Fallback: use first line
+    return lines[0] ? lines[0].trim().slice(0, 150) : null;
+  }
+
+  /**
+   * Extract a decision topic from an assistant's message.
+   * Takes the first sentence or first 120 characters.
+   */
+  private extractDecisionTopic(text: string): string | null {
+    if (!text) return null;
+    // Try to get first sentence
+    const sentenceMatch = text.match(/^[^.!?]+[.!?]/);
+    if (sentenceMatch && sentenceMatch[0].length <= 120) {
+      return sentenceMatch[0].trim();
+    }
+    // Fallback: first 120 chars
+    return text.slice(0, 120).trim();
   }
 
   /**

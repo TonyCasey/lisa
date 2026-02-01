@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Heuristic Session Capture Enhancement ([#179](https://github.com/TonyCasey/lisa/issues/179))
+
+Added heuristic detection methods to `SessionCaptureService` for richer session capture without LLM dependency, plus quality tags on saved facts.
+
+- `IWorkSummary` extended with `detectedDecisions`, `detectedErrors`, `filePromptCorrelations`, and `detectedTaskType` optional fields
+- New companion interfaces: `IDetectedDecision`, `IDetectedError`, `IFilePromptCorrelation`
+- `SessionCaptureService.parseTranscript()` now runs 4 heuristic detectors: decision detection, error detection, file-prompt correlation, and task type detection
+- `SessionCaptureService.buildFacts()` emits `DECISION:`, `ERROR:`, and `FILE-CONTEXT:` facts with inline quality tags
+- `ICapturedWork` extended with optional `work` field carrying the full `IWorkSummary` with heuristic metadata
+- `SessionStopHandler` saves facts with quality tags: `source:session-capture`, `confidence:medium`, and conditional `taskType:<type>`
+- 33 new unit tests covering all heuristic detectors and quality tag behavior
+
 #### Natural Language Curation ([#172](https://github.com/TonyCasey/lisa/issues/172))
 
 Added LLM-powered natural language interface for memory management, translating commands like "forget everything about the old API" into structured operations with plan-then-execute workflow.

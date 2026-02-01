@@ -95,11 +95,17 @@ export class SessionStopHandler implements IRequestHandler<SessionStopRequest, I
       };
     }
 
-    // Save captured facts to memory with session lifecycle
+    // Build quality tags for session capture
+    const tags: string[] = ['type:session-capture', 'source:session-capture', 'confidence:medium'];
+    if (captured.work?.detectedTaskType) {
+      tags.push(`taskType:${captured.work.detectedTaskType}`);
+    }
+
+    // Save captured facts to memory with session lifecycle and quality tags
     for (const fact of captured.facts) {
       await this.memory.addFactWithLifecycle(this.context.groupId, fact, {
         lifecycle: 'session',
-        tags: ['type:session-capture'],
+        tags,
       });
     }
 
