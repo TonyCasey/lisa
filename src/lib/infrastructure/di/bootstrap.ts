@@ -23,6 +23,7 @@ import type { ILlmService } from '../../domain/interfaces/ILlmService';
 import type { ILlmUsageTracker } from '../../domain/interfaces/ILlmUsageTracker';
 import type { ILlmGuard } from '../../domain/interfaces/ILlmGuard';
 import type { ITranscriptEnricher } from '../../domain/interfaces/ITranscriptEnricher';
+import type { ITaskTypeDetector } from '../../domain/interfaces/ITaskTypeDetector';
 import type { IMemoryServiceWithQuality } from '../../domain/interfaces/IMemoryService';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
 import type { IConnectionManagers } from '../dal';
@@ -62,6 +63,7 @@ import { createTranscriptEnricher } from '../services/TranscriptEnricher';
 import { createLlmDeduplicationEnhancer } from '../services/LlmDeduplicationEnhancer';
 import type { ILlmDeduplicationEnhancer } from '../services/LlmDeduplicationEnhancer';
 import { createNlCurationService } from '../services/NlCurationService';
+import { createTaskTypeDetector } from '../services/TaskTypeDetector';
 import type { ICurationService } from '../../domain/interfaces/ICurationService';
 import type { IConsolidationService } from '../../domain/interfaces/IConsolidationService';
 import type { ISummarizationService } from '../../domain/interfaces/ISummarizationService';
@@ -357,6 +359,9 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
     'transient'
   );
 
+  // Task Type Detector (singleton - stateless, deterministic)
+  container.registerInstance(TOKENS.TaskTypeDetector, createTaskTypeDetector());
+
   // GitHub Sync Service (singleton - optional, may not be available)
   const enableGitHubSync = config.enableGitHubSync !== false;
   if (enableGitHubSync) {
@@ -459,7 +464,8 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
       const mem = await container.resolve<IMemoryService>(TOKENS.MemoryService);
       const rec = await container.resolve<IRecursionService>(TOKENS.RecursionService);
       const log = await container.resolve<ILogger>(TOKENS.Logger);
-      return new PromptSubmitHandler(ctx, mem, rec, log);
+      const detector = await container.resolve<ITaskTypeDetector>(TOKENS.TaskTypeDetector);
+      return new PromptSubmitHandler(ctx, mem, rec, log, detector);
     },
     'transient'
   );

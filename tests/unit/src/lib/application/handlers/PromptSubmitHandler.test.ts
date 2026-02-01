@@ -19,6 +19,8 @@ import type {
   IRecursionService,
   IRecursionResult,
   ILogger,
+  ITaskTypeDetector,
+  ITaskTypeResult,
   PermissionMode,
 } from '../../../../../../src/lib/domain';
 
@@ -100,6 +102,20 @@ function createMockServices(overrides: Partial<ILisaServices> = {}): ILisaServic
     logger: createMockLogger(),
     ...overrides,
   } as ILisaServices;
+}
+
+function createMockTaskTypeDetector(
+  result?: Partial<ITaskTypeResult>
+): ITaskTypeDetector {
+  const defaultResult: ITaskTypeResult = {
+    taskType: 'execution',
+    confidence: 0.5,
+    signals: ['implement'],
+    ...result,
+  };
+  return {
+    detect: () => defaultResult,
+  };
 }
 
 // ============================================================================
@@ -465,6 +481,156 @@ describe('PromptSubmitHandler', () => {
 
       assert.strictEqual(result.planModeRecursion, false);
       assert.strictEqual(result.additionalContext, undefined);
+    });
+  });
+
+  describe('task type detection (#180)', () => {
+    it('should add taskType tag when detector is provided', async () => {
+      let savedTags: string[] = [];
+      const mockMemory = createMockMemoryService({
+        addFactWithLifecycle: async (_groupId, _fact, options) => {
+          const opts = options as { tags: string[] };
+          savedTags = opts.tags;
+        },
+      });
+
+      const detector = createMockTaskTypeDetector({ taskType: 'debugging' });
+      const handler = new PromptSubmitHandler(context, mockMemory, undefined, undefined, detector);
+      const request = new PromptSubmitRequest('Fix the bug', '2024-01-15T10:00:00.000Z');
+
+      await handler.handle(request);
+
+      assert.ok(savedTags.includes('type:prompt'), 'Should have type:prompt tag');
+      assert.ok(savedTags.includes('taskType:debugging'), 'Should have taskType:debugging tag');
+    });
+
+    it('should not add taskType tag when no detector provided', async () => {
+      let savedTags: string[] = [];
+      const mockMemory = createMockMemoryService({
+        addFactWithLifecycle: async (_groupId, _fact, options) => {
+          const opts = options as { tags: string[] };
+          savedTags = opts.tags;
+        },
+      });
+
+      const handler = new PromptSubmitHandler(context, mockMemory);
+      const request = new PromptSubmitRequest('Fix the bug', '2024-01-15T10:00:00.000Z');
+
+      await handler.handle(request);
+
+      assert.deepStrictEqual(savedTags, ['type:prompt']);
+    });
+
+    it('should add flag:decision for confirmation prompts', async () => {
+      let savedTags: string[] = [];
+      const mockMemory = createMockMemoryService({
+        addFactWithLifecycle: async (_groupId, _fact, options) => {
+          const opts = options as { tags: string[] };
+          savedTags = opts.tags;
+        },
+      });
+
+      const detector = createMockTaskTypeDetector({ taskType: 'planning' });
+      const handler = new PromptSubmitHandler(context, mockMemory, undefined, undefined, detector);
+      const request = new PromptSubmitRequest('Yes, go ahead with that', '2024-01-15T10:00:00.000Z');
+
+      await handler.handle(request);
+
+      assert.ok(savedTags.includes('flag:decision'), 'Should have flag:decision tag');
+    });
+
+    it('should not add flag:decision for non-confirmation prompts', async () => {
+      let savedTags: string[] = [];
+      const mockMemory = createMockMemoryService({
+        addFactWithLifecycle: async (_groupId, _fact, options) => {
+          const opts = options as { tags: string[] };
+          savedTags = opts.tags;
+        },
+      });
+
+      const detector = createMockTaskTypeDetector();
+      const handler = new PromptSubmitHandler(context, mockMemory, undefined, undefined, detector);
+      const request = new PromptSubmitRequest('Implement the caching layer', '2024-01-15T10:00:00.000Z');
+
+      await handler.handle(request);
+
+      assert.ok(!savedTags.includes('flag:decision'), 'Should not have flag:decision tag');
+    });
+
+    it('should pass detected taskType to recursion service', async () => {
+      let receivedTaskType: string | undefined;
+      const mockRecursion = createMockRecursionService({
+        shouldRun: () => true,
+        run: async (_prompt, _groupIds, taskType) => {
+          receivedTaskType = taskType;
+          return createMockRecursionResult({ hasContext: true, summary: 'context' });
+        },
+      });
+
+      const detector = createMockTaskTypeDetector({ taskType: 'planning' });
+      const handler = new PromptSubmitHandler(context, memory, mockRecursion, logger, detector);
+      const request = new PromptSubmitRequest(
+        'Plan the feature',
+        '2024-01-15T10:00:00.000Z',
+        undefined,
+        'plan' as PermissionMode
+      );
+
+      await handler.handle(request);
+
+      assert.strictEqual(receivedTaskType, 'planning');
+    });
+
+    it('should detect various confirmation patterns for flag:decision', async () => {
+      const confirmations = ['Yes', 'ok', 'Sounds good', 'Go ahead', 'Approved', 'Do that', 'Agreed'];
+
+      for (const confirmation of confirmations) {
+        let savedTags: string[] = [];
+        const mockMemory = createMockMemoryService({
+          addFactWithLifecycle: async (_groupId, _fact, options) => {
+            const opts = options as { tags: string[] };
+            savedTags = opts.tags;
+          },
+        });
+
+        const handler = new PromptSubmitHandler(context, mockMemory);
+        const request = new PromptSubmitRequest(confirmation, '2024-01-15T10:00:00.000Z');
+
+        await handler.handle(request);
+
+        assert.ok(
+          savedTags.includes('flag:decision'),
+          `Should detect decision for: "${confirmation}"`
+        );
+      }
+    });
+
+    it('should work with both detector and recursion service', async () => {
+      let savedTags: string[] = [];
+      const mockMemory = createMockMemoryService({
+        addFactWithLifecycle: async (_groupId, _fact, options) => {
+          const opts = options as { tags: string[] };
+          savedTags = opts.tags;
+        },
+      });
+      const mockRecursion = createMockRecursionService({
+        shouldRun: () => true,
+        run: async () => createMockRecursionResult({ hasContext: true, summary: 'context' }),
+      });
+
+      const detector = createMockTaskTypeDetector({ taskType: 'debugging' });
+      const handler = new PromptSubmitHandler(context, mockMemory, mockRecursion, logger, detector);
+      const request = new PromptSubmitRequest(
+        'Debug the issue',
+        '2024-01-15T10:00:00.000Z',
+        undefined,
+        'plan' as PermissionMode
+      );
+
+      const result = await handler.handle(request);
+
+      assert.ok(savedTags.includes('taskType:debugging'));
+      assert.ok(result.planModeRecursion);
     });
   });
 

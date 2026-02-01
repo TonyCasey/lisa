@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Task Type Detection ([#180](https://github.com/TonyCasey/lisa/issues/180))
+
+Added signal-based task type detection to `PromptSubmitHandler` for mode-aware memory retrieval and decision flagging.
+
+- `TaskTypeDetector` implementation using `DETECTION_SIGNALS` keyword scoring with confidence calculation
+- `createTaskTypeDetector()` factory function
+- `PromptSubmitHandler` now detects task type and adds `taskType:<type>` tag to saved prompt facts
+- Decision confirmation patterns detected and flagged with `flag:decision` tag
+- Detected task type passed to `RecursionService.run()` 3rd parameter for mode-aware retrieval
+- DI registration: `TaskTypeDetector` as singleton instance
+- 28 new unit tests (21 for TaskTypeDetector, 7 for PromptSubmitHandler task type integration)
+
 #### Heuristic Session Capture Enhancement ([#179](https://github.com/TonyCasey/lisa/issues/179))
 
 Added heuristic detection methods to `SessionCaptureService` for richer session capture without LLM dependency, plus quality tags on saved facts.
