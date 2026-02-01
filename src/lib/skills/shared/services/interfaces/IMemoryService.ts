@@ -86,6 +86,29 @@ export interface IMemoryCleanupResult {
 }
 
 /**
+ * A group of potentially conflicting facts sharing a topic.
+ */
+export interface IConflictGroup {
+  topic: string;
+  facts: IFact[];
+  detectedAt: string;
+}
+
+/**
+ * Result of a memory conflicts operation.
+ */
+export interface IMemoryConflictsResult {
+  status: 'ok';
+  action: 'conflicts';
+  group: string;
+  groups: string[];
+  topic: string;
+  conflictGroups: IConflictGroup[];
+  totalConflicts: number;
+  mode: 'neo4j';
+}
+
+/**
  * Memory service interface.
  */
 export interface IMemoryService {
@@ -142,4 +165,16 @@ export interface IMemoryService {
     groupId: string,
     dryRun: boolean
   ): Promise<IMemoryCleanupResult>;
+
+  /**
+   * Find groups of potentially conflicting facts.
+   * Detects facts sharing a type:* tag but with differing content.
+   *
+   * @param groupIds - Group identifiers to search
+   * @param topic - Optional topic tag to filter by
+   */
+  conflicts(
+    groupIds: string[],
+    topic?: string
+  ): Promise<IMemoryConflictsResult>;
 }

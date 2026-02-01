@@ -11,6 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Neo4j Quality Repository with Confidence Filtering and Conflict Detection ([#159](https://github.com/TonyCasey/lisa/issues/159))
+
+Implemented quality-aware queries for the Neo4j memory repository, enabling confidence-based filtering and conflict detection across memory facts.
+
+- `findByMinConfidence()` — Cypher query filtering facts by `confidence:*` tags at or above a minimum level
+- `findConflicts()` — Cypher query detecting facts sharing `type:*` topic tags with differing content
+- `IMemoryQualityReader` domain interface with `findByMinConfidence()` and `findConflicts()`
+- `IMemoryServiceWithQuality` extended interface (backward compatible)
+- `lisa memory conflicts` CLI command with `--topic` and `--group` flags
+- Quality methods on domain `MemoryService` delegating to DAL router
+- Skill-level `conflicts` command in `MemoryCliService` and `MemoryService`
+
+Part of Epic [#158](https://github.com/TonyCasey/lisa/issues/158)
+
 #### Memory Relationship Domain Types ([#150](https://github.com/TonyCasey/lisa/issues/150))
 
 Added domain types and interfaces for typed relationships between memory facts, enabling structured knowledge graphs where decisions can supersede others, facts can support or contradict each other, and implementations can be linked to decisions.

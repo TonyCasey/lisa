@@ -8,7 +8,11 @@ import type {
   IStructuredLogger,
   ILogContext,
   IMemorySaveOptions,
+  IMemoryQualityReader,
 } from '../../domain';
+import type { ConfidenceLevel } from '../../domain/interfaces/types/IMemoryQuality';
+import type { IConflictGroup, IQueryOptions } from '../../domain/interfaces/dal/types';
+import type { IMemoryRepositoryQuality } from '../../domain/interfaces/dal';
 import {
   createMemoryResultBuilder,
   withCancellation,
@@ -44,7 +48,7 @@ interface McpMemoryResponse {
  *
  * When only MCP is provided, falls back to MCP for all operations.
  */
-export class MemoryService implements IMemoryService {
+export class MemoryService implements IMemoryService, IMemoryQualityReader {
   private readonly logger: ILogger;
   private readonly structuredLogger: IStructuredLogger;
 
@@ -552,11 +556,60 @@ export class MemoryService implements IMemoryService {
       completeOperation({ data: { backend: 'dal', resultsCount: result.items.length, query } });
       return [...result.items];
     } catch (error) {
-      completeOperation({ 
+      completeOperation({
         data: { backend: 'dal', query },
         error: (error as Error).message,
       });
       return [];
     }
+  }
+
+  /**
+   * Find facts at or above a minimum confidence level.
+   * Routes to Neo4j repository for tag-based confidence filtering.
+   */
+  async findByMinConfidence(
+    groupIds: readonly string[],
+    minLevel: ConfidenceLevel,
+    options?: IQueryOptions
+  ): Promise<IMemoryItem[]> {
+    if (!this.router) {
+      throw new Error('Quality queries require a DAL router with Neo4j support');
+    }
+
+    const repo = this.router.getMemoryRepository('list');
+    if (!('findByMinConfidence' in repo)) {
+      throw new Error('Memory repository does not support quality queries');
+    }
+
+    const result = await (repo as unknown as IMemoryRepositoryQuality).findByMinConfidence(
+      groupIds,
+      minLevel,
+      options
+    );
+    return [...result.items];
+  }
+
+  /**
+   * Find groups of potentially conflicting facts.
+   * Routes to Neo4j repository for conflict detection.
+   */
+  async findConflicts(
+    groupIds: readonly string[],
+    topic?: string
+  ): Promise<readonly IConflictGroup[]> {
+    if (!this.router) {
+      throw new Error('Quality queries require a DAL router with Neo4j support');
+    }
+
+    const repo = this.router.getMemoryRepository('list');
+    if (!('findConflicts' in repo)) {
+      throw new Error('Memory repository does not support quality queries');
+    }
+
+    return (repo as unknown as IMemoryRepositoryQuality).findConflicts(
+      groupIds,
+      topic
+    );
   }
 }

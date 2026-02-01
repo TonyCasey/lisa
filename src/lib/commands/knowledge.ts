@@ -13,7 +13,7 @@ export function registerKnowledgeCommands(program: Command): void {
   // Subcommand: lisa memory
   const memoryCmd = program
     .command('memory')
-    .description('Memory operations (load, add, expire, cleanup)');
+    .description('Memory operations (load, add, expire, cleanup, conflicts)');
 
   memoryCmd
     .command('load')
@@ -82,6 +82,21 @@ export function registerKnowledgeCommands(program: Command): void {
       const args = ['cleanup'];
       if (opts.group) args.push('--group', opts.group);
       if (opts.dryRun) args.push('--dry-run');
+      if (opts.cache) args.push('--cache');
+      const scriptPath = path.join(__dirname, '..', 'skills', 'memory', 'memory.js');
+      await spawnAndWait(scriptPath, args, getSkillCacheEnv('memory'));
+    });
+
+  memoryCmd
+    .command('conflicts')
+    .description('Find groups of potentially conflicting facts')
+    .option('-g, --group <id>', 'Group ID')
+    .option('--topic <tag>', 'Filter by topic tag (e.g. type:decision)')
+    .option('--cache', 'Use cache fallback')
+    .action(async (opts) => {
+      const args = ['conflicts'];
+      if (opts.group) args.push('--group', opts.group);
+      if (opts.topic) args.push('--topic', opts.topic);
       if (opts.cache) args.push('--cache');
       const scriptPath = path.join(__dirname, '..', 'skills', 'memory', 'memory.js');
       await spawnAndWait(scriptPath, args, getSkillCacheEnv('memory'));

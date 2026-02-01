@@ -10,12 +10,13 @@ import type {
   IMemoryAddResult,
   IMemoryExpireResult,
   IMemoryCleanupResult,
+  IMemoryConflictsResult,
   IMemoryLoadOptions,
 } from './interfaces';
 import { parseDate } from '../../../utils/dateParser';
 
 /** CLI result union for all memory commands. */
-export type MemoryCliResult = IMemoryLoadResult | IMemoryAddResult | IMemoryExpireResult | IMemoryCleanupResult;
+export type MemoryCliResult = IMemoryLoadResult | IMemoryAddResult | IMemoryExpireResult | IMemoryCleanupResult | IMemoryConflictsResult;
 
 /**
  * Parsed memory CLI arguments.
@@ -35,6 +36,7 @@ export interface IMemoryCliArgs {
   ttl: string | null;
   dryRun: boolean;
   uuid: string | null;
+  topic: string | null;
 }
 
 /**
@@ -113,11 +115,11 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
       const {
         command, payload, explicitGroup, query, limit,
         explicitTag, entityType, source, since, until,
-        lifecycle, ttl, dryRun, uuid,
+        lifecycle, ttl, dryRun, uuid, topic,
       } = args;
 
-      if (!['add', 'load', 'expire', 'cleanup'].includes(command)) {
-        throw new Error('command must be add|load|expire|cleanup');
+      if (!['add', 'load', 'expire', 'cleanup', 'conflicts'].includes(command)) {
+        throw new Error('command must be add|load|expire|cleanup|conflicts');
       }
 
       // Use explicit --group if provided, otherwise use canonical folder-based group ID
@@ -156,6 +158,9 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
         result = await memoryService.expire(groupId, targetUuid);
       } else if (command === 'cleanup') {
         result = await memoryService.cleanup(groupId, dryRun);
+      } else if (command === 'conflicts') {
+        const groupIds = explicitGroup ? [explicitGroup] : getGroupIds();
+        result = await memoryService.conflicts(groupIds, topic ?? undefined);
       } else {
         // add
         if (!payload) throw new Error('add requires text payload');

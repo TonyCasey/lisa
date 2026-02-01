@@ -14,6 +14,8 @@ import type {
   IMemoryLoadOptions,
   IMemoryExpireResult,
   IMemoryCleanupResult,
+  IMemoryConflictsResult,
+  IConflictGroup,
 } from './interfaces';
 import { LIFECYCLE_DEFAULTS, resolveLifecycleTag } from '../../../domain/interfaces/types/IMemoryLifecycle';
 import type { MemoryLifecycle } from '../../../domain/interfaces/types/IMemoryLifecycle';
@@ -319,6 +321,72 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
           group: groupId,
           expiredCount: totalExpired,
           dryRun,
+          mode: 'neo4j',
+        };
+      } finally {
+        await neo4jClient.disconnect();
+      }
+    },
+
+    async conflicts(
+      groupIds: string[],
+      topic?: string
+    ): Promise<IMemoryConflictsResult> {
+      await neo4jClient.connect();
+      try {
+        const params: Record<string, unknown> = { groupIds };
+
+        const whereClauses: string[] = [
+          `r.group_id IN $groupIds`,
+          `r.fact IS NOT NULL`,
+          `r.expired_at IS NULL`,
+          `ANY(tag IN r.tags WHERE tag STARTS WITH 'type:')`,
+        ];
+
+        if (topic) {
+          whereClauses.push(`$topic IN r.tags`);
+          params.topic = topic;
+        }
+
+        const whereClause = whereClauses.join(' AND ');
+
+        const cypher = `
+          MATCH (s:Entity)-[r]->(t:Entity)
+          WHERE ${whereClause}
+          WITH [tag IN r.tags WHERE tag STARTS WITH 'type:' | tag][0] AS topicTag,
+               r.uuid AS uuid, r.name AS name, r.fact AS fact,
+               r.created_at AS created_at
+          WITH topicTag, COLLECT({ uuid: uuid, name: name, fact: fact, created_at: created_at }) AS facts
+          WHERE SIZE(facts) > 1
+          RETURN topicTag, facts
+          LIMIT 20
+        `;
+
+        const records = await neo4jClient.query<{
+          topicTag: string;
+          facts: Array<{ uuid: string; name: string; fact: string; created_at: string }>;
+        }>(cypher, params);
+
+        const conflictGroups: IConflictGroup[] = records.map((record) => ({
+          topic: record.topicTag,
+          facts: record.facts.map((f) => ({
+            uuid: f.uuid,
+            name: f.name,
+            fact: f.fact,
+            group_id: groupIds[0] || '',
+            created_at: f.created_at,
+          })),
+          detectedAt: new Date().toISOString(),
+        }));
+
+        return {
+          status: 'ok',
+          action: 'conflicts',
+          group: groupIds[0] || '',
+          groups: groupIds,
+          topic: topic || '',
+          conflictGroups,
+          totalConflicts: conflictGroups.length,
           mode: 'neo4j',
         };
       } finally {

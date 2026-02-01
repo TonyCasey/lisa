@@ -7,13 +7,20 @@
 
 import type { IMemoryItem } from '../../../../domain/interfaces/types/IMemoryResult';
 import type {
-  IReadOnlyMemoryRepositoryWithExpiration,
+  IReadOnlyMemoryRepositoryWithQuality,
   IQueryOptions,
   IMemoryQueryResult,
   IExpirationFilter,
+  IConflictGroup,
 } from '../../../../domain/interfaces/dal';
 import { applyQueryDefaults } from '../../../../domain/interfaces/dal';
 import { resolveLifecycleTag } from '../../../../domain/interfaces/types/IMemoryLifecycle';
+import type { ConfidenceLevel } from '../../../../domain/interfaces/types/IMemoryQuality';
+import {
+  CONFIDENCE_VALUES,
+  CONFIDENCE_SCORES,
+  resolveConfidenceTag,
+} from '../../../../domain/interfaces/types/IMemoryQuality';
 import { Neo4jConnectionManager } from '../../connections/Neo4jConnectionManager';
 
 /**
@@ -41,7 +48,7 @@ interface Neo4jCountRecord {
  * Neo4j Memory Repository implementation.
  * Read-only with expiration support: writes go through MCP for proper Graphiti ingestion.
  */
-export class Neo4jMemoryRepository implements IReadOnlyMemoryRepositoryWithExpiration {
+export class Neo4jMemoryRepository implements IReadOnlyMemoryRepositoryWithQuality {
   constructor(private readonly connection: Neo4jConnectionManager) {}
 
   /**
@@ -237,6 +244,119 @@ export class Neo4jMemoryRepository implements IReadOnlyMemoryRepositoryWithExpir
     await this.connection.write(expireCypher, params);
 
     return count;
+  }
+
+  /**
+   * Find facts at or above a minimum confidence level.
+   * Filters by confidence:* tags using CONFIDENCE_SCORES ordering.
+   */
+  async findByMinConfidence(
+    groupIds: readonly string[],
+    minLevel: ConfidenceLevel,
+    options?: IQueryOptions
+  ): Promise<IMemoryQueryResult> {
+    const opts = applyQueryDefaults(options);
+    const { limit, offset, sort, includeExpired } = opts;
+
+    // Build list of confidence tags at or above the minimum level
+    const minScore = CONFIDENCE_SCORES[minLevel];
+    const acceptedTags = CONFIDENCE_VALUES
+      .filter((level) => CONFIDENCE_SCORES[level] >= minScore)
+      .map(resolveConfidenceTag);
+
+    const groupList = groupIds.map((g) => `"${g}"`).join(', ');
+    const tagList = acceptedTags.map((t) => `"${t}"`).join(', ');
+    const sortField = `r.${sort?.field || 'created_at'}`;
+    const sortOrder = sort?.order === 'asc' ? 'ASC' : 'DESC';
+
+    const whereClauses: string[] = [
+      `r.group_id IN [${groupList}]`,
+      `r.fact IS NOT NULL`,
+      `ANY(tag IN r.tags WHERE tag IN [${tagList}])`,
+    ];
+
+    if (!includeExpired) {
+      whereClauses.push(`r.expired_at IS NULL`);
+    }
+
+    const whereClause = whereClauses.join(' AND ');
+
+    const cypher = `
+      MATCH (s:Entity)-[r]->(t:Entity)
+      WHERE ${whereClause}
+      RETURN r.uuid AS uuid, r.group_id AS group_id, r.name AS name,
+             r.fact AS fact, r.created_at AS created_at,
+             r.valid_at AS valid_at, r.invalid_at AS invalid_at,
+             r.expired_at AS expired_at
+      ORDER BY ${sortField} ${sortOrder}
+      SKIP ${offset}
+      LIMIT ${limit}
+    `;
+
+    const records = await this.connection.query<Neo4jFactRecord>(cypher);
+    const items = records.map(this.toMemoryItem);
+
+    return {
+      items,
+      source: 'neo4j',
+      hasMore: items.length === limit,
+    };
+  }
+
+  /**
+   * Find groups of potentially conflicting facts.
+   * Detects facts sharing a type:* tag but with differing content.
+   */
+  async findConflicts(
+    groupIds: readonly string[],
+    topic?: string,
+    options?: IQueryOptions
+  ): Promise<readonly IConflictGroup[]> {
+    const opts = applyQueryDefaults(options);
+    const { limit } = opts;
+
+    const groupList = groupIds.map((g) => `"${g}"`).join(', ');
+
+    const whereClauses: string[] = [
+      `r.group_id IN [${groupList}]`,
+      `r.fact IS NOT NULL`,
+      `r.expired_at IS NULL`,
+      `ANY(tag IN r.tags WHERE tag STARTS WITH 'type:')`,
+    ];
+
+    if (topic) {
+      whereClauses.push(`"${topic}" IN r.tags`);
+    }
+
+    const whereClause = whereClauses.join(' AND ');
+
+    const cypher = `
+      MATCH (s:Entity)-[r]->(t:Entity)
+      WHERE ${whereClause}
+      WITH [tag IN r.tags WHERE tag STARTS WITH 'type:' | tag][0] AS topicTag,
+           r.uuid AS uuid, r.name AS name, r.fact AS fact,
+           r.created_at AS created_at
+      WITH topicTag, COLLECT({ uuid: uuid, name: name, fact: fact, created_at: created_at }) AS facts
+      WHERE SIZE(facts) > 1
+      RETURN topicTag, facts
+      LIMIT ${limit}
+    `;
+
+    const records = await this.connection.query<{
+      topicTag: string;
+      facts: Array<{ uuid: string; name: string; fact: string; created_at: string }>;
+    }>(cypher);
+
+    return records.map((record) => ({
+      topic: record.topicTag,
+      facts: record.facts.map((f) => ({
+        uuid: f.uuid,
+        name: f.name,
+        fact: f.fact,
+        created_at: f.created_at,
+      })),
+      detectedAt: new Date().toISOString(),
+    }));
   }
 
   /**
