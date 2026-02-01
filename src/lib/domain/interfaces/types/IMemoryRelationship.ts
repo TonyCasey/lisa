@@ -45,7 +45,7 @@ export interface IMemoryRelationship {
   readonly targetUuid: string;
   readonly relationType: MemoryRelationType;
   readonly metadata?: string;
-  readonly created_at?: string;
+  readonly createdAt?: string;
 }
 
 /**
