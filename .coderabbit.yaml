@@ -1,7 +1,20 @@
 # CodeRabbit configuration
 # https://docs.coderabbit.ai/guides/configure-coderabbit
-language: en-US
+language: "en-US"
+early_access: false
 reviews:
-  # Review all PRs regardless of target branch (not just main)
-  base_branches:
-    - "**"
+  profile: "assertive"
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  review_details: false
+  auto_apply_labels: true
+  enable_prompt_for_ai_agents: true
+  auto_review:
+    enabled: true
+    drafts: true
+    auto_incremental_review: true
+    base_branches: ".*"
+chat:
+  auto_reply: true
