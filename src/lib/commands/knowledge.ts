@@ -13,7 +13,7 @@ export function registerKnowledgeCommands(program: Command): void {
   // Subcommand: lisa memory
   const memoryCmd = program
     .command('memory')
-    .description('Memory operations (load, add, expire, cleanup, conflicts, dedupe)');
+    .description('Memory operations (load, add, expire, cleanup, conflicts, dedupe, curate, consolidate)');
 
   memoryCmd
     .command('load')
@@ -116,6 +116,41 @@ export function registerKnowledgeCommands(program: Command): void {
       if (opts.minSimilarity) args.push('--min-similarity', opts.minSimilarity);
       if (opts.limit) args.push('--limit', String(parseInt(opts.limit, 10)));
       if (opts.since) args.push('--since', opts.since);
+      if (opts.cache) args.push('--cache');
+      const scriptPath = path.join(__dirname, '..', 'skills', 'memory', 'memory.js');
+      await spawnAndWait(scriptPath, args, getSkillCacheEnv('memory'));
+    });
+
+  memoryCmd
+    .command('curate <uuid>')
+    .description('Mark a fact with a curation status (authoritative, draft, deprecated, needs-review)')
+    .option('-g, --group <id>', 'Group ID')
+    .option('--mark <mark>', 'Curation mark (authoritative, draft, deprecated, needs-review)')
+    .option('--cache', 'Use cache fallback')
+    .action(async (uuid: string, opts) => {
+      const args = ['curate', '--uuid', uuid];
+      if (opts.group) args.push('--group', opts.group);
+      if (opts.mark) args.push('--mark', opts.mark);
+      if (opts.cache) args.push('--cache');
+      const scriptPath = path.join(__dirname, '..', 'skills', 'memory', 'memory.js');
+      await spawnAndWait(scriptPath, args, getSkillCacheEnv('memory'));
+    });
+
+  memoryCmd
+    .command('consolidate')
+    .description('Consolidate duplicate facts (merge, archive-duplicates, or keep-all)')
+    .argument('<uuids...>', 'Two or more fact UUIDs to consolidate')
+    .option('-g, --group <id>', 'Group ID')
+    .option('--action <action>', 'Consolidation action (merge, archive-duplicates, keep-all)', 'archive-duplicates')
+    .option('--retain <uuid>', 'UUID of the fact to keep (for archive-duplicates)')
+    .option('--text <text>', 'Merged text for the new fact (for merge action)')
+    .option('--cache', 'Use cache fallback')
+    .action(async (uuids: string[], opts) => {
+      const args = ['consolidate', ...uuids];
+      if (opts.group) args.push('--group', opts.group);
+      if (opts.action) args.push('--action', opts.action);
+      if (opts.retain) args.push('--retain', opts.retain);
+      if (opts.text) args.push('--text', opts.text);
       if (opts.cache) args.push('--cache');
       const scriptPath = path.join(__dirname, '..', 'skills', 'memory', 'memory.js');
       await spawnAndWait(scriptPath, args, getSkillCacheEnv('memory'));

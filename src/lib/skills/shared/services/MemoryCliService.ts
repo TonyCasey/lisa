@@ -12,12 +12,14 @@ import type {
   IMemoryCleanupResult,
   IMemoryConflictsResult,
   IMemoryDedupeResult,
+  IMemoryCurateResult,
+  IMemoryConsolidateResult,
   IMemoryLoadOptions,
 } from './interfaces';
 import { parseDate } from '../../../utils/dateParser';
 
 /** CLI result union for all memory commands. */
-export type MemoryCliResult = IMemoryLoadResult | IMemoryAddResult | IMemoryExpireResult | IMemoryCleanupResult | IMemoryConflictsResult | IMemoryDedupeResult;
+export type MemoryCliResult = IMemoryLoadResult | IMemoryAddResult | IMemoryExpireResult | IMemoryCleanupResult | IMemoryConflictsResult | IMemoryDedupeResult | IMemoryCurateResult | IMemoryConsolidateResult;
 
 /**
  * Parsed memory CLI arguments.
@@ -39,6 +41,10 @@ export interface IMemoryCliArgs {
   uuid: string | null;
   topic: string | null;
   minSimilarity: number | null;
+  mark: string | null;
+  action: string | null;
+  retain: string | null;
+  mergedText: string | null;
 }
 
 /**
@@ -118,10 +124,11 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
         command, payload, explicitGroup, query, limit,
         explicitTag, entityType, source, since, until,
         lifecycle, ttl, dryRun, uuid, topic, minSimilarity,
+        mark, action, retain, mergedText,
       } = args;
 
-      if (!['add', 'load', 'expire', 'cleanup', 'conflicts', 'dedupe'].includes(command)) {
-        throw new Error('command must be add|load|expire|cleanup|conflicts|dedupe');
+      if (!['add', 'load', 'expire', 'cleanup', 'conflicts', 'dedupe', 'curate', 'consolidate'].includes(command)) {
+        throw new Error('command must be add|load|expire|cleanup|conflicts|dedupe|curate|consolidate');
       }
 
       // Use explicit --group if provided, otherwise use canonical folder-based group ID
@@ -175,6 +182,20 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
           dedupeOptions.since = parsedSince;
         }
         result = await memoryService.dedupe(groupId, dedupeOptions);
+      } else if (command === 'curate') {
+        const targetUuid = uuid || payload;
+        if (!targetUuid) throw new Error('curate requires a UUID (--uuid <id> or positional argument)');
+        if (!mark) throw new Error('curate requires --mark (authoritative, draft, deprecated, needs-review)');
+        result = await memoryService.curate(groupId, targetUuid, mark);
+      } else if (command === 'consolidate') {
+        // Parse UUIDs from payload (space-separated)
+        const factUuids = payload ? payload.split(/\s+/).filter(Boolean) : [];
+        if (factUuids.length < 2) throw new Error('consolidate requires at least 2 fact UUIDs');
+        const consolidateAction = action || 'archive-duplicates';
+        const consolidateOptions: { retainUuid?: string; mergedText?: string } = {};
+        if (retain) consolidateOptions.retainUuid = retain;
+        if (mergedText) consolidateOptions.mergedText = mergedText;
+        result = await memoryService.consolidate(groupId, factUuids, consolidateAction, consolidateOptions);
       } else {
         // add
         if (!payload) throw new Error('add requires text payload');

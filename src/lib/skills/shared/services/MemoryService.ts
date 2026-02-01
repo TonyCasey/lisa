@@ -16,9 +16,15 @@ import type {
   IMemoryCleanupResult,
   IMemoryConflictsResult,
   IMemoryDedupeResult,
+  IMemoryCurateResult,
+  IMemoryConsolidateResult,
   IConflictGroup,
 } from './interfaces';
 import { detectDuplicatesFromFacts } from '../../../domain/utils/deduplication';
+import { isValidCurationMark, resolveCurationTag } from '../../../domain/interfaces/ICurationService';
+import { resolveConfidenceTag } from '../../../domain/interfaces/types/IMemoryQuality';
+import { CONSOLIDATION_ACTION_VALUES } from '../../../domain/interfaces/IConsolidationService';
+import type { ConsolidationAction } from '../../../domain/interfaces/IConsolidationService';
 import { LIFECYCLE_DEFAULTS, resolveLifecycleTag } from '../../../domain/interfaces/types/IMemoryLifecycle';
 import type { MemoryLifecycle } from '../../../domain/interfaces/types/IMemoryLifecycle';
 
@@ -510,6 +516,201 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
           duplicateGroups: skillGroups,
           totalDuplicates,
           minSimilarity,
+          mode: 'neo4j',
+        };
+      } finally {
+        await neo4jClient.disconnect();
+      }
+    },
+
+    async curate(
+      groupId: string,
+      uuid: string,
+      mark: string
+    ): Promise<IMemoryCurateResult> {
+      if (!isValidCurationMark(mark)) {
+        throw new Error(`Invalid curation mark: "${mark}". Valid marks: authoritative, draft, deprecated, needs-review`);
+      }
+
+      await neo4jClient.connect();
+      try {
+        const curationTag = resolveCurationTag(mark);
+
+        // Add the curation tag to the fact's tags array
+        const addTagCypher = `
+          MATCH (s:Entity)-[r]->(t:Entity)
+          WHERE r.group_id = $groupId AND r.uuid = $uuid AND r.expired_at IS NULL
+          SET r.tags = CASE
+            WHEN r.tags IS NULL THEN [$curationTag]
+            ELSE [tag IN r.tags WHERE NOT tag STARTS WITH 'curated:'] + [$curationTag]
+          END
+          RETURN count(r) AS affected
+        `;
+        const result = await neo4jClient.writeQuery<{ affected: number }>(
+          addTagCypher, { groupId, uuid, curationTag }
+        );
+        const affected = result[0]?.affected ?? 0;
+
+        if (affected === 0) {
+          throw new Error(`Fact not found: uuid="${uuid}" in group="${groupId}"`);
+        }
+
+        // Side effects
+        if (mark === 'deprecated') {
+          // Expire the fact
+          const expireCypher = `
+            MATCH (s:Entity)-[r]->(t:Entity)
+            WHERE r.group_id = $groupId AND r.uuid = $uuid
+            SET r.expired_at = datetime()
+            RETURN count(r) AS affected
+          `;
+          await neo4jClient.writeQuery(expireCypher, { groupId, uuid });
+        }
+
+        if (mark === 'authoritative') {
+          // Promote confidence to verified
+          const confidenceTag = resolveConfidenceTag('verified');
+          const promoteCypher = `
+            MATCH (s:Entity)-[r]->(t:Entity)
+            WHERE r.group_id = $groupId AND r.uuid = $uuid
+            SET r.tags = CASE
+              WHEN r.tags IS NULL THEN [$confidenceTag]
+              ELSE [tag IN r.tags WHERE NOT tag STARTS WITH 'confidence:'] + [$confidenceTag]
+            END
+            RETURN count(r) AS affected
+          `;
+          await neo4jClient.writeQuery(promoteCypher, { groupId, uuid, confidenceTag });
+        }
+
+        return {
+          status: 'ok',
+          action: 'curate',
+          group: groupId,
+          uuid,
+          mark,
+          mode: 'neo4j',
+        };
+      } finally {
+        await neo4jClient.disconnect();
+      }
+    },
+
+    async consolidate(
+      groupId: string,
+      factUuids: string[],
+      action: string,
+      options?: { retainUuid?: string; mergedText?: string }
+    ): Promise<IMemoryConsolidateResult> {
+      if (!CONSOLIDATION_ACTION_VALUES.includes(action as ConsolidationAction)) {
+        throw new Error(`Invalid consolidation action: "${action}". Valid actions: merge, archive-duplicates, keep-all`);
+      }
+      if (factUuids.length < 2) {
+        throw new Error('Consolidation requires at least 2 fact UUIDs');
+      }
+      if (options?.retainUuid && !factUuids.includes(options.retainUuid)) {
+        throw new Error(`retainUuid "${options.retainUuid}" is not in the provided fact UUIDs`);
+      }
+
+      if (action === 'keep-all') {
+        return {
+          status: 'ok',
+          action: 'consolidate',
+          group: groupId,
+          consolidationAction: 'keep-all',
+          retainedUuid: factUuids[0],
+          archivedUuids: [],
+          relationshipsCreated: 0,
+          mode: 'neo4j',
+        };
+      }
+
+      await neo4jClient.connect();
+      try {
+        if (action === 'merge') {
+          const mergedText = options?.mergedText;
+          if (!mergedText) {
+            throw new Error('merge action requires --text with merged text');
+          }
+
+          // Add the new merged fact via MCP
+          await mcpClient.initialize();
+          const mcpParams = {
+            name: mergedText.slice(0, 80),
+            episode_body: mergedText,
+            source: 'consolidation',
+            group_id: groupId,
+            tags: ['source:consolidation'],
+          };
+          await mcpClient.rpcCall<unknown>('add_memory', mcpParams);
+
+          // Expire all original facts
+          const archivedUuids: string[] = [];
+          for (const uuid of factUuids) {
+            const expireCypher = `
+              MATCH (s:Entity)-[r]->(t:Entity)
+              WHERE r.group_id = $groupId AND r.uuid = $uuid AND r.expired_at IS NULL
+              SET r.expired_at = datetime()
+              RETURN count(r) AS affected
+            `;
+            await neo4jClient.writeQuery(expireCypher, { groupId, uuid });
+            archivedUuids.push(uuid);
+          }
+
+          return {
+            status: 'ok',
+            action: 'consolidate',
+            group: groupId,
+            consolidationAction: 'merge',
+            retainedUuid: 'new-merged-fact',
+            archivedUuids,
+            relationshipsCreated: 0,
+            mode: 'neo4j',
+          };
+        }
+
+        // archive-duplicates
+        let retainUuid = options?.retainUuid;
+
+        if (!retainUuid) {
+          // Find the newest fact in the list
+          const placeholders = factUuids.map((_, i) => `$uuid_${i}`);
+          const uuidParams: Record<string, unknown> = { groupId };
+          factUuids.forEach((uuid, i) => { uuidParams[`uuid_${i}`] = uuid; });
+
+          const findNewestCypher = `
+            MATCH (s:Entity)-[r]->(t:Entity)
+            WHERE r.group_id = $groupId AND r.uuid IN [${placeholders.join(',')}] AND r.expired_at IS NULL
+            RETURN r.uuid AS uuid
+            ORDER BY r.created_at DESC
+            LIMIT 1
+          `;
+          const newestResult = await neo4jClient.query<{ uuid: string }>(findNewestCypher, uuidParams);
+          retainUuid = newestResult[0]?.uuid ?? factUuids[0];
+        }
+
+        // Expire all except retained
+        const archivedUuids: string[] = [];
+        for (const uuid of factUuids) {
+          if (uuid !== retainUuid) {
+            const expireCypher = `
+              MATCH (s:Entity)-[r]->(t:Entity)
+              WHERE r.group_id = $groupId AND r.uuid = $uuid AND r.expired_at IS NULL
+              SET r.expired_at = datetime()
+              RETURN count(r) AS affected
+            `;
+            await neo4jClient.writeQuery(expireCypher, { groupId, uuid });
+            archivedUuids.push(uuid);
+          }
+        }
+
+        return {
+          status: 'ok',
+          action: 'consolidate',
+          group: groupId,
+          consolidationAction: 'archive-duplicates',
+          retainedUuid: retainUuid,
+          archivedUuids,
+          relationshipsCreated: 0,
           mode: 'neo4j',
         };
       } finally {

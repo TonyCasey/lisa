@@ -57,6 +57,21 @@ export {
   type IDeduplicationOptions,
   type IDeduplicationService,
 } from './IDeduplicationService';
+export {
+  type CurationMark,
+  CURATION_MARK_VALUES,
+  type ICurationService,
+  isValidCurationMark,
+  resolveCurationTag,
+  parseCurationTag,
+} from './ICurationService';
+export {
+  type ConsolidationAction,
+  CONSOLIDATION_ACTION_VALUES,
+  type IConsolidationResult,
+  type IConsolidationOptions,
+  type IConsolidationService,
+} from './IConsolidationService';
 
 // Event interfaces
 export * from './events';

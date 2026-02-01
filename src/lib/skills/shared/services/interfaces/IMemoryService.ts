@@ -132,6 +132,32 @@ export interface IMemoryDedupeResult {
 }
 
 /**
+ * Result of a memory curate operation.
+ */
+export interface IMemoryCurateResult {
+  status: 'ok';
+  action: 'curate';
+  group: string;
+  uuid: string;
+  mark: string;
+  mode: 'neo4j';
+}
+
+/**
+ * Result of a memory consolidate operation.
+ */
+export interface IMemoryConsolidateResult {
+  status: 'ok';
+  action: 'consolidate';
+  group: string;
+  consolidationAction: string;
+  retainedUuid: string;
+  archivedUuids: string[];
+  relationshipsCreated: number;
+  mode: 'neo4j';
+}
+
+/**
  * Memory service interface.
  */
 export interface IMemoryService {
@@ -212,4 +238,32 @@ export interface IMemoryService {
     groupId: string,
     options?: { minSimilarity?: number; limit?: number; since?: Date }
   ): Promise<IMemoryDedupeResult>;
+
+  /**
+   * Mark a fact with a curation status.
+   *
+   * @param groupId - Group identifier
+   * @param uuid - UUID of the fact to mark
+   * @param mark - Curation mark (authoritative, draft, deprecated, needs-review)
+   */
+  curate(
+    groupId: string,
+    uuid: string,
+    mark: string
+  ): Promise<IMemoryCurateResult>;
+
+  /**
+   * Consolidate multiple facts.
+   *
+   * @param groupId - Group identifier
+   * @param factUuids - UUIDs of facts to consolidate (minimum 2)
+   * @param action - Consolidation action (merge, archive-duplicates, keep-all)
+   * @param options - Additional options (retainUuid, mergedText)
+   */
+  consolidate(
+    groupId: string,
+    factUuids: string[],
+    action: string,
+    options?: { retainUuid?: string; mergedText?: string }
+  ): Promise<IMemoryConsolidateResult>;
 }
