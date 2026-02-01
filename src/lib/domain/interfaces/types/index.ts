@@ -54,3 +54,11 @@ export {
   isValidTaskType,
   getDefaultStrategy,
 } from './ITaskType';
+export {
+  MemoryRelationType,
+  MEMORY_RELATION_VALUES,
+  IMemoryRelationship,
+  RELATION_LABELS,
+  INVERSE_RELATIONS,
+  isValidRelationType,
+} from './IMemoryRelationship';
