@@ -11,6 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Proactive Decision and Milestone Detection ([#182](https://github.com/TonyCasey/lisa/issues/182))
+
+Added `ProactiveDetector` service for non-blocking save suggestions when decisions or milestones are detected during conversation.
+
+- `IProactiveDetector` and `IProactiveDetection` domain interfaces
+- `ProactiveDetector` implementation with decision confirmation and milestone pattern detection
+- Decision detection: user confirmation (yes/ok/sounds good/etc.) after assistant presents options
+- Milestone detection: PR creation, test success, completion keywords, version bumps
+- `PromptSubmitHandler` appends `[Memory suggestion: ...]` to `additionalContext` when detection fires
+- `PromptSubmitRequest` extended with optional `previousAssistantMessage` field
+- Hook adapter (`user-prompt-submit.ts`) passes `previous_assistant_message` from hook input
+- Suggestions are non-blocking (context injection only, no auto-save)
+- DI registration: `ProactiveDetector` as singleton instance
+- 33 new unit tests (25 ProactiveDetector, 8 PromptSubmitHandler proactive integration)
+
 #### Confidence-Weighted Retrieval Ranking ([#181](https://github.com/TonyCasey/lisa/issues/181))
 
 Added 6-tier priority ranking to `MemoryContextLoader` and priority-grouped display to `SessionContextFormatter` for confidence-weighted memory retrieval.

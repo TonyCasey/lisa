@@ -21,6 +21,8 @@ interface IPromptInput {
   content?: string;
   permission_mode?: string;
   permissionMode?: string;
+  previous_assistant_message?: string;
+  previousAssistantMessage?: string;
 }
 
 async function main(): Promise<void> {
@@ -28,6 +30,7 @@ async function main(): Promise<void> {
   const input = await readStdin() as IPromptInput;
   const content = input.prompt || input.content || '';
   const permissionMode = (input.permission_mode || input.permissionMode || 'default') as PermissionMode;
+  const previousAssistantMessage = input.previous_assistant_message || input.previousAssistantMessage;
   
   if (!content) {
     // No content to process
@@ -44,7 +47,7 @@ async function main(): Promise<void> {
   try {
     // Resolve mediator and send request
     const mediator = await container.resolve<IMediator>(TOKENS.Mediator);
-    const request = new PromptSubmitRequest(content, toISOTimestamp(), undefined, permissionMode);
+    const request = new PromptSubmitRequest(content, toISOTimestamp(), undefined, permissionMode, previousAssistantMessage);
     
     const result = await mediator.send(request);
 

@@ -14,6 +14,7 @@ export { EventHandler, IEventEmitter } from './IEventEmitter';
 export { ILisaServices } from './ILisaServices';
 export { IRecursionResult, IRecursionConfig, IRecursionService } from './IRecursionService';
 export { ITaskTypeResult, ITaskTypeDetector } from './ITaskTypeDetector';
+export { IProactiveDetection, IProactiveDetector } from './IProactiveDetector';
 export { LogLevel, ILoggerOptions, ILogger, LoggerFactory } from './ILogger';
 export {
   LogEvents,

@@ -21,6 +21,8 @@ import type {
   ILogger,
   ITaskTypeDetector,
   ITaskTypeResult,
+  IProactiveDetector,
+  IProactiveDetection,
   PermissionMode,
 } from '../../../../../../src/lib/domain';
 
@@ -111,6 +113,18 @@ function createMockTaskTypeDetector(
     taskType: 'execution',
     confidence: 0.5,
     signals: ['implement'],
+    ...result,
+  };
+  return {
+    detect: () => defaultResult,
+  };
+}
+
+function createMockProactiveDetector(
+  result?: Partial<IProactiveDetection>
+): IProactiveDetector {
+  const defaultResult: IProactiveDetection = {
+    shouldSuggest: false,
     ...result,
   };
   return {
@@ -634,6 +648,117 @@ describe('PromptSubmitHandler', () => {
     });
   });
 
+  describe('proactive detection (#182)', () => {
+    it('should append memory suggestion when proactive detection fires', async () => {
+      const proactive = createMockProactiveDetector({
+        shouldSuggest: true,
+        suggestedFact: 'DECISION: Use Redis for caching',
+        factType: 'decision',
+        confidence: 'high',
+      });
+
+      const handler = new PromptSubmitHandler(context, memory, undefined, logger, undefined, proactive);
+      const request = new PromptSubmitRequest(
+        'Yes, go ahead',
+        '2024-01-15T10:00:00.000Z',
+        undefined,
+        undefined,
+        'We could use Redis or Memcached.'
+      );
+
+      const result = await handler.handle(request);
+
+      assert.ok(result.additionalContext?.includes('[Memory suggestion:'));
+      assert.ok(result.additionalContext?.includes('DECISION: Use Redis for caching'));
+      assert.ok(result.additionalContext?.includes('/memory'));
+    });
+
+    it('should not add suggestion when detection returns shouldSuggest false', async () => {
+      const proactive = createMockProactiveDetector({ shouldSuggest: false });
+
+      const handler = new PromptSubmitHandler(context, memory, undefined, logger, undefined, proactive);
+      const request = new PromptSubmitRequest('Just a normal prompt', '2024-01-15T10:00:00.000Z');
+
+      const result = await handler.handle(request);
+
+      assert.strictEqual(result.additionalContext, undefined);
+    });
+
+    it('should pass previousAssistantMessage to proactive detector', async () => {
+      let receivedAssistant: string | undefined;
+      const proactive: IProactiveDetector = {
+        detect: (_prompt, assistant) => {
+          receivedAssistant = assistant;
+          return { shouldSuggest: false };
+        },
+      };
+
+      const handler = new PromptSubmitHandler(context, memory, undefined, logger, undefined, proactive);
+      const request = new PromptSubmitRequest(
+        'Ok',
+        '2024-01-15T10:00:00.000Z',
+        undefined,
+        undefined,
+        'Here are some options...'
+      );
+
+      await handler.handle(request);
+
+      assert.strictEqual(receivedAssistant, 'Here are some options...');
+    });
+
+    it('should append suggestion after recursion context', async () => {
+      const mockRecursion = createMockRecursionService({
+        shouldRun: () => true,
+        run: async () => createMockRecursionResult({ hasContext: true, summary: 'Existing context' }),
+      });
+
+      const proactive = createMockProactiveDetector({
+        shouldSuggest: true,
+        suggestedFact: 'MILESTONE: All tests pass',
+        factType: 'milestone',
+      });
+
+      const handler = new PromptSubmitHandler(context, memory, mockRecursion, logger, undefined, proactive);
+      const request = new PromptSubmitRequest(
+        'All tests pass now',
+        '2024-01-15T10:00:00.000Z',
+        undefined,
+        'plan' as PermissionMode
+      );
+
+      const result = await handler.handle(request);
+
+      assert.ok(result.additionalContext?.includes('Existing context'));
+      assert.ok(result.additionalContext?.includes('[Memory suggestion:'));
+    });
+
+    it('should work without proactive detector (backward compatible)', async () => {
+      const handler = new PromptSubmitHandler(context, memory);
+      const request = new PromptSubmitRequest('Yes', '2024-01-15T10:00:00.000Z');
+
+      const result = await handler.handle(request);
+
+      assert.strictEqual(result.blocked, false);
+      // No error thrown, no suggestion added
+    });
+
+    it('should include factType in suggestion text', async () => {
+      const proactive = createMockProactiveDetector({
+        shouldSuggest: true,
+        suggestedFact: 'MILESTONE: PR #42 created',
+        factType: 'milestone',
+      });
+
+      const handler = new PromptSubmitHandler(context, memory, undefined, logger, undefined, proactive);
+      const request = new PromptSubmitRequest('Created PR #42', '2024-01-15T10:00:00.000Z');
+
+      const result = await handler.handle(request);
+
+      assert.ok(result.additionalContext?.includes('milestone'));
+    });
+  });
+
   describe('PromptSubmitRequest', () => {
     it('should create request with all parameters', () => {
       const request = new PromptSubmitRequest(
@@ -663,6 +788,30 @@ describe('PromptSubmitHandler', () => {
       assert.strictEqual(request.timestamp, '2024-01-15T10:00:00.000Z');
       assert.strictEqual(request.sessionId, 'session-456');
       assert.strictEqual(request.permissionMode, 'default');
+    });
+
+    it('should accept previousAssistantMessage parameter', () => {
+      const request = new PromptSubmitRequest(
+        'Yes',
+        '2024-01-15T10:00:00.000Z',
+        'session-123',
+        'default' as PermissionMode,
+        'Here are some options...'
+      );
+
+      assert.strictEqual(request.previousAssistantMessage, 'Here are some options...');
+    });
+
+    it('should pass previousAssistantMessage through fromEvent', () => {
+      const event = {
+        content: 'Ok',
+        timestamp: '2024-01-15T10:00:00.000Z' as const,
+        previousAssistantMessage: 'I suggest option A or option B.',
+      };
+
+      const request = PromptSubmitRequest.fromEvent(event);
+
+      assert.strictEqual(request.previousAssistantMessage, 'I suggest option A or option B.');
     });
   });
 });

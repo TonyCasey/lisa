@@ -47,7 +47,9 @@ export class PromptSubmitRequest implements IRequest<IPromptSubmitResult> {
     /** Optional session identifier */
     public readonly sessionId?: string,
     /** Current permission mode */
-    public readonly permissionMode?: PermissionMode
+    public readonly permissionMode?: PermissionMode,
+    /** Previous assistant message (for proactive detection) */
+    public readonly previousAssistantMessage?: string
   ) {}
 
   /**
@@ -58,12 +60,14 @@ export class PromptSubmitRequest implements IRequest<IPromptSubmitResult> {
     timestamp: ISOTimestamp;
     sessionId?: string;
     permissionMode?: PermissionMode;
+    previousAssistantMessage?: string;
   }): PromptSubmitRequest {
     return new PromptSubmitRequest(
       event.content,
       event.timestamp,
       event.sessionId,
-      event.permissionMode
+      event.permissionMode,
+      event.previousAssistantMessage
     );
   }
 }

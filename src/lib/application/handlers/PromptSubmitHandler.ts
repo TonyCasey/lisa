@@ -6,6 +6,7 @@ import type {
   IRecursionResult,
   ILogger,
   ITaskTypeDetector,
+  IProactiveDetector,
 } from '../../domain';
 import type { IRequestHandler } from '../mediator';
 import { PromptSubmitRequest } from '../mediator/requests';
@@ -28,6 +29,7 @@ export class PromptSubmitHandler implements IRequestHandler<PromptSubmitRequest,
   private readonly recursion?: IRecursionService;
   private readonly logger?: ILogger;
   private readonly taskTypeDetector?: ITaskTypeDetector;
+  private readonly proactiveDetector?: IProactiveDetector;
 
   /**
    * Create a new PromptSubmitHandler.
@@ -44,7 +46,8 @@ export class PromptSubmitHandler implements IRequestHandler<PromptSubmitRequest,
     memory: IMemoryService,
     recursion?: IRecursionService,
     logger?: ILogger,
-    taskTypeDetector?: ITaskTypeDetector
+    taskTypeDetector?: ITaskTypeDetector,
+    proactiveDetector?: IProactiveDetector
   );
 
   constructor(
@@ -52,7 +55,8 @@ export class PromptSubmitHandler implements IRequestHandler<PromptSubmitRequest,
     memory?: IMemoryService,
     recursion?: IRecursionService,
     logger?: ILogger,
-    taskTypeDetector?: ITaskTypeDetector
+    taskTypeDetector?: ITaskTypeDetector,
+    proactiveDetector?: IProactiveDetector
   ) {
     if ('context' in contextOrServices && 'memory' in contextOrServices) {
       const services = contextOrServices as ILisaServices;
@@ -66,6 +70,7 @@ export class PromptSubmitHandler implements IRequestHandler<PromptSubmitRequest,
       this.recursion = recursion;
       this.logger = logger;
       this.taskTypeDetector = taskTypeDetector;
+      this.proactiveDetector = proactiveDetector;
     }
   }
 
@@ -99,6 +104,20 @@ export class PromptSubmitHandler implements IRequestHandler<PromptSubmitRequest,
         } catch {
           // Silently ignore recursion errors
         }
+      }
+    }
+
+    // Proactive detection: suggest saving decisions/milestones
+    if (this.proactiveDetector) {
+      const detection = this.proactiveDetector.detect(
+        request.content,
+        request.previousAssistantMessage
+      );
+      if (detection.shouldSuggest && detection.suggestedFact) {
+        const suggestion = `[Memory suggestion: This looks like a ${detection.factType || 'notable event'}. Consider saving: "${detection.suggestedFact}". Use /memory to save.]`;
+        additionalContext = additionalContext
+          ? `${additionalContext}\n\n${suggestion}`
+          : suggestion;
       }
     }
 

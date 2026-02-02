@@ -40,6 +40,7 @@ export const INFRA_TOKENS = {
   LlmDeduplicationEnhancer: Symbol.for('Lisa.LlmDeduplicationEnhancer'),
   NlCurationService: Symbol.for('Lisa.NlCurationService'),
   TaskTypeDetector: Symbol.for('Lisa.TaskTypeDetector'),
+  ProactiveDetector: Symbol.for('Lisa.ProactiveDetector'),
 } as const;
 
 /**
