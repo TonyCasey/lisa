@@ -66,6 +66,17 @@ describe('ProactiveDetector', () => {
       assert.strictEqual(result.shouldSuggest, true);
     });
 
+    it('should detect options when assistant uses standalone "or"', () => {
+      const detector = new ProactiveDetector();
+      const result = detector.detect(
+        'Ok',
+        'Use Redis or Memcached for caching.'
+      );
+
+      assert.strictEqual(result.shouldSuggest, true);
+      assert.strictEqual(result.factType, 'decision');
+    });
+
     it('should detect "agreed" as confirmation', () => {
       const detector = new ProactiveDetector();
       const result = detector.detect(
@@ -124,6 +135,17 @@ describe('ProactiveDetector', () => {
       const topic = result.suggestedFact?.replace('DECISION: ', '') ?? '';
       assert.ok(topic.length <= 80, `Topic length ${topic.length} should be <= 80`);
       assert.ok(topic.endsWith('...'));
+    });
+
+    it('should avoid empty decision topics when assistant starts with punctuation', () => {
+      const detector = new ProactiveDetector();
+      const result = detector.detect(
+        'Ok',
+        '... Use Redis or Memcached.'
+      );
+
+      const topic = result.suggestedFact?.replace('DECISION: ', '') ?? '';
+      assert.ok(topic.length > 0, 'Decision topic should not be empty');
     });
   });
 

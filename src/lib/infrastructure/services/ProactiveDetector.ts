@@ -17,7 +17,7 @@ const CONFIRMATION_PATTERN = /^(yes|ok|sounds good|let'?s go with|do that|go ahe
 /**
  * Assistant message patterns that suggest options were being presented.
  */
-const OPTION_PRESENTING_PATTERN = /\b(option|approach|alternative|should we|we could|either|or we|recommend|suggest)\b/i;
+const OPTION_PRESENTING_PATTERN = /\b(option|approach|alternative|should we|we could|either|or|recommend|suggest)\b/i;
 
 /**
  * Milestone patterns with named capture groups for context extraction.
@@ -106,9 +106,11 @@ export class ProactiveDetector implements IProactiveDetector {
   private extractDecisionTopic(assistantMessage: string): string {
     // Take the first sentence or first 80 chars
     const trimmed = assistantMessage.trim();
-    const firstSentence = trimmed.split(/[.!?\n]/)[0]?.trim() ?? '';
+    const normalized = trimmed.replace(/^[\s\W_]+/, '');
+    const candidate = normalized || trimmed;
+    const firstSentence = candidate.split(/[.!?\n]/)[0]?.trim() ?? '';
     if (!firstSentence) {
-      return trimmed.slice(0, 80) || 'Decision made';
+      return candidate.slice(0, 80) || 'Decision made';
     }
     if (firstSentence.length <= 80) {
       return firstSentence;
