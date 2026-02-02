@@ -184,54 +184,64 @@ export class SessionCaptureService implements ISessionCaptureService {
   /**
    * Find all transcript candidates from standard Claude Code locations.
    *
-   * Searches:
-   * - ~/.claude/projects/<project>/transcript.jsonl
-   * - ~/.claude/transcript.jsonl
+   * Claude Code stores session transcripts as UUID-named JSONL files:
+   *   ~/.claude/projects/<project-folder>/<session-uuid>.jsonl
+   *
+   * The project folder is derived from the working directory path with
+   * path separators replaced by dashes (e.g. C:\dev\lisa → C--dev-lisa).
    *
    * @returns Array of candidates with path and modification time
    */
   private findTranscriptCandidates(): ITranscriptCandidate[] {
     const candidates: ITranscriptCandidate[] = [];
     const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+    const projectsDir = path.join(homeDir, '.claude', 'projects');
 
-    const possibleDirs = [
-      path.join(homeDir, '.claude', 'projects'),
-      path.join(homeDir, '.claude'),
-    ];
+    if (!fs.existsSync(projectsDir)) return candidates;
 
-    for (const dir of possibleDirs) {
-      if (!fs.existsSync(dir)) continue;
+    // Derive project folder name from CWD
+    // Claude Code convention: C:\dev\lisa → C--dev-lisa
+    const cwd = process.cwd();
+    const projectFolderName = cwd.replace(/[:\\/]/g, '-');
+    const projectDir = path.join(projectsDir, projectFolderName);
 
-      // Check direct transcript in this directory
-      const directPath = path.join(dir, 'transcript.jsonl');
-      if (fs.existsSync(directPath)) {
-        try {
-          const stats = fs.statSync(directPath);
-          candidates.push({
-            path: directPath,
-            mtime: stats.mtimeMs,
-          });
-        } catch {
-          // Skip if can't stat
+    // Determine which directories to search
+    const dirsToSearch: string[] = [];
+
+    if (fs.existsSync(projectDir)) {
+      dirsToSearch.push(projectDir);
+    } else {
+      // Fallback: scan all project folders if derived name doesn't match
+      this.logger?.debug('Project dir not found, scanning all projects', {
+        expected: projectFolderName,
+      });
+      try {
+        const entries = fs.readdirSync(projectsDir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.isDirectory()) {
+            dirsToSearch.push(path.join(projectsDir, entry.name));
+          }
         }
+      } catch {
+        // Ignore permission errors
       }
+    }
 
-      // Check subdirectories (project folders)
+    // UUID pattern: 8-4-4-4-12 hex chars
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jsonl$/i;
+
+    for (const dir of dirsToSearch) {
       try {
         const entries = fs.readdirSync(dir, { withFileTypes: true });
         for (const entry of entries) {
-          if (entry.isDirectory()) {
-            const subPath = path.join(dir, entry.name, 'transcript.jsonl');
-            if (fs.existsSync(subPath)) {
-              try {
-                const stats = fs.statSync(subPath);
-                candidates.push({
-                  path: subPath,
-                  mtime: stats.mtimeMs,
-                });
-              } catch {
-                // Skip if can't stat
-              }
+          // Match UUID-named .jsonl files (session transcripts, not subagent files)
+          if (entry.isFile() && uuidPattern.test(entry.name)) {
+            const filePath = path.join(dir, entry.name);
+            try {
+              const stats = fs.statSync(filePath);
+              candidates.push({ path: filePath, mtime: stats.mtimeMs });
+            } catch {
+              // Skip if can't stat
             }
           }
         }

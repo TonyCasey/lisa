@@ -73,7 +73,6 @@ Organize facts into these categories (skip empty categories):
 - Gemini: ensure commands are explicit; avoid model-specific tokens; keep JSON small.
 
 ## Notes
-- Script is Node.js; relies on global `fetch` (Node ≥18). If older runtime, `node --experimental-fetch`.
+- All commands use the `lisa` CLI binary — no scripts to run directly.
 - Facts query defaults to `*` with `max_facts=10`; tune via `--limit` and `--query`.
-- Safe to relocate: skill lives in `.lisa/skills/memory` to remain decoupled from model-specific bindings.
 - The `fact` field in each JSON object contains the human-readable content to summarize.

@@ -108,7 +108,7 @@ Location: `.lisa/.init-review-done`
 Prevents re-running on subsequent installs. Delete to force re-run, or use `--force` flag.
 
 ## Cross-model checklist
-- Codex: Use explicit script paths; verify triggers match
+- Codex: Use explicit CLI commands; verify triggers match
 - Claude: Keep output concise; shown in session-start context
 - Gemini: Explicit commands; avoid model-specific tokens
 

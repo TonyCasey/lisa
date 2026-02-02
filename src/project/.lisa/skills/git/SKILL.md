@@ -45,21 +45,12 @@ curl -s -H "Circle-Token: $(cat ~/.circleci/cli.yml | grep token | awk '{print $
 
 ### Poll CI Until Completion
 ```bash
-# Poll current branch (10 min timeout, 1 min interval)
-# Update OWNER and REPO in the script first
-.lisa/skills/git/scripts/poll-ci.sh
+# Poll current branch
+lisa pr checks <PR_NUMBER>
 
-# Poll specific branch
-.lisa/skills/git/scripts/poll-ci.sh feature-branch
+# Or use gh CLI directly
+gh pr checks <PR_NUMBER> --watch
 ```
-
-Exit codes:
-- `0` - CI passed
-- `1` - CI failed
-- `2` - CI canceled
-- `3` - Timeout (10 minutes)
-- `4` - CircleCI token not found
-- `5` - No pipeline found for branch
 
 ### Bump Version
 Bump the semantic version in package.json before pushing:
