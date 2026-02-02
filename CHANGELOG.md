@@ -33,7 +33,7 @@ Added signal-based task type detection to `PromptSubmitHandler` for mode-aware m
 - `createTaskTypeDetector()` factory function
 - `PromptSubmitHandler` now detects task type and adds `taskType:<type>` tag to saved prompt facts
 - Decision confirmation patterns detected and flagged with `flag:decision` tag
-- Detected task type passed to `RecursionService.run()` 3rd parameter for mode-aware retrieval
+- Detected task type passed as 3rd parameter to `RecursionService.run()` for mode-aware retrieval
 - DI registration: `TaskTypeDetector` as singleton instance
 - 28 new unit tests (21 for TaskTypeDetector, 7 for PromptSubmitHandler task type integration)
 

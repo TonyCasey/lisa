@@ -13,6 +13,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { TaskTypeDetector, createTaskTypeDetector } from '../../../../../../src/lib/infrastructure/services/TaskTypeDetector';
+import { DETECTION_SIGNALS } from '../../../../../../src/lib/domain/interfaces/types/ITaskType';
 
 describe('TaskTypeDetector', () => {
   describe('planning detection', () => {
@@ -168,6 +169,19 @@ describe('TaskTypeDetector', () => {
       assert.ok(result.signals.length >= 2);
       assert.ok(result.signals.includes('design'));
       assert.ok(result.signals.includes('architecture'));
+    });
+
+    it('should compute confidence as coverage of winning signals', () => {
+      const detector = new TaskTypeDetector();
+      const planningSignals = DETECTION_SIGNALS.planning;
+      assert.ok(planningSignals.length > 0, 'Expected planning signals');
+
+      const sampleSignals = planningSignals.slice(0, 2);
+      const result = detector.detect(sampleSignals.join(' '));
+
+      assert.strictEqual(result.taskType, 'planning');
+      const expected = sampleSignals.length / planningSignals.length;
+      assert.strictEqual(result.confidence, expected);
     });
   });
 
