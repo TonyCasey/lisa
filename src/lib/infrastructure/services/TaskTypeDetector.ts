@@ -10,8 +10,10 @@ const DEFAULT_TASK_TYPE: TaskType = 'execution';
 /**
  * Signal-based task type detector.
  *
- * Scores each task type by counting matching signal keywords in the prompt
- * (case-insensitive). Confidence = signalCount / totalWords (capped at 1.0).
+ * Scores each task type by counting matching signal keywords in the prompt.
+ * Uses word-level matching for single-word signals to avoid substring false
+ * positives (e.g., "plan" in "plant"), and substring matching for multi-word
+ * phrases. Confidence = matched signals / total signals for the winning type.
  * Defaults to 'execution' when no strong signals are found.
  */
 export class TaskTypeDetector implements ITaskTypeDetector {
@@ -25,9 +27,12 @@ export class TaskTypeDetector implements ITaskTypeDetector {
 
     const textLower = prompt.toLowerCase();
     const words = textLower.split(/\s+/).filter(w => w.length > 0);
-    const totalWords = words.length;
+    // Build word set with punctuation stripped for word-level matching
+    const wordSet = new Set(
+      words.map(w => w.replace(/[^a-z0-9]/g, '')).filter(w => w.length > 0)
+    );
 
-    if (totalWords === 0) {
+    if (words.length === 0) {
       return { taskType: DEFAULT_TASK_TYPE, confidence: 0, signals: [] };
     }
 
@@ -47,7 +52,12 @@ export class TaskTypeDetector implements ITaskTypeDetector {
 
     for (const [taskType, signals] of Object.entries(DETECTION_SIGNALS)) {
       for (const signal of signals) {
-        if (textLower.includes(signal.toLowerCase())) {
+        const signalLower = signal.toLowerCase();
+        // Use word-level match for single words, substring match for phrases
+        const matched = signalLower.includes(' ')
+          ? textLower.includes(signalLower)
+          : wordSet.has(signalLower);
+        if (matched) {
           scores[taskType as TaskType]++;
           matchedSignals[taskType as TaskType].push(signal);
         }
@@ -69,8 +79,9 @@ export class TaskTypeDetector implements ITaskTypeDetector {
       return { taskType: DEFAULT_TASK_TYPE, confidence: 0, signals: [] };
     }
 
-    // Confidence = signal count / total words, capped at 1.0
-    const confidence = Math.min(maxScore / totalWords, 1.0);
+    // Confidence = coverage of winning type's signals, capped at 1.0
+    const bestPossibleScore = DETECTION_SIGNALS[dominant]?.length ?? 0;
+    const confidence = bestPossibleScore === 0 ? 0 : Math.min(maxScore / bestPossibleScore, 1.0);
 
     return {
       taskType: dominant,
