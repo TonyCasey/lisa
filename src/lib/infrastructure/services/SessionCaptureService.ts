@@ -610,13 +610,9 @@ export class SessionCaptureService implements ISessionCaptureService {
     const allFiles = [...filesCreated, ...filesModified];
     const matchedFiles = new Set<string>();
 
-    // Collect all user messages for matching
-    const userMessages: Array<{ index: number; text: string }> = [];
-    for (let i = 0; i < messages.length; i++) {
-      if (messages[i].role === 'user' && messages[i].text) {
-        userMessages.push({ index: i, text: messages[i].text });
-      }
-    }
+    // Find assistant messages that mention each file (tool responses),
+    // then search backward within 3-message window for the triggering user prompt.
+    const MESSAGE_WINDOW = 3;
 
     for (const filePath of allFiles) {
       if (correlations.length >= MAX_CORRELATIONS) break;
@@ -624,17 +620,33 @@ export class SessionCaptureService implements ISessionCaptureService {
 
       const fileName = path.basename(filePath);
       const fileNameNoExt = fileName.replace(/\.[^.]+$/, '');
+      const fileNameLower = fileName.toLowerCase();
+      const fileNameNoExtLower = fileNameNoExt.toLowerCase();
 
-      // Search user messages for mentions of this file
-      for (const userMsg of userMessages) {
-        const textLower = userMsg.text.toLowerCase();
-        if (
-          textLower.includes(fileName.toLowerCase()) ||
-          textLower.includes(fileNameNoExt.toLowerCase())
-        ) {
+      // Find the last assistant message mentioning this file (tool response)
+      let fileMessageIndex = -1;
+      for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].role === 'assistant' && messages[i].text) {
+          const textLower = messages[i].text.toLowerCase();
+          if (textLower.includes(fileNameLower) || textLower.includes(fileNameNoExtLower)) {
+            fileMessageIndex = i;
+            break;
+          }
+        }
+      }
+
+      // Search backward from file message within 3-message window for user prompt
+      const searchStart = fileMessageIndex >= 0 ? fileMessageIndex : messages.length - 1;
+      let messagesChecked = 0;
+      for (let j = searchStart; j >= 0 && messagesChecked < MESSAGE_WINDOW; j--) {
+        if (messages[j].role !== 'user' || !messages[j].text) continue;
+        messagesChecked++;
+
+        const textLower = messages[j].text.toLowerCase();
+        if (textLower.includes(fileNameLower) || textLower.includes(fileNameNoExtLower)) {
           correlations.push({
             filePath,
-            triggerSnippet: userMsg.text.slice(0, 100),
+            triggerSnippet: messages[j].text.slice(0, 100),
           });
           matchedFiles.add(filePath);
           break;
