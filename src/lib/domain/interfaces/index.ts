@@ -116,6 +116,9 @@ export {
 } from './ITranscriptEnricher';
 export {
   type IWorkSummary,
+  type IDetectedDecision,
+  type IDetectedError,
+  type IFilePromptCorrelation,
 } from './IWorkSummary';
 export {
   type NlCurationIntent,
