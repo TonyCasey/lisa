@@ -44,6 +44,7 @@ export {
   parseSourceTag,
   isValidSource,
   defaultConfidenceForSource,
+  computeMemoryTier,
 } from './IMemoryQuality';
 export {
   TaskType,

@@ -21,7 +21,7 @@ import {
   checkCancellation,
   isCancellationError,
 } from '../../domain';
-import { parseConfidenceTag, parseSourceTag } from '../../domain/interfaces/types/IMemoryQuality';
+import { computeMemoryTier } from '../../domain/interfaces/types/IMemoryQuality';
 
 interface IMcpNodeResponse {
   result?: {
@@ -231,8 +231,6 @@ export class MemoryContextLoader {
     const TIER5_CAP = 5;
 
     const now = Date.now();
-    const hours48 = 48 * 60 * 60 * 1000;
-    const hours24 = 24 * 60 * 60 * 1000;
 
     const filePathSet = new Set(recentFilePaths?.map(f => f.toLowerCase()) ?? []);
 
@@ -240,16 +238,11 @@ export class MemoryContextLoader {
     const tiers: IMemoryItem[][] = [[], [], [], [], [], []]; // T1..T6
 
     for (const fact of facts) {
-      const tags = fact.tags ?? [];
-      const confidence = parseConfidenceTag(tags);
-      const source = parseSourceTag(tags);
-      const age = fact.created_at ? now - new Date(fact.created_at).getTime() : Infinity;
-      const isTask = tags.some(t => t === 'type:task');
-      const isActiveTask = isTask && !tags.some(t => t === 'status:done' || t === 'status:closed');
+      const baseTier = computeMemoryTier(fact, now);
 
       // File-aware boost: promote facts mentioning recent files to T3
       // Only boost facts that would otherwise land in T4-T6 (preserve T1/T2 priority)
-      if (filePathSet.size > 0 && fact.fact && confidence !== 'verified' && source !== 'user-explicit') {
+      if (filePathSet.size > 0 && fact.fact && baseTier >= 4) {
         const factLower = fact.fact.toLowerCase();
         let boosted = false;
         for (const fp of filePathSet) {
@@ -262,19 +255,16 @@ export class MemoryContextLoader {
         if (boosted) continue;
       }
 
-      if (confidence === 'verified') {
-        tiers[0].push(fact);
-      } else if (source === 'user-explicit') {
-        tiers[1].push(fact);
-      } else if (confidence === 'high' && age <= hours48) {
-        tiers[2].push(fact);
-      } else if (isActiveTask) {
-        tiers[3].push(fact);
-      } else if (confidence === 'medium' && age <= hours24) {
-        tiers[4].push(fact);
-      } else {
-        tiers[5].push(fact);
-      }
+      tiers[Math.min(Math.max(baseTier, 1), 6) - 1].push(fact);
+    }
+
+    const byDateDesc = (a: IMemoryItem, b: IMemoryItem): number => {
+      const ad = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bd = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return bd - ad;
+    };
+    for (const tier of tiers) {
+      tier.sort(byDateDesc);
     }
 
     // Fill from tiers, respecting caps

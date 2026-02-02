@@ -11,18 +11,65 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import type { IMemoryItem } from '../../../../../../src/lib/domain';
+import type { IMcpClient, IMemoryItem, IMemoryService, ITaskService } from '../../../../../../src/lib/domain';
 import { MemoryContextLoader } from '../../../../../../src/lib/application/services/MemoryContextLoader';
 
 // Minimal mock dependencies to construct a MemoryContextLoader
 function createLoader(): MemoryContextLoader {
-  const mockMemory = { loadMemory: async () => ({}), loadFactsDateOrdered: async () => [], searchFacts: async () => [], addFact: async () => {}, addFactWithLifecycle: async () => {}, saveMemory: async () => {}, expireFact: async () => {}, cleanupExpired: async () => 0 };
-  const mockTasks = { getTasks: async () => [], getTasksSimple: async () => [], getTaskCounts: async () => ({}), createTask: async () => ({}), updateTask: async () => ({}) };
-  const mockMcp = { call: async () => [{}] };
+  const mockMemory: Partial<IMemoryService> = {
+    loadMemory: async () => ({
+      facts: [],
+      nodes: [],
+      tasks: [],
+      initReview: null,
+      timedOut: false,
+    }),
+    loadFactsDateOrdered: async () => [],
+    searchFacts: async () => [],
+    addFact: async () => {},
+    addFactWithLifecycle: async () => {},
+    saveMemory: async () => {},
+    expireFact: async () => {},
+    cleanupExpired: async () => 0,
+  };
+  const mockTasks: Partial<ITaskService> = {
+    getTasks: async () => [],
+    getTasksSimple: async () => [],
+    getTaskCounts: async () => ({
+      ready: 0,
+      'in-progress': 0,
+      blocked: 0,
+      done: 0,
+      closed: 0,
+      unknown: 0,
+    }),
+    createTask: async (_groupId, _task) => ({
+      key: 'task-1',
+      title: 'Test task',
+      status: 'ready',
+      blocked: [],
+      created_at: new Date().toISOString(),
+    }),
+    updateTask: async (_groupId, _taskId, _updates) => ({
+      key: 'task-1',
+      title: 'Test task',
+      status: 'ready',
+      blocked: [],
+      created_at: new Date().toISOString(),
+    }),
+  };
+  const mockMcp: Partial<IMcpClient> = {
+    call: async <T = unknown>(
+      _method: string,
+      _params?: Record<string, unknown>,
+      _sessionId?: string | null,
+      _timeoutMs?: number
+    ): Promise<[T, string]> => [undefined as unknown as T, ''],
+  };
   return new MemoryContextLoader(
-    mockMemory as any,
-    mockTasks as any,
-    mockMcp as any,
+    mockMemory as IMemoryService,
+    mockTasks as ITaskService,
+    mockMcp as IMcpClient,
   );
 }
 

@@ -12,7 +12,7 @@ import type {
   ITask,
   ITaskCounts,
 } from '../../domain';
-import { parseConfidenceTag, parseSourceTag } from '../../domain/interfaces/types/IMemoryQuality';
+import { computeMemoryTier, parseConfidenceTag } from '../../domain/interfaces/types/IMemoryQuality';
 
 /**
  * Git commit summary used in context display.
@@ -347,23 +347,7 @@ export class SessionContextFormatter {
    * Tiers 1-2: Key facts, 3-5: Recent context, 6: Background.
    */
   assignTier(item: IMemoryItem): number {
-    const tags = item.tags ?? [];
-    const confidence = parseConfidenceTag(tags);
-    const source = parseSourceTag(tags);
-    const isTask = tags.some(t => t === 'type:task');
-    const isActive = isTask && !tags.some(t => t === 'status:done' || t === 'status:closed');
-
-    const now = Date.now();
-    const age = item.created_at ? now - new Date(item.created_at).getTime() : Infinity;
-    const hours48 = 48 * 60 * 60 * 1000;
-    const hours24 = 24 * 60 * 60 * 1000;
-
-    if (confidence === 'verified') return 1;
-    if (source === 'user-explicit') return 2;
-    if (confidence === 'high' && age <= hours48) return 3;
-    if (isActive) return 4;
-    if (confidence === 'medium' && age <= hours24) return 5;
-    return 6;
+    return computeMemoryTier(item);
   }
 
   /**
