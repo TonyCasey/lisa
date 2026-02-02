@@ -266,7 +266,7 @@ describe('SessionCaptureService — heuristic detections (#179)', () => {
     it('should correlate file changes with user prompts mentioning the file', () => {
       const tp = writeTranscript([
         userMsg('Please update the SessionCaptureService.ts file'),
-        assistantMsg('I will update it now.'),
+        assistantMsg('I will update SessionCaptureService.ts now.'),
         toolUse('edit'),
         toolResult('done'),
         summaryMsg('Modified: src/SessionCaptureService.ts'),
@@ -284,7 +284,7 @@ describe('SessionCaptureService — heuristic detections (#179)', () => {
     it('should match by filename without extension', () => {
       const tp = writeTranscript([
         userMsg('Refactor the OrderService module'),
-        assistantMsg('Refactoring now.'),
+        assistantMsg('Refactoring OrderService now.'),
         summaryMsg('Modified: src/OrderService.ts'),
       ]);
 
@@ -312,7 +312,7 @@ describe('SessionCaptureService — heuristic detections (#179)', () => {
     it('should cap correlations at MAX_CORRELATIONS (3)', () => {
       const tp = writeTranscript([
         userMsg('Update FileA.ts, FileB.ts, FileC.ts, and FileD.ts'),
-        assistantMsg('I will update all of them.'),
+        assistantMsg('I will update FileA.ts, FileB.ts, FileC.ts, and FileD.ts now.'),
         summaryMsg('Modified: src/FileA.ts'),
         summaryMsg('Modified: src/FileB.ts'),
         summaryMsg('Modified: src/FileC.ts'),
@@ -468,7 +468,7 @@ describe('SessionCaptureService — heuristic detections (#179)', () => {
     it('should emit FILE-CONTEXT: facts with quality tags and file tag', () => {
       const tp = writeTranscript([
         userMsg('Update the UserService file'),
-        assistantMsg('I will update it.'),
+        assistantMsg('I will update UserService.ts now.'),
         toolUse('edit'),
         toolResult('done'),
         summaryMsg('Modified: src/UserService.ts'),
