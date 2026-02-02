@@ -21,6 +21,7 @@ import {
   checkCancellation,
   isCancellationError,
 } from '../../domain';
+import { parseConfidenceTag, parseSourceTag } from '../../domain/interfaces/types/IMemoryQuality';
 
 interface IMcpNodeResponse {
   result?: {
@@ -118,7 +119,7 @@ export class MemoryContextLoader {
         try {
           checkCancellation(abortSignal, 'Memory load cancelled before facts');
 
-          const facts = await memory.loadFactsDateOrdered(allGroupIds, 100, dateOptions);
+          const facts = await memory.loadFactsDateOrdered(allGroupIds, 60, dateOptions);
 
           checkCancellation(abortSignal, 'Memory load cancelled after facts fetch');
 
@@ -203,6 +204,90 @@ export class MemoryContextLoader {
     result.timedOut = cancellableResult.timedOut;
 
     return result;
+  }
+
+  /**
+   * Rank and select the most valuable facts using a 6-tier priority algorithm.
+   *
+   * Tiers (filled top-down until budget exhausted):
+   * 1. confidence:verified — always included
+   * 2. source:user-explicit — always included
+   * 3. confidence:high + within 48h — up to 15
+   * 4. Active tasks (type:task, status not done) — up to 10
+   * 5. confidence:medium + within 24h — up to 5
+   * 6. Everything else by date — fills remaining budget
+   *
+   * @param facts - All loaded facts
+   * @param recentFilePaths - Optional file paths for file-aware boost
+   * @returns Ranked and capped facts (max RANKING_BUDGET)
+   */
+  rankAndSelectFacts(
+    facts: IMemoryItem[],
+    recentFilePaths?: readonly string[]
+  ): IMemoryItem[] {
+    const BUDGET = 30;
+    const TIER3_CAP = 15;
+    const TIER4_CAP = 10;
+    const TIER5_CAP = 5;
+
+    const now = Date.now();
+    const hours48 = 48 * 60 * 60 * 1000;
+    const hours24 = 24 * 60 * 60 * 1000;
+
+    const filePathSet = new Set(recentFilePaths?.map(f => f.toLowerCase()) ?? []);
+
+    // Assign each fact to a tier
+    const tiers: IMemoryItem[][] = [[], [], [], [], [], []]; // T1..T6
+
+    for (const fact of facts) {
+      const tags = fact.tags ?? [];
+      const confidence = parseConfidenceTag(tags);
+      const source = parseSourceTag(tags);
+      const age = fact.created_at ? now - new Date(fact.created_at).getTime() : Infinity;
+      const isTask = tags.some(t => t === 'type:task');
+      const isActiveTask = isTask && !tags.some(t => t === 'status:done' || t === 'status:closed');
+
+      // File-aware boost: promote facts mentioning recent files to T3
+      if (filePathSet.size > 0 && fact.fact) {
+        const factLower = fact.fact.toLowerCase();
+        let boosted = false;
+        for (const fp of filePathSet) {
+          if (factLower.includes(fp)) {
+            tiers[2].push(fact); // Boost to T3
+            boosted = true;
+            break;
+          }
+        }
+        if (boosted) continue;
+      }
+
+      if (confidence === 'verified') {
+        tiers[0].push(fact);
+      } else if (source === 'user-explicit') {
+        tiers[1].push(fact);
+      } else if (confidence === 'high' && age <= hours48) {
+        tiers[2].push(fact);
+      } else if (isActiveTask) {
+        tiers[3].push(fact);
+      } else if (confidence === 'medium' && age <= hours24) {
+        tiers[4].push(fact);
+      } else {
+        tiers[5].push(fact);
+      }
+    }
+
+    // Fill from tiers, respecting caps
+    const selected: IMemoryItem[] = [];
+    const tierCaps = [Infinity, Infinity, TIER3_CAP, TIER4_CAP, TIER5_CAP, Infinity];
+
+    for (let t = 0; t < tiers.length; t++) {
+      if (selected.length >= BUDGET) break;
+      const remaining = BUDGET - selected.length;
+      const cap = Math.min(tierCaps[t], remaining);
+      selected.push(...tiers[t].slice(0, cap));
+    }
+
+    return selected;
   }
 
   private buildRepoTags(repo: string, branch: string | null): string[] {
