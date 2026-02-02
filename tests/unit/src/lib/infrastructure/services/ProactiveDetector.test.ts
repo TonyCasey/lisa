@@ -234,6 +234,17 @@ describe('ProactiveDetector', () => {
 
       assert.ok(result.suggestedFact?.includes('Created PR #99'));
     });
+
+    it('should normalize leading punctuation in milestone summary', () => {
+      const detector = new ProactiveDetector();
+      const result = detector.detect('...merged the PR');
+
+      assert.strictEqual(result.shouldSuggest, true);
+      assert.strictEqual(result.factType, 'milestone');
+      const summary = result.suggestedFact?.replace('MILESTONE: ', '') ?? '';
+      assert.ok(!summary.startsWith('...'), 'Summary should not start with leading punctuation');
+      assert.ok(summary.includes('merged'), 'Summary should contain the meaningful text');
+    });
   });
 
   describe('priority', () => {

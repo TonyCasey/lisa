@@ -124,9 +124,15 @@ export class ProactiveDetector implements IProactiveDetector {
    */
   private extractMilestoneSummary(userPrompt: string, label: string): string {
     // Take the first sentence or first 80 chars of the prompt
-    const firstSentence = userPrompt.split(/[.!?\n]/)[0]?.trim() ?? '';
+    const trimmed = userPrompt.trim();
+    const normalized = trimmed.replace(/^[\s\W_]+/, '');
+    const candidate = normalized || trimmed;
+    const firstSentence = candidate.split(/[.!?\n]/)[0]?.trim() ?? '';
+    if (!firstSentence) {
+      return candidate.slice(0, 80) || label;
+    }
     if (firstSentence.length <= 80) {
-      return firstSentence || label;
+      return firstSentence;
     }
     return firstSentence.slice(0, 77) + '...';
   }
