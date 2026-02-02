@@ -204,6 +204,7 @@ describe('SessionCaptureService — heuristic detections (#179)', () => {
       const toolFailure = work.detectedErrors.find(e => e.errorType === 'tool-failure');
       assert.ok(toolFailure, 'Should detect tool failure');
       assert.ok(toolFailure.text.includes('Tool failure'));
+      assert.ok(toolFailure.text.includes('Permission denied'));
     });
 
     it('should detect retry patterns (same tool >2 times consecutively)', () => {
@@ -493,6 +494,21 @@ describe('SessionCaptureService — heuristic detections (#179)', () => {
         toolResult('done'),
         assistantMsg('All set.'),
         summaryMsg('Modified: src/UserService.ts'),
+      ]);
+
+      const service = new SessionCaptureService();
+      const work = service.parseTranscript(tp);
+
+      assert.ok(!work.filePromptCorrelations || work.filePromptCorrelations.length === 0);
+    });
+
+    it('should not correlate dotfile stems as empty matches', () => {
+      const tp = writeTranscript([
+        userMsg('Update config'),
+        assistantMsg('Sure.'),
+        toolUse('edit'),
+        toolResult('done'),
+        summaryMsg('Modified: .env'),
       ]);
 
       const service = new SessionCaptureService();

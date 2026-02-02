@@ -623,13 +623,14 @@ export class SessionCaptureService implements ISessionCaptureService {
       const fileNameNoExt = fileName.replace(/\.[^.]+$/, '');
       const fileNameLower = fileName.toLowerCase();
       const fileNameNoExtLower = fileNameNoExt.toLowerCase();
+      const hasStem = fileNameNoExtLower.length > 0;
 
       // Find the last assistant message mentioning this file (tool response)
       let fileMessageIndex = -1;
       for (let i = messages.length - 1; i >= 0; i--) {
         if (messages[i].role === 'assistant' && messages[i].text) {
           const textLower = messages[i].text.toLowerCase();
-          if (textLower.includes(fileNameLower) || textLower.includes(fileNameNoExtLower)) {
+          if (textLower.includes(fileNameLower) || (hasStem && textLower.includes(fileNameNoExtLower))) {
             fileMessageIndex = i;
             break;
           }
@@ -644,7 +645,7 @@ export class SessionCaptureService implements ISessionCaptureService {
         if (messages[j].role !== 'user' || !messages[j].text) continue;
 
         const textLower = messages[j].text.toLowerCase();
-        if (textLower.includes(fileNameLower) || textLower.includes(fileNameNoExtLower)) {
+        if (textLower.includes(fileNameLower) || (hasStem && textLower.includes(fileNameNoExtLower))) {
           correlations.push({
             filePath,
             triggerSnippet: messages[j].text.slice(0, 100),
@@ -707,9 +708,11 @@ export class SessionCaptureService implements ISessionCaptureService {
       return content;
     }
     if (Array.isArray(content)) {
-      const textBlock = content.find(c => c.type === 'text');
-      if (textBlock?.text) {
-        return textBlock.text;
+      const textBlocks = content
+        .map(block => block.text)
+        .filter((text): text is string => typeof text === 'string' && text.length > 0);
+      if (textBlocks.length > 0) {
+        return textBlocks.join('\n');
       }
     }
     return '';
