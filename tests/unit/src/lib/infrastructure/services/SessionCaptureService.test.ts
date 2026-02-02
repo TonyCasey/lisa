@@ -150,6 +150,35 @@ describe('SessionCaptureService', () => {
       assert.strictEqual(result, transcriptPath);
     });
 
+    it('should fall back to legacy transcript.jsonl in project dir', () => {
+      // Create projects dir with legacy transcript.jsonl (no UUID files)
+      const projectFolderName = process.cwd().replace(/[:\\/]/g, '-');
+      const projectDir = path.join(tempDir, '.claude', 'projects', projectFolderName);
+      fs.mkdirSync(projectDir, { recursive: true });
+
+      const legacyPath = path.join(projectDir, 'transcript.jsonl');
+      fs.writeFileSync(legacyPath, '{"type":"user"}\n');
+
+      const service = new SessionCaptureService();
+      const result = service.findTranscript();
+
+      assert.strictEqual(result, legacyPath);
+    });
+
+    it('should fall back to legacy ~/.claude/transcript.jsonl', () => {
+      // Create .claude dir with legacy transcript.jsonl but no projects dir
+      const claudeDir = path.join(tempDir, '.claude');
+      fs.mkdirSync(claudeDir, { recursive: true });
+
+      const legacyPath = path.join(claudeDir, 'transcript.jsonl');
+      fs.writeFileSync(legacyPath, '{"type":"user"}\n');
+
+      const service = new SessionCaptureService();
+      const result = service.findTranscript();
+
+      assert.strictEqual(result, legacyPath);
+    });
+
     it('should return null when no transcripts found', () => {
       // Don't create any transcripts
       const service = new SessionCaptureService();

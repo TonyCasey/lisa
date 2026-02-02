@@ -197,56 +197,74 @@ export class SessionCaptureService implements ISessionCaptureService {
     const homeDir = process.env.HOME || process.env.USERPROFILE || '';
     const projectsDir = path.join(homeDir, '.claude', 'projects');
 
-    if (!fs.existsSync(projectsDir)) return candidates;
-
     // Derive project folder name from CWD
     // Claude Code convention: C:\dev\lisa → C--dev-lisa
     const cwd = process.cwd();
     const projectFolderName = cwd.replace(/[:\\/]/g, '-');
     const projectDir = path.join(projectsDir, projectFolderName);
 
-    // Determine which directories to search
-    const dirsToSearch: string[] = [];
+    // Search UUID-named session transcripts in ~/.claude/projects/
+    if (fs.existsSync(projectsDir)) {
+      const dirsToSearch: string[] = [];
 
-    if (fs.existsSync(projectDir)) {
-      dirsToSearch.push(projectDir);
-    } else {
-      // Fallback: scan all project folders if derived name doesn't match
-      this.logger?.debug('Project dir not found, scanning all projects', {
-        expected: projectFolderName,
-      });
-      try {
-        const entries = fs.readdirSync(projectsDir, { withFileTypes: true });
-        for (const entry of entries) {
-          if (entry.isDirectory()) {
-            dirsToSearch.push(path.join(projectsDir, entry.name));
+      if (fs.existsSync(projectDir)) {
+        dirsToSearch.push(projectDir);
+      } else {
+        // Fallback: scan all project folders if derived name doesn't match
+        this.logger?.debug('Project dir not found, scanning all projects', {
+          expected: projectFolderName,
+        });
+        try {
+          const entries = fs.readdirSync(projectsDir, { withFileTypes: true });
+          for (const entry of entries) {
+            if (entry.isDirectory()) {
+              dirsToSearch.push(path.join(projectsDir, entry.name));
+            }
           }
+        } catch {
+          // Ignore permission errors
         }
-      } catch {
-        // Ignore permission errors
+      }
+
+      // UUID pattern: 8-4-4-4-12 hex chars
+      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jsonl$/i;
+
+      for (const dir of dirsToSearch) {
+        try {
+          const entries = fs.readdirSync(dir, { withFileTypes: true });
+          for (const entry of entries) {
+            // Match UUID-named .jsonl files (session transcripts, not subagent files)
+            if (entry.isFile() && uuidPattern.test(entry.name)) {
+              const filePath = path.join(dir, entry.name);
+              try {
+                const stats = fs.statSync(filePath);
+                candidates.push({ path: filePath, mtime: stats.mtimeMs });
+              } catch {
+                // Skip if can't stat
+              }
+            }
+          }
+        } catch {
+          // Ignore permission errors on directory listing
+        }
       }
     }
 
-    // UUID pattern: 8-4-4-4-12 hex chars
-    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jsonl$/i;
-
-    for (const dir of dirsToSearch) {
-      try {
-        const entries = fs.readdirSync(dir, { withFileTypes: true });
-        for (const entry of entries) {
-          // Match UUID-named .jsonl files (session transcripts, not subagent files)
-          if (entry.isFile() && uuidPattern.test(entry.name)) {
-            const filePath = path.join(dir, entry.name);
-            try {
-              const stats = fs.statSync(filePath);
-              candidates.push({ path: filePath, mtime: stats.mtimeMs });
-            } catch {
-              // Skip if can't stat
-            }
+    // Legacy fallback: check for transcript.jsonl (older Claude Code versions)
+    if (candidates.length === 0) {
+      const legacyPaths = [
+        path.join(projectsDir, projectFolderName, 'transcript.jsonl'),
+        path.join(homeDir, '.claude', 'transcript.jsonl'),
+      ];
+      for (const legacyPath of legacyPaths) {
+        if (fs.existsSync(legacyPath)) {
+          try {
+            const stats = fs.statSync(legacyPath);
+            candidates.push({ path: legacyPath, mtime: stats.mtimeMs });
+          } catch {
+            // Skip if can't stat
           }
         }
-      } catch {
-        // Ignore permission errors on directory listing
       }
     }
 
