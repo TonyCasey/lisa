@@ -201,7 +201,8 @@ export function computeMemoryTier(item: IMemoryItem, now: number = Date.now()): 
   const isTask = tags.some(t => t === 'type:task');
   const isActive = isTask && !tags.some(t => t === 'status:done' || t === 'status:closed');
 
-  const age = item.created_at ? now - new Date(item.created_at).getTime() : Infinity;
+  const createdAtMs = item.created_at ? new Date(item.created_at).getTime() : NaN;
+  const age = Number.isFinite(createdAtMs) ? now - createdAtMs : Infinity;
   const hours48 = 48 * 60 * 60 * 1000;
   const hours24 = 24 * 60 * 60 * 1000;
 
