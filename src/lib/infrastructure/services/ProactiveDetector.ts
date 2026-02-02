@@ -102,13 +102,19 @@ export class ProactiveDetector implements IProactiveDetector {
   }
 
   /**
+   * Normalize input by trimming and stripping leading punctuation/whitespace.
+   */
+  private normalizeCandidate(input: string): string {
+    const trimmed = input.trim();
+    const normalized = trimmed.replace(/^[\s\W_]+/, '');
+    return normalized || trimmed;
+  }
+
+  /**
    * Extract a concise topic from the assistant message that presented options.
    */
   private extractDecisionTopic(assistantMessage: string): string {
-    // Take the first sentence or first 80 chars
-    const trimmed = assistantMessage.trim();
-    const normalized = trimmed.replace(/^[\s\W_]+/, '');
-    const candidate = normalized || trimmed;
+    const candidate = this.normalizeCandidate(assistantMessage);
     const firstSentence = candidate.split(/[.!?\n]/)[0]?.trim() ?? '';
     if (!firstSentence) {
       return candidate.slice(0, 80) || 'Decision made';
@@ -123,10 +129,7 @@ export class ProactiveDetector implements IProactiveDetector {
    * Extract a concise summary from the user prompt for a milestone.
    */
   private extractMilestoneSummary(userPrompt: string, label: string): string {
-    // Take the first sentence or first 80 chars of the prompt
-    const trimmed = userPrompt.trim();
-    const normalized = trimmed.replace(/^[\s\W_]+/, '');
-    const candidate = normalized || trimmed;
+    const candidate = this.normalizeCandidate(userPrompt);
     const firstSentence = candidate.split(/[.!?\n]/)[0]?.trim() ?? '';
     if (!firstSentence) {
       return candidate.slice(0, 80) || label;
