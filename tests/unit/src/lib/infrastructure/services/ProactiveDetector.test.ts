@@ -168,6 +168,14 @@ describe('ProactiveDetector', () => {
       assert.strictEqual(result.factType, 'milestone');
     });
 
+    it('should detect standalone "pull request #" phrasing', () => {
+      const detector = new ProactiveDetector();
+      const result = detector.detect('Pull request #123 is ready');
+
+      assert.strictEqual(result.shouldSuggest, true);
+      assert.strictEqual(result.factType, 'milestone');
+    });
+
     it('should detect "all tests pass"', () => {
       const detector = new ProactiveDetector();
       const result = detector.detect('All tests pass now');

@@ -24,6 +24,7 @@ const OPTION_PRESENTING_PATTERN = /\b(option|approach|alternative|should we|we c
  */
 const MILESTONE_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /\b(?:created|opened)\s+(?:a\s+)?(?:PR|pull request)\s*#?\d*/i, label: 'PR creation' },
+  { pattern: /\b(?:PR|pull request)\s*#\d+\b/i, label: 'PR creation' },
   { pattern: /\b(?:all\s+)?tests?\s+pass(?:ing|ed)?\b/i, label: 'Tests passing' },
   { pattern: /\b0\s+fail/i, label: 'Tests passing' },
   { pattern: /\b(?:done|finished|completed|shipped|merged)\b/i, label: 'Completion' },
