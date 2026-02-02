@@ -480,9 +480,25 @@ describe('SessionCaptureService — heuristic detections (#179)', () => {
       const fileFacts = facts.filter(f => f.startsWith('FILE-CONTEXT:'));
       assert.ok(fileFacts.length >= 1, 'Should have at least 1 FILE-CONTEXT fact');
       assert.ok(fileFacts[0].includes('source:session-capture'));
-      assert.ok(fileFacts[0].includes('confidence:low'));
+      assert.ok(fileFacts[0].includes('confidence:medium'));
       assert.ok(fileFacts[0].includes('type:correlation'));
       assert.ok(fileFacts[0].includes('file:src/UserService.ts'));
+    });
+
+    it('should not correlate when file mention is outside the 3-message window', () => {
+      const tp = writeTranscript([
+        userMsg('Update the UserService file'),
+        assistantMsg('Got it.'),
+        toolUse('edit'),
+        toolResult('done'),
+        assistantMsg('All set.'),
+        summaryMsg('Modified: src/UserService.ts'),
+      ]);
+
+      const service = new SessionCaptureService();
+      const work = service.parseTranscript(tp);
+
+      assert.ok(!work.filePromptCorrelations || work.filePromptCorrelations.length === 0);
     });
 
     it('should not emit heuristic facts when no heuristics triggered', () => {

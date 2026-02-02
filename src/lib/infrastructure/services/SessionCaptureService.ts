@@ -452,7 +452,7 @@ export class SessionCaptureService implements ISessionCaptureService {
     // Add file-prompt correlation facts
     if (work.filePromptCorrelations) {
       for (const corr of work.filePromptCorrelations) {
-        facts.push(`FILE-CONTEXT: ${corr.filePath} — triggered by: ${corr.triggerSnippet} [source:session-capture, confidence:low, type:correlation, file:${corr.filePath}]`);
+        facts.push(`FILE-CONTEXT: ${corr.filePath} — triggered by: ${corr.triggerSnippet} [source:session-capture, confidence:medium, type:correlation, file:${corr.filePath}]`);
       }
     }
 
@@ -640,8 +640,8 @@ export class SessionCaptureService implements ISessionCaptureService {
       const searchStart = fileMessageIndex >= 0 ? fileMessageIndex : messages.length - 1;
       let messagesChecked = 0;
       for (let j = searchStart; j >= 0 && messagesChecked < MESSAGE_WINDOW; j--) {
-        if (messages[j].role !== 'user' || !messages[j].text) continue;
         messagesChecked++;
+        if (messages[j].role !== 'user' || !messages[j].text) continue;
 
         const textLower = messages[j].text.toLowerCase();
         if (textLower.includes(fileNameLower) || textLower.includes(fileNameNoExtLower)) {
