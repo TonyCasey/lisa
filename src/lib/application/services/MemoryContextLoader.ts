@@ -21,6 +21,7 @@ import {
   checkCancellation,
   isCancellationError,
 } from '../../domain';
+import { computeMemoryTier } from '../../domain/interfaces/types/IMemoryQuality';
 
 interface IMcpNodeResponse {
   result?: {
@@ -118,7 +119,7 @@ export class MemoryContextLoader {
         try {
           checkCancellation(abortSignal, 'Memory load cancelled before facts');
 
-          const facts = await memory.loadFactsDateOrdered(allGroupIds, 100, dateOptions);
+          const facts = await memory.loadFactsDateOrdered(allGroupIds, 60, dateOptions);
 
           checkCancellation(abortSignal, 'Memory load cancelled after facts fetch');
 
@@ -203,6 +204,81 @@ export class MemoryContextLoader {
     result.timedOut = cancellableResult.timedOut;
 
     return result;
+  }
+
+  /**
+   * Rank and select the most valuable facts using a 6-tier priority algorithm.
+   *
+   * Tiers (filled top-down until budget exhausted):
+   * 1. confidence:verified — always included
+   * 2. source:user-explicit — always included
+   * 3. confidence:high + within 48h — up to 15
+   * 4. Active tasks (type:task, status not done) — up to 10
+   * 5. confidence:medium + within 24h — up to 5
+   * 6. Everything else by date — fills remaining budget
+   *
+   * @param facts - All loaded facts
+   * @param recentFilePaths - Optional file paths for file-aware boost
+   * @returns Ranked and capped facts (max RANKING_BUDGET)
+   */
+  rankAndSelectFacts(
+    facts: IMemoryItem[],
+    recentFilePaths?: readonly string[]
+  ): IMemoryItem[] {
+    const BUDGET = 30;
+    const TIER3_CAP = 15;
+    const TIER4_CAP = 10;
+    const TIER5_CAP = 5;
+
+    const now = Date.now();
+
+    const filePathSet = new Set(recentFilePaths?.map(f => f.toLowerCase()) ?? []);
+
+    // Assign each fact to a tier
+    const tiers: IMemoryItem[][] = [[], [], [], [], [], []]; // T1..T6
+
+    for (const fact of facts) {
+      const baseTier = computeMemoryTier(fact, now);
+
+      // File-aware boost: promote facts mentioning recent files to T3
+      // Only boost facts that would otherwise land in T4-T6 (preserve T1/T2 priority)
+      if (filePathSet.size > 0 && fact.fact && baseTier >= 4) {
+        const factLower = fact.fact.toLowerCase();
+        let boosted = false;
+        for (const fp of filePathSet) {
+          if (factLower.includes(fp)) {
+            tiers[2].push(fact); // Boost to T3
+            boosted = true;
+            break;
+          }
+        }
+        if (boosted) continue;
+      }
+
+      tiers[Math.min(Math.max(baseTier, 1), 6) - 1].push(fact);
+    }
+
+    const byDateDesc = (a: IMemoryItem, b: IMemoryItem): number => {
+      const ad = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bd = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return bd - ad;
+    };
+    for (const tier of tiers) {
+      tier.sort(byDateDesc);
+    }
+
+    // Fill from tiers, respecting caps
+    const selected: IMemoryItem[] = [];
+    const tierCaps = [Infinity, Infinity, TIER3_CAP, TIER4_CAP, TIER5_CAP, Infinity];
+
+    for (let t = 0; t < tiers.length; t++) {
+      if (selected.length >= BUDGET) break;
+      const remaining = BUDGET - selected.length;
+      const cap = Math.min(tierCaps[t], remaining);
+      selected.push(...tiers[t].slice(0, cap));
+    }
+
+    return selected;
   }
 
   private buildRepoTags(repo: string, branch: string | null): string[] {

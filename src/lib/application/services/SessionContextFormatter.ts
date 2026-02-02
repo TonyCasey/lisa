@@ -12,6 +12,7 @@ import type {
   ITask,
   ITaskCounts,
 } from '../../domain';
+import { computeMemoryTier, parseConfidenceTag } from '../../domain/interfaces/types/IMemoryQuality';
 
 /**
  * Git commit summary used in context display.
@@ -110,7 +111,8 @@ export class SessionContextFormatter {
     taskCounts: ITaskCounts,
     context: ISessionContext,
     gitCommits: readonly IGitCommit[] = [],
-    querySince?: Date
+    querySince?: Date,
+    ranked?: boolean
   ): string {
     const { projectName, userName, folderType, projectRoot, branch } = context;
     const lines: string[] = [];
@@ -155,15 +157,28 @@ export class SessionContextFormatter {
 
     // Recent memories
     const items = memories.facts.length ? memories.facts : memories.nodes;
-    const recentItems = this.filterRecentMemories(items, RECENT_HOURS);
-    const recentFormatted = this.formatMemorySummary(recentItems, MAX_RECENT_MEMORIES);
 
-    if (recentFormatted.length) {
-      lines.push('');
-      lines.push(`Recent memories (last ${RECENT_HOURS}h):`);
-      lines.push(...recentFormatted);
-    } else if (items.length) {
-      lines.push(`Recent memories (last ${RECENT_HOURS}h): none (older memories exist)`);
+    if (ranked) {
+      // Priority-grouped display with confidence indicators
+      const rankedFormatted = this.formatRankedMemories(items);
+      if (rankedFormatted.length) {
+        lines.push('');
+        lines.push(...rankedFormatted);
+      } else if (items.length) {
+        lines.push('Memories: none matching quality criteria');
+      }
+    } else {
+      // Backward-compatible time-grouped display
+      const recentItems = this.filterRecentMemories(items, RECENT_HOURS);
+      const recentFormatted = this.formatMemorySummary(recentItems, MAX_RECENT_MEMORIES);
+
+      if (recentFormatted.length) {
+        lines.push('');
+        lines.push(`Recent memories (last ${RECENT_HOURS}h):`);
+        lines.push(...recentFormatted);
+      } else if (items.length) {
+        lines.push(`Recent memories (last ${RECENT_HOURS}h): none (older memories exist)`);
+      }
     }
 
     // Tasks
@@ -310,6 +325,87 @@ export class SessionContextFormatter {
       return `${firstFact.slice(0, 57)}... (+${memories.length - 1} more)`;
     }
     return `${firstFact} (+${memories.length - 1} more)`;
+  }
+
+  /**
+   * Get the confidence indicator for a memory item.
+   * Returns [V] for verified, [H] for high, [M] for medium, empty for low/uncertain/none.
+   */
+  getConfidenceIndicator(item: IMemoryItem): string {
+    const tags = item.tags ?? [];
+    const confidence = parseConfidenceTag(tags);
+    switch (confidence) {
+      case 'verified': return '[V]';
+      case 'high': return '[H]';
+      case 'medium': return '[M]';
+      default: return '';
+    }
+  }
+
+  /**
+   * Assign a priority tier to a memory item.
+   * Tiers 1-2: Key facts, 3-5: Recent context, 6: Background.
+   */
+  assignTier(item: IMemoryItem): number {
+    return computeMemoryTier(item);
+  }
+
+  /**
+   * Format memories with priority grouping and confidence indicators.
+   * Groups facts into "Key facts" (T1-2), "Recent context" (T3-5), "Background" (T6).
+   * Truncates per group at 10 items with "+N more" indicator.
+   */
+  formatRankedMemories(memories: readonly IMemoryItem[]): string[] {
+    const PER_GROUP_LIMIT = 10;
+    const lines: string[] = [];
+
+    const keyFacts: IMemoryItem[] = [];
+    const recentContext: IMemoryItem[] = [];
+    const background: IMemoryItem[] = [];
+
+    for (const item of memories) {
+      const tier = this.assignTier(item);
+      if (tier <= 2) keyFacts.push(item);
+      else if (tier <= 5) recentContext.push(item);
+      else background.push(item);
+    }
+
+    if (keyFacts.length > 0) {
+      lines.push('Key facts:');
+      this.appendGroupItems(lines, keyFacts, PER_GROUP_LIMIT);
+    }
+
+    if (recentContext.length > 0) {
+      lines.push('Recent context:');
+      this.appendGroupItems(lines, recentContext, PER_GROUP_LIMIT);
+    }
+
+    if (background.length > 0) {
+      lines.push('Background:');
+      this.appendGroupItems(lines, background, PER_GROUP_LIMIT);
+    }
+
+    return lines;
+  }
+
+  /**
+   * Append formatted items for a priority group, with per-group truncation.
+   */
+  private appendGroupItems(
+    lines: string[],
+    items: readonly IMemoryItem[],
+    limit: number
+  ): void {
+    const shown = items.slice(0, limit);
+    for (const item of shown) {
+      const indicator = this.getConfidenceIndicator(item);
+      const text = item.fact || item.name || '<unknown>';
+      const prefix = indicator ? `${indicator} ` : '';
+      lines.push(`  ${prefix}${text}`);
+    }
+    if (items.length > limit) {
+      lines.push(`  ... and ${items.length - limit} more`);
+    }
   }
 
   /**

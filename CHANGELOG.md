@@ -11,6 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Confidence-Weighted Retrieval Ranking ([#181](https://github.com/TonyCasey/lisa/issues/181))
+
+Added 6-tier priority ranking to `MemoryContextLoader` and priority-grouped display to `SessionContextFormatter` for confidence-weighted memory retrieval.
+
+- `MemoryContextLoader.rankAndSelectFacts()` implements 6-tier ranking: T1 (verified), T2 (user-explicit), T3 (high + 48h), T4 (active tasks), T5 (medium + 24h), T6 (background)
+- Per-tier budget caps: T1-T2 unlimited, T3 max 15, T4 max 10, T5 max 5, total budget 30
+- File-aware boost: facts mentioning recent file paths promoted to T3
+- `SessionContextFormatter.getConfidenceIndicator()` returns `[V]`/`[H]`/`[M]` indicators
+- `SessionContextFormatter.assignTier()` assigns priority tier 1-6
+- `SessionContextFormatter.formatRankedMemories()` groups into Key facts, Recent context, Background sections with per-group truncation at 10
+- `formatContextContent()` accepts optional `ranked` parameter for priority-grouped vs time-grouped display
+- Backward compatible: `ranked=false` or omitted uses existing time-grouped format
+- 37 new unit tests (17 ranking, 20 priority display)
+
 #### Task Type Detection ([#180](https://github.com/TonyCasey/lisa/issues/180))
 
 Added signal-based task type detection to `PromptSubmitHandler` for mode-aware memory retrieval and decision flagging.
