@@ -195,7 +195,7 @@ Standard Jira issue types (IDs may vary by project):
 - Gemini: explicit commands and minimal formatting
 
 ## Notes
-- Requires Node.js >= 18 (uses native fetch)
+- All commands use the `lisa` CLI binary — no scripts to run directly.
 - API token must have project access permissions
 - Description uses Atlassian Document Format (ADF) internally
 - Rate limits apply per Atlassian Cloud policies

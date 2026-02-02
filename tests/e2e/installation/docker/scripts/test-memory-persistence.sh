@@ -13,9 +13,10 @@ set +e
 
 PASS=0
 FAIL=0
-TIMESTAMP=$(date +%s)
+TEST_ID=$(head -c 4 /dev/urandom | od -An -tx1 | tr -d ' \n')
 # Use meaningful content that LLM fact extraction will process properly
-TEST_MEMORY="DECISION: We decided to use PostgreSQL for database $TIMESTAMP because it provides better JSON support"
+# Avoid large numbers (timestamps) which confuse Graphiti's LLM edge extraction
+TEST_MEMORY="DECISION: Chose PostgreSQL over MySQL for the $TEST_ID project because it provides better JSON support"
 
 check() {
     local name="$1"
@@ -70,8 +71,8 @@ else
 fi
 
 # Wait for Graphiti to process (LLM fact extraction takes time)
-echo "  Waiting for processing (15s)..."
-sleep 15
+echo "  Waiting for processing (25s)..."
+sleep 25
 
 # =============================================================================
 # Test 2: Load memories
@@ -124,12 +125,16 @@ echo "=== Test 4: Search Memory ==="
 SEARCH_OUTPUT=$(lisa memory load --query "PostgreSQL database" --limit 10 2>&1)
 SEARCH_EXIT=$?
 
-# Check that search returns results (status ok)
-if [ $SEARCH_EXIT -eq 0 ] && echo "$SEARCH_OUTPUT" | grep -q '"status": "ok"'; then
-    echo "  Memory search: PASS"
+# Check that search actually returns facts, not just status ok
+SEARCH_FACTS=$(echo "$SEARCH_OUTPUT" | grep -c '"fact"' || true)
+if [ $SEARCH_EXIT -eq 0 ] && [ "$SEARCH_FACTS" -gt 0 ]; then
+    echo "  Memory search: PASS (facts: $SEARCH_FACTS)"
     ((PASS++))
 else
     echo "  Memory search: FAIL"
+    echo "  Expected facts in search results but found $SEARCH_FACTS"
+    echo "  Search output preview:"
+    echo "$SEARCH_OUTPUT" | head -20
     ((FAIL++))
 fi
 

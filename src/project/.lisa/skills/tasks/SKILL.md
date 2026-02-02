@@ -14,7 +14,7 @@ Use when the user says: "add a task", "list tasks", "load tasks", "task status".
 2) Add: `lisa tasks add "<task text>" [--status todo|doing|done] [--tag foo] [--group <id>] --cache`
 3) Defaults: reads ${GRAPHITI_ENDPOINT} from `.lisa/.env` (written by init); group ID is automatically derived from the project folder path. List defaults to `--since today` unless `--all` or `--since` is provided.
 4) Cache fallback: writes/reads `cache/tasks.log` when `--cache` is passed, returning last cached result on MCP failure.
-5) Keep prompts model-neutral; models only orchestrate script calls and summarize JSON output.
+5) Keep prompts model-neutral; models only orchestrate CLI commands and summarize JSON output.
 
 ## I/O contract (examples)
 - List: `{ status: "ok", action: "list", tasks: [...] }`
@@ -26,6 +26,5 @@ Use when the user says: "add a task", "list tasks", "load tasks", "task status".
 - Gemini: explicit commands and minimal formatting.
 
 ## Notes
-- Node.js script expects fetch (Node ≥18). Use `node --experimental-fetch` on older runtimes.
-- Tasks are stored via Graphiti MCP `add_task`/`list_tasks` (tool names referenced in script). Adjust if server differs.
-- Folder `.lisa/skills/tasks/` keeps this decoupled from model-specific bindings.
+- All commands use the `lisa` CLI binary — no scripts to run directly.
+- Tasks are stored via Graphiti MCP `add_task`/`list_tasks`.

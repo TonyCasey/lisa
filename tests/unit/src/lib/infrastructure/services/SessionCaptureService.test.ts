@@ -75,11 +75,13 @@ describe('SessionCaptureService', () => {
       assert.strictEqual(result, null);
     });
 
-    it('should find transcript in .claude directory', () => {
-      const claudeDir = path.join(tempDir, '.claude');
-      fs.mkdirSync(claudeDir, { recursive: true });
+    it('should find UUID-named transcript in project directory', () => {
+      // Derive the project folder from CWD (same logic as the service)
+      const projectFolderName = process.cwd().replace(/[:\\/]/g, '-');
+      const projectDir = path.join(tempDir, '.claude', 'projects', projectFolderName);
+      fs.mkdirSync(projectDir, { recursive: true });
 
-      const transcriptPath = path.join(claudeDir, 'transcript.jsonl');
+      const transcriptPath = path.join(projectDir, 'a1b2c3d4-e5f6-7890-abcd-ef1234567890.jsonl');
       fs.writeFileSync(transcriptPath, '{"type":"user"}\n');
 
       const service = new SessionCaptureService();
@@ -88,29 +90,13 @@ describe('SessionCaptureService', () => {
       assert.strictEqual(result, transcriptPath);
     });
 
-    it('should find transcript in .claude/projects subdirectory', () => {
-      const projectsDir = path.join(tempDir, '.claude', 'projects', 'myproject');
-      fs.mkdirSync(projectsDir, { recursive: true });
+    it('should select newest transcript when multiple sessions exist', async () => {
+      const projectFolderName = process.cwd().replace(/[:\\/]/g, '-');
+      const projectDir = path.join(tempDir, '.claude', 'projects', projectFolderName);
+      fs.mkdirSync(projectDir, { recursive: true });
 
-      const transcriptPath = path.join(projectsDir, 'transcript.jsonl');
-      fs.writeFileSync(transcriptPath, '{"type":"user"}\n');
-
-      const service = new SessionCaptureService();
-      const result = service.findTranscript();
-
-      assert.strictEqual(result, transcriptPath);
-    });
-
-    it('should select newest transcript when multiple candidates exist', async () => {
-      const projectsDir = path.join(tempDir, '.claude', 'projects');
-      const project1Dir = path.join(projectsDir, 'project1');
-      const project2Dir = path.join(projectsDir, 'project2');
-
-      fs.mkdirSync(project1Dir, { recursive: true });
-      fs.mkdirSync(project2Dir, { recursive: true });
-
-      const olderPath = path.join(project1Dir, 'transcript.jsonl');
-      const newerPath = path.join(project2Dir, 'transcript.jsonl');
+      const olderPath = path.join(projectDir, '00000000-0000-0000-0000-000000000001.jsonl');
+      const newerPath = path.join(projectDir, '00000000-0000-0000-0000-000000000002.jsonl');
 
       // Create older file first
       fs.writeFileSync(olderPath, '{"type":"user","content":"older"}\n');
@@ -128,6 +114,71 @@ describe('SessionCaptureService', () => {
       assert.strictEqual(result, newerPath);
     });
 
+    it('should ignore non-UUID files and subagent directories', () => {
+      const projectFolderName = process.cwd().replace(/[:\\/]/g, '-');
+      const projectDir = path.join(tempDir, '.claude', 'projects', projectFolderName);
+      const subagentDir = path.join(projectDir, '00000000-0000-0000-0000-000000000001', 'subagents');
+      fs.mkdirSync(subagentDir, { recursive: true });
+
+      // Non-UUID file — should be ignored
+      fs.writeFileSync(path.join(projectDir, 'notes.jsonl'), '{"type":"user"}\n');
+
+      // Subagent file inside a subdirectory — should be ignored (not a direct file)
+      fs.writeFileSync(path.join(subagentDir, 'agent-a12345.jsonl'), '{"type":"user"}\n');
+
+      // Valid UUID file — should be found
+      const validPath = path.join(projectDir, 'abcdef01-2345-6789-abcd-ef0123456789.jsonl');
+      fs.writeFileSync(validPath, '{"type":"user"}\n');
+
+      const service = new SessionCaptureService();
+      const result = service.findTranscript();
+
+      assert.strictEqual(result, validPath);
+    });
+
+    it('should fall back to scanning all projects when CWD folder not found', () => {
+      // Create a project folder with a different name than CWD-derived
+      const otherProjectDir = path.join(tempDir, '.claude', 'projects', 'other-project');
+      fs.mkdirSync(otherProjectDir, { recursive: true });
+
+      const transcriptPath = path.join(otherProjectDir, 'deadbeef-1234-5678-abcd-ef0123456789.jsonl');
+      fs.writeFileSync(transcriptPath, '{"type":"user"}\n');
+
+      const service = new SessionCaptureService();
+      const result = service.findTranscript();
+
+      assert.strictEqual(result, transcriptPath);
+    });
+
+    it('should fall back to legacy transcript.jsonl in project dir', () => {
+      // Create projects dir with legacy transcript.jsonl (no UUID files)
+      const projectFolderName = process.cwd().replace(/[:\\/]/g, '-');
+      const projectDir = path.join(tempDir, '.claude', 'projects', projectFolderName);
+      fs.mkdirSync(projectDir, { recursive: true });
+
+      const legacyPath = path.join(projectDir, 'transcript.jsonl');
+      fs.writeFileSync(legacyPath, '{"type":"user"}\n');
+
+      const service = new SessionCaptureService();
+      const result = service.findTranscript();
+
+      assert.strictEqual(result, legacyPath);
+    });
+
+    it('should fall back to legacy ~/.claude/transcript.jsonl', () => {
+      // Create .claude dir with legacy transcript.jsonl but no projects dir
+      const claudeDir = path.join(tempDir, '.claude');
+      fs.mkdirSync(claudeDir, { recursive: true });
+
+      const legacyPath = path.join(claudeDir, 'transcript.jsonl');
+      fs.writeFileSync(legacyPath, '{"type":"user"}\n');
+
+      const service = new SessionCaptureService();
+      const result = service.findTranscript();
+
+      assert.strictEqual(result, legacyPath);
+    });
+
     it('should return null when no transcripts found', () => {
       // Don't create any transcripts
       const service = new SessionCaptureService();
@@ -137,15 +188,12 @@ describe('SessionCaptureService', () => {
     });
 
     it('should log warning when multiple candidates found', () => {
-      const projectsDir = path.join(tempDir, '.claude', 'projects');
-      const project1Dir = path.join(projectsDir, 'project1');
-      const project2Dir = path.join(projectsDir, 'project2');
+      const projectFolderName = process.cwd().replace(/[:\\/]/g, '-');
+      const projectDir = path.join(tempDir, '.claude', 'projects', projectFolderName);
+      fs.mkdirSync(projectDir, { recursive: true });
 
-      fs.mkdirSync(project1Dir, { recursive: true });
-      fs.mkdirSync(project2Dir, { recursive: true });
-
-      fs.writeFileSync(path.join(project1Dir, 'transcript.jsonl'), '{"type":"user"}\n');
-      fs.writeFileSync(path.join(project2Dir, 'transcript.jsonl'), '{"type":"user"}\n');
+      fs.writeFileSync(path.join(projectDir, '11111111-1111-1111-1111-111111111111.jsonl'), '{"type":"user"}\n');
+      fs.writeFileSync(path.join(projectDir, '22222222-2222-2222-2222-222222222222.jsonl'), '{"type":"user"}\n');
 
       let warningLogged = false;
       let warnData: Record<string, unknown> | null = null;
