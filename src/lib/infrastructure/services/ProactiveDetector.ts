@@ -7,7 +7,7 @@
  * - Milestones (PR creation, test success, completion, version bump)
  */
 
-import type { IProactiveDetector, IProactiveDetection } from '../../domain/interfaces/IProactiveDetector';
+import type { IProactiveDetector, IProactiveDetection } from '../../domain/interfaces';
 
 /**
  * User confirmation patterns that suggest a decision was made.
