@@ -105,7 +105,11 @@ export class ProactiveDetector implements IProactiveDetector {
    */
   private extractDecisionTopic(assistantMessage: string): string {
     // Take the first sentence or first 80 chars
-    const firstSentence = assistantMessage.split(/[.!?\n]/)[0]?.trim() ?? '';
+    const trimmed = assistantMessage.trim();
+    const firstSentence = trimmed.split(/[.!?\n]/)[0]?.trim() ?? '';
+    if (!firstSentence) {
+      return trimmed.slice(0, 80) || 'Decision made';
+    }
     if (firstSentence.length <= 80) {
       return firstSentence;
     }
