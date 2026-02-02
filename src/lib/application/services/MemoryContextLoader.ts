@@ -248,7 +248,8 @@ export class MemoryContextLoader {
       const isActiveTask = isTask && !tags.some(t => t === 'status:done' || t === 'status:closed');
 
       // File-aware boost: promote facts mentioning recent files to T3
-      if (filePathSet.size > 0 && fact.fact) {
+      // Only boost facts that would otherwise land in T4-T6 (preserve T1/T2 priority)
+      if (filePathSet.size > 0 && fact.fact && confidence !== 'verified' && source !== 'user-explicit') {
         const factLower = fact.fact.toLowerCase();
         let boosted = false;
         for (const fp of filePathSet) {
