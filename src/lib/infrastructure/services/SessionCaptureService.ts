@@ -543,7 +543,8 @@ export class SessionCaptureService implements ISessionCaptureService {
       } else if (ERROR_TYPE_PATTERN.test(msg.text)) {
         const match = msg.text.match(ERROR_TYPE_PATTERN);
         if (match) {
-          const errorText = msg.text.slice(msg.text.indexOf(match[0]), msg.text.indexOf(match[0]) + 150).split('\n')[0];
+          const matchIndex = msg.text.indexOf(match[0]);
+          const errorText = msg.text.slice(matchIndex, matchIndex + 150).split('\n')[0];
           errors.push({
             text: errorText.trim(),
             errorType: 'stack-trace',
@@ -661,12 +662,10 @@ export class SessionCaptureService implements ISessionCaptureService {
    * Detect the dominant task type from user prompts using DETECTION_SIGNALS.
    */
   private detectTaskType(messages: IParsedMessage[]): TaskType | undefined {
-    const scores: Record<TaskType, number> = {
-      planning: 0,
-      execution: 0,
-      exploration: 0,
-      debugging: 0,
-    };
+    const scores: Record<TaskType, number> = Object.keys(DETECTION_SIGNALS).reduce(
+      (acc, key) => ({ ...acc, [key]: 0 }),
+      {} as Record<TaskType, number>
+    );
 
     for (const msg of messages) {
       if (msg.role !== 'user' || !msg.text) continue;
