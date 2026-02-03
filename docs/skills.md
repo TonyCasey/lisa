@@ -26,7 +26,8 @@ The main entry point that routes natural language to appropriate skills.
 - "ask lisa..."
 
 **Examples:**
-```
+
+```text
 "hey lisa, show me recent memories"
 "lisa, what do you know about the auth system?"
 "lisa, what tasks are we working on?"
@@ -409,8 +410,9 @@ Lisa has its own LLM integration (separate from the host AI assistant) for:
 - **Transcript enrichment** - Session stop can extract structured facts from transcripts
 
 Configure via environment variables:
+
 ```env
-LISA_LLM_PROVIDER=anthropic    # or openai, openrouter
+LISA_LLM_PROVIDER=anthropic    # or openai, ollama
 LISA_LLM_MODEL=claude-sonnet-4-20250514
 LISA_LLM_API_KEY=sk-...
 ```

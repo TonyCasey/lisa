@@ -41,7 +41,7 @@ Lisa has its own LLM integration for memory curation, conflict detection, consol
 | `LISA_LLM_MODEL` | Provider-dependent | Model name (e.g., `claude-sonnet-4-20250514`) |
 | `LISA_LLM_API_KEY` | - | API key for the LLM provider |
 | `LISA_LLM_ENDPOINT` | Provider-dependent | Custom LLM endpoint URL |
-| `LISA_LLM_ENABLED` | `true` | Enable/disable LLM-powered features |
+| `LISA_LLM_ENABLED` | `false` | Enable/disable LLM-powered features |
 
 **API key fallback chain:** If `LISA_LLM_API_KEY` is not set, Lisa checks `ANTHROPIC_API_KEY` (for anthropic provider) or `OPENAI_API_KEY` (for openai provider).
 
@@ -187,10 +187,10 @@ Shows current storage mode, endpoint, and connectivity status.
 ### Switching Storage Mode
 
 ```bash
-lisa storage switch
+lisa storage switch <mode>
 ```
 
-Updates `.lisa/.env` with the new storage mode and verifies connectivity.
+Where `<mode>` is `local` or `zep-cloud`. Updates `.lisa/.env` with the new storage mode and verifies connectivity.
 
 ## Docker Configuration
 

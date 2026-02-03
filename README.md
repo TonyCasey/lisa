@@ -7,12 +7,13 @@
 
 ## Why Lisa?
 
-### Because you would like every Claude session to remember the last one, the one from last week, last month. ALL OF THEM!!.
+### Because you would like every Claude session to remember the last one, the one from last week, last month. ALL OF THEM!!
 
 ## You want..
-- memory to load automatically 
+
+- memory to load automatically
 - store automatically
-- recall automatically 
+- recall automatically
 
 ## You DON'T want..
 - Having to repeat yourself, over & over
@@ -20,11 +21,13 @@
 - Having to fill up your context window.
 
 ## How?
-```lisa init``` in your project directory. Open Claude cli and code away as normal. 
+
+`lisa init` in your project directory. Open Claude cli and code away as normal.
 
 ### Ask Lisa..
+
 - Lisa, tell me about this project?
-- Lisa, what was the last thing we were working on? 
+- Lisa, what was the last thing we were working on?
 - Lisa, why are we not using Postgres?
 - Lisa, ...
 
