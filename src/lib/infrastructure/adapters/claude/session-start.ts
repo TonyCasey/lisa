@@ -4,6 +4,10 @@
  *
  * Loads memory context from Graphiti MCP at the start of a new Claude session.
  * This is a thin adapter that delegates to SessionStartHandler via mediator.
+ *
+ * Signal Handling:
+ * - SIGINT/SIGTERM handlers ensure graceful exit on process interruption
+ * - Prevents blocking CLI when user cancels or system terminates the hook
  */
 
 import { bootstrapContainer, TOKENS } from '../../di';
@@ -12,7 +16,10 @@ import { SessionStartRequest } from '../../../application/mediator/requests';
 import { toISOTimestamp, type SessionTrigger } from '../../../domain';
 import { readStdin } from './stdin';
 
-// Handle process interruption gracefully - don't block on SIGINT/SIGTERM
+/**
+ * Register signal handlers for graceful process termination.
+ * Exits with code 0 to prevent blocking the CLI on interruption.
+ */
 process.on('SIGINT', () => process.exit(0));
 process.on('SIGTERM', () => process.exit(0));
 

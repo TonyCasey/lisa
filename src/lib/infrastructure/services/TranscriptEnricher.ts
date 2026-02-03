@@ -5,8 +5,11 @@
  * Sends a truncated transcript snippet to the LLM and parses the
  * JSON response into validated IExtractedFact objects.
  *
- * Graceful fallback: if the LLM call fails for any reason, returns
- * an empty result — never blocks session capture.
+ * Error Handling:
+ * - Graceful fallback: if the LLM call fails for any reason, returns
+ *   an empty result — never blocks session capture.
+ * - Error messages are sanitized (first line only) to avoid logging
+ *   raw API response bodies which may contain sensitive data.
  *
  * Part of Phase 6C: Enhanced Session Transcript Extraction.
  */
