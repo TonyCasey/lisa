@@ -5,8 +5,11 @@
  * Sends a truncated transcript snippet to the LLM and parses the
  * JSON response into validated IExtractedFact objects.
  *
- * Graceful fallback: if the LLM call fails for any reason, returns
- * an empty result — never blocks session capture.
+ * Error Handling:
+ * - Graceful fallback: if the LLM call fails for any reason, returns
+ *   an empty result — never blocks session capture.
+ * - Error messages are sanitized (first line only) to avoid logging
+ *   raw API response bodies which may contain sensitive data.
  *
  * Part of Phase 6C: Enhanced Session Transcript Extraction.
  */
@@ -71,8 +74,12 @@ export function createTranscriptEnricher(
           usage: response.usage,
         };
       } catch (error) {
+        // Sanitize error message to avoid logging raw API response bodies
+        const errorMsg = error instanceof Error
+          ? error.message.split('\n')[0]  // Take only first line
+          : 'Unknown error';
         logger?.warn('Transcript enrichment failed, returning empty result', {
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMsg,
         });
         return {
           facts: [],
