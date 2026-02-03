@@ -543,7 +543,7 @@ export async function runDoctor(
 ): Promise<IDoctorResult> {
   const startTime = Date.now();
   const cwd = opts.cwd;
-  const projectName = getProjectName(cwd);
+  const _projectName = getProjectName(cwd); // Reserved for future use
 
   // Load configuration
   const config = await loadConfig(cwd);
