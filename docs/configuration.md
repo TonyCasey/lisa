@@ -1,6 +1,6 @@
 # Configuration
 
-Lisa can be configured through environment variables and configuration files.
+Lisa can be configured through environment variables, configuration files, and a preference store.
 
 ## Environment Variables
 
@@ -8,16 +8,12 @@ Lisa can be configured through environment variables and configuration files.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `GRAPHITI_ENDPOINT` | `http://localhost:8010/mcp/` | MCP server endpoint |
-| `LOG_LEVEL` | `debug` | Logging level: `debug`, `info`, `warn`, `error`, `silent` |
-| `STORAGE_MODE` | `local` | Storage mode: `local`, `neo4j`, `zep-cloud` |
-
-### Zep Cloud Settings
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ZEP_API_KEY` | - | Your Zep Cloud API key |
-| `ZEP_PROJECT_ID` | - | Your Zep Cloud project ID |
+| `STORAGE_MODE` | `local` | Storage backend: `local` (Graphiti MCP), `neo4j` (direct), `zep-cloud` |
+| `GRAPHITI_ENDPOINT` | `http://localhost:8010/mcp/` | MCP server endpoint (local mode) |
+| `MCP_ENDPOINT` | - | Alternative to `GRAPHITI_ENDPOINT` |
+| `LOG_LEVEL` | `error` | Logging level: `debug`, `info`, `warn`, `error`, `silent` |
+| `LOG_CONSOLE` | `false` | Write logs to stderr/console |
+| `LOG_DIR` | - | Directory for log files (optional) |
 
 ### Neo4j Settings (for direct queries)
 
@@ -28,7 +24,28 @@ Lisa can be configured through environment variables and configuration files.
 | `NEO4J_PASSWORD` | `demodemo` | Neo4j password |
 | `NEO4J_DATABASE` | `neo4j` | Neo4j database name |
 
-### LLM Provider Settings
+### Zep Cloud Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ZEP_API_KEY` | - | Your Zep Cloud API key |
+| `ZEP_BASE_URL` | `https://api.getzep.com/api/v2` | Zep Cloud API base URL |
+
+### Lisa LLM Settings
+
+Lisa has its own LLM integration for memory curation, conflict detection, consolidation, and transcript enrichment. These are separate from the Graphiti/OpenAI embeddings.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LISA_LLM_PROVIDER` | `anthropic` | LLM provider: `anthropic`, `openai`, `ollama` |
+| `LISA_LLM_MODEL` | Provider-dependent | Model name (e.g., `claude-sonnet-4-20250514`) |
+| `LISA_LLM_API_KEY` | - | API key for the LLM provider |
+| `LISA_LLM_ENDPOINT` | Provider-dependent | Custom LLM endpoint URL |
+| `LISA_LLM_ENABLED` | `true` | Enable/disable LLM-powered features |
+
+**API key fallback chain:** If `LISA_LLM_API_KEY` is not set, Lisa checks `ANTHROPIC_API_KEY` (for anthropic provider) or `OPENAI_API_KEY` (for openai provider).
+
+### Graphiti MCP Provider Settings
 
 These are used by the Graphiti MCP server (set in project root `.env`):
 
@@ -61,9 +78,48 @@ NEO4J_USER=neo4j
 NEO4J_PASSWORD=demodemo
 NEO4J_DATABASE=neo4j
 
+# Lisa LLM (for curation, conflict detection, enrichment)
+# LISA_LLM_PROVIDER=anthropic
+# LISA_LLM_MODEL=claude-sonnet-4-20250514
+# LISA_LLM_API_KEY=sk-...
+
 # Zep Cloud (if using)
 # ZEP_API_KEY=your-api-key
 ```
+
+**Load order:** `process.env` > `.lisa/.env` file > hardcoded defaults
+
+### .lisa/preferences.json
+
+File-based key-value store for user preferences. Managed via the `lisa pref` CLI:
+
+```bash
+# View all preferences
+lisa pref list
+
+# Get a specific preference
+lisa pref get llm:provider
+
+# Set a preference
+lisa pref set llm:provider anthropic
+
+# Delete a preference
+lisa pref delete llm:temperature
+```
+
+**LLM preferences:**
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `llm:provider` | string | LLM provider name |
+| `llm:model` | string | Model name |
+| `llm:apiKey` | string | API key |
+| `llm:endpoint` | string | Custom endpoint URL |
+| `llm:enabled` | boolean | Enable/disable LLM features |
+| `llm:maxTokens` | number | Max tokens for LLM responses |
+| `llm:temperature` | number | Sampling temperature (0-2) |
+
+**Precedence for LLM config:** Defaults < Preferences (`.lisa/preferences.json`) < Environment variables (highest priority)
 
 ### .claude/settings.json
 
@@ -86,6 +142,55 @@ Claude Code hook configuration (auto-generated). Lisa registers its hooks here:
 ```
 
 Hook commands read configuration from environment variables (set via `.lisa/.env`), not from a separate config file.
+
+## LLM Configuration
+
+### Testing LLM Settings
+
+```bash
+# Check current LLM config
+lisa llm config
+
+# Test LLM connectivity
+lisa llm test
+
+# View usage stats
+lisa llm usage
+
+# List available features
+lisa llm features
+```
+
+### LLM-Powered Features
+
+When enabled, Lisa uses its LLM for:
+
+| Feature | Command | Description |
+|---------|---------|-------------|
+| Memory curation | `lisa memory curate` | Assess fact quality, mark stale/low-value |
+| Conflict detection | `lisa memory conflicts` | Find contradictory facts |
+| Consolidation | `lisa memory consolidate` | Merge related facts |
+| Deduplication | `lisa memory dedupe` | Find and remove duplicates |
+| Summarization | `lisa memory summarize` | Generate period summaries |
+| Transcript enrichment | (automatic on session stop) | Extract structured facts |
+
+## Storage Management
+
+### Checking Storage Status
+
+```bash
+lisa storage status
+```
+
+Shows current storage mode, endpoint, and connectivity status.
+
+### Switching Storage Mode
+
+```bash
+lisa storage switch
+```
+
+Updates `.lisa/.env` with the new storage mode and verifies connectivity.
 
 ## Docker Configuration
 
@@ -113,12 +218,11 @@ services:
 For Docker, create a `.env` file in your project root with your API keys:
 
 ```env
-# LLM Provider (required for embeddings)
+# LLM Provider (required for Graphiti embeddings)
 OPENAI_API_KEY=your-openai-key
 
-# Optional providers
+# Optional: Lisa's own LLM (for curation features)
 # ANTHROPIC_API_KEY=your-anthropic-key
-# GOOGLE_API_KEY=your-google-key
 ```
 
 ## Group IDs
