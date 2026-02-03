@@ -99,11 +99,16 @@ describe('GitClient', () => {
       assert.strictEqual(exists, true);
     });
 
-    it('should return true for the main branch', () => {
+    it('should return true for the main branch (local or remote)', () => {
       const defaultBranch = client.getDefaultBranch(REPO_CWD);
-      const exists = client.refExists(defaultBranch, REPO_CWD);
+      // In CI (detached HEAD on PR), local main may not exist but origin/main will
+      const localExists = client.refExists(defaultBranch, REPO_CWD);
+      const remoteExists = client.refExists(`origin/${defaultBranch}`, REPO_CWD);
 
-      assert.strictEqual(exists, true);
+      assert.ok(
+        localExists || remoteExists,
+        `Expected either "${defaultBranch}" or "origin/${defaultBranch}" to exist`
+      );
     });
 
     it('should return false for a nonexistent branch', () => {
