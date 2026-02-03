@@ -8,6 +8,7 @@
  * Signal Handling:
  * - SIGINT/SIGTERM handlers ensure graceful exit on process interruption
  * - Prevents blocking CLI when user cancels or system terminates the hook
+ * - Global timeout prevents indefinite hangs
  */
 
 import { bootstrapContainer, TOKENS } from '../../di';
@@ -16,8 +17,17 @@ import { SessionStartRequest } from '../../../application/mediator/requests';
 import { toISOTimestamp, type SessionTrigger } from '../../../domain';
 import { readStdin } from './stdin';
 
+/** Maximum time the hook is allowed to run before force exit (ms). */
+const HOOK_TIMEOUT_MS = 10000;
+
 /** Tracks whether a shutdown signal has been received. */
 let shutdownRequested = false;
+
+// Global timeout - force exit if hook takes too long
+const globalTimeout = setTimeout(() => {
+  console.error('[Session start timed out after 10s]');
+  process.exit(0);
+}, HOOK_TIMEOUT_MS);
 
 /** Cleanup function set by main() for graceful shutdown. */
 let cleanup: (() => Promise<void>) | null = null;
@@ -83,12 +93,14 @@ async function main(): Promise<void> {
     await dispose();
   }
 
-  // Exit cleanly - don't let any remaining handles keep process alive
+  // Clear timeout and exit cleanly
+  clearTimeout(globalTimeout);
   process.exit(0);
 }
 
 main().catch((err: Error) => {
   // Don't block session start on errors - just log and exit cleanly
+  clearTimeout(globalTimeout);
   console.log(`Memory load skipped: ${err.message}`);
   process.exit(0);
 });

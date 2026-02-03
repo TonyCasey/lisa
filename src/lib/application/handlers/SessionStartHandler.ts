@@ -151,21 +151,17 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
     // Determine date options based on trigger
     const dateOptions = this.computeDateOptions(request.trigger);
 
-    // Load memory and run git triage in parallel
-    const [memories, gitTriage] = await Promise.all([
-      this.memoryLoader.loadMemory(
-        hierarchicalGroupIds,
-        projectAliases,
-        branch,
-        dateOptions,
-      ),
-      this.runGitTriage(dateOptions.since, projectRoot),
-    ]);
+    // Load memory (git triage temporarily disabled - investigating freeze)
+    const memories = await this.memoryLoader.loadMemory(
+      hierarchicalGroupIds,
+      projectAliases,
+      branch,
+      dateOptions,
+    );
+    const gitTriage = null; // TODO: Re-enable after fixing freeze
 
-    // Load recent git commits as fallback (only if triage didn't run)
-    const gitCommits = gitTriage
-      ? []
-      : await this.gitService.loadGitCommits(dateOptions.since, projectRoot);
+    // Load recent git commits as fallback
+    const gitCommits = await this.gitService.loadGitCommits(dateOptions.since, projectRoot);
 
     // Process tasks from memory
     const tasks = this.processTasks(memories.tasks);
