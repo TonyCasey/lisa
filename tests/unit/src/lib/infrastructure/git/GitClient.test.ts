@@ -3,14 +3,15 @@
  *
  * These are integration-style tests that call the real git executable
  * since GitClient wraps child_process.execFileSync directly.
- * Tests run against the actual lisa repo at C:\dev\lisa.
+ * Tests run against the current working directory (the lisa repo).
  */
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { GitClient } from '../../../../../../src/lib/infrastructure/git/GitClient';
 
-const REPO_CWD = 'C:\\dev\\lisa';
+// Use process.cwd() to work in both local dev (C:\dev\lisa) and CI (/home/runner/work/lisa/lisa)
+const REPO_CWD = process.cwd();
 
 describe('GitClient', () => {
   const client = new GitClient();
