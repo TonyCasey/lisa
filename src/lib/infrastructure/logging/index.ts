@@ -24,7 +24,7 @@
  */
 
 // Logger implementations
-export { Logger, NullLogger, DEFAULT_LOGGER_OPTIONS } from './Logger';
+export { Logger, NullLogger, DEFAULT_LOGGER_OPTIONS, type ILoggerOptionsExtended } from './Logger';
 
 // Factory functions
 export {

@@ -22,6 +22,14 @@ export const DEFAULT_LOGGER_OPTIONS: ILoggerOptions = {
   retentionDays: 7,
 };
 
+/**
+ * Extended logger options with async support.
+ */
+export interface ILoggerOptionsExtended extends ILoggerOptions {
+  /** Use async file writes (fire-and-forget, non-blocking). Default: false. */
+  asyncWrites?: boolean;
+}
+
 // ANSI color codes for console output
 const COLORS = {
   reset: '\x1b[0m',
@@ -84,16 +92,20 @@ function getDateString(): string {
  * Simple file-based logger implementation.
  * Writes single-line formatted logs with optional colorized console output.
  * Also implements IStructuredLogger for standardized event logging.
+ *
+ * Supports async (non-blocking) file writes for performance-sensitive contexts
+ * like Claude Code hooks where latency matters.
  */
 export class Logger implements ILogger, IStructuredLogger {
-  private readonly options: ILoggerOptions;
+  private readonly options: ILoggerOptionsExtended;
   private readonly getCorrelationId: () => string | undefined;
   private readonly logFile: string;
   private readonly bindings: Record<string, unknown>;
   private readonly boundContext: ILogContext;
+  private readonly asyncWrites: boolean;
 
   constructor(
-    options: ILoggerOptions,
+    options: ILoggerOptionsExtended,
     _pinoInstance?: unknown, // Kept for API compatibility
     getCorrelationId?: () => string | undefined,
     bindings?: Record<string, unknown>,
@@ -103,6 +115,7 @@ export class Logger implements ILogger, IStructuredLogger {
     this.getCorrelationId = getCorrelationId ?? (() => undefined);
     this.bindings = bindings ?? {};
     this.boundContext = boundContext ?? {};
+    this.asyncWrites = options.asyncWrites ?? false;
 
     // Ensure log directory exists
     const logDir = path.resolve(options.logDir);
@@ -145,6 +158,7 @@ export class Logger implements ILogger, IStructuredLogger {
 
   /**
    * Write a log entry.
+   * Uses async (fire-and-forget) writes when asyncWrites is enabled.
    */
   private writeLog(
     level: LogLevel,
@@ -160,14 +174,21 @@ export class Logger implements ILogger, IStructuredLogger {
     // File output: plain single-line format
     if (this.options.enableFile) {
       const fileLine = `${timestamp} ${levelStr.padEnd(5)} ${message}${contextStr}\n`;
-      try {
-        fs.appendFileSync(this.logFile, fileLine);
-      } catch {
-        // Silently fail if we can't write to the file
+      if (this.asyncWrites) {
+        // Fire-and-forget async write - doesn't block the event loop
+        fs.appendFile(this.logFile, fileLine, () => {
+          // Silently ignore errors
+        });
+      } else {
+        try {
+          fs.appendFileSync(this.logFile, fileLine);
+        } catch {
+          // Silently fail if we can't write to the file
+        }
       }
     }
 
-    // Console output: colorized
+    // Console output: colorized (always sync, goes to stderr)
     if (this.options.enableConsole) {
       const color = LEVEL_COLORS[levelStr] || COLORS.reset;
       const consoleLine = `${COLORS.dim}${timestamp}${COLORS.reset} ${color}${levelStr.padEnd(5)}${COLORS.reset} ${message}${COLORS.gray}${contextStr}${COLORS.reset}`;
@@ -201,7 +222,7 @@ export class Logger implements ILogger, IStructuredLogger {
 
   child(bindings: Record<string, unknown>): ILogger {
     return new Logger(
-      this.options,
+      { ...this.options, asyncWrites: this.asyncWrites },
       undefined,
       this.getCorrelationId,
       { ...this.bindings, ...bindings },
@@ -284,7 +305,7 @@ export class Logger implements ILogger, IStructuredLogger {
    */
   withContext(context: ILogContext): IStructuredLogger {
     return new Logger(
-      this.options,
+      { ...this.options, asyncWrites: this.asyncWrites },
       undefined,
       this.getCorrelationId,
       this.bindings,

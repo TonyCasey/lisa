@@ -44,10 +44,10 @@ async function main(): Promise<void> {
   const hookInput = await readStdin();
   const trigger: SessionTrigger = hookInput.trigger || hookInput.session_type || 'startup';
 
-  // Bootstrap container with DI
+  // Bootstrap container with DI - use async logging for non-blocking file writes
   const { container, dispose } = await bootstrapContainer({
     projectRoot: process.cwd(),
-    disableLogging: true,
+    asyncLogging: true, // Non-blocking file writes for hook performance
   });
 
   // Register cleanup for graceful shutdown
