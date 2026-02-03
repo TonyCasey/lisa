@@ -16,12 +16,28 @@ import { SessionStartRequest } from '../../../application/mediator/requests';
 import { toISOTimestamp, type SessionTrigger } from '../../../domain';
 import { readStdin } from './stdin';
 
+/** Tracks whether a shutdown signal has been received. */
+let shutdownRequested = false;
+
+/** Cleanup function set by main() for graceful shutdown. */
+let cleanup: (() => Promise<void>) | null = null;
+
 /**
  * Register signal handlers for graceful process termination.
- * Exits with code 0 to prevent blocking the CLI on interruption.
+ * Sets exitCode and triggers cleanup rather than hard exit to avoid
+ * truncating output or skipping dispose().
  */
-process.on('SIGINT', () => process.exit(0));
-process.on('SIGTERM', () => process.exit(0));
+async function handleShutdown(): Promise<void> {
+  if (shutdownRequested) return;
+  shutdownRequested = true;
+  process.exitCode = 0;
+  if (cleanup) {
+    await cleanup();
+  }
+}
+
+process.on('SIGINT', () => void handleShutdown());
+process.on('SIGTERM', () => void handleShutdown());
 
 async function main(): Promise<void> {
   // Read hook input to get trigger type
@@ -34,11 +50,20 @@ async function main(): Promise<void> {
     disableLogging: true,
   });
 
+  // Register cleanup for graceful shutdown
+  cleanup = dispose;
+
   try {
+    // Check if shutdown was requested during bootstrap
+    if (shutdownRequested) return;
+
     // Resolve mediator and send request
     const mediator = await container.resolve<IMediator>(TOKENS.Mediator);
     const request = new SessionStartRequest(trigger, toISOTimestamp());
     const result = await mediator.send(request);
+
+    // Check if shutdown was requested during processing
+    if (shutdownRequested) return;
 
     // Output goes to Claude as system-reminder context (stdout)
     console.log(result.contextContent);
