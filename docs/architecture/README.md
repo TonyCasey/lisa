@@ -21,11 +21,14 @@ Lisa follows Clean Architecture principles with clear layer separation:
 ```text
 ┌─────────────────────────────────────────────────────────┐
 │                    CLI / Presentation                    │
-│                      (src/lib/cli.ts)                   │
+│                    (src/lib/commands/)                   │
+│   hooks.ts, knowledge.ts, pr.ts, issue.ts, skills.ts    │
 ├─────────────────────────────────────────────────────────┤
 │                     Application Layer                    │
 │            (src/lib/application/handlers/)              │
 │   SessionStartHandler, SessionStopHandler, etc.         │
+│            (src/lib/application/mediator/)              │
+│   Mediator, Requests (SessionStartRequest, etc.)        │
 ├─────────────────────────────────────────────────────────┤
 │                      Domain Layer                        │
 │              (src/lib/domain/interfaces/)               │
@@ -34,6 +37,8 @@ Lisa follows Clean Architecture principles with clear layer separation:
 │                   Infrastructure Layer                   │
 │              (src/lib/infrastructure/dal/)              │
 │   McpMemoryRepository, Neo4jTaskRepository, ZepClient   │
+│              (src/lib/infrastructure/di/)               │
+│   Container, bootstrap, tokens, ServiceFactory          │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -49,10 +54,19 @@ Lisa uses an event-driven architecture where CLI lifecycle events trigger handle
 
 ### Dependency Injection
 
-Services are created via `createDefaultServices()` factory and injected via constructor:
+Services are resolved via a DI container bootstrapped at startup:
 
 ```typescript
-const services = createDefaultServices(TEMPLATE_ROOT);
+const bootstrap = await bootstrapContainer({ projectRoot: process.cwd() });
+const mediator = await bootstrap.container.resolve<IMediator>(TOKENS.Mediator);
+const result = await mediator.send(new SessionStartRequest(trigger, timestamp));
+await bootstrap.dispose();
+```
+
+For CLI-specific services (init, docker, doctor), a separate factory is used:
+
+```typescript
+const services = createCliServices(TEMPLATE_ROOT);
 await initCommand(opts, services);
 ```
 

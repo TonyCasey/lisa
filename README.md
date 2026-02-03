@@ -7,8 +7,38 @@
 
 ## Why Lisa?
 
-Unlike simple vector databases or file-based memory, Lisa uses **[Graphiti](https://github.com/getzep/graphiti)** - a knowledge graph that captures *relationships* between concepts, not just text.
+### Because you would like every Claude session to remember the last one, the one from last week, last month. ALL OF THEM!!
 
+## You want..
+
+- memory to load automatically
+- store automatically
+- recall automatically
+
+## You DON'T want..
+- Having to repeat yourself, over & over
+- Having to update .md files
+- Having to fill up your context window.
+
+## How?
+
+`lisa init` in your project directory. Open Claude cli and code away as normal.
+
+### Ask Lisa..
+
+- Lisa, tell me about this project?
+- Lisa, what was the last thing we were working on?
+- Lisa, why are we not using Postgres?
+- Lisa, ...
+
+### Tell Lisa.
+- Lisa, remember this for future reference
+- Lisa, create Jira/GitHub ticket
+- Lisa, let's commit, push, and create a PR
+
+---
+
+## The tech..
 - **Graph-native storage** (Neo4j) - Connections matter as much as content
 - **LLM-powered extraction** - Automatically identifies entities and relationships
 - **Temporal awareness** - Knows *when* you learned something
