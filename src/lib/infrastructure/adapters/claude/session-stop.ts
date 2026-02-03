@@ -11,6 +11,10 @@ import type { IMediator } from '../../../application/mediator';
 import { SessionStopRequest } from '../../../application/mediator/requests';
 import { toISOTimestamp } from '../../../domain';
 
+// Handle process interruption gracefully - don't block on SIGINT/SIGTERM
+process.on('SIGINT', () => process.exit(0));
+process.on('SIGTERM', () => process.exit(0));
+
 async function main(): Promise<void> {
   // Bootstrap container with DI
   const { container, dispose } = await bootstrapContainer({

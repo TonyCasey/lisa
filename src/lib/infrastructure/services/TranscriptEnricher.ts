@@ -71,8 +71,12 @@ export function createTranscriptEnricher(
           usage: response.usage,
         };
       } catch (error) {
+        // Sanitize error message to avoid logging raw API response bodies
+        const errorMsg = error instanceof Error
+          ? error.message.split('\n')[0]  // Take only first line
+          : 'Unknown error';
         logger?.warn('Transcript enrichment failed, returning empty result', {
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMsg,
         });
         return {
           facts: [],

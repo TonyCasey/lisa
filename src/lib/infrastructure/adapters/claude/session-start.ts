@@ -12,6 +12,10 @@ import { SessionStartRequest } from '../../../application/mediator/requests';
 import { toISOTimestamp, type SessionTrigger } from '../../../domain';
 import { readStdin } from './stdin';
 
+// Handle process interruption gracefully - don't block on SIGINT/SIGTERM
+process.on('SIGINT', () => process.exit(0));
+process.on('SIGTERM', () => process.exit(0));
+
 async function main(): Promise<void> {
   // Read hook input to get trigger type
   const hookInput = await readStdin();
