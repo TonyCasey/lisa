@@ -39,6 +39,70 @@ export interface IGitDiffOptions {
 }
 
 /**
+ * Options for detailed git log operations (triage).
+ */
+export interface IGitLogDetailedOptions {
+  /** Only show commits after this date (YYYY-MM-DD or ISO). */
+  readonly since?: string;
+  /** Only show commits before this date (YYYY-MM-DD or ISO). */
+  readonly until?: string;
+  /** Maximum number of commits to return. */
+  readonly maxCount?: number;
+  /** Working directory for the git command. */
+  readonly cwd?: string;
+}
+
+/**
+ * Parsed commit from detailed log.
+ */
+export interface IGitLogCommit {
+  /** Full SHA. */
+  readonly sha: string;
+  /** Short SHA. */
+  readonly shortSha: string;
+  /** Parent SHAs (space-separated in raw form). */
+  readonly parentShas: readonly string[];
+  /** Commit subject. */
+  readonly subject: string;
+  /** Commit body (may be empty). */
+  readonly body: string;
+  /** Author name. */
+  readonly authorName: string;
+  /** Author email. */
+  readonly authorEmail: string;
+  /** Author timestamp (Unix epoch). */
+  readonly authorTimestamp: number;
+  /** Ref names (tags, branches) if any. */
+  readonly refNames: string;
+}
+
+/**
+ * Commit stat entry from --numstat.
+ */
+export interface IGitCommitStatEntry {
+  /** Lines added (may be '-' for binary). */
+  readonly added: number | null;
+  /** Lines deleted (may be '-' for binary). */
+  readonly deleted: number | null;
+  /** File path. */
+  readonly path: string;
+  /** Whether file was added (new). */
+  readonly isNew: boolean;
+  /** Whether file was deleted. */
+  readonly isDeleted: boolean;
+}
+
+/**
+ * Tag information from git.
+ */
+export interface IGitTag {
+  /** Tag name. */
+  readonly name: string;
+  /** Commit SHA the tag points to. */
+  readonly sha: string;
+}
+
+/**
  * Git client interface for shell-free application layer code.
  */
 export interface IGitClient {
@@ -76,4 +140,34 @@ export interface IGitClient {
    * @returns True if the ref exists.
    */
   refExists(ref: string, cwd?: string): boolean;
+
+  /**
+   * Get detailed commit log for triage analysis.
+   * Returns structured commit data including parents, body, refs.
+   * @param options - Log options.
+   * @returns Array of parsed commits.
+   */
+  logDetailed(options: IGitLogDetailedOptions): IGitLogCommit[];
+
+  /**
+   * Get file statistics for a specific commit.
+   * @param sha - Commit SHA.
+   * @param cwd - Working directory.
+   * @returns Array of stat entries per file.
+   */
+  getCommitStats(sha: string, cwd?: string): IGitCommitStatEntry[];
+
+  /**
+   * List all tags in the repository.
+   * @param cwd - Working directory.
+   * @returns Array of tag info.
+   */
+  listTags(cwd?: string): IGitTag[];
+
+  /**
+   * Get the total number of commits in the repository.
+   * @param cwd - Working directory.
+   * @returns Total commit count.
+   */
+  countCommits(cwd?: string): number;
 }

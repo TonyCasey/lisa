@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Git-Powered Memory: Phase 1 Local Triage ([LISA-7](https://linear.app/tonycasey/issue/LISA-7))
+
+Added `GitTriageService` for scanning git history and scoring commits for "interestingness" to identify which commits warrant API enrichment. Part of the Git-Powered Memory feature.
+
+- `IGitTriageService` interface with `triage()` and `scoreCommit()` methods
+- Interest signal detection: large diffs, merge commits with PRs, conventional commit prefixes, decision keywords, tag adjacency, new directories, long message bodies
+- Scoring algorithm with configurable threshold (default: 3)
+- File hotspot tracking (most frequently changed files)
+- Extended `IGitClient` with `logDetailed()`, `getCommitStats()`, `listTags()`, `countCommits()` methods
+- Updated git workflow rules to use Linear issue identifiers for branch naming
+- 23 unit tests covering scoring, signal detection, and edge cases
+
 #### Heuristic Session Capture Enhancement ([#179](https://github.com/TonyCasey/lisa/issues/179))
 
 Added heuristic detection methods to `SessionCaptureService` for richer session capture without LLM dependency, plus quality tags on saved facts.
