@@ -365,8 +365,8 @@ async function main() {
   if (await fs.pathExists(targetLisa)) {
     const entries = await fs.readdir(targetLisa);
     for (const entry of entries) {
-      // Preserve logs and .env
-      if (entry === 'logs' || entry === '.env') continue;
+      // Preserve logs, .env, and copy-fallback registry (used by lisa sync)
+      if (entry === 'logs' || entry === '.env' || entry === '.copy-fallbacks.json') continue;
       await fs.remove(path.join(targetLisa, entry));
     }
   }

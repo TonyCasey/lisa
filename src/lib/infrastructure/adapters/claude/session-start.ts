@@ -54,11 +54,10 @@ async function main(): Promise<void> {
   const hookInput = await readStdin();
   const trigger: SessionTrigger = hookInput.trigger || hookInput.session_type || 'startup';
 
-  // Bootstrap container with DI
-  // TODO: Re-enable async logging once terminal freeze issue is investigated
+  // Bootstrap container with DI (async logging for non-blocking file writes)
   const { container, dispose } = await bootstrapContainer({
     projectRoot: process.cwd(),
-    disableLogging: true,
+    asyncLogging: true,
   });
 
   // Register cleanup for graceful shutdown
@@ -90,11 +89,14 @@ async function main(): Promise<void> {
     console.error(`[Memory loaded${triggerLabel}: ${summary}]`);
   } finally {
     // Clean up connections before exiting
-    await dispose();
+    try {
+      await dispose();
+    } finally {
+      // Always clear timeout, even on early return/shutdown
+      clearTimeout(globalTimeout);
+    }
   }
 
-  // Clear timeout and exit cleanly
-  clearTimeout(globalTimeout);
   process.exit(0);
 }
 

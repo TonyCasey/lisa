@@ -176,9 +176,13 @@ export class Logger implements ILogger, IStructuredLogger {
       const fileLine = `${timestamp} ${levelStr.padEnd(5)} ${message}${contextStr}\n`;
       if (this.asyncWrites) {
         // Fire-and-forget async write - doesn't block the event loop
-        fs.appendFile(this.logFile, fileLine, () => {
-          // Silently ignore errors
-        });
+        void (async () => {
+          try {
+            await fs.promises.appendFile(this.logFile, fileLine);
+          } catch {
+            // Silently ignore errors
+          }
+        })();
       } else {
         try {
           fs.appendFileSync(this.logFile, fileLine);
