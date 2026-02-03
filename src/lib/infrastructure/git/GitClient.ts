@@ -206,10 +206,10 @@ export class GitClient implements IGitClient {
 
   listTags(cwd?: string): IGitTag[] {
     try {
-      // Get tags with their commit SHAs
+      // Get tags with their full commit SHAs (needed for tag-adjacency matching)
       const output = execFileSync(
         'git',
-        ['tag', '-l', '--format=%(refname:short)\t%(objectname:short)'],
+        ['tag', '-l', '--format=%(refname:short)\t%(objectname)'],
         {
           encoding: 'utf8',
           cwd,

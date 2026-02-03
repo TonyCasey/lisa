@@ -5,7 +5,8 @@
 ### Branch Naming
 
 - Create a branch and PR for each issue
-- Use the Linear issue identifier as the branch name (lowercase)
+- Use the Linear issue identifier as the branch name (lowercase, hyphenated)
+- Linear issues are displayed as `LISA-7` but branches use lowercase: `lisa-7`
 - Examples: `lisa-7`, `lisa-12`, `lisa-23`
 - For GitHub-only issues, use the issue number: `42`, `123`
 
@@ -70,9 +71,9 @@ lisa pr create --issue 40 --issue 41
 
 Use Linear MCP to transition tickets to In Review:
 
-```bash
-# Via Linear MCP
-mcp__linear-server__update_issue --id LISA-7 --state "In Review"
+```
+# Via Linear MCP (use issue identifier and state name)
+mcp__linear-server__update_issue(id: "LISA-7", state: "In Review")
 ```
 
 Or use the `/jira` skill for Jira tickets:

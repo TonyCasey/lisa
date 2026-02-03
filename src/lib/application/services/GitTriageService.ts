@@ -34,7 +34,7 @@ const DEFAULT_DAYS = 90; // 3 months
 /**
  * Conventional commit prefixes to detect.
  */
-const _CONVENTIONAL_PREFIXES = [
+const CONVENTIONAL_PREFIXES = [
   'feat',
   'fix',
   'refactor',
@@ -47,6 +47,15 @@ const _CONVENTIONAL_PREFIXES = [
   'build',
   'revert',
 ] as const;
+
+/**
+ * Regex pattern for detecting conventional commit prefixes.
+ * Built from the CONVENTIONAL_PREFIXES array for consistency.
+ */
+const CONVENTIONAL_COMMIT_REGEX = new RegExp(
+  `^(${CONVENTIONAL_PREFIXES.join('|')})(\\(.+\\))?[!]?:`,
+  'i'
+);
 
 /**
  * Decision keywords that indicate architectural/design decisions.
@@ -83,6 +92,13 @@ const SCORES = {
  */
 const TAG_ADJACENT_DISTANCE = 3;
 
+/**
+ * Margin below threshold to fetch detailed stats.
+ * Commits scoring (threshold - STAT_FETCH_MARGIN) or higher get stats fetched,
+ * since stats-based signals could push them over the threshold.
+ */
+const STAT_FETCH_MARGIN = 2;
+
 export class GitTriageService implements IGitTriageService {
   constructor(private readonly git: IGitClient) {}
 
@@ -118,7 +134,9 @@ export class GitTriageService implements IGitTriageService {
 
     // Build a map of SHA -> position for tag adjacency
     const shaToPosition = new Map<string, number>();
-    rawCommits.forEach((c, i) => shaToPosition.set(c.sha, i));
+    for (let i = 0; i < rawCommits.length; i++) {
+      shaToPosition.set(rawCommits[i].sha, i);
+    }
 
     // Find positions of tagged commits for adjacency check
     const tagPositions = new Set<number>();
@@ -156,7 +174,7 @@ export class GitTriageService implements IGitTriageService {
       let finalSignals = quickSignals;
       let finalScore = quickScore;
 
-      if (quickScore >= threshold - 2 || options?.fetchAllStats) {
+      if (quickScore >= threshold - STAT_FETCH_MARGIN || options?.fetchAllStats) {
         // Fetch stats for borderline or high-interest commits
         const rawStats = this.git.getCommitStats(commit.sha, cwd);
         stats = this.parseStats(rawStats);
@@ -224,10 +242,12 @@ export class GitTriageService implements IGitTriageService {
   scoreCommit(
     commit: IGitCommitData,
     stats: IGitCommitStats | null,
-    tagShas: ReadonlySet<string>
+    tagShas: ReadonlySet<string>,
+    isTagAdjacent?: boolean
   ): IScoredCommit {
-    const isTagAdjacent = tagShas.has(commit.sha);
-    const signals = this.detectSignals(commit, stats, tagShas, isTagAdjacent);
+    // Use provided adjacency or fall back to checking if commit is itself tagged
+    const tagAdjacent = isTagAdjacent ?? tagShas.has(commit.sha);
+    const signals = this.detectSignals(commit, stats, tagShas, tagAdjacent);
     const score = this.calculateScore(signals);
 
     return {
@@ -320,10 +340,8 @@ export class GitTriageService implements IGitTriageService {
     const prNumber = prMatch ? parseInt(prMatch[1], 10) : null;
     const mergeCommitWithPR = commit.parentCount >= 2 && prNumber !== null;
 
-    // Conventional commit
-    const conventionalMatch = commit.subject.match(
-      /^(feat|fix|refactor|docs|test|chore|style|perf|ci|build|revert)(\(.+\))?[!]?:/i
-    );
+    // Conventional commit (using centralized regex built from CONVENTIONAL_PREFIXES)
+    const conventionalMatch = commit.subject.match(CONVENTIONAL_COMMIT_REGEX);
     const hasConventionalPrefix = conventionalMatch !== null;
     const conventionalType = conventionalMatch ? conventionalMatch[1].toLowerCase() : null;
 

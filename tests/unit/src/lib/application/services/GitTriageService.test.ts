@@ -604,8 +604,18 @@ describe('GitTriageService', () => {
 
       const result = await service.triage({ threshold: 1 });
 
-      // Hotspots are tracked for high-interest commits
-      assert.ok(result.hotspots.length > 0 || result.highInterest.length === 0);
+      // Verify the merge commit passed triage (score 3 for merge with PR)
+      assert.strictEqual(result.highInterest.length, 1, 'Merge commit should be high-interest');
+
+      // Verify hotspots were tracked from the high-interest commit's stats
+      assert.strictEqual(result.hotspots.length, 2, 'Should have 2 file hotspots');
+      const hotPaths = result.hotspots.map(h => h.path);
+      assert.ok(hotPaths.includes('src/hot.ts'), 'Should include src/hot.ts');
+      assert.ok(hotPaths.includes('src/warm.ts'), 'Should include src/warm.ts');
+
+      // Verify the line counts are correct
+      const hotFile = result.hotspots.find(h => h.path === 'src/hot.ts');
+      assert.strictEqual(hotFile?.totalLinesChanged, 120, 'hot.ts should have 120 lines changed');
     });
   });
 });

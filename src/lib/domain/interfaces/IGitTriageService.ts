@@ -173,14 +173,22 @@ export interface IGitTriageService {
 
   /**
    * Score a single commit.
+   *
+   * Note: For tag-adjacency, the caller should pre-compute whether the commit
+   * is within N commits of a tag (using positional analysis). If `isTagAdjacent`
+   * is not provided, this method falls back to checking if the commit itself
+   * is a tagged commit (SHA in tagShas), which is a weaker signal.
+   *
    * @param commit - Commit data.
    * @param stats - Optional diff stats.
-   * @param tagShas - Set of SHAs that have tags.
+   * @param tagShas - Set of SHAs that have tags (used for fallback if isTagAdjacent not provided).
+   * @param isTagAdjacent - Pre-computed tag adjacency (recommended for accurate scoring).
    * @returns Scored commit with signals.
    */
   scoreCommit(
     commit: IGitCommitData,
     stats: IGitCommitStats | null,
-    tagShas: ReadonlySet<string>
+    tagShas: ReadonlySet<string>,
+    isTagAdjacent?: boolean
   ): IScoredCommit;
 }
