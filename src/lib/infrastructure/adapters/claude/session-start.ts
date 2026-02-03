@@ -44,10 +44,11 @@ async function main(): Promise<void> {
   const hookInput = await readStdin();
   const trigger: SessionTrigger = hookInput.trigger || hookInput.session_type || 'startup';
 
-  // Bootstrap container with DI - use async logging for non-blocking file writes
+  // Bootstrap container with DI
+  // TODO: Re-enable async logging once terminal freeze issue is investigated
   const { container, dispose } = await bootstrapContainer({
     projectRoot: process.cwd(),
-    asyncLogging: true, // Non-blocking file writes for hook performance
+    disableLogging: true,
   });
 
   // Register cleanup for graceful shutdown
