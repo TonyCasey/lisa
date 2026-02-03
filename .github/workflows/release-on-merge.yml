@@ -53,6 +53,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history needed for changelog and tags
 
       - name: Generate changelog
         id: changelog
@@ -109,7 +111,7 @@ jobs:
         run: npm run build
 
       - name: Run tests
-        run: npm test || echo "Tests completed with warnings - proceeding with publish"
+        run: npm test
 
       - name: Publish to npm
         run: npm publish --access public
