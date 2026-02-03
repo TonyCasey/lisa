@@ -6,7 +6,7 @@ import type {
   IFormattableMemories,
   IGitCommit,
 } from '../../../../../../src/lib/application/services/SessionContextFormatter';
-import type { IMemoryItem, ITask, ITaskCounts } from '../../../../../../src/lib/domain';
+import type { IMemoryItem, ITask, ITaskCounts, ITriageResult } from '../../../../../../src/lib/domain';
 
 /**
  * Helper: create a memory item with sensible defaults.
@@ -90,6 +90,24 @@ function createFormattableMemories(
     nodes: [],
     initReview: null,
     timedOut: false,
+    ...overrides,
+  };
+}
+
+/**
+ * Helper: create a triage result with sensible defaults.
+ */
+function createTriageResult(overrides?: Partial<ITriageResult>): ITriageResult {
+  return {
+    totalCommits: 100,
+    belowThreshold: 70,
+    minorInterest: 20,
+    highInterest: [],
+    linkedToPRs: 0,
+    linkedToTags: 0,
+    hotspots: [],
+    tags: [],
+    durationMs: 150,
     ...overrides,
   };
 }
@@ -1178,6 +1196,255 @@ describe('SessionContextFormatter', () => {
       );
       assert.ok(result.includes('Recent commits (5):'));
       assert.ok(!result.includes('... and'));
+    });
+  });
+
+  // ========================================================================
+  // formatGitTriageSummary
+  // ========================================================================
+
+  describe('formatGitTriageSummary', () => {
+    it('should return header with total commits scanned', () => {
+      const triage = createTriageResult({ totalCommits: 2000 });
+      const result = formatter.formatGitTriageSummary(triage);
+      assert.ok(result[0].includes('scanned 2,000 commits'));
+    });
+
+    it('should include below threshold count', () => {
+      const triage = createTriageResult({ belowThreshold: 1640 });
+      const result = formatter.formatGitTriageSummary(triage);
+      const belowLine = result.find(l => l.includes('below threshold'));
+      assert.ok(belowLine);
+      assert.ok(belowLine.includes('1,640'));
+      assert.ok(belowLine.includes('skipped'));
+    });
+
+    it('should include minor interest count', () => {
+      const triage = createTriageResult({ minorInterest: 247 });
+      const result = formatter.formatGitTriageSummary(triage);
+      const minorLine = result.find(l => l.includes('minor interest'));
+      assert.ok(minorLine);
+      assert.ok(minorLine.includes('247'));
+    });
+
+    it('should include high interest count with sub-breakdowns', () => {
+      const triage = createTriageResult({
+        highInterest: [
+          { commit: {} as never, stats: null, signals: {} as never, score: 5, passedTriage: true },
+          { commit: {} as never, stats: null, signals: {} as never, score: 4, passedTriage: true },
+        ],
+        linkedToPRs: 89,
+        linkedToTags: 24,
+      });
+      const result = formatter.formatGitTriageSummary(triage);
+      const highLine = result.find(l => l.includes('high interest'));
+      assert.ok(highLine);
+      assert.ok(highLine.includes('2'));
+      const prLine = result.find(l => l.includes('linked to PRs'));
+      assert.ok(prLine);
+      assert.ok(prLine.includes('89'));
+      const tagLine = result.find(l => l.includes('linked to tags'));
+      assert.ok(tagLine);
+      assert.ok(tagLine.includes('24'));
+    });
+
+    it('should not include PR breakdown when linkedToPRs is 0', () => {
+      const triage = createTriageResult({
+        highInterest: [
+          { commit: {} as never, stats: null, signals: {} as never, score: 5, passedTriage: true },
+        ],
+        linkedToPRs: 0,
+        linkedToTags: 5,
+      });
+      const result = formatter.formatGitTriageSummary(triage);
+      const prLine = result.find(l => l.includes('linked to PRs'));
+      assert.ok(!prLine);
+    });
+
+    it('should not include tag breakdown when linkedToTags is 0', () => {
+      const triage = createTriageResult({
+        highInterest: [
+          { commit: {} as never, stats: null, signals: {} as never, score: 5, passedTriage: true },
+        ],
+        linkedToPRs: 5,
+        linkedToTags: 0,
+      });
+      const result = formatter.formatGitTriageSummary(triage);
+      const tagLine = result.find(l => l.includes('linked to tags'));
+      assert.ok(!tagLine);
+    });
+
+    it('should include hotspots when present', () => {
+      const triage = createTriageResult({
+        hotspots: [
+          { path: 'src/services/auth.ts', commitCount: 15, totalLinesChanged: 500 },
+          { path: 'src/utils/helpers.ts', commitCount: 10, totalLinesChanged: 200 },
+        ],
+      });
+      const result = formatter.formatGitTriageSummary(triage);
+      const hotspotLine = result.find(l => l.includes('Hotspots:'));
+      assert.ok(hotspotLine);
+      assert.ok(hotspotLine.includes('auth.ts'));
+      assert.ok(hotspotLine.includes('helpers.ts'));
+    });
+
+    it('should truncate long paths to show last 2 segments', () => {
+      const triage = createTriageResult({
+        hotspots: [
+          { path: 'src/lib/infrastructure/services/AuthService.ts', commitCount: 20, totalLinesChanged: 1000 },
+        ],
+      });
+      const result = formatter.formatGitTriageSummary(triage);
+      const hotspotLine = result.find(l => l.includes('Hotspots:'));
+      assert.ok(hotspotLine);
+      assert.ok(hotspotLine.includes('.../services/AuthService.ts'));
+    });
+
+    it('should limit hotspots to MAX_HOTSPOTS (3)', () => {
+      const triage = createTriageResult({
+        hotspots: [
+          { path: 'file1.ts', commitCount: 20, totalLinesChanged: 1000 },
+          { path: 'file2.ts', commitCount: 15, totalLinesChanged: 800 },
+          { path: 'file3.ts', commitCount: 10, totalLinesChanged: 600 },
+          { path: 'file4.ts', commitCount: 5, totalLinesChanged: 400 },
+          { path: 'file5.ts', commitCount: 3, totalLinesChanged: 200 },
+        ],
+      });
+      const result = formatter.formatGitTriageSummary(triage);
+      const hotspotLine = result.find(l => l.includes('Hotspots:'));
+      assert.ok(hotspotLine);
+      assert.ok(hotspotLine.includes('file1.ts'));
+      assert.ok(hotspotLine.includes('file2.ts'));
+      assert.ok(hotspotLine.includes('file3.ts'));
+      assert.ok(!hotspotLine.includes('file4.ts'));
+      assert.ok(!hotspotLine.includes('file5.ts'));
+    });
+
+    it('should not include hotspots line when none present', () => {
+      const triage = createTriageResult({ hotspots: [] });
+      const result = formatter.formatGitTriageSummary(triage);
+      const hotspotLine = result.find(l => l.includes('Hotspots:'));
+      assert.ok(!hotspotLine);
+    });
+
+    it('should omit zero counts', () => {
+      const triage = createTriageResult({
+        totalCommits: 50,
+        belowThreshold: 0,
+        minorInterest: 0,
+        highInterest: [],
+      });
+      const result = formatter.formatGitTriageSummary(triage);
+      assert.ok(!result.find(l => l.includes('below threshold')));
+      assert.ok(!result.find(l => l.includes('minor interest')));
+      assert.ok(!result.find(l => l.includes('high interest')));
+    });
+
+    it('should produce POC-style summary for typical repo', () => {
+      const triage = createTriageResult({
+        totalCommits: 2000,
+        belowThreshold: 1640,
+        minorInterest: 247,
+        highInterest: Array.from({ length: 113 }, () => ({
+          commit: {} as never,
+          stats: null,
+          signals: {} as never,
+          score: 5,
+          passedTriage: true,
+        })),
+        linkedToPRs: 89,
+        linkedToTags: 24,
+        hotspots: [
+          { path: 'src/core/engine.ts', commitCount: 50, totalLinesChanged: 2000 },
+        ],
+      });
+      const result = formatter.formatGitTriageSummary(triage);
+      // Verify structure matches POC format
+      assert.ok(result[0].includes('scanned 2,000 commits'));
+      assert.ok(result.find(l => l.includes('1,640 below threshold')));
+      assert.ok(result.find(l => l.includes('247 minor interest')));
+      assert.ok(result.find(l => l.includes('113 high interest')));
+      assert.ok(result.find(l => l.includes('89 linked to PRs')));
+      assert.ok(result.find(l => l.includes('24 linked to tags')));
+    });
+  });
+
+  // ========================================================================
+  // formatContextContent with gitTriage
+  // ========================================================================
+
+  describe('formatContextContent with gitTriage', () => {
+    it('should display triage summary instead of commits when triage is provided', () => {
+      const commits: IGitCommit[] = [
+        { hash: 'abc1234', message: 'feat: add feature' },
+      ];
+      const triage = createTriageResult({ totalCommits: 500, belowThreshold: 400 });
+      const result = formatter.formatContextContent(
+        'startup',
+        createFormattableMemories(),
+        [],
+        createTaskCounts(),
+        createSessionContext(),
+        commits,
+        undefined,
+        triage,
+      );
+      assert.ok(result.includes('Git history:'));
+      assert.ok(result.includes('scanned 500 commits'));
+      assert.ok(!result.includes('Recent commits'));
+    });
+
+    it('should fall back to commits when triage is null', () => {
+      const commits: IGitCommit[] = [
+        { hash: 'abc1234', message: 'feat: add feature' },
+      ];
+      const result = formatter.formatContextContent(
+        'startup',
+        createFormattableMemories(),
+        [],
+        createTaskCounts(),
+        createSessionContext(),
+        commits,
+        undefined,
+        null,
+      );
+      assert.ok(result.includes('Recent commits'));
+      assert.ok(result.includes('abc1234'));
+      assert.ok(!result.includes('Git history:'));
+    });
+
+    it('should fall back to commits when triage has zero totalCommits', () => {
+      const commits: IGitCommit[] = [
+        { hash: 'abc1234', message: 'feat: add feature' },
+      ];
+      const triage = createTriageResult({ totalCommits: 0 });
+      const result = formatter.formatContextContent(
+        'startup',
+        createFormattableMemories(),
+        [],
+        createTaskCounts(),
+        createSessionContext(),
+        commits,
+        undefined,
+        triage,
+      );
+      assert.ok(result.includes('Recent commits'));
+      assert.ok(!result.includes('Git history:'));
+    });
+
+    it('should not show git section when both triage and commits are empty', () => {
+      const result = formatter.formatContextContent(
+        'startup',
+        createFormattableMemories(),
+        [],
+        createTaskCounts(),
+        createSessionContext(),
+        [],
+        undefined,
+        null,
+      );
+      assert.ok(!result.includes('Git history:'));
+      assert.ok(!result.includes('Recent commits'));
     });
   });
 });

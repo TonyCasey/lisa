@@ -120,7 +120,12 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
   // ============================================================
 
   // Logger (singleton - shared across app)
-  const logger = config.logger ?? (config.disableLogging ? createNullLogger() : createLogger());
+  // Use async writes for hooks to avoid blocking the event loop
+  const logger = config.logger ?? (
+    config.disableLogging
+      ? createNullLogger()
+      : createLogger({ asyncWrites: config.asyncLogging })
+  );
   container.registerInstance(TOKENS.Logger, logger);
 
   // Context (singleton - rarely changes)

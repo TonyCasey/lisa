@@ -12,6 +12,7 @@ import type {
   ITask,
   ITaskCounts,
 } from '../../domain';
+import type { ITriageResult } from '../../domain/interfaces/IGitTriageService';
 
 /**
  * Git commit summary used in context display.
@@ -48,6 +49,11 @@ export interface IFormattableMemories {
 const RECENT_HOURS = 24;
 const MAX_RECENT_MEMORIES = 5;
 const GROUP_WINDOW_MINUTES = 5;
+
+/**
+ * Configuration for git triage display.
+ */
+const MAX_HOTSPOTS = 3;
 
 /**
  * Low-level relationship types to exclude (system noise).
@@ -110,7 +116,8 @@ export class SessionContextFormatter {
     taskCounts: ITaskCounts,
     context: ISessionContext,
     gitCommits: readonly IGitCommit[] = [],
-    querySince?: Date
+    querySince?: Date,
+    gitTriage?: ITriageResult | null
   ): string {
     const { projectName, userName, folderType, projectRoot, branch } = context;
     const lines: string[] = [];
@@ -141,8 +148,11 @@ export class SessionContextFormatter {
       lines.push('');
     }
 
-    // Recent git commits
-    if (gitCommits.length > 0) {
+    // Git triage summary (preferred) or recent commits (fallback)
+    if (gitTriage && gitTriage.totalCommits > 0) {
+      lines.push('');
+      lines.push(...this.formatGitTriageSummary(gitTriage));
+    } else if (gitCommits.length > 0) {
       lines.push('');
       lines.push(`Recent commits (${gitCommits.length}):`);
       gitCommits.slice(0, 5).forEach(c => {
@@ -357,5 +367,60 @@ export class SessionContextFormatter {
       const day = date.getDate();
       return `${month} ${day} ${time}`;
     }
+  }
+
+  /**
+   * Format git triage results as a compact summary.
+   * Shows aggregate counts rather than individual commits.
+   */
+  formatGitTriageSummary(triage: ITriageResult): string[] {
+    const lines: string[] = [];
+
+    // Header with total scanned
+    lines.push(`Git history: scanned ${triage.totalCommits.toLocaleString()} commits`);
+
+    // Breakdown by category
+    if (triage.belowThreshold > 0) {
+      lines.push(`  → ${triage.belowThreshold.toLocaleString()} below threshold (skipped)`);
+    }
+    if (triage.minorInterest > 0) {
+      lines.push(`  → ${triage.minorInterest.toLocaleString()} minor interest`);
+    }
+
+    // High interest with sub-breakdown
+    const highCount = triage.highInterest.length;
+    if (highCount > 0) {
+      lines.push(`  → ${highCount.toLocaleString()} high interest`);
+      if (triage.linkedToPRs > 0) {
+        lines.push(`      → ${triage.linkedToPRs} linked to PRs`);
+      }
+      if (triage.linkedToTags > 0) {
+        lines.push(`      → ${triage.linkedToTags} linked to tags/releases`);
+      }
+    }
+
+    // Hotspots (most frequently changed files)
+    if (triage.hotspots.length > 0) {
+      const topHotspots = triage.hotspots.slice(0, MAX_HOTSPOTS);
+      const hotspotList = topHotspots
+        .map((h) => this.formatHotspotPath(h.path))
+        .join(', ');
+      lines.push(`  Hotspots: ${hotspotList}`);
+    }
+
+    return lines;
+  }
+
+  /**
+   * Format a file path for hotspot display (truncate long paths).
+   */
+  private formatHotspotPath(path: string): string {
+    // Show just filename or last path segment for brevity
+    const parts = path.split('/');
+    if (parts.length <= 2) {
+      return path;
+    }
+    // Show .../<parent>/<filename>
+    return `.../${parts.slice(-2).join('/')}`;
   }
 }

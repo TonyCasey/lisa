@@ -11,6 +11,8 @@ import type {
   ILogger,
   IMemoryDateOptions,
   IGitClient,
+  IGitTriageService,
+  ITriageResult,
 } from '../../domain';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
 import type { IGitHubSyncService } from '../../skills/shared/services/GitHubSyncService';
@@ -21,6 +23,7 @@ import { SessionStartRequest } from '../mediator/requests';
 import { SessionContextFormatter } from '../services/SessionContextFormatter';
 import { GitIntrospectionService } from '../services/GitIntrospectionService';
 import { MemoryContextLoader } from '../services/MemoryContextLoader';
+import { GitTriageService } from '../services/GitTriageService';
 
 /**
  * Configuration for recent memories display.
@@ -48,6 +51,7 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
   private readonly formatter: SessionContextFormatter;
   private readonly gitService: GitIntrospectionService;
   private readonly memoryLoader: MemoryContextLoader;
+  private readonly triageService: IGitTriageService;
 
   /**
    * Create a new SessionStartHandler.
@@ -132,6 +136,7 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
       this.router,
       this.logger,
     );
+    this.triageService = new GitTriageService(resolvedGitClient);
   }
 
   /**
@@ -146,16 +151,21 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
     // Determine date options based on trigger
     const dateOptions = this.computeDateOptions(request.trigger);
 
-    // Load memory using optimal strategy (DAL or MCP)
-    const memories = await this.memoryLoader.loadMemory(
-      hierarchicalGroupIds,
-      projectAliases,
-      branch,
-      dateOptions,
-    );
+    // Load memory and run git triage in parallel
+    const [memories, gitTriage] = await Promise.all([
+      this.memoryLoader.loadMemory(
+        hierarchicalGroupIds,
+        projectAliases,
+        branch,
+        dateOptions,
+      ),
+      this.runGitTriage(dateOptions.since, projectRoot),
+    ]);
 
-    // Load recent git commits for context
-    const gitCommits = await this.gitService.loadGitCommits(dateOptions.since, projectRoot);
+    // Load recent git commits as fallback (only if triage didn't run)
+    const gitCommits = gitTriage
+      ? []
+      : await this.gitService.loadGitCommits(dateOptions.since, projectRoot);
 
     // Process tasks from memory
     const tasks = this.processTasks(memories.tasks);
@@ -170,6 +180,7 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
       { projectName, userName, folderType, projectRoot, branch },
       gitCommits,
       dateOptions.since,
+      gitTriage,
     );
 
     // Build message
@@ -217,6 +228,29 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
     } catch (error) {
       // Don't fail session start if GitHub sync fails
       this.logger?.warn('GitHub sync failed', { error: (error as Error).message });
+    }
+  }
+
+  /**
+   * Run git triage to analyze commit history.
+   * Returns null if triage fails (non-blocking).
+   */
+  private async runGitTriage(since: Date | undefined, projectRoot: string): Promise<ITriageResult | null> {
+    try {
+      const result = await this.triageService.triage({
+        since,
+        cwd: projectRoot,
+      });
+      this.logger?.debug('Git triage completed', {
+        total: result.totalCommits,
+        highInterest: result.highInterest.length,
+        durationMs: result.durationMs,
+      });
+      return result;
+    } catch (error) {
+      // Don't fail session start if triage fails
+      this.logger?.warn('Git triage failed', { error: (error as Error).message });
+      return null;
     }
   }
 

@@ -352,7 +352,7 @@ async function main() {
 // Preserve local extensions before overwriting
   const preservedAgents = await preserveLocalExtensions(targetLisa);
 
-  // Preserve .env file before cleaning
+  // Preserve .env content before cleaning
   const envPath = path.join(targetLisa, '.env');
   let preservedEnv = null;
   if (await fs.pathExists(envPath)) {
@@ -360,12 +360,20 @@ async function main() {
   }
 
   // Clean target directories for fresh deploy (development mode)
+  // Selectively remove subdirs in .lisa to preserve logs/
   console.log('Cleaning target directories...');
-  await fs.remove(targetLisa);
+  if (await fs.pathExists(targetLisa)) {
+    const entries = await fs.readdir(targetLisa);
+    for (const entry of entries) {
+      // Preserve logs, .env, and copy-fallback registry (used by lisa sync)
+      if (entry === 'logs' || entry === '.env' || entry === '.copy-fallbacks.json') continue;
+      await fs.remove(path.join(targetLisa, entry));
+    }
+  }
   await fs.remove(targetClaude);
   await fs.remove(targetOpenCode);
 
-  // Restore .env file after cleaning
+  // Restore .env file
   if (preservedEnv) {
     await fs.ensureDir(targetLisa);
     await fs.writeFile(envPath, preservedEnv, 'utf8');

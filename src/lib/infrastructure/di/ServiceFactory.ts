@@ -41,6 +41,9 @@ export interface IServiceConfig {
   /** Disable logging entirely (for testing) */
   disableLogging?: boolean;
 
+  /** Use async (non-blocking) file writes for logging - ideal for hooks */
+  asyncLogging?: boolean;
+
   /** Enable GitHub sync service for task synchronization (default: true if gh CLI available) */
   enableGitHubSync?: boolean;
 }

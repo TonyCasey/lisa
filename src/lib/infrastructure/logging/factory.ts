@@ -1,7 +1,7 @@
 import path from 'path';
 import fs from 'fs';
 import type { ILogger, ILoggerOptions, LogLevel } from '../../domain/interfaces';
-import { Logger, NullLogger, DEFAULT_LOGGER_OPTIONS } from './Logger';
+import { Logger, NullLogger, DEFAULT_LOGGER_OPTIONS, type ILoggerOptionsExtended } from './Logger';
 import { getCorrelationId } from './context';
 
 /**
@@ -87,19 +87,22 @@ export function loadLoggerOptions(lisaDir?: string): ILoggerOptions {
 /**
  * Create a logger with the given options.
  * Automatically includes correlation IDs when available.
- * 
+ *
  * @param options - Logger options (uses environment defaults if not provided)
  * @returns A configured logger instance
- * 
+ *
  * @example
  * ```typescript
  * const logger = createLogger();
  * const serviceLog = logger.child({ service: 'memory' });
  * serviceLog.info('Loading memories');
+ *
+ * // For hooks (non-blocking):
+ * const asyncLogger = createLogger({ asyncWrites: true });
  * ```
  */
-export function createLogger(options?: Partial<ILoggerOptions>): ILogger {
-  const resolvedOptions: ILoggerOptions = {
+export function createLogger(options?: Partial<ILoggerOptionsExtended>): ILogger {
+  const resolvedOptions: ILoggerOptionsExtended = {
     ...loadLoggerOptions(),
     ...options,
   };
