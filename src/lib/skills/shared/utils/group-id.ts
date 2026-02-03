@@ -17,6 +17,7 @@ function findLisaDir(startDir: string): string | null {
   let dir = startDir;
 
   // Traverse up to the filesystem root looking for .lisa
+  // eslint-disable-next-line no-constant-condition
   while (true) {
     const lisaDir = path.join(dir, '.lisa');
     try {
