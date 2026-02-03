@@ -48,7 +48,26 @@ export {
   ICronResult,
   ICronService,
 } from './ICronService';
-export type { IGitClient, IGitLogOptions, IGitDiffOptions } from './IGitClient';
+export type {
+  IGitClient,
+  IGitLogOptions,
+  IGitDiffOptions,
+  IGitLogDetailedOptions,
+  IGitLogCommit,
+  IGitCommitStatEntry,
+  IGitTag,
+} from './IGitClient';
+export type {
+  IGitTriageService,
+  IGitCommitData,
+  IGitCommitStats,
+  ICommitInterestSignals,
+  IScoredCommit,
+  ITriageResult,
+  ITriageOptions,
+  IFileHotspot,
+  ITagInfo,
+} from './IGitTriageService';
 export type { IClaudeCliClient, IClaudePromptOptions } from './IClaudeCliClient';
 export {
   type DuplicateReason,
