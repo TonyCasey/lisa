@@ -16,6 +16,7 @@ import type {
   IScoredCommit,
   ICommitEnricher,
   IGitExtractor,
+  IGitIndexingService,
 } from '../../domain';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
 import type { IGitHubSyncService } from '../../skills/shared/services/GitHubSyncService';
@@ -27,6 +28,7 @@ import { SessionContextFormatter } from '../services/SessionContextFormatter';
 import { GitIntrospectionService } from '../services/GitIntrospectionService';
 import { MemoryContextLoader } from '../services/MemoryContextLoader';
 import { GitTriageService } from '../services/GitTriageService';
+import { createGitIndexingService } from '../services/GitIndexingService';
 
 /**
  * Configuration for recent memories display.
@@ -57,6 +59,7 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
   private readonly gitService: GitIntrospectionService;
   private readonly memoryLoader: MemoryContextLoader;
   private readonly triageService: IGitTriageService;
+  private readonly gitIndexingService: IGitIndexingService;
 
   /**
    * Create a new SessionStartHandler.
@@ -146,6 +149,7 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
       this.logger,
     );
     this.triageService = new GitTriageService(resolvedGitClient);
+    this.gitIndexingService = createGitIndexingService(this.memory, this.logger);
   }
 
   /**
@@ -380,26 +384,15 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
         return;
       }
 
-      // Save facts to memory with proper metadata
-      for (const fact of result.facts) {
-        const tags = [
-          'type:heuristic-extraction',
-          `factType:${fact.type}`,
-          `factSource:${fact.source}`,
-          `confidence:${fact.confidence}`,
-          fact.prNumber ? `pr:${fact.prNumber}` : '',
-          fact.matchedPattern ? `pattern:${fact.matchedPattern}` : '',
-          'extractionMethod:git-extraction',
-          ...fact.tags.map(t => `tag:${t}`),
-        ].filter(Boolean);
-
-        await this.memory.addFact(groupId, fact.text, tags);
-      }
+      // Delegate to GitIndexingService for quality tags and deduplication
+      const indexResult = await this.gitIndexingService.indexFacts(result.facts, groupId);
 
       this.logger?.info('PR extraction complete', {
         processed: result.prsProcessed,
         skipped: result.prsSkipped,
-        facts: result.facts.length,
+        factsExtracted: result.facts.length,
+        factsIndexed: indexResult.indexed,
+        duplicates: indexResult.duplicates,
         patterns: result.patternsMatched,
       });
     } catch (error) {
