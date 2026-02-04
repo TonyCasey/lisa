@@ -1,13 +1,18 @@
 /**
  * Neo4j Memory Repository
  *
- * Read-only memory repository using direct Neo4j Cypher queries.
- * Optimized for date-ordered listing and aggregations.
+ * Memory repository using direct Neo4j Cypher queries.
+ * Supports reads, writes, expiration, and quality queries.
+ * Serves as fallback write path when MCP is unavailable.
  */
 
 import type { IMemoryItem } from '../../../../domain/interfaces/types/IMemoryResult';
 import type {
-  IReadOnlyMemoryRepositoryWithQuality,
+  IMemoryRepositoryWriter,
+  IMemoryRepositoryExpiration,
+  IMemoryRepositoryQuality,
+  IReadOnlyMemoryRepository,
+  IMemorySaveOptions,
   IQueryOptions,
   IMemoryQueryResult,
   IExpirationFilter,
@@ -21,6 +26,7 @@ import {
   CONFIDENCE_SCORES,
   resolveConfidenceTag,
 } from '../../../../domain/interfaces/types/IMemoryQuality';
+import { randomUUID } from 'node:crypto';
 import { Neo4jConnectionManager } from '../../connections/Neo4jConnectionManager';
 
 /**
@@ -46,9 +52,12 @@ interface Neo4jCountRecord {
 
 /**
  * Neo4j Memory Repository implementation.
- * Read-only with expiration support: writes go through MCP for proper Graphiti ingestion.
+ * Supports reads, writes, expiration, and quality queries.
+ * Writes create Entity nodes and relationships matching the Graphiti schema.
  */
-export class Neo4jMemoryRepository implements IReadOnlyMemoryRepositoryWithQuality {
+export class Neo4jMemoryRepository
+  implements IReadOnlyMemoryRepository, IMemoryRepositoryWriter, IMemoryRepositoryExpiration, IMemoryRepositoryQuality
+{
   constructor(private readonly connection: Neo4jConnectionManager) {}
 
   /**
@@ -176,6 +185,79 @@ export class Neo4jMemoryRepository implements IReadOnlyMemoryRepositoryWithQuali
       source: 'neo4j',
       hasMore: items.length === limit,
     };
+  }
+
+  /**
+   * Save a new fact to memory.
+   * Creates Entity nodes and a relationship with fact properties.
+   */
+  async save(
+    groupId: string,
+    content: string,
+    options?: IMemorySaveOptions
+  ): Promise<IMemoryItem> {
+    const name = content.slice(0, 80);
+    const tag = options?.tags?.[0] ?? 'RELATES_TO';
+    // Derive a stable target entity name from the tag or content
+    const targetName = `fact-${tag.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+
+    const uuid = randomUUID();
+
+    const cypher = `
+      MERGE (s:Entity {name: $sourceName})
+      ON CREATE SET s.group_id = $groupId, s.created_at = datetime()
+      MERGE (t:Entity {name: $targetName})
+      ON CREATE SET t.group_id = $groupId, t.created_at = datetime()
+      CREATE (s)-[:RELATES_TO {
+        uuid: $uuid,
+        group_id: $groupId,
+        name: $name,
+        fact: $content,
+        created_at: datetime(),
+        valid_at: datetime()
+      }]->(t)
+    `;
+
+    const params = {
+      uuid,
+      sourceName: groupId,
+      targetName,
+      groupId,
+      name,
+      content,
+    };
+
+    await this.connection.write(cypher, params);
+
+    return {
+      uuid,
+      name,
+      fact: content,
+      tags: options?.tags ? [...options.tags] : undefined,
+      created_at: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Save multiple facts in batch with concurrency limit.
+   */
+  async saveBatch(
+    groupId: string,
+    facts: readonly string[],
+    options?: IMemorySaveOptions
+  ): Promise<readonly IMemoryItem[]> {
+    const CONCURRENCY_LIMIT = 5;
+    const results: IMemoryItem[] = [];
+
+    for (let i = 0; i < facts.length; i += CONCURRENCY_LIMIT) {
+      const batch = facts.slice(i, i + CONCURRENCY_LIMIT);
+      const batchResults = await Promise.all(
+        batch.map((content) => this.save(groupId, content, options))
+      );
+      results.push(...batchResults);
+    }
+
+    return results;
   }
 
   /**
@@ -386,10 +468,10 @@ export class Neo4jMemoryRepository implements IReadOnlyMemoryRepositoryWithQuali
   }
 
   /**
-   * Neo4j direct is read-only (writes go through MCP).
+   * Neo4j supports direct writes as fallback when MCP is unavailable.
    */
   supportsWrite(): boolean {
-    return false;
+    return true;
   }
 
   /**

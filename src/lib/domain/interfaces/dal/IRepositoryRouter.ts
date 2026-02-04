@@ -35,13 +35,13 @@ export interface IRouterConfig {
  * Default routing rules.
  * - list: Neo4j (date ordering) -> MCP
  * - search: MCP (semantic search) -> Zep
- * - write: MCP (ingestion pipeline) -> Zep
+ * - write: MCP (ingestion pipeline) -> Neo4j
  * - aggregate: Neo4j (Cypher aggregation) -> MCP
  */
 export const DEFAULT_ROUTING_RULES: readonly IRoutingRule[] = [
   { operation: 'list', preferred: 'neo4j', fallback: 'mcp' },
   { operation: 'search', preferred: 'mcp', fallback: 'zep' },
-  { operation: 'write', preferred: 'mcp', fallback: 'zep' },
+  { operation: 'write', preferred: 'mcp', fallback: 'neo4j' },
   { operation: 'aggregate', preferred: 'neo4j', fallback: 'mcp' },
 ];
 
