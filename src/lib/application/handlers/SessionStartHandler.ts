@@ -292,11 +292,22 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
         return;
       }
 
+      // Build a canonical short SHA map for consistent tagging (dedup uses shortSha)
+      const shaToShort = new Map<string, string>();
+      for (const commit of toEnrich) {
+        if (commit.commit.sha && commit.commit.shortSha) {
+          shaToShort.set(commit.commit.sha, commit.commit.shortSha);
+          shaToShort.set(commit.commit.shortSha, commit.commit.shortSha);
+        }
+      }
+
       // Save facts to memory with proper metadata
       for (const fact of result.facts) {
+        // Normalize SHA to short form for consistent dedup
+        const commitSha = shaToShort.get(fact.commitSha) ?? fact.commitSha;
         const tags = [
           'type:commit-enrichment',
-          `commit:${fact.commitSha}`,
+          `commit:${commitSha}`,
           `factType:${fact.type}`,
           `confidence:${fact.confidence}`,
           'source:git-enrichment',
