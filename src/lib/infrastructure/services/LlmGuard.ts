@@ -71,23 +71,31 @@ export function createLlmGuard(
         throw new LlmFeatureDisabledError(feature);
       }
 
-      // Check budget
-      const withinBudget = await usageTracker.isWithinBudget();
-      if (!withinBudget) {
-        const cost = await usageTracker.getTotalCost();
-        // Check env var first, then preference store
-        const envLimit = process.env[BUDGET_ENV_KEY];
-        const prefLimit = await preferenceStore.get(BUDGET_PREF_KEY);
-        const limitStr = envLimit ?? prefLimit;
-        const limit = limitStr !== null ? parseFloat(limitStr) : 0;
-        throw new LlmBudgetExceededError(cost, limit, { feature });
+      // Check budget - env var takes precedence over preference store
+      const envLimit = process.env[BUDGET_ENV_KEY];
+      const cost = await usageTracker.getTotalCost();
+
+      if (envLimit !== undefined) {
+        // Use env var for budget enforcement
+        const limit = parseFloat(envLimit);
+        if (!isNaN(limit) && limit > 0 && cost >= limit) {
+          throw new LlmBudgetExceededError(cost, limit, { feature });
+        }
+      } else {
+        // Fall back to tracker's isWithinBudget (which uses preference store)
+        const withinBudget = await usageTracker.isWithinBudget();
+        if (!withinBudget) {
+          const prefLimit = await preferenceStore.get(BUDGET_PREF_KEY);
+          const limit = prefLimit !== null ? parseFloat(prefLimit) : 0;
+          throw new LlmBudgetExceededError(cost, limit, { feature });
+        }
       }
 
       // Delegate to underlying service
       const response = await llmService.complete(prompt, options);
 
       // Record usage
-      const cost = estimateCost(
+      const usageCost = estimateCost(
         response.provider,
         response.usage.inputTokens,
         response.usage.outputTokens
@@ -99,14 +107,14 @@ export function createLlmGuard(
         feature,
         inputTokens: response.usage.inputTokens,
         outputTokens: response.usage.outputTokens,
-        estimatedCostUsd: cost,
+        estimatedCostUsd: usageCost,
       });
 
       logger?.debug('LLM guard: call completed', {
         feature,
         provider: response.provider,
         model: response.model,
-        cost: cost.toFixed(6),
+        cost: usageCost.toFixed(6),
       });
 
       return response;
