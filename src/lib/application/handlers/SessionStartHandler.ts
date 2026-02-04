@@ -15,6 +15,7 @@ import type {
   ITriageResult,
   IScoredCommit,
   ICommitEnricher,
+  IGitExtractor,
 } from '../../domain';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
 import type { IGitHubSyncService } from '../../skills/shared/services/GitHubSyncService';
@@ -49,6 +50,7 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
   private readonly logger?: ILogger;
   private readonly githubSync?: IGitHubSyncService;
   private readonly commitEnricher?: ICommitEnricher;
+  private readonly gitExtractor?: IGitExtractor;
 
   // Extracted services
   private readonly formatter: SessionContextFormatter;
@@ -110,6 +112,7 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
       this.logger = services.logger;
       this.githubSync = services.githubSync;
       this.commitEnricher = services.commitEnricher;
+      this.gitExtractor = services.gitExtractor;
       resolvedGitClient = memoryOrGitClient as IGitClient | undefined;
     } else {
       // Individual service injection
@@ -120,6 +123,8 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
       this.router = router;
       this.logger = logger;
       this.githubSync = githubSync;
+      // Note: commitEnricher and gitExtractor are not available in this constructor path
+      // They can only be injected via the ILisaServices legacy constructor
       resolvedGitClient = gitClient;
     }
 
@@ -175,6 +180,17 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
     if (gitTriage && request.trigger === 'startup') {
       this.enrichAndSaveCommits(gitTriage.highInterest, hierarchicalGroupIds[0])
         .catch(err => this.logger?.warn('Commit enrichment failed', { error: (err as Error).message }));
+
+      // Phase 3: Extract facts from PRs via heuristics (fire-and-forget, non-blocking)
+      const prNumbers = gitTriage.highInterest
+        .map(c => c.signals.prNumber)
+        .filter((n): n is number => n !== null)
+        .filter((n, i, arr) => arr.indexOf(n) === i);  // Dedupe
+
+      if (prNumbers.length > 0) {
+        this.extractAndSavePRFacts(prNumbers, hierarchicalGroupIds[0])
+          .catch(err => this.logger?.warn('PR extraction failed', { error: (err as Error).message }));
+      }
     }
 
     // Process tasks from memory
@@ -327,6 +343,100 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
       // Non-blocking - log and continue
       this.logger?.warn('Commit enrichment error', { error: (error as Error).message });
     }
+  }
+
+  /**
+   * Extract facts from PRs using heuristic patterns and save to memory (fire-and-forget).
+   */
+  private async extractAndSavePRFacts(
+    prNumbers: readonly number[],
+    groupId: string,
+  ): Promise<void> {
+    if (!this.gitExtractor || prNumbers.length === 0) return;
+
+    try {
+      // Detect repo for GitHub API calls
+      const repo = await this.gitService.detectGitHubRepo(this.context.projectRoot);
+      if (!repo) {
+        this.logger?.debug('No GitHub repo detected, skipping PR extraction');
+        return;
+      }
+
+      // Check which PRs are already extracted
+      const existingPRs = await this.checkExtractedPRs(groupId);
+      const toExtract = prNumbers.filter(n => !existingPRs.has(n));
+
+      if (toExtract.length === 0) {
+        this.logger?.debug('All PRs already extracted, skipping');
+        return;
+      }
+
+      this.logger?.debug('Extracting facts from PRs', { count: toExtract.length, repo });
+
+      const result = await this.gitExtractor.extractFromPRs(toExtract, repo, { maxPRs: 5 });
+
+      if (result.facts.length === 0) {
+        this.logger?.debug('No facts extracted from PRs');
+        return;
+      }
+
+      // Save facts to memory with proper metadata
+      for (const fact of result.facts) {
+        const tags = [
+          'type:heuristic-extraction',
+          `factType:${fact.type}`,
+          `factSource:${fact.source}`,
+          `confidence:${fact.confidence}`,
+          fact.prNumber ? `pr:${fact.prNumber}` : '',
+          fact.matchedPattern ? `pattern:${fact.matchedPattern}` : '',
+          'extractionMethod:git-extraction',
+          ...fact.tags.map(t => `tag:${t}`),
+        ].filter(Boolean);
+
+        await this.memory.addFact(groupId, fact.text, tags);
+      }
+
+      this.logger?.info('PR extraction complete', {
+        processed: result.prsProcessed,
+        skipped: result.prsSkipped,
+        facts: result.facts.length,
+        patterns: result.patternsMatched,
+      });
+    } catch (error) {
+      // Non-blocking - log and continue
+      this.logger?.warn('PR extraction error', { error: (error as Error).message });
+    }
+  }
+
+  /**
+   * Check which PRs have already been extracted (by PR tag in memory).
+   */
+  private async checkExtractedPRs(groupId: string): Promise<Set<number>> {
+    const extractedPRs = new Set<number>();
+
+    try {
+      // Search for existing heuristic extraction facts
+      const existingFacts = await this.memory.searchFacts(
+        [groupId],
+        'type:heuristic-extraction',
+        100,
+      );
+
+      for (const fact of existingFacts) {
+        const prTag = fact.tags?.find(t => t.startsWith('pr:'));
+        if (prTag) {
+          const prNumber = parseInt(prTag.replace('pr:', ''), 10);
+          if (!isNaN(prNumber)) {
+            extractedPRs.add(prNumber);
+          }
+        }
+      }
+    } catch (error) {
+      // If search fails, return empty set (will re-extract)
+      this.logger?.debug('Could not check existing PR extractions', { error: (error as Error).message });
+    }
+
+    return extractedPRs;
   }
 
   /**

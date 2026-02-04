@@ -9,6 +9,7 @@ import type { IRecursionService } from './IRecursionService';
 import type { ILogger } from './ILogger';
 import type { IGitHubSyncService } from '../../skills/shared/services/GitHubSyncService';
 import type { ICommitEnricher } from './ICommitEnricher';
+import type { IGitExtractor } from './IGitExtractor';
 
 /**
  * Service container for dependency injection.
@@ -47,4 +48,10 @@ export interface ILisaServices {
    * Optional - may be undefined if LLM integration is not configured.
    */
   readonly commitEnricher?: ICommitEnricher;
+
+  /**
+   * Git extractor for heuristic-based fact extraction from PRs.
+   * Optional - may be undefined if GitHub integration is not configured.
+   */
+  readonly gitExtractor?: IGitExtractor;
 }

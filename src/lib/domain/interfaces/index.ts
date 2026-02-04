@@ -143,6 +143,21 @@ export {
   type ICommitEnricher,
 } from './ICommitEnricher';
 export {
+  type HeuristicFactType,
+  HEURISTIC_FACT_TYPE_VALUES,
+  isValidHeuristicFactType,
+  type FactSource,
+  FACT_SOURCE_VALUES,
+  type IHeuristicFact,
+  type IEnrichedPR,
+  type IReviewComment,
+  type ILinkedIssue,
+  type IHeuristicExtractionResult,
+  type IHeuristicExtractionOptions,
+  type IGitExtractor,
+  type IGitHubDataFetcher,
+} from './IGitExtractor';
+export {
   type IWorkSummary,
   type IDetectedDecision,
   type IDetectedError,
