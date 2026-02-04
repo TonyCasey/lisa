@@ -59,6 +59,7 @@ import { createLlmUsageTracker } from '../services/LlmUsageTracker';
 import { createLlmGuard } from '../services/LlmGuard';
 import { createSummarizationService } from '../services/SummarizationService';
 import { createTranscriptEnricher } from '../services/TranscriptEnricher';
+import { createCommitEnricher } from '../services/CommitEnricher';
 import { createLlmDeduplicationEnhancer } from '../services/LlmDeduplicationEnhancer';
 import type { ILlmDeduplicationEnhancer } from '../services/LlmDeduplicationEnhancer';
 import { createNlCurationService } from '../services/NlCurationService';
@@ -211,6 +212,17 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
       const guard = await container.resolve<ILlmGuard>(TOKENS.LlmGuard);
       const log = logger.child({ service: 'transcript-enricher' });
       return createTranscriptEnricher(guard, log);
+    },
+    'transient'
+  );
+
+  // Commit Enricher (transient - stateless LLM-powered commit extraction)
+  container.register(
+    TOKENS.CommitEnricher,
+    async () => {
+      const guard = await container.resolve<ILlmGuard>(TOKENS.LlmGuard);
+      const log = logger.child({ service: 'commit-enricher' });
+      return createCommitEnricher(guard, log);
     },
     'transient'
   );

@@ -37,6 +37,7 @@ export const INFRA_TOKENS = {
   LlmGuard: Symbol.for('Lisa.LlmGuard'),
   SummarizationService: Symbol.for('Lisa.SummarizationService'),
   TranscriptEnricher: Symbol.for('Lisa.TranscriptEnricher'),
+  CommitEnricher: Symbol.for('Lisa.CommitEnricher'),
   LlmDeduplicationEnhancer: Symbol.for('Lisa.LlmDeduplicationEnhancer'),
   NlCurationService: Symbol.for('Lisa.NlCurationService'),
 } as const;

@@ -8,6 +8,7 @@ import type { IRepositoryRouter } from './dal';
 import type { IRecursionService } from './IRecursionService';
 import type { ILogger } from './ILogger';
 import type { IGitHubSyncService } from '../../skills/shared/services/GitHubSyncService';
+import type { ICommitEnricher } from './ICommitEnricher';
 
 /**
  * Service container for dependency injection.
@@ -40,4 +41,10 @@ export interface ILisaServices {
    * Optional - may be undefined if GitHub integration is not configured.
    */
   readonly githubSync?: IGitHubSyncService;
+
+  /**
+   * Commit enricher for extracting facts from high-interest commits.
+   * Optional - may be undefined if LLM integration is not configured.
+   */
+  readonly commitEnricher?: ICommitEnricher;
 }

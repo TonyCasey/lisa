@@ -13,6 +13,8 @@ import type {
   IGitClient,
   IGitTriageService,
   ITriageResult,
+  IScoredCommit,
+  ICommitEnricher,
 } from '../../domain';
 import type { IRepositoryRouter } from '../../domain/interfaces/dal';
 import type { IGitHubSyncService } from '../../skills/shared/services/GitHubSyncService';
@@ -46,6 +48,7 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
   private readonly router?: IRepositoryRouter;
   private readonly logger?: ILogger;
   private readonly githubSync?: IGitHubSyncService;
+  private readonly commitEnricher?: ICommitEnricher;
 
   // Extracted services
   private readonly formatter: SessionContextFormatter;
@@ -106,6 +109,7 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
       this.router = services.router;
       this.logger = services.logger;
       this.githubSync = services.githubSync;
+      this.commitEnricher = services.commitEnricher;
       resolvedGitClient = memoryOrGitClient as IGitClient | undefined;
     } else {
       // Individual service injection
@@ -166,6 +170,12 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
     const gitCommits = gitTriage
       ? []
       : await this.gitService.loadGitCommits(dateOptions.since, projectRoot);
+
+    // Enrich high-interest commits (fire-and-forget, non-blocking)
+    if (gitTriage && request.trigger === 'startup') {
+      this.enrichAndSaveCommits(gitTriage.highInterest, hierarchicalGroupIds[0])
+        .catch(err => this.logger?.warn('Commit enrichment failed', { error: (err as Error).message }));
+    }
 
     // Process tasks from memory
     const tasks = this.processTasks(memories.tasks);
@@ -252,6 +262,91 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
       this.logger?.warn('Git triage failed', { error: (error as Error).message });
       return null;
     }
+  }
+
+  /**
+   * Enrich high-interest commits and save facts to memory (fire-and-forget).
+   */
+  private async enrichAndSaveCommits(
+    commits: readonly IScoredCommit[],
+    groupId: string,
+  ): Promise<void> {
+    if (!this.commitEnricher || commits.length === 0) return;
+
+    try {
+      // Check which commits are already enriched (by SHA tag)
+      const existingShas = await this.checkEnrichedCommits(groupId, commits);
+      const toEnrich = commits.filter(c => !existingShas.has(c.commit.sha));
+
+      if (toEnrich.length === 0) {
+        this.logger?.debug('All commits already enriched, skipping');
+        return;
+      }
+
+      this.logger?.debug('Enriching commits', { count: toEnrich.length });
+
+      const result = await this.commitEnricher.enrich(toEnrich, { maxCommits: 5 });
+
+      if (result.facts.length === 0) {
+        this.logger?.debug('No facts extracted from commits');
+        return;
+      }
+
+      // Save facts to memory with proper metadata
+      for (const fact of result.facts) {
+        const tags = [
+          'type:commit-enrichment',
+          `commit:${fact.commitSha}`,
+          `factType:${fact.type}`,
+          `confidence:${fact.confidence}`,
+          'source:git-enrichment',
+          ...fact.tags.map(t => `tag:${t}`),
+        ];
+
+        await this.memory.addFact(groupId, fact.text, tags);
+      }
+
+      this.logger?.info('Commit enrichment complete', {
+        processed: result.commitsProcessed,
+        facts: result.facts.length,
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+      });
+    } catch (error) {
+      // Non-blocking - log and continue
+      this.logger?.warn('Commit enrichment error', { error: (error as Error).message });
+    }
+  }
+
+  /**
+   * Check which commits have already been enriched (by SHA tag in memory).
+   */
+  private async checkEnrichedCommits(
+    groupId: string,
+    _commits: readonly IScoredCommit[],
+  ): Promise<Set<string>> {
+    const enrichedShas = new Set<string>();
+
+    try {
+      // Search for existing commit enrichment facts
+      const existingFacts = await this.memory.searchFacts(
+        [groupId],
+        'type:commit-enrichment',
+        100,
+      );
+
+      for (const fact of existingFacts) {
+        const shaTag = fact.tags?.find(t => t.startsWith('commit:'));
+        if (shaTag) {
+          enrichedShas.add(shaTag.replace('commit:', ''));
+        }
+      }
+    } catch (error) {
+      // If search fails, return empty set (will re-enrich)
+      this.logger?.debug('Could not check existing enrichments', { error: (error as Error).message });
+    }
+
+    return enrichedShas;
   }
 
   /**
