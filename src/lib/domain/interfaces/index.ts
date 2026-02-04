@@ -158,6 +158,15 @@ export {
   type IGitHubDataFetcher,
 } from './IGitExtractor';
 export {
+  type ConventionalCommitType,
+  type GitMemoryType,
+  CONVENTIONAL_COMMIT_TYPES,
+  COMMIT_TYPE_TO_MEMORY_TYPE,
+  type IGitIndexingOptions,
+  type IGitIndexingResult,
+  type IGitIndexingService,
+} from './IGitIndexingService';
+export {
   type IWorkSummary,
   type IDetectedDecision,
   type IDetectedError,
