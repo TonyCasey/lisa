@@ -246,12 +246,15 @@ export class Neo4jMemoryRepository
       name,
       fact: content,
       tags: tags.length > 0 ? tags : undefined,
+      // Approximation: DB uses datetime(), reads will return the authoritative value
       created_at: new Date().toISOString(),
     };
   }
 
   /**
    * Save multiple facts in batch with concurrency limit.
+   * Note: On error, facts from completed batches are committed; the caller
+   * won't know which succeeded. Acceptable for a fallback write path.
    */
   async saveBatch(
     groupId: string,
