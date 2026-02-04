@@ -55,9 +55,9 @@ export function createCommitEnricher(
       options: ICommitEnrichmentOptions = {}
     ): Promise<ICommitEnrichmentResult> {
       try {
-        // Filter out commits that should be skipped
+        // Filter out commits that should be skipped (use shortSha for consistency)
         const skipShas = new Set(options.skipShas ?? []);
-        const filteredCommits = commits.filter(c => !skipShas.has(c.commit.sha));
+        const filteredCommits = commits.filter(c => !skipShas.has(c.commit.shortSha));
 
         if (filteredCommits.length === 0) {
           return {
@@ -68,10 +68,26 @@ export function createCommitEnricher(
           };
         }
 
-        // Limit to maxCommits
-        const maxCommits = options.maxCommits ?? DEFAULT_MAX_COMMITS;
+        // Limit to maxCommits (guard against <= 0)
+        const maxCommits = Math.max(0, options.maxCommits ?? DEFAULT_MAX_COMMITS);
         const toProcess = filteredCommits.slice(0, maxCommits);
+
+        // Fast-return for empty toProcess to avoid wasting LLM tokens
+        if (toProcess.length === 0) {
+          return {
+            facts: [],
+            commitsProcessed: 0,
+            commitsSkipped: commits.length,
+            usage: EMPTY_USAGE,
+          };
+        }
+
         const skipped = commits.length - toProcess.length;
+
+        // Build allowed SHAs set for validation (both full and short)
+        const allowedShas = new Set(
+          toProcess.flatMap(c => [c.commit.sha, c.commit.shortSha].filter(Boolean))
+        );
 
         const prompt = buildCommitExtractionPrompt(toProcess, options);
 
@@ -81,7 +97,7 @@ export function createCommitEnricher(
           maxTokens: options.maxTokens ?? DEFAULT_MAX_TOKENS,
         });
 
-        const parsed = parseCommitExtractionResponse(response.text, options);
+        const parsed = parseCommitExtractionResponse(response.text, options, allowedShas);
 
         return {
           facts: parsed.facts,
@@ -113,10 +129,13 @@ export function createCommitEnricher(
  *
  * Expects JSON with `{ facts: [...] }`.
  * Invalid facts are silently dropped.
+ *
+ * @param allowedShas - Optional set of valid SHAs to reject hallucinated commits
  */
 function parseCommitExtractionResponse(
   responseText: string,
-  options: ICommitEnrichmentOptions = {}
+  options: ICommitEnrichmentOptions = {},
+  allowedShas?: ReadonlySet<string>
 ): { facts: ICommitFact[] } {
   // Try to extract JSON from the response
   const jsonText = extractJson(responseText);
@@ -142,7 +161,7 @@ function parseCommitExtractionResponse(
   const facts: ICommitFact[] = [];
 
   for (const raw of rawFacts) {
-    const fact = validateCommitFact(raw, allowedTypes);
+    const fact = validateCommitFact(raw, allowedTypes, allowedShas);
     if (fact) {
       facts.push(fact);
     }
@@ -181,10 +200,13 @@ function extractJson(text: string): string | null {
 /**
  * Validate a single extracted commit fact from the LLM response.
  * Returns null for invalid facts.
+ *
+ * @param allowedShas - Optional set of valid SHAs to reject hallucinated commits
  */
 function validateCommitFact(
   raw: unknown,
-  allowedTypes?: readonly CommitFactType[]
+  allowedTypes?: readonly CommitFactType[],
+  allowedShas?: ReadonlySet<string>
 ): ICommitFact | null {
   if (typeof raw !== 'object' || raw === null) return null;
 
@@ -203,6 +225,10 @@ function validateCommitFact(
 
   // commitSha is required
   if (typeof obj.commitSha !== 'string' || obj.commitSha.trim().length === 0) return null;
+  const commitSha = obj.commitSha.trim();
+
+  // Reject facts with unknown SHAs (LLM may hallucinate)
+  if (allowedShas && !allowedShas.has(commitSha)) return null;
 
   // Confidence must be valid (default to 'medium' if missing)
   let confidence: ConfidenceLevel = 'medium';
@@ -233,7 +259,7 @@ function validateCommitFact(
     type: obj.type as CommitFactType,
     confidence,
     tags,
-    commitSha: obj.commitSha.trim(),
+    commitSha,
     rationale,
   };
 }

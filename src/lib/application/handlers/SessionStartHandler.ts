@@ -274,9 +274,9 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
     if (!this.commitEnricher || commits.length === 0) return;
 
     try {
-      // Check which commits are already enriched (by SHA tag)
-      const existingShas = await this.checkEnrichedCommits(groupId, commits);
-      const toEnrich = commits.filter(c => !existingShas.has(c.commit.sha));
+      // Check which commits are already enriched (by short SHA tag)
+      const existingShas = await this.checkEnrichedCommits(groupId);
+      const toEnrich = commits.filter(c => !existingShas.has(c.commit.shortSha));
 
       if (toEnrich.length === 0) {
         this.logger?.debug('All commits already enriched, skipping');
@@ -319,12 +319,9 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
   }
 
   /**
-   * Check which commits have already been enriched (by SHA tag in memory).
+   * Check which commits have already been enriched (by short SHA tag in memory).
    */
-  private async checkEnrichedCommits(
-    groupId: string,
-    _commits: readonly IScoredCommit[],
-  ): Promise<Set<string>> {
+  private async checkEnrichedCommits(groupId: string): Promise<Set<string>> {
     const enrichedShas = new Set<string>();
 
     try {

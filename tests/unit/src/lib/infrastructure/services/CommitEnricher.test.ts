@@ -245,6 +245,46 @@ describe('CommitEnricher', () => {
       assert.strictEqual(guard.calls.length, 0); // No LLM call made
     });
 
+    it('should return empty result when maxCommits is zero', async () => {
+      const guard = createMockLlmGuard();
+      const enricher = createCommitEnricher(guard);
+
+      const result = await enricher.enrich(mockCommits, { maxCommits: 0 });
+
+      assert.strictEqual(result.facts.length, 0);
+      assert.strictEqual(result.commitsProcessed, 0);
+      assert.strictEqual(result.commitsSkipped, 2);
+      assert.strictEqual(guard.calls.length, 0); // No LLM call made
+    });
+
+    it('should return empty result when maxCommits is negative', async () => {
+      const guard = createMockLlmGuard();
+      const enricher = createCommitEnricher(guard);
+
+      const result = await enricher.enrich(mockCommits, { maxCommits: -5 });
+
+      assert.strictEqual(result.facts.length, 0);
+      assert.strictEqual(result.commitsProcessed, 0);
+      assert.strictEqual(result.commitsSkipped, 2);
+      assert.strictEqual(guard.calls.length, 0); // No LLM call made
+    });
+
+    it('should reject facts with unknown commitSha (hallucinated by LLM)', async () => {
+      const responseWithHallucinatedSha = JSON.stringify({
+        facts: [
+          { text: 'Valid fact', type: 'feature', confidence: 'high', tags: [], commitSha: 'sha1' },
+          { text: 'Hallucinated SHA', type: 'decision', confidence: 'high', tags: [], commitSha: 'unknown-sha' },
+        ],
+      });
+      const guard = createMockLlmGuard(responseWithHallucinatedSha);
+      const enricher = createCommitEnricher(guard);
+
+      const result = await enricher.enrich(mockCommits);
+
+      assert.strictEqual(result.facts.length, 1);
+      assert.strictEqual(result.facts[0]?.commitSha, 'sha1');
+    });
+
     it('should filter by extractTypes when provided', async () => {
       const responseWithMixed = JSON.stringify({
         facts: [

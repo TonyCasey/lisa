@@ -17,7 +17,7 @@ Added `CommitEnricher` service for LLM-based extraction of structured facts from
 
 - `ICommitEnricher` domain interface with `enrich()` method
 - `ICommitFact` with types: feature, decision, refactor, migration, bugfix, breaking-change, convention, dependency
-- Commit extraction prompt builder with few-shot examples for each fact type
+- Commit extraction prompt builder with structured instructions for each fact type
 - Fire-and-forget integration in SessionStartHandler (startup trigger only)
 - Deduplication via `commit:{sha}` tag to skip already-enriched commits
 - Memory storage with tags: `type:commit-enrichment`, `commit:{sha}`, `factType:{type}`, `confidence:{level}`, `source:git-enrichment`
