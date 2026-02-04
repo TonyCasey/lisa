@@ -242,7 +242,12 @@ export function extractPatternMatches(
 
   for (const patternDef of patterns) {
     // Clone regex to reset lastIndex for global patterns
-    const regex = new RegExp(patternDef.pattern.source, patternDef.pattern.flags);
+    // Ensure 'g' flag is present to prevent infinite loops with exec()
+    const flags = patternDef.pattern.flags.includes('g')
+      ? patternDef.pattern.flags
+      : `${patternDef.pattern.flags}g`;
+    const regex = new RegExp(patternDef.pattern.source, flags);
+    regex.lastIndex = 0;  // Reset to be defensive
     let match: RegExpExecArray | null;
 
     while ((match = regex.exec(text)) !== null) {

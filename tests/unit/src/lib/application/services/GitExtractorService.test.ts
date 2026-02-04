@@ -279,14 +279,16 @@ describe('GitExtractorService', () => {
       const service = createGitExtractorService(mockDataFetcher, mockLogger);
       const result = await service.extractFromPRs([123], 'owner/repo');
 
+      // Should have extracted at least one fact (the "decided to use" pattern)
+      assert.ok(result.facts.length > 0, 'Expected facts to be extracted');
+
       // Check if any fact has technology tags
       const allTags = result.facts.flatMap(f => f.tags);
       const hasTechTags = allTags.some(t =>
         ['typescript', 'graphql', 'react', 'node'].includes(t.toLowerCase())
       );
 
-      // This may or may not find tags depending on extraction
-      assert.ok(true);  // Just verify no errors
+      assert.ok(hasTechTags, 'Expected technology tags to be extracted');
     });
   });
 

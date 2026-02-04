@@ -208,6 +208,22 @@ describe('GitHubDataFetcher', () => {
       assert.ok(result, 'Should return enriched PR');
       assert.strictEqual(result.reviewComments[0].author, 'unknown');
     });
+
+    it('should handle null PR author (deleted user)', async () => {
+      (mockGithubClient.getPr as ReturnType<typeof mock.fn>).mock.mockImplementation(async () => ({
+        number: 123,
+        title: 'Test PR',
+        body: 'Test body',
+        author: null,  // Deleted user
+        closingIssuesReferences: [],
+      }));
+
+      const fetcher = createGitHubDataFetcher(mockGithubClient, mockLogger);
+      const result = await fetcher.fetchPR('owner/repo', 123);
+
+      assert.ok(result, 'Should return enriched PR');
+      assert.strictEqual(result.author, 'unknown');
+    });
   });
 
   describe('isAvailable', () => {

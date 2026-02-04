@@ -90,7 +90,7 @@ export function createGitHubDataFetcher(
           number: pr.number,
           title: pr.title,
           body: pr.body || '',
-          author: pr.author.login,
+          author: pr.author?.login ?? 'unknown',
           reviewComments,
           linkedIssues,
         };

@@ -133,17 +133,30 @@ describe('HeuristicPatterns', () => {
     });
 
     it('should set confidence based on match length', () => {
-      const shortText = 'Careful: handle nulls.';  // Short
+      // Short text that meets minimum length but is relatively short
+      const shortText = 'Careful: handle null inputs carefully.';
+      // Long text that should get higher confidence
       const longText = 'Careful: you need to handle null values carefully because the database may return undefined for optional fields and this can cause runtime errors.';
 
       const shortMatches = extractPatternMatches(shortText);
       const longMatches = extractPatternMatches(longText);
 
-      // Long matches should potentially have higher confidence
-      if (shortMatches.length > 0 && longMatches.length > 0) {
-        // Just verify both extract something - confidence adjustment is internal
-        assert.ok(true);
-      }
+      // Both should extract something
+      assert.ok(shortMatches.length > 0, 'Expected a short match');
+      assert.ok(longMatches.length > 0, 'Expected a long match');
+
+      // Long matches (>100 chars) should have higher confidence than short (<30 chars)
+      // The 'careful' pattern has baseConfidence 'high', but short text downgrades it
+      // Long text (>100 chars) maintains or upgrades confidence
+      const shortConfidence = shortMatches[0].confidence;
+      const longConfidence = longMatches[0].confidence;
+
+      // Long text should have equal or higher confidence
+      const confidenceOrder = { low: 0, medium: 1, high: 2 };
+      assert.ok(
+        confidenceOrder[longConfidence] >= confidenceOrder[shortConfidence],
+        `Expected long text confidence (${longConfidence}) >= short text confidence (${shortConfidence})`
+      );
     });
 
     it('should extract ## Why sections from PR templates', () => {

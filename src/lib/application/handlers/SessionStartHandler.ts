@@ -123,6 +123,8 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
       this.router = router;
       this.logger = logger;
       this.githubSync = githubSync;
+      // Note: commitEnricher and gitExtractor are not available in this constructor path
+      // They can only be injected via the ILisaServices legacy constructor
       resolvedGitClient = gitClient;
     }
 
@@ -383,11 +385,11 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
         const tags = [
           'type:heuristic-extraction',
           `factType:${fact.type}`,
-          `source:${fact.source}`,
+          `factSource:${fact.source}`,
           `confidence:${fact.confidence}`,
           fact.prNumber ? `pr:${fact.prNumber}` : '',
           fact.matchedPattern ? `pattern:${fact.matchedPattern}` : '',
-          'source:git-extraction',
+          'extractionMethod:git-extraction',
           ...fact.tags.map(t => `tag:${t}`),
         ].filter(Boolean);
 
