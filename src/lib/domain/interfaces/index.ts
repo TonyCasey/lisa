@@ -134,6 +134,15 @@ export {
   type ITranscriptEnricher,
 } from './ITranscriptEnricher';
 export {
+  type CommitFactType,
+  COMMIT_FACT_TYPE_VALUES,
+  isValidCommitFactType,
+  type ICommitFact,
+  type ICommitEnrichmentResult,
+  type ICommitEnrichmentOptions,
+  type ICommitEnricher,
+} from './ICommitEnricher';
+export {
   type IWorkSummary,
   type IDetectedDecision,
   type IDetectedError,

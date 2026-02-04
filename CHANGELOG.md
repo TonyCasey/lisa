@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Git-Powered Memory: Phase 2 API Enrichment ([LISA-8](https://linear.app/tonycasey/issue/LISA-8))
+
+Added `CommitEnricher` service for LLM-based extraction of structured facts from high-interest commits identified by Phase 1 triage. Completes the Git-Powered Memory feature.
+
+- `ICommitEnricher` domain interface with `enrich()` method
+- `ICommitFact` with types: feature, decision, refactor, migration, bugfix, breaking-change, convention, dependency
+- Commit extraction prompt builder with structured instructions for each fact type
+- Fire-and-forget integration in SessionStartHandler (startup trigger only)
+- Deduplication via `commit:{sha}` tag to skip already-enriched commits
+- Memory storage with tags: `type:commit-enrichment`, `commit:{sha}`, `factType:{type}`, `confidence:{level}`, `source:git-enrichment`
+- Graceful error handling - failures logged but don't block session start
+- 29 unit tests covering LLM integration, parsing, validation, and error handling
+
 #### Git-Powered Memory: Phase 1 Local Triage ([LISA-7](https://linear.app/tonycasey/issue/LISA-7))
 
 Added `GitTriageService` for scanning git history and scoring commits for "interestingness" to identify which commits warrant API enrichment. Part of the Git-Powered Memory feature.
