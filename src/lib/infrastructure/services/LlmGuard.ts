@@ -74,14 +74,22 @@ export function createLlmGuard(
       // Check budget - env var takes precedence over preference store
       const envLimit = process.env[BUDGET_ENV_KEY];
       const cost = await usageTracker.getTotalCost();
+      let usePreferenceStore = envLimit === undefined;
 
       if (envLimit !== undefined) {
         // Use env var for budget enforcement
         const limit = parseFloat(envLimit);
-        if (!isNaN(limit) && limit > 0 && cost >= limit) {
+        if (isNaN(limit) || limit <= 0) {
+          // Invalid env var value - log warning and fall back to preference store
+          logger?.warn('Invalid LISA_LLM_MONTHLY_LIMIT value, falling back to preference store', { envLimit });
+          usePreferenceStore = true;
+        } else if (cost >= limit) {
           throw new LlmBudgetExceededError(cost, limit, { feature });
         }
-      } else {
+        // else: valid env limit and within budget, proceed
+      }
+
+      if (usePreferenceStore) {
         // Fall back to tracker's isWithinBudget (which uses preference store)
         const withinBudget = await usageTracker.isWithinBudget();
         if (!withinBudget) {

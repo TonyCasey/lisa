@@ -411,5 +411,92 @@ describe('LlmGuard', () => {
         }
       }
     });
+
+    it('should fall back to preference store when env var is non-numeric', async () => {
+      const llmSvc = createMockLlmService();
+      // Tracker says over budget based on preference store
+      const tracker = createMockUsageTracker({ withinBudget: false, totalCost: 15.50 });
+      const configSvc = createMockConfigService({ enabled: true });
+      const prefs = createMockPreferenceStore({ 'llm:monthlyLimit': '10.00' });
+
+      // Invalid env var value
+      const originalEnv = process.env.LISA_LLM_MONTHLY_LIMIT;
+      process.env.LISA_LLM_MONTHLY_LIMIT = 'invalid';
+
+      try {
+        const guard = createLlmGuard(llmSvc, tracker, configSvc, prefs);
+        // Should fall back to preference store and throw (cost 15.50 > limit 10.00)
+        await assert.rejects(
+          async () => guard.complete('Test', 'test'),
+          (error: unknown) => {
+            assert.ok(error instanceof LlmBudgetExceededError);
+            assert.strictEqual(error.budgetLimit, 10.00);
+            return true;
+          }
+        );
+      } finally {
+        if (originalEnv === undefined) {
+          delete process.env.LISA_LLM_MONTHLY_LIMIT;
+        } else {
+          process.env.LISA_LLM_MONTHLY_LIMIT = originalEnv;
+        }
+      }
+    });
+
+    it('should fall back to preference store when env var is zero', async () => {
+      const llmSvc = createMockLlmService();
+      const tracker = createMockUsageTracker({ withinBudget: false, totalCost: 15.50 });
+      const configSvc = createMockConfigService({ enabled: true });
+      const prefs = createMockPreferenceStore({ 'llm:monthlyLimit': '10.00' });
+
+      const originalEnv = process.env.LISA_LLM_MONTHLY_LIMIT;
+      process.env.LISA_LLM_MONTHLY_LIMIT = '0';
+
+      try {
+        const guard = createLlmGuard(llmSvc, tracker, configSvc, prefs);
+        await assert.rejects(
+          async () => guard.complete('Test', 'test'),
+          (error: unknown) => {
+            assert.ok(error instanceof LlmBudgetExceededError);
+            assert.strictEqual(error.budgetLimit, 10.00);
+            return true;
+          }
+        );
+      } finally {
+        if (originalEnv === undefined) {
+          delete process.env.LISA_LLM_MONTHLY_LIMIT;
+        } else {
+          process.env.LISA_LLM_MONTHLY_LIMIT = originalEnv;
+        }
+      }
+    });
+
+    it('should fall back to preference store when env var is negative', async () => {
+      const llmSvc = createMockLlmService();
+      const tracker = createMockUsageTracker({ withinBudget: false, totalCost: 15.50 });
+      const configSvc = createMockConfigService({ enabled: true });
+      const prefs = createMockPreferenceStore({ 'llm:monthlyLimit': '10.00' });
+
+      const originalEnv = process.env.LISA_LLM_MONTHLY_LIMIT;
+      process.env.LISA_LLM_MONTHLY_LIMIT = '-5.00';
+
+      try {
+        const guard = createLlmGuard(llmSvc, tracker, configSvc, prefs);
+        await assert.rejects(
+          async () => guard.complete('Test', 'test'),
+          (error: unknown) => {
+            assert.ok(error instanceof LlmBudgetExceededError);
+            assert.strictEqual(error.budgetLimit, 10.00);
+            return true;
+          }
+        );
+      } finally {
+        if (originalEnv === undefined) {
+          delete process.env.LISA_LLM_MONTHLY_LIMIT;
+        } else {
+          process.env.LISA_LLM_MONTHLY_LIMIT = originalEnv;
+        }
+      }
+    });
   });
 });
