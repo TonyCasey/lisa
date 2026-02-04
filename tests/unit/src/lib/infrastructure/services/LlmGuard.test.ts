@@ -299,5 +299,91 @@ describe('LlmGuard', () => {
       const guard = createLlmGuard(llmSvc, tracker, configSvc, prefs);
       assert.strictEqual(await guard.isFeatureEnabled('curation'), true);
     });
+
+    it('should use env var over preference store when set', async () => {
+      const llmSvc = createMockLlmService();
+      const tracker = createMockUsageTracker();
+      const configSvc = createMockConfigService({ enabled: true });
+      // Preference store says only summarization enabled
+      const prefs = createMockPreferenceStore({ 'llm:features': 'summarization' });
+
+      // But env var enables extraction
+      const originalEnv = process.env.LISA_LLM_FEATURES;
+      process.env.LISA_LLM_FEATURES = 'extraction';
+
+      try {
+        const guard = createLlmGuard(llmSvc, tracker, configSvc, prefs);
+        // Env var wins: extraction enabled, summarization disabled
+        assert.strictEqual(await guard.isFeatureEnabled('extraction'), true);
+        assert.strictEqual(await guard.isFeatureEnabled('summarization'), false);
+      } finally {
+        // Restore original env
+        if (originalEnv === undefined) {
+          delete process.env.LISA_LLM_FEATURES;
+        } else {
+          process.env.LISA_LLM_FEATURES = originalEnv;
+        }
+      }
+    });
+
+    it('should use env var wildcard to enable all features', async () => {
+      const llmSvc = createMockLlmService();
+      const tracker = createMockUsageTracker();
+      const configSvc = createMockConfigService({ enabled: true });
+      // Preference store restricts to summarization only
+      const prefs = createMockPreferenceStore({ 'llm:features': 'summarization' });
+
+      const originalEnv = process.env.LISA_LLM_FEATURES;
+      process.env.LISA_LLM_FEATURES = '*';
+
+      try {
+        const guard = createLlmGuard(llmSvc, tracker, configSvc, prefs);
+        // Env var wildcard enables all
+        assert.strictEqual(await guard.isFeatureEnabled('extraction'), true);
+        assert.strictEqual(await guard.isFeatureEnabled('deduplication'), true);
+        assert.strictEqual(await guard.isFeatureEnabled('curation'), true);
+      } finally {
+        if (originalEnv === undefined) {
+          delete process.env.LISA_LLM_FEATURES;
+        } else {
+          process.env.LISA_LLM_FEATURES = originalEnv;
+        }
+      }
+    });
+  });
+
+  describe('budget env var precedence', () => {
+    it('should use env var budget limit over preference store', async () => {
+      const llmSvc = createMockLlmService();
+      // Budget exceeded with cost of 15.50
+      const tracker = createMockUsageTracker({ withinBudget: false, totalCost: 15.50 });
+      const configSvc = createMockConfigService({ enabled: true });
+      // Preference store has limit of 10.00
+      const prefs = createMockPreferenceStore({ 'llm:monthlyLimit': '10.00' });
+
+      // Env var overrides to 20.00 (but we're still over budget per tracker)
+      const originalEnv = process.env.LISA_LLM_MONTHLY_LIMIT;
+      process.env.LISA_LLM_MONTHLY_LIMIT = '20.00';
+
+      try {
+        const guard = createLlmGuard(llmSvc, tracker, configSvc, prefs);
+
+        // The error should show the env var limit (20.00), not the preference (10.00)
+        await assert.rejects(
+          async () => guard.complete('Test', 'test'),
+          (error: unknown) => {
+            assert.ok(error instanceof LlmBudgetExceededError);
+            assert.strictEqual(error.budgetLimit, 20.00);
+            return true;
+          }
+        );
+      } finally {
+        if (originalEnv === undefined) {
+          delete process.env.LISA_LLM_MONTHLY_LIMIT;
+        } else {
+          process.env.LISA_LLM_MONTHLY_LIMIT = originalEnv;
+        }
+      }
+    });
   });
 });

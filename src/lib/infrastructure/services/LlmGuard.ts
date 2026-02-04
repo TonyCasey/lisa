@@ -26,6 +26,12 @@ const FEATURES_PREF_KEY = 'llm:features';
 /** Preference key for monthly budget limit. */
 const BUDGET_PREF_KEY = 'llm:monthlyLimit';
 
+/** Environment variable for enabled features (takes precedence over preferences). */
+const FEATURES_ENV_KEY = 'LISA_LLM_FEATURES';
+
+/** Environment variable for monthly budget limit (takes precedence over preferences). */
+const BUDGET_ENV_KEY = 'LISA_LLM_MONTHLY_LIMIT';
+
 /**
  * Parse the enabled features from the preference value.
  * Returns null if all features should be enabled (default).
@@ -69,7 +75,10 @@ export function createLlmGuard(
       const withinBudget = await usageTracker.isWithinBudget();
       if (!withinBudget) {
         const cost = await usageTracker.getTotalCost();
-        const limitStr = await preferenceStore.get(BUDGET_PREF_KEY);
+        // Check env var first, then preference store
+        const envLimit = process.env[BUDGET_ENV_KEY];
+        const prefLimit = await preferenceStore.get(BUDGET_PREF_KEY);
+        const limitStr = envLimit ?? prefLimit;
         const limit = limitStr !== null ? parseFloat(limitStr) : 0;
         throw new LlmBudgetExceededError(cost, limit, { feature });
       }
@@ -108,9 +117,18 @@ export function createLlmGuard(
       const config = await configService.getConfig();
       if (!config.enabled) return false;
 
-      // Check per-feature toggle
-      const featuresValue = await preferenceStore.get(FEATURES_PREF_KEY);
-      const enabledFeatures = parseEnabledFeatures(featuresValue);
+      // Check env var first (takes precedence over preferences)
+      const envValue = process.env[FEATURES_ENV_KEY];
+      if (envValue !== undefined) {
+        const enabledFromEnv = parseEnabledFeatures(envValue);
+        // null means all features enabled
+        if (enabledFromEnv === null) return true;
+        return enabledFromEnv.has(feature);
+      }
+
+      // Fall back to preference store
+      const prefValue = await preferenceStore.get(FEATURES_PREF_KEY);
+      const enabledFeatures = parseEnabledFeatures(prefValue);
 
       // null means all features enabled (default)
       if (enabledFeatures === null) return true;
