@@ -63,7 +63,8 @@ function buildTags(
     `confidence:${fact.confidence}`,
     'lifecycle:project',
 
-    // Extraction metadata
+    // Extraction metadata (type:heuristic-extraction needed for checkExtractedPRs dedupe)
+    'type:heuristic-extraction',
     `factType:${fact.type}`,
     `factSource:${fact.source}`,
     'extractionMethod:heuristic',

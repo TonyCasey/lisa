@@ -63,6 +63,7 @@ describe('GitIndexingService', () => {
       assert.ok(tags.includes('source:code-analysis'), 'Should have source:code-analysis tag');
       assert.ok(tags.includes('confidence:medium'), 'Should have confidence:medium tag');
       assert.ok(tags.includes('lifecycle:project'), 'Should have lifecycle:project tag');
+      assert.ok(tags.includes('type:heuristic-extraction'), 'Should have type:heuristic-extraction tag for dedupe');
       assert.ok(tags.includes('factType:decision'), 'Should have factType:decision tag');
       assert.ok(tags.includes('pr:123'), 'Should have pr:123 tag');
       assert.ok(tags.includes('extractionMethod:heuristic'), 'Should have extractionMethod:heuristic tag');
