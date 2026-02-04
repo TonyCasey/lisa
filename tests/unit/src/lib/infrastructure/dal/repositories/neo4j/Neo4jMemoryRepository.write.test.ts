@@ -88,6 +88,43 @@ describe('Neo4jMemoryRepository - write', () => {
       assert.deepStrictEqual(params.tags, ['MILESTONE', 'source:user']);
     });
 
+    it('should merge lifecycle tag into stored tags', async () => {
+      await repo.save('c-dev-lisa', 'Some fact', {
+        tags: ['source:user'],
+        lifecycle: 'session',
+      });
+
+      const writeFn = mockConnection.write as ReturnType<typeof mock.fn>;
+      const [, params] = writeFn.mock.calls[0].arguments;
+      assert.ok(params.tags.includes('source:user'), 'should include explicit tag');
+      assert.ok(params.tags.includes('lifecycle:session'), 'should include derived lifecycle tag');
+    });
+
+    it('should merge confidence tag into stored tags', async () => {
+      await repo.save('c-dev-lisa', 'Some fact', {
+        tags: ['source:user'],
+        confidence: 'high',
+      });
+
+      const writeFn = mockConnection.write as ReturnType<typeof mock.fn>;
+      const [, params] = writeFn.mock.calls[0].arguments;
+      assert.ok(params.tags.includes('source:user'), 'should include explicit tag');
+      assert.ok(params.tags.includes('confidence:high'), 'should include derived confidence tag');
+    });
+
+    it('should deduplicate tags when lifecycle/confidence already in tags', async () => {
+      await repo.save('c-dev-lisa', 'Some fact', {
+        tags: ['lifecycle:session', 'confidence:high'],
+        lifecycle: 'session',
+        confidence: 'high',
+      });
+
+      const writeFn = mockConnection.write as ReturnType<typeof mock.fn>;
+      const [, params] = writeFn.mock.calls[0].arguments;
+      const lifecycleTags = params.tags.filter((t: string) => t === 'lifecycle:session');
+      assert.strictEqual(lifecycleTags.length, 1, 'should not duplicate lifecycle tag');
+    });
+
     it('should persist empty tags array when no tags provided', async () => {
       await repo.save('c-dev-lisa', 'Some fact');
 

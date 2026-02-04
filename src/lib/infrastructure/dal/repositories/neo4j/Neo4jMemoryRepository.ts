@@ -204,7 +204,14 @@ export class Neo4jMemoryRepository
 
     const uuid = randomUUID();
 
-    const tags = options?.tags ? [...options.tags] : [];
+    const tagSet = new Set<string>(options?.tags ?? []);
+    if (options?.lifecycle) {
+      tagSet.add(resolveLifecycleTag(options.lifecycle));
+    }
+    if (options?.confidence) {
+      tagSet.add(resolveConfidenceTag(options.confidence));
+    }
+    const tags = [...tagSet];
 
     const cypher = `
       MERGE (s:Entity {name: $sourceName})
