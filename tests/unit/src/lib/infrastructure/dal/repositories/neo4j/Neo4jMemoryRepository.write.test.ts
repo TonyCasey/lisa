@@ -48,6 +48,7 @@ describe('Neo4jMemoryRepository - write', () => {
       assert.ok(cypher.includes('uuid: $uuid'), 'should set uuid');
       assert.ok(cypher.includes('group_id: $groupId'), 'should set group_id');
       assert.ok(cypher.includes('fact: $content'), 'should set fact content');
+      assert.ok(cypher.includes('tags: $tags'), 'should set tags on relationship');
     });
 
     it('should pass correct params including groupId and content', async () => {
@@ -77,6 +78,22 @@ describe('Neo4jMemoryRepository - write', () => {
       const writeFn = mockConnection.write as ReturnType<typeof mock.fn>;
       const [, params] = writeFn.mock.calls[0].arguments;
       assert.strictEqual(params.targetName, 'fact-milestone');
+    });
+
+    it('should persist tags on the relationship for findByTags compatibility', async () => {
+      await repo.save('c-dev-lisa', 'Some fact', { tags: ['MILESTONE', 'source:user'] });
+
+      const writeFn = mockConnection.write as ReturnType<typeof mock.fn>;
+      const [, params] = writeFn.mock.calls[0].arguments;
+      assert.deepStrictEqual(params.tags, ['MILESTONE', 'source:user']);
+    });
+
+    it('should persist empty tags array when no tags provided', async () => {
+      await repo.save('c-dev-lisa', 'Some fact');
+
+      const writeFn = mockConnection.write as ReturnType<typeof mock.fn>;
+      const [, params] = writeFn.mock.calls[0].arguments;
+      assert.deepStrictEqual(params.tags, []);
     });
 
     it('should use RELATES_TO as default target name when no tags', async () => {

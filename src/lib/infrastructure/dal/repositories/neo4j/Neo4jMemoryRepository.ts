@@ -6,6 +6,8 @@
  * Serves as fallback write path when MCP is unavailable.
  */
 
+import { randomUUID } from 'node:crypto';
+
 import type { IMemoryItem } from '../../../../domain/interfaces/types/IMemoryResult';
 import type {
   IMemoryRepositoryWriter,
@@ -26,7 +28,6 @@ import {
   CONFIDENCE_SCORES,
   resolveConfidenceTag,
 } from '../../../../domain/interfaces/types/IMemoryQuality';
-import { randomUUID } from 'node:crypto';
 import { Neo4jConnectionManager } from '../../connections/Neo4jConnectionManager';
 
 /**
@@ -203,6 +204,8 @@ export class Neo4jMemoryRepository
 
     const uuid = randomUUID();
 
+    const tags = options?.tags ? [...options.tags] : [];
+
     const cypher = `
       MERGE (s:Entity {name: $sourceName})
       ON CREATE SET s.group_id = $groupId, s.created_at = datetime()
@@ -213,6 +216,7 @@ export class Neo4jMemoryRepository
         group_id: $groupId,
         name: $name,
         fact: $content,
+        tags: $tags,
         created_at: datetime(),
         valid_at: datetime()
       }]->(t)
@@ -225,6 +229,7 @@ export class Neo4jMemoryRepository
       groupId,
       name,
       content,
+      tags,
     };
 
     await this.connection.write(cypher, params);
@@ -233,7 +238,7 @@ export class Neo4jMemoryRepository
       uuid,
       name,
       fact: content,
-      tags: options?.tags ? [...options.tags] : undefined,
+      tags: tags.length > 0 ? tags : undefined,
       created_at: new Date().toISOString(),
     };
   }
