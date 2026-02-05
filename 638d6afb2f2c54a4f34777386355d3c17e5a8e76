@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "e4dfea73-fad4-4da4-a439-8b7c25876c61",
+      "content": "deleting entire directory",
+      "type": "decision",
+      "sha": "638d6afb2f2c54a4f34777386355d3c17e5a8e76",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:instead-of"
+      ],
+      "createdAt": "2026-02-05T18:37:26.539Z",
+      "updatedAt": "2026-02-05T18:37:26.539Z"
+    }
+  ]
+}
