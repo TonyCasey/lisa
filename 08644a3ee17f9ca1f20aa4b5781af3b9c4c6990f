@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "cc4ca712-294d-41fc-b44b-ea22295f5b88",
+      "content": "deprecated script paths",
+      "type": "decision",
+      "sha": "08644a3ee17f9ca1f20aa4b5781af3b9c4c6990f",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:instead-of"
+      ],
+      "createdAt": "2026-02-05T18:37:26.438Z",
+      "updatedAt": "2026-02-05T18:37:26.438Z"
+    }
+  ]
+}
