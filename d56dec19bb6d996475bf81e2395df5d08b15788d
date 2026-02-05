@@ -59,6 +59,21 @@
       ],
       "createdAt": "2026-02-05T18:37:26.331Z",
       "updatedAt": "2026-02-05T18:37:26.331Z"
+    },
+    {
+      "id": "88e99ff3-ed0a-4c2e-a1cf-7918d532f317",
+      "content": "for request/response handling",
+      "type": "convention",
+      "sha": "d56dec19bb6d996475bf81e2395df5d08b15788d",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:convention"
+      ],
+      "createdAt": "2026-02-05T18:37:26.342Z",
+      "updatedAt": "2026-02-05T18:37:26.342Z"
     }
   ]
 }
