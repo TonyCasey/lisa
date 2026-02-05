@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "332bd2fe-59f2-4921-b3aa-453f6164d600",
+      "content": "try/catch in bootstrap",
+      "type": "decision",
+      "sha": "a30853a929a9fc5266bccf235784c8bccf8e2993",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:instead-of"
+      ],
+      "createdAt": "2026-02-05T18:37:26.250Z",
+      "updatedAt": "2026-02-05T18:37:26.250Z"
+    }
+  ]
+}
