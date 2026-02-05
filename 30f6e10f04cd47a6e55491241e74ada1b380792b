@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "be0412a7-8316-4967-b0ef-f55261261ea1",
+      "content": "today while allowing --all to fetch older tasks",
+      "type": "decision",
+      "sha": "30f6e10f04cd47a6e55491241e74ada1b380792b",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:because-clause"
+      ],
+      "createdAt": "2026-02-05T18:37:26.558Z",
+      "updatedAt": "2026-02-05T18:37:26.558Z"
+    }
+  ]
+}
