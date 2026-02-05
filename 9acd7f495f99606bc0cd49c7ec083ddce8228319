@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "ff3f32a1-2535-40fb-8ef0-fb97e9a1b86c",
+      "content": "filter to conflict group query in dedupe",
+      "type": "decision",
+      "sha": "9acd7f495f99606bc0cd49c7ec083ddce8228319",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:because-clause"
+      ],
+      "createdAt": "2026-02-05T18:37:26.284Z",
+      "updatedAt": "2026-02-05T18:37:26.284Z"
+    }
+  ]
+}
