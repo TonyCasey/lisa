@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "f2266101-37f5-4dc4-b6c8-cb7ea7e3047b",
+      "content": "- Add test for merged fact not found scenario",
+      "type": "convention",
+      "sha": "00b7e67d8aa19cde4cd5717f8bf4670ad216a1f7",
+      "confidence": "high",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:convention"
+      ],
+      "createdAt": "2026-02-05T18:37:26.276Z",
+      "updatedAt": "2026-02-05T18:37:26.276Z"
+    }
+  ]
+}
