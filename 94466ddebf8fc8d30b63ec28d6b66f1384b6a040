@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "eab6f910-d132-41dd-aef8-8f5918206e6e",
+      "content": "Address CodeRabbit review feedback on PR #145",
+      "type": "convention",
+      "sha": "94466ddebf8fc8d30b63ec28d6b66f1384b6a040",
+      "confidence": "high",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:convention"
+      ],
+      "createdAt": "2026-02-05T18:37:26.679Z",
+      "updatedAt": "2026-02-05T18:37:26.679Z"
+    }
+  ]
+}
