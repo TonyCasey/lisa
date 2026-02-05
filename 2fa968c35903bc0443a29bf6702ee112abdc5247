@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "50487848-c75c-401a-9864-68beb7557123",
+      "content": "set isDestructive: true, even if the LLM incorrectly",
+      "type": "convention",
+      "sha": "2fa968c35903bc0443a29bf6702ee112abdc5247",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:always"
+      ],
+      "createdAt": "2026-02-05T18:37:26.612Z",
+      "updatedAt": "2026-02-05T18:37:26.612Z"
+    }
+  ]
+}
