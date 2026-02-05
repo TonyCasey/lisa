@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "66fbcd0a-25f3-46f3-836e-79d0856bc7e6",
+      "content": "- 30 comprehensive unit tests",
+      "type": "convention",
+      "sha": "d72fdc6b81a8ed11f520fc79c1d76a2f5faf4287",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:convention"
+      ],
+      "createdAt": "2026-02-05T18:37:26.513Z",
+      "updatedAt": "2026-02-05T18:37:26.513Z"
+    }
+  ]
+}
