@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "9a494d1c-6bd0-489c-8de8-3868ea89815e",
+      "content": "unintended cost for new users",
+      "type": "convention",
+      "sha": "d386138d24c6c778e85691ec4ff64dd0892733f2",
+      "confidence": "low",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:avoid"
+      ],
+      "createdAt": "2026-02-05T18:37:26.644Z",
+      "updatedAt": "2026-02-05T18:37:26.644Z"
+    }
+  ]
+}
