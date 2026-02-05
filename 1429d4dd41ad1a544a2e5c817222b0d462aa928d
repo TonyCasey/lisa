@@ -14,6 +14,21 @@
       ],
       "createdAt": "2026-02-05T18:37:26.652Z",
       "updatedAt": "2026-02-05T18:37:26.652Z"
+    },
+    {
+      "id": "3be59dbe-34c8-497c-890d-355d3c742edd",
+      "content": "log for invalid env var values",
+      "type": "gotcha",
+      "sha": "1429d4dd41ad1a544a2e5c817222b0d462aa928d",
+      "confidence": "high",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:careful"
+      ],
+      "createdAt": "2026-02-05T18:37:26.660Z",
+      "updatedAt": "2026-02-05T18:37:26.660Z"
     }
   ]
 }
