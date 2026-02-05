@@ -14,6 +14,21 @@
       ],
       "createdAt": "2026-02-05T18:37:26.483Z",
       "updatedAt": "2026-02-05T18:37:26.483Z"
+    },
+    {
+      "id": "856e0970-e8af-4134-bd18-b408613bde45",
+      "content": "UUID-named session files",
+      "type": "decision",
+      "sha": "23f9c462b003eca11209a05f1b949c7484ba05ca",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:instead-of"
+      ],
+      "createdAt": "2026-02-05T18:37:26.491Z",
+      "updatedAt": "2026-02-05T18:37:26.491Z"
     }
   ]
 }
