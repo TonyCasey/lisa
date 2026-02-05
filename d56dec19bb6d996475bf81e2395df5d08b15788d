@@ -29,6 +29,21 @@
       ],
       "createdAt": "2026-02-05T18:37:26.309Z",
       "updatedAt": "2026-02-05T18:37:26.309Z"
+    },
+    {
+      "id": "e612350c-69c8-4e82-b436-89592f538fb1",
+      "content": "& Architectural Protection (LISA-54) (#9)",
+      "type": "convention",
+      "sha": "d56dec19bb6d996475bf81e2395df5d08b15788d",
+      "confidence": "high",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:convention"
+      ],
+      "createdAt": "2026-02-05T18:37:26.320Z",
+      "updatedAt": "2026-02-05T18:37:26.320Z"
     }
   ]
 }
