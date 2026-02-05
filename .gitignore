@@ -46,3 +46,4 @@ docker/neo4j/plugins/
 # Promotion materials (internal)
 promotion/
 .tmp/
+.mcp.json

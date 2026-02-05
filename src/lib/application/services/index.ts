@@ -13,3 +13,5 @@ export { MemoryContextLoader } from './MemoryContextLoader';
 export type { IMemoryLoadResult } from './MemoryContextLoader';
 
 export { GitTriageService } from './GitTriageService';
+
+export { createRepoProfileService, renderMarkdown, calculateFreshness } from './RepoProfileService';
