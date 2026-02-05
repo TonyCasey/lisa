@@ -14,6 +14,21 @@
       ],
       "createdAt": "2026-02-05T18:37:26.702Z",
       "updatedAt": "2026-02-05T18:37:26.702Z"
+    },
+    {
+      "id": "a3540c90-6a9a-43b3-a2c0-1197767f9210",
+      "content": "- Add workflow_dispatch trigger for manual CI runs",
+      "type": "convention",
+      "sha": "e682f802f688bec954607987b39f48556839aee5",
+      "confidence": "high",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:convention"
+      ],
+      "createdAt": "2026-02-05T18:37:26.711Z",
+      "updatedAt": "2026-02-05T18:37:26.711Z"
     }
   ]
 }
