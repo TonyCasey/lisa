@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "be1e9522-da92-4068-95cf-163481f2a61a",
+      "content": "direct expiration is not supported via MCP",
+      "type": "decision",
+      "sha": "63d24c2460dc11c285d8890903987b5939c86dec",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:because-clause"
+      ],
+      "createdAt": "2026-02-05T18:37:26.241Z",
+      "updatedAt": "2026-02-05T18:37:26.241Z"
+    }
+  ]
+}
