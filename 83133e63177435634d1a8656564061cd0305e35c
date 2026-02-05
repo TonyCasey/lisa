@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "6674ea9a-721f-4d56-8f3d-8a5136eb459e",
+      "content": "hard exit on signals",
+      "type": "decision",
+      "sha": "83133e63177435634d1a8656564061cd0305e35c",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:instead-of"
+      ],
+      "createdAt": "2026-02-05T18:37:26.574Z",
+      "updatedAt": "2026-02-05T18:37:26.574Z"
+    }
+  ]
+}
