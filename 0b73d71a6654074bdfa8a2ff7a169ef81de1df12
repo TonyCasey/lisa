@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "467d0664-f7ae-4231-bffb-629a78d8e537",
+      "content": "double-escaping quotes",
+      "type": "convention",
+      "sha": "0b73d71a6654074bdfa8a2ff7a169ef81de1df12",
+      "confidence": "low",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:avoid"
+      ],
+      "createdAt": "2026-02-05T18:37:26.422Z",
+      "updatedAt": "2026-02-05T18:37:26.422Z"
+    }
+  ]
+}
