@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "955bea92-ce36-4a46-9d50-591a46a55ca9",
+      "content": ".cmd extension on Windows for Task Scheduler",
+      "type": "convention",
+      "sha": "32144217e7c3f7c60888c12b5f512719c931b055",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:prefer"
+      ],
+      "createdAt": "2026-02-05T18:37:26.403Z",
+      "updatedAt": "2026-02-05T18:37:26.403Z"
+    }
+  ]
+}
