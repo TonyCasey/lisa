@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "bd53fc23-aee5-4ce1-94a6-ea0115b06ca3",
+      "content": "- Add commit-extraction prompt builder for structured fact extraction",
+      "type": "convention",
+      "sha": "f7a41b1026375babadf1a28c9b1815886511b30c",
+      "confidence": "high",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:convention"
+      ],
+      "createdAt": "2026-02-05T18:37:26.220Z",
+      "updatedAt": "2026-02-05T18:37:26.220Z"
+    }
+  ]
+}
