@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "dcc2364b-8403-45cb-a473-5274c2668b1b",
+      "content": "for .local directories (onlyDirectories is not a valid glob option)",
+      "type": "convention",
+      "sha": "42c5d13b0abf928966fc9de49d97d03a4675bb3c",
+      "confidence": "high",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:convention"
+      ],
+      "createdAt": "2026-02-05T18:37:26.566Z",
+      "updatedAt": "2026-02-05T18:37:26.566Z"
+    }
+  ]
+}
