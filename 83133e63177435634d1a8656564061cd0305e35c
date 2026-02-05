@@ -14,6 +14,21 @@
       ],
       "createdAt": "2026-02-05T18:37:26.574Z",
       "updatedAt": "2026-02-05T18:37:26.574Z"
+    },
+    {
+      "id": "99814f10-b862-447f-8e3d-1e4f65e7fe7d",
+      "content": "- Set process.exitCode and allow cleanup to complete before exit",
+      "type": "convention",
+      "sha": "83133e63177435634d1a8656564061cd0305e35c",
+      "confidence": "high",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:convention"
+      ],
+      "createdAt": "2026-02-05T18:37:26.582Z",
+      "updatedAt": "2026-02-05T18:37:26.582Z"
     }
   ]
 }
