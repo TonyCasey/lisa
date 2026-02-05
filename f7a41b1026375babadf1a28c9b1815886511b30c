@@ -14,6 +14,21 @@
       ],
       "createdAt": "2026-02-05T18:37:26.220Z",
       "updatedAt": "2026-02-05T18:37:26.220Z"
+    },
+    {
+      "id": "0fa192d6-f011-40e6-b54e-c626f3ef47e6",
+      "content": "empty LLM calls (Major)",
+      "type": "convention",
+      "sha": "f7a41b1026375babadf1a28c9b1815886511b30c",
+      "confidence": "low",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:avoid"
+      ],
+      "createdAt": "2026-02-05T18:37:26.229Z",
+      "updatedAt": "2026-02-05T18:37:26.229Z"
     }
   ]
 }
