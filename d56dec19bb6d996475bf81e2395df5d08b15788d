@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "91c868a4-f635-4d49-bb5d-e2f5aa4310e4",
+      "content": "replacing entire folders",
+      "type": "decision",
+      "sha": "d56dec19bb6d996475bf81e2395df5d08b15788d",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:instead-of"
+      ],
+      "createdAt": "2026-02-05T18:37:26.301Z",
+      "updatedAt": "2026-02-05T18:37:26.301Z"
+    }
+  ]
+}
