@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "0bcc755e-8ab4-439d-8689-f39f8470fb5d",
+      "content": "searching all user messages",
+      "type": "decision",
+      "sha": "4e8194e9755d0748a76ac6b4b23f268b2dc00c69",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:instead-of"
+      ],
+      "createdAt": "2026-02-05T18:37:26.371Z",
+      "updatedAt": "2026-02-05T18:37:26.371Z"
+    }
+  ]
+}
