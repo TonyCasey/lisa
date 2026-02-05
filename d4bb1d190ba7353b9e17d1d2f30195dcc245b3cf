@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "eaa64cf8-251d-452a-a714-2d7976c23272",
+      "content": "repo.replace('/', '-')",
+      "type": "decision",
+      "sha": "d4bb1d190ba7353b9e17d1d2f30195dcc245b3cf",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:instead-of"
+      ],
+      "createdAt": "2026-02-05T18:37:26.620Z",
+      "updatedAt": "2026-02-05T18:37:26.620Z"
+    }
+  ]
+}
