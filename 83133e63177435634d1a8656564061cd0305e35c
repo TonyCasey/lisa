@@ -29,6 +29,21 @@
       ],
       "createdAt": "2026-02-05T18:37:26.582Z",
       "updatedAt": "2026-02-05T18:37:26.582Z"
+    },
+    {
+      "id": "2c327eab-ae71-4794-952d-d086ef2aa6c2",
+      "content": "logging raw API",
+      "type": "convention",
+      "sha": "83133e63177435634d1a8656564061cd0305e35c",
+      "confidence": "low",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:avoid"
+      ],
+      "createdAt": "2026-02-05T18:37:26.593Z",
+      "updatedAt": "2026-02-05T18:37:26.593Z"
     }
   ]
 }
