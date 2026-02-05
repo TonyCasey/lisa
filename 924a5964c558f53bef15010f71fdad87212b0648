@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "ba600723-38a4-43e6-98cb-1ab7e00aad84",
+      "content": "a single symlink to the",
+      "type": "decision",
+      "sha": "924a5964c558f53bef15010f71fdad87212b0648",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:instead-of"
+      ],
+      "createdAt": "2026-02-05T18:37:26.430Z",
+      "updatedAt": "2026-02-05T18:37:26.430Z"
+    }
+  ]
+}
