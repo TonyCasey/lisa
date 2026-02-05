@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "5761eb2c-11db-4625-93dc-85490c8fae46",
+      "content": "old transcript.jsonl",
+      "type": "decision",
+      "sha": "23f9c462b003eca11209a05f1b949c7484ba05ca",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:instead-of"
+      ],
+      "createdAt": "2026-02-05T18:37:26.483Z",
+      "updatedAt": "2026-02-05T18:37:26.483Z"
+    }
+  ]
+}
