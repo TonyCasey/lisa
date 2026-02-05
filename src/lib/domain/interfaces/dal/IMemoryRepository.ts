@@ -115,7 +115,6 @@ export interface IMemoryRepositoryCapabilities {
 
   /**
    * Check if this repository supports write operations.
-   * Neo4j direct is read-only; MCP and Zep support writes.
    */
   supportsWrite(): boolean;
 }

@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+#### Neo4j Write Fallback for Memory ([LISA-17](https://linear.app/tonycasey/issue/LISA-17))
+
+Added direct write support to `Neo4jMemoryRepository` so it can serve as a fallback when MCP is unavailable, preventing silent memory loss.
+
+- Added `save()` and `saveBatch()` methods to `Neo4jMemoryRepository`
+- Changed repository from read-only to read-write (implements `IMemoryRepositoryWriter`)
+- Updated default routing rules: write fallback changed from `zep` to `neo4j`
+- Added `.env.template` placeholders for LLM API keys
+- 19 unit tests covering save, saveBatch, UUID generation, error propagation
+
 ### Added
 
 #### Git-Powered Memory: Phase 2 API Enrichment ([LISA-8](https://linear.app/tonycasey/issue/LISA-8))
