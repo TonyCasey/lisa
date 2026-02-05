@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "7eb3d92c-03f9-4117-8ec7-3fafd1ea2be1",
+      "content": "matching to extract facts",
+      "type": "convention",
+      "sha": "2914f80c7595caa9011c83582bf0bac8faaaa904",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:convention"
+      ],
+      "createdAt": "2026-02-05T18:37:26.211Z",
+      "updatedAt": "2026-02-05T18:37:26.211Z"
+    }
+  ]
+}
