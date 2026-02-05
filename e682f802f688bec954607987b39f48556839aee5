@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "a1061c4a-9a0e-40ff-b993-6a12417c688f",
+      "content": "`tsx --test` for proper",
+      "type": "decision",
+      "sha": "e682f802f688bec954607987b39f48556839aee5",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:instead-of"
+      ],
+      "createdAt": "2026-02-05T18:37:26.702Z",
+      "updatedAt": "2026-02-05T18:37:26.702Z"
+    }
+  ]
+}
