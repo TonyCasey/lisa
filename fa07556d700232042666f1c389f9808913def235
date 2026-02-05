@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "317baa32-582d-4e59-82b3-c05084909d0d",
+      "content": "short SHAs for accurate matching",
+      "type": "decision",
+      "sha": "fa07556d700232042666f1c389f9808913def235",
+      "confidence": "high",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:instead-of"
+      ],
+      "createdAt": "2026-02-05T18:37:26.353Z",
+      "updatedAt": "2026-02-05T18:37:26.353Z"
+    }
+  ]
+}
