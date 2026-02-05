@@ -14,6 +14,21 @@
       ],
       "createdAt": "2026-02-05T18:37:26.301Z",
       "updatedAt": "2026-02-05T18:37:26.301Z"
+    },
+    {
+      "id": "a8ea8cdf-bb29-491b-9dee-209777ea75e7",
+      "content": "Hooks now invoked via CLI commands instead of bundled JS files",
+      "type": "gotcha",
+      "sha": "d56dec19bb6d996475bf81e2395df5d08b15788d",
+      "confidence": "high",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:breaking-change"
+      ],
+      "createdAt": "2026-02-05T18:37:26.309Z",
+      "updatedAt": "2026-02-05T18:37:26.309Z"
     }
   ]
 }
