@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "545233cb-d35e-4b18-a9a2-bc78c333d9fa",
+      "content": "silently disabling budget enforcement",
+      "type": "decision",
+      "sha": "1429d4dd41ad1a544a2e5c817222b0d462aa928d",
+      "confidence": "high",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:instead-of"
+      ],
+      "createdAt": "2026-02-05T18:37:26.652Z",
+      "updatedAt": "2026-02-05T18:37:26.652Z"
+    }
+  ]
+}
