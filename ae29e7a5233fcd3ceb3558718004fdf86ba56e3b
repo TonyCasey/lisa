@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "dffc39e1-62f7-4a2f-9e41-52d74c4c2610",
+      "content": "defaulting to groupIds[0]",
+      "type": "decision",
+      "sha": "ae29e7a5233fcd3ceb3558718004fdf86ba56e3b",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:instead-of"
+      ],
+      "createdAt": "2026-02-05T18:37:26.387Z",
+      "updatedAt": "2026-02-05T18:37:26.387Z"
+    }
+  ]
+}
