@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "c0fc6898-9a21-40d3-a748-ad02f5e1d29d",
+      "content": "per CodeRabbit review",
+      "type": "convention",
+      "sha": "1fb0c72a12a865d8ad75664a9b8eca09178fae70",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:convention"
+      ],
+      "createdAt": "2026-02-05T18:37:26.671Z",
+      "updatedAt": "2026-02-05T18:37:26.671Z"
+    }
+  ]
+}
