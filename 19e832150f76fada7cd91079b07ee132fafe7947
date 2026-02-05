@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "17515484-2795-48b6-9441-7d45b38bc3df",
+      "content": "blocking user experience:",
+      "type": "convention",
+      "sha": "19e832150f76fada7cd91079b07ee132fafe7947",
+      "confidence": "low",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:avoid"
+      ],
+      "createdAt": "2026-02-05T18:37:26.456Z",
+      "updatedAt": "2026-02-05T18:37:26.456Z"
+    }
+  ]
+}
