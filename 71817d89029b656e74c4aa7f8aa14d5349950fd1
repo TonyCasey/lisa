@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "d68b92ec-13c9-4188-8fe3-49a79c001333",
+      "content": "- Fix error handling test to use assert",
+      "type": "convention",
+      "sha": "71817d89029b656e74c4aa7f8aa14d5349950fd1",
+      "confidence": "high",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:convention"
+      ],
+      "createdAt": "2026-02-05T18:37:26.636Z",
+      "updatedAt": "2026-02-05T18:37:26.636Z"
+    }
+  ]
+}
