@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "abcfb24e-72d6-470f-88cc-dd7e7da22f8d",
+      "content": "the reminder message was too vague",
+      "type": "decision",
+      "sha": "ceb4330d356e4976cfceed04d8a6f9762794a9a1",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:because-clause"
+      ],
+      "createdAt": "2026-02-05T18:37:26.687Z",
+      "updatedAt": "2026-02-05T18:37:26.687Z"
+    }
+  ]
+}
