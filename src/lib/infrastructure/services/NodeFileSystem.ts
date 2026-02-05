@@ -27,8 +27,9 @@ export function createNodeFileSystem(): IFileSystem {
       try {
         const s = await fsp.stat(filePath);
         return { mtimeMs: s.mtimeMs };
-      } catch {
-        return null;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+        throw error;
       }
     },
   };
