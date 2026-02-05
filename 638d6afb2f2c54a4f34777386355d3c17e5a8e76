@@ -14,6 +14,21 @@
       ],
       "createdAt": "2026-02-05T18:37:26.539Z",
       "updatedAt": "2026-02-05T18:37:26.539Z"
+    },
+    {
+      "id": "eee90b3d-abaf-4b15-a786-2f6fc7c7c462",
+      "content": "triage summary over raw commits when triage result is available",
+      "type": "convention",
+      "sha": "638d6afb2f2c54a4f34777386355d3c17e5a8e76",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:prefer"
+      ],
+      "createdAt": "2026-02-05T18:37:26.547Z",
+      "updatedAt": "2026-02-05T18:37:26.547Z"
     }
   ]
 }
