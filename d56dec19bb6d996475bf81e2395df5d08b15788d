@@ -44,6 +44,21 @@
       ],
       "createdAt": "2026-02-05T18:37:26.320Z",
       "updatedAt": "2026-02-05T18:37:26.320Z"
+    },
+    {
+      "id": "0d55fbd4-a6ea-404f-929f-963cd3de4208",
+      "content": "in npm test:unit to find all test files",
+      "type": "convention",
+      "sha": "d56dec19bb6d996475bf81e2395df5d08b15788d",
+      "confidence": "high",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:convention"
+      ],
+      "createdAt": "2026-02-05T18:37:26.331Z",
+      "updatedAt": "2026-02-05T18:37:26.331Z"
     }
   ]
 }
