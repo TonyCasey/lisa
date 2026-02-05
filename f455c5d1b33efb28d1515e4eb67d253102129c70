@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "a3529c2c-23f7-4058-ab5b-26f9962d7c3d",
+      "content": "date before calling toISOString() in usage command",
+      "type": "decision",
+      "sha": "f455c5d1b33efb28d1515e4eb67d253102129c70",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:because-clause"
+      ],
+      "createdAt": "2026-02-05T18:37:26.257Z",
+      "updatedAt": "2026-02-05T18:37:26.257Z"
+    }
+  ]
+}
