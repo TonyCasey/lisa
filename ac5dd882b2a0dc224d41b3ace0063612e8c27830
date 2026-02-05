@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "12979e75-93a1-4d63-88da-87e4c10525bf",
+      "content": "UUID collisions for similarly named checks",
+      "type": "convention",
+      "sha": "ac5dd882b2a0dc224d41b3ace0063612e8c27830",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:avoid"
+      ],
+      "createdAt": "2026-02-05T18:37:26.293Z",
+      "updatedAt": "2026-02-05T18:37:26.293Z"
+    }
+  ]
+}
