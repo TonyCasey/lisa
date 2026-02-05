@@ -14,6 +14,21 @@
       ],
       "createdAt": "2026-02-05T18:37:26.521Z",
       "updatedAt": "2026-02-05T18:37:26.521Z"
+    },
+    {
+      "id": "368433c9-2ae2-49d9-b630-188d0b212b18",
+      "content": "stale IDs (#11)",
+      "type": "convention",
+      "sha": "e11a61af113a68fa5f7a409f53628a2fa38963a1",
+      "confidence": "low",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:avoid"
+      ],
+      "createdAt": "2026-02-05T18:37:26.528Z",
+      "updatedAt": "2026-02-05T18:37:26.528Z"
     }
   ]
 }
