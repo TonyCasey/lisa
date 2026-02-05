@@ -29,6 +29,21 @@
       ],
       "createdAt": "2026-02-05T18:37:26.491Z",
       "updatedAt": "2026-02-05T18:37:26.491Z"
+    },
+    {
+      "id": "b36c261b-274b-4cf5-bb2e-6dfd72fc1a8c",
+      "content": "confusing Graphiti LLM edge extraction, increase wait time, fix Test 4",
+      "type": "convention",
+      "sha": "23f9c462b003eca11209a05f1b949c7484ba05ca",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:avoid"
+      ],
+      "createdAt": "2026-02-05T18:37:26.502Z",
+      "updatedAt": "2026-02-05T18:37:26.502Z"
     }
   ]
 }
