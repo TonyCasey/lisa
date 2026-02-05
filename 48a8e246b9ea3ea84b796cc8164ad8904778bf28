@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "df625474-a06a-4d3f-8a95-5bb824859e1d",
+      "content": "network timeouts",
+      "type": "convention",
+      "sha": "48a8e246b9ea3ea84b796cc8164ad8904778bf28",
+      "confidence": "low",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:avoid"
+      ],
+      "createdAt": "2026-02-05T18:37:26.628Z",
+      "updatedAt": "2026-02-05T18:37:26.628Z"
+    }
+  ]
+}
