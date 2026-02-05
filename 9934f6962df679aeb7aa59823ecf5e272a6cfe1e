@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "52b84de1-57a1-4e34-b72c-e5900a2facaf",
+      "content": "resolving wrong public npm package",
+      "type": "convention",
+      "sha": "9934f6962df679aeb7aa59823ecf5e272a6cfe1e",
+      "confidence": "medium",
+      "source": "heuristic-extraction",
+      "lifecycle": "project",
+      "tags": [
+        "retrofit",
+        "pattern:avoid"
+      ],
+      "createdAt": "2026-02-05T18:37:26.604Z",
+      "updatedAt": "2026-02-05T18:37:26.604Z"
+    }
+  ]
+}
