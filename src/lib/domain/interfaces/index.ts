@@ -181,6 +181,20 @@ export {
   type INlCurationResult,
   type INlCurationService,
 } from './INlCurationService';
+export {
+  type IFileStat,
+  type IFileSystem,
+} from './IFileSystem';
+export {
+  type ProfileFreshness,
+  PROFILE_FRESHNESS_VALUES,
+  type IProfileFreshnessResult,
+  type IProfileInput,
+  type IProfileGenerateResult,
+  type IProfileReadResult,
+  type IProfileGenerateOptions,
+  type IRepoProfileService,
+} from './IRepoProfileService';
 
 // Event interfaces
 export * from './events';
