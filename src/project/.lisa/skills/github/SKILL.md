@@ -480,17 +480,20 @@ A CLI argument always overrides the env default: `lisa bump-version major` bumps
 ### Workflow: Push with Version Bump
 
 1. **Bump version** (default: minor):
+
    ```bash
    lisa bump-version
    ```
 
 2. **Commit the version bump**:
+
    ```bash
    git add package.json
    git commit -m "chore: bump version to $(node -p "require('./package.json').version")"
    ```
 
 3. **Push to remote**:
+
    ```bash
    git push
    ```
@@ -500,6 +503,7 @@ A CLI argument always overrides the env default: `lisa bump-version major` bumps
 1. **Identify the failure** - Check CircleCI logs or GitHub checks
 2. **Push a fix** - Commit and push the fix to the branch
 3. **Retrigger tests** - Toggle the TEST label:
+
    ```bash
    gh pr edit <PR_NUMBER> --repo <owner/repo> --remove-label "TEST" && \
    sleep 2 && \
@@ -508,11 +512,13 @@ A CLI argument always overrides the env default: `lisa bump-version major` bumps
 4. **Monitor** - Watch for the new pipeline to complete
 
 ## Cross-model checklist
+
 - Claude: Use JSON output for parsing; concise instructions
 - Gemini: Explicit commands; minimal formatting
 - All models: Always include --repo flag; parse JSON responses
 
 ## Notes
+
 - Requires `gh` CLI v2.0+ or `GITHUB_TOKEN` environment variable
 - Requires CircleCI CLI/token for pipeline status
 - Projects v2 uses GraphQL API (requires appropriate permissions)
@@ -521,6 +527,7 @@ A CLI argument always overrides the env default: `lisa bump-version major` bumps
 - TEST label triggers CI workflow via GitHub Actions/CircleCI integration
 
 ## See Also
+
 - `/pr` skill for PR creation, polling, and review comment workflows
 - `/jira` skill for Jira integration (similar command structure)
 - `/tasks` skill for Lisa's internal task management
