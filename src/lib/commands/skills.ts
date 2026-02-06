@@ -2,7 +2,7 @@
  * Skill Passthrough Command Module
  *
  * Simple passthrough commands that delegate to skill scripts:
- * jira, github, prompt, bump-version, init-review, compile-skills
+ * jira, github, prompt, bump-version, review, compile-skills
  */
 
 import type {Command} from 'commander';
@@ -50,18 +50,18 @@ export function registerSkillCommands(program: Command): void {
     .allowUnknownOption()
     .action(async (_opts, cmd) => {
       const args = cmd.args || [];
-      const scriptPath = path.join(__dirname, '..', 'skills', 'git', 'bump-version.js');
+      const scriptPath = path.join(__dirname, '..', 'skills', 'github', 'bump-version.js');
       await spawnAndWait(scriptPath, args);
     });
 
-  // Subcommand: lisa init-review
+  // Subcommand: lisa review
   program
-    .command('init-review')
+    .command('review')
     .description('Run initial codebase review')
     .allowUnknownOption()
     .action(async (_opts, cmd) => {
       const args = cmd.args || [];
-      const scriptPath = path.join(__dirname, '..', 'skills', 'init-review', 'init-review.js');
+      const scriptPath = path.join(__dirname, '..', 'skills', 'review', 'init-review.js');
       await spawnAndWait(scriptPath, args);
     });
 

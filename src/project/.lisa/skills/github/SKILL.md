@@ -1,11 +1,11 @@
 ---
 name: github
-description: "GitHub Issues and Projects v2 management via gh CLI; triggers on 'github', 'create issue', 'list issues', 'github project', 'project board', 'sync tasks'."
+description: "GitHub and Git workflow helpers, Issues and Projects v2 management via gh CLI; triggers on 'github', 'create issue', 'list issues', 'github project', 'project board', 'sync tasks', 'create pr', 'pr checks', 'retrigger tests', 'bump version', 'push'."
 ---
 
 ## Purpose
 
-Model-neutral helper to interact with GitHub Issues and Projects v2 using the gh CLI. Supports creating, listing, viewing, closing, and managing issues, managing GitHub Projects v2 boards, and bidirectional sync between Lisa tasks and GitHub Issues.
+Model-neutral helper for GitHub and Git workflows including Issues, Projects v2, PR management, CI triggers, and version bumping. Uses the `gh` CLI.
 
 ## Triggers
 
@@ -16,6 +16,7 @@ Use when the user says:
 - "github project", "project board", "kanban"
 - "add to project", "update project field", "move to column"
 - "sync tasks with github", "import github issues", "export tasks to github"
+- "create a pr", "check pr status", "retrigger tests", "toggle test label", "pr checks", "bump version", "push to remote"
 
 ## Configuration
 
@@ -398,18 +399,135 @@ lisa github sync --repo owner/repo
 lisa github sync --repo owner/repo --dry-run
 ```
 
+## Git Workflows
+
+### Check PR Status
+```bash
+# View PR checks
+gh pr checks <PR_NUMBER> --repo <owner/repo>
+
+# View PR details
+gh pr view <PR_NUMBER> --repo <owner/repo>
+```
+
+### Retrigger CI Tests
+When a PR test fails and a fix is pushed, tests don't automatically re-run. Toggle the "TEST" label to trigger:
+
+```bash
+# Remove and re-add TEST label to trigger CI
+gh pr edit <PR_NUMBER> --repo <owner/repo> --remove-label "TEST"
+sleep 2
+gh pr edit <PR_NUMBER> --repo <owner/repo> --add-label "TEST"
+```
+
+### Check CircleCI Pipeline Status
+
+**Prerequisites:** Set `CIRCLE_TOKEN` environment variable, or have CircleCI CLI configured at `~/.circleci/cli.yml`.
+
+```bash
+# Get latest pipeline for a branch
+curl -s -H "Circle-Token: ${CIRCLE_TOKEN}" \
+  "https://circleci.com/api/v2/project/gh/<owner>/<repo>/pipeline?branch=<BRANCH>" \
+  | jq '.items[0] | {number, state, created_at}'
+
+# Get workflow status for a pipeline
+curl -s -H "Circle-Token: ${CIRCLE_TOKEN}" \
+  "https://circleci.com/api/v2/pipeline/<PIPELINE_ID>/workflow" \
+  | jq '.items[] | {name, status}'
+```
+
+### Poll CI Until Completion
+```bash
+# Poll current branch
+lisa pr checks <PR_NUMBER>
+
+# Or use gh CLI directly
+gh pr checks <PR_NUMBER> --watch
+```
+
+### Bump Version
+Bump the semantic version in package.json before pushing:
+
+```bash
+# Bump minor version (default): 1.2.3 → 1.3.0
+lisa bump-version
+
+# Bump patch version: 1.2.3 → 1.2.4
+lisa bump-version patch
+
+# Bump major version: 1.2.3 → 2.0.0
+lisa bump-version major
+```
+
+#### Configuration
+
+Control version bumping via `LISA_AUTO_BUMP_VERSION` in `.lisa/.env`:
+
+| Value | Behavior |
+|-------|----------|
+| `true` (default) | Enabled, defaults to `minor` bump |
+| `false` | Disabled, bump commands are skipped |
+| `patch` / `minor` / `major` | Enabled with that bump type as the default |
+
+```bash
+# In .lisa/.env:
+LISA_AUTO_BUMP_VERSION=false        # Disable version bumping
+LISA_AUTO_BUMP_VERSION=patch        # Default to patch bumps
+```
+
+A CLI argument always overrides the env default: `lisa bump-version major` bumps major regardless of the env setting.
+
+### Workflow: Push with Version Bump
+
+1. **Bump version** (default: minor):
+
+   ```bash
+   lisa bump-version
+   ```
+
+2. **Commit the version bump**:
+
+   ```bash
+   git add package.json
+   git commit -m "chore: bump version to $(node -p "require('./package.json').version")"
+   ```
+
+3. **Push to remote**:
+
+   ```bash
+   git push
+   ```
+
+### Workflow: PR Test Failure
+
+1. **Identify the failure** - Check CircleCI logs or GitHub checks
+2. **Push a fix** - Commit and push the fix to the branch
+3. **Retrigger tests** - Toggle the TEST label:
+
+   ```bash
+   gh pr edit <PR_NUMBER> --repo <owner/repo> --remove-label "TEST" && \
+   sleep 2 && \
+   gh pr edit <PR_NUMBER> --repo <owner/repo> --add-label "TEST"
+   ```
+4. **Monitor** - Watch for the new pipeline to complete
+
 ## Cross-model checklist
+
 - Claude: Use JSON output for parsing; concise instructions
 - Gemini: Explicit commands; minimal formatting
 - All models: Always include --repo flag; parse JSON responses
 
 ## Notes
+
 - Requires `gh` CLI v2.0+ or `GITHUB_TOKEN` environment variable
+- Requires CircleCI CLI/token for pipeline status
 - Projects v2 uses GraphQL API (requires appropriate permissions)
 - Rate limits apply per GitHub API policies
 - `--repo` flag is always required (no auto-detection)
+- TEST label triggers CI workflow via GitHub Actions/CircleCI integration
 
 ## See Also
-- `/git` skill for PR creation, CI triggers, version bumping
+
+- `/pr` skill for PR creation, polling, and review comment workflows
 - `/jira` skill for Jira integration (similar command structure)
 - `/tasks` skill for Lisa's internal task management

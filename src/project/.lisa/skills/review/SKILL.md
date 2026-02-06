@@ -1,11 +1,11 @@
-# Init Review Skill
+# Review Skill
 
 ## Purpose
-Automatically analyzes a codebase when Lisa is installed, creating a foundational memory of the project structure, technologies, and patterns. This init review serves as context for all future Claude sessions.
+Automatically analyzes a codebase when Lisa is installed, creating a foundational memory of the project structure, technologies, and patterns. This review serves as context for all future Claude sessions.
 
 ## Triggers
 Use when the user says things like:
-- "run init review"
+- "run review"
 - "analyze this codebase"
 - "scan the project"
 - "what is this project about"
@@ -14,7 +14,7 @@ Use when the user says things like:
 ## How to use
 
 ### Automatic (during npm install)
-The init review runs automatically when Lisa is installed via `npm install @tonycasey/lisa`. It:
+The review runs automatically when Lisa is installed via `npm install @tonycasey/lisa`. It:
 1. Detects if the folder is a codebase
 2. Runs static analysis (language, framework, structure)
 3. Stores result as first memory
@@ -22,14 +22,14 @@ The init review runs automatically when Lisa is installed via `npm install @tony
 
 ### Manual commands
 ```bash
-# Run init review (or re-run with --force)
-lisa init-review run [--force]
+# Run review (or re-run with --force)
+lisa review run [--force]
 
-# Show current init review
-lisa init-review show
+# Show current review
+lisa review show
 
 # Check status (done, enriched, etc.)
-lisa init-review status
+lisa review status
 ```
 
 ## I/O contract

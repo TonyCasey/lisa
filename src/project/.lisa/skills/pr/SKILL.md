@@ -516,5 +516,4 @@ lisa pr poll 50
 - All: Neo4j must be running for watch/watching commands (lisa doctor to verify)
 
 ## Related Skills
-- `/git` - For version bumping, CI retriggers, and other git workflows
-- `/github` - For GitHub Issues and Projects operations
+- `/github` - For GitHub Issues, Projects, version bumping, and CI retriggers

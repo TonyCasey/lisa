@@ -13,8 +13,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
-// Path to the compiled script (now in dist/lib/skills/)
-const SCRIPT_PATH = path.join(process.cwd(), 'dist', 'lib', 'skills', 'git', 'bump-version.js');
+// Path to the compiled script (in dist/lib/skills/github/)
+const SCRIPT_PATH = path.join(process.cwd(), 'dist', 'lib', 'skills', 'github', 'bump-version.js');
 
 // Create a temp directory for tests
 const TEST_DIR = path.join(os.tmpdir(), `lisa-bump-test-${Date.now()}`);
@@ -25,13 +25,15 @@ const TEST_DIR = path.join(os.tmpdir(), `lisa-bump-test-${Date.now()}`);
 async function runBumpScript(
   args: string[] = [],
   cwd: string = TEST_DIR,
-  timeoutMs = 5000
+  timeoutMs = 5000,
+  env: Record<string, string> = {}
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   return new Promise((resolve, reject) => {
     const child = spawn('node', [SCRIPT_PATH, ...args], {
       cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
       timeout: timeoutMs,
+      env: { ...process.env, ...env },
     });
 
     let stdout = '';
@@ -247,6 +249,56 @@ describe('bump-version script', () => {
       assert.ok(result.stderr.includes('Bumped version'), 'stderr should have human-readable message');
       assert.ok(result.stderr.includes('1.0.0'), 'stderr should include old version');
       assert.ok(result.stderr.includes('1.1.0'), 'stderr should include new version');
+    });
+  });
+
+  describe('LISA_AUTO_BUMP_VERSION', () => {
+    it('should skip bump when set to false', async () => {
+      createPackageJson('1.0.0');
+
+      const result = await runBumpScript([], TEST_DIR, 5000, {
+        LISA_AUTO_BUMP_VERSION: 'false',
+      });
+
+      assert.strictEqual(result.exitCode, 0, 'Should exit with code 0');
+      assert.strictEqual(readVersion(), '1.0.0', 'Version should not change');
+
+      const output = JSON.parse(result.stdout);
+      assert.strictEqual(output.status, 'skipped');
+      assert.ok(result.stderr.includes('skipped'), 'stderr should mention skipped');
+    });
+
+    it('should use env default bump type when set to patch', async () => {
+      createPackageJson('1.2.3');
+
+      const result = await runBumpScript([], TEST_DIR, 5000, {
+        LISA_AUTO_BUMP_VERSION: 'patch',
+      });
+
+      assert.strictEqual(result.exitCode, 0);
+      assert.strictEqual(readVersion(), '1.2.4', 'Should use patch bump from env');
+    });
+
+    it('should allow CLI arg to override env default', async () => {
+      createPackageJson('1.2.3');
+
+      const result = await runBumpScript(['major'], TEST_DIR, 5000, {
+        LISA_AUTO_BUMP_VERSION: 'patch',
+      });
+
+      assert.strictEqual(result.exitCode, 0);
+      assert.strictEqual(readVersion(), '2.0.0', 'CLI arg should override env default');
+    });
+
+    it('should treat unrecognized values as enabled with minor default', async () => {
+      createPackageJson('1.2.3');
+
+      const result = await runBumpScript([], TEST_DIR, 5000, {
+        LISA_AUTO_BUMP_VERSION: 'yes',
+      });
+
+      assert.strictEqual(result.exitCode, 0);
+      assert.strictEqual(readVersion(), '1.3.0', 'Should default to minor bump');
     });
   });
 
