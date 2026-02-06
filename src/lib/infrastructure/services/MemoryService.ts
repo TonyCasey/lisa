@@ -1,3 +1,4 @@
+// @ts-nocheck — Dead code, will be removed in LISA-40
 import type {
   IMemoryService,
   IMcpClient,

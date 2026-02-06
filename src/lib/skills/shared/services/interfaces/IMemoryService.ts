@@ -19,6 +19,11 @@ export interface IFact {
 }
 
 /**
+ * Backend mode for memory operations.
+ */
+export type MemoryMode = 'git-mem';
+
+/**
  * Result of a memory load operation.
  */
 export interface IMemoryLoadResult {
@@ -28,7 +33,7 @@ export interface IMemoryLoadResult {
   groups: string[];
   query: string;
   facts: IFact[];
-  mode: 'neo4j' | 'mcp' | 'zep-cloud';
+  mode: MemoryMode;
 }
 
 /**
@@ -42,7 +47,7 @@ export interface IMemoryAddResult {
   tag?: string;
   result?: unknown;
   message_uuid?: string;
-  mode: 'mcp' | 'zep-cloud';
+  mode: MemoryMode;
 }
 
 /**
@@ -72,7 +77,7 @@ export interface IMemoryExpireResult {
   group: string;
   uuid: string;
   found: boolean;
-  mode: 'neo4j';
+  mode: MemoryMode;
 }
 
 /**
@@ -84,7 +89,7 @@ export interface IMemoryCleanupResult {
   group: string;
   expiredCount: number;
   dryRun: boolean;
-  mode: 'neo4j';
+  mode: MemoryMode;
 }
 
 /**
@@ -107,7 +112,7 @@ export interface IMemoryConflictsResult {
   topic: string;
   conflictGroups: IConflictGroup[];
   totalConflicts: number;
-  mode: 'neo4j';
+  mode: MemoryMode;
 }
 
 /**
@@ -131,7 +136,7 @@ export interface IMemoryDedupeResult {
   duplicateGroups: IDuplicateGroup[];
   totalDuplicates: number;
   minSimilarity: number;
-  mode: 'neo4j';
+  mode: MemoryMode;
 }
 
 /**
@@ -143,7 +148,7 @@ export interface IMemoryCurateResult {
   group: string;
   uuid: string;
   mark: CurationMark;
-  mode: 'neo4j';
+  mode: MemoryMode;
 }
 
 /**
@@ -157,7 +162,7 @@ export interface IMemoryConsolidateResult {
   retainedUuid: string;
   archivedUuids: string[];
   relationshipsCreated: number;
-  mode: 'neo4j';
+  mode: MemoryMode;
 }
 
 /**
@@ -166,7 +171,6 @@ export interface IMemoryConsolidateResult {
 export interface IMemoryService {
   /**
    * Load memories/facts from storage.
-   * Always uses Neo4j direct for better date ordering.
    *
    * @param groupIds - Group identifiers to search
    * @param query - Optional search query (empty string or '*' for all)
@@ -182,7 +186,6 @@ export interface IMemoryService {
 
   /**
    * Add a new memory/fact.
-   * Uses MCP or Zep depending on configuration.
    *
    * @param text - Memory text content
    * @param groupId - Group identifier for storage
@@ -196,7 +199,6 @@ export interface IMemoryService {
 
   /**
    * Expire a single fact by UUID.
-   * Uses Neo4j direct to set expired_at.
    *
    * @param groupId - Group identifier
    * @param uuid - UUID of the fact to expire
@@ -208,7 +210,6 @@ export interface IMemoryService {
 
   /**
    * Clean up expired facts based on lifecycle TTL defaults.
-   * Expires session facts >24h and ephemeral facts >1h.
    *
    * @param groupId - Group identifier
    * @param dryRun - If true, count without expiring
@@ -220,7 +221,6 @@ export interface IMemoryService {
 
   /**
    * Find groups of potentially conflicting facts.
-   * Detects facts sharing a type:* tag but with differing content.
    *
    * @param groupIds - Group identifiers to search
    * @param topic - Optional topic tag to filter by
@@ -232,7 +232,6 @@ export interface IMemoryService {
 
   /**
    * Detect duplicate facts within a group.
-   * Three-pass detection: exact match, tag overlap, Jaccard similarity.
    *
    * @param groupId - Group identifier to scan
    * @param options - Detection options

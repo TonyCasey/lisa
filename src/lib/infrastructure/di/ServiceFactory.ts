@@ -6,7 +6,6 @@
  */
 
 import type { ILogger } from '../../domain/interfaces';
-import type { IRepositoryFactoryConfig } from '../dal';
 
 /**
  * Configuration for creating Lisa services via the DI container.
@@ -20,20 +19,8 @@ export interface IServiceConfig {
   /** Git worktree path (for multi-worktree setups) */
   gitWorktree?: string;
 
-  /** MCP endpoint URL */
-  mcpEndpoint?: string;
-
-  /** API key for Zep Cloud (if using) */
-  apiKey?: string;
-
   /** Source CLI adapter ('claude-code' | 'opencode') */
   source?: 'claude-code' | 'opencode';
-
-  /** Enable DAL router for multi-backend support (default: true) */
-  enableRouter?: boolean;
-
-  /** DAL router configuration overrides */
-  dalConfig?: IRepositoryFactoryConfig;
 
   /** Custom logger instance (uses default if not provided) */
   logger?: ILogger;

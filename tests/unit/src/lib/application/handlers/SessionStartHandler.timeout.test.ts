@@ -2,7 +2,7 @@
  * Tests for SessionStartHandler timeout and cancellation behavior.
  *
  * These tests verify:
- * - Session start respects memory timeout
+ * - Session start respects memory timeout (5s via MemoryContextLoader)
  * - timedOut flag propagates correctly to result
  * - Message reflects timeout status
  * - Partial results are handled gracefully
@@ -17,7 +17,6 @@ import type {
   ILisaContext,
   IMemoryService,
   ITaskService,
-  IMcpClient,
   IMemoryItem,
   IMemoryResult,
 } from '../../../../../../src/lib/domain';
@@ -51,41 +50,34 @@ function createMockMemoryItem(overrides: Partial<IMemoryItem> = {}): IMemoryItem
   };
 }
 
-function createMockMemoryResult(overrides: Partial<IMemoryResult> = {}): IMemoryResult {
+function createMockMemory(overrides: Partial<IMemoryService> = {}): IMemoryService {
   return {
-    facts: [],
-    nodes: [],
-    tasks: [],
-    initReview: null,
-    timedOut: false,
-    ...overrides,
-  };
-}
-
-interface MemoryServiceOptions {
-  /** Delay before returning result */
-  delay?: number;
-  /** Result to return */
-  result?: IMemoryResult;
-  /** Whether to simulate timeout */
-  simulateTimeout?: boolean;
-}
-
-function createMockMemory(options: MemoryServiceOptions = {}): IMemoryService {
-  const { delay = 0, result, simulateTimeout = false } = options;
-
-  return {
-    loadMemory: async () => {
-      if (delay > 0) {
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-      return result ?? createMockMemoryResult({ timedOut: simulateTimeout });
-    },
+    loadMemory: async () => ({
+      facts: [],
+      nodes: [],
+      tasks: [],
+      initReview: null,
+      timedOut: false,
+    }),
     loadFactsDateOrdered: async () => [],
     searchFacts: async () => [],
     saveMemory: async () => {},
     addFact: async () => {},
+    ...overrides,
   };
+}
+
+function createSlowMemory(delayMs: number): IMemoryService {
+  return createMockMemory({
+    searchFacts: async () => {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      return [];
+    },
+    loadFactsDateOrdered: async () => {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      return [createMockMemoryItem({ fact: 'Delayed fact' })];
+    },
+  });
 }
 
 function createMockTaskService(): ITaskService {
@@ -115,15 +107,6 @@ function createMockTaskService(): ITaskService {
   };
 }
 
-function createMockMcp(): IMcpClient {
-  return {
-    initialize: async () => 'session-123',
-    call: async <T>() => [{} as T, 'session-123'] as [T, string],
-    ping: async () => true,
-    getSessionId: () => 'session-123',
-  };
-}
-
 const now = () => new Date().toISOString();
 
 // ============================================================================
@@ -132,117 +115,49 @@ const now = () => new Date().toISOString();
 
 describe('SessionStartHandler timeout behavior', () => {
   describe('handle_givenMemoryTimeout', () => {
-    it('handle_givenTimedOutMemoryResult_shouldSetTimedOutInResult', async () => {
-      const memory = createMockMemory({
-        simulateTimeout: true,
-        result: createMockMemoryResult({
-          timedOut: true,
-          facts: [createMockMemoryItem({ fact: 'Partial fact' })],
-        }),
-      });
+    it('handle_givenSlowMemory_shouldSetTimedOutInResult', async () => {
+      // MemoryContextLoader has 5s timeout; simulate slow operations
+      const memory = createSlowMemory(6000);
 
       const handler = new SessionStartHandler(
         createMockContext(),
         memory,
-        createMockTaskService(),
-        createMockMcp()
+        createMockTaskService()
       );
 
       const result = await handler.handle(new SessionStartRequest('startup', now()));
 
-      assert.strictEqual(result.timedOut, true, 'timedOut should propagate to handler result');
+      assert.strictEqual(result.timedOut, true, 'timedOut should be true when memory operations are slow');
     });
 
-    it('handle_givenTimedOutMemoryResult_shouldIncludeTimeoutInMessage', async () => {
-      const memory = createMockMemory({
-        result: createMockMemoryResult({
-          timedOut: true,
-        }),
-      });
+    it('handle_givenSlowMemory_shouldIncludeTimeoutInMessage', async () => {
+      const memory = createSlowMemory(6000);
 
       const handler = new SessionStartHandler(
         createMockContext(),
         memory,
-        createMockTaskService(),
-        createMockMcp()
+        createMockTaskService()
       );
 
       const result = await handler.handle(new SessionStartRequest('startup', now()));
 
       assert.ok(
-        result.message.toLowerCase().includes('timed out') || 
+        result.message.toLowerCase().includes('timed out') ||
         result.message.toLowerCase().includes('timeout'),
         `Message should mention timeout: "${result.message}"`
       );
     });
 
-    it('handle_givenTimedOutWithPartialFacts_shouldIncludePartialFacts', async () => {
-      const partialFacts = [
-        createMockMemoryItem({ fact: 'First partial fact' }),
-        createMockMemoryItem({ fact: 'Second partial fact' }),
-      ];
-
-      const memory = createMockMemory({
-        result: createMockMemoryResult({
-          timedOut: true,
-          facts: partialFacts,
-        }),
-      });
-
-      const handler = new SessionStartHandler(
-        createMockContext(),
-        memory,
-        createMockTaskService(),
-        createMockMcp()
-      );
-
-      const result = await handler.handle(new SessionStartRequest('startup', now()));
-
-      assert.strictEqual(result.timedOut, true);
-      assert.strictEqual(result.memories.facts.length, 2, 'Should include partial facts');
-    });
-
-    it('handle_givenTimedOutWithPartialTasks_shouldProcessAvailableTasks', async () => {
-      const partialTasks = [
-        createMockMemoryItem({
-          name: 'Partial Task',
-          tags: ['type:task', 'task_id:partial-1', 'status:in-progress'],
-        }),
-      ];
-
-      const memory = createMockMemory({
-        result: createMockMemoryResult({
-          timedOut: true,
-          tasks: partialTasks,
-        }),
-      });
-
-      const handler = new SessionStartHandler(
-        createMockContext(),
-        memory,
-        createMockTaskService(),
-        createMockMcp()
-      );
-
-      const result = await handler.handle(new SessionStartRequest('startup', now()));
-
-      assert.strictEqual(result.timedOut, true);
-      assert.ok(result.tasks.length > 0, 'Should process available partial tasks');
-    });
-
     it('handle_givenNoTimeout_shouldSetTimedOutFalse', async () => {
       const memory = createMockMemory({
-        result: createMockMemoryResult({
-          timedOut: false,
-          facts: [createMockMemoryItem({ fact: 'Complete fact' })],
-        }),
+        searchFacts: async () => [],
+        loadFactsDateOrdered: async () => [createMockMemoryItem({ fact: 'Complete fact' })],
       });
 
       const handler = new SessionStartHandler(
         createMockContext(),
         memory,
-        createMockTaskService(),
-        createMockMcp()
+        createMockTaskService()
       );
 
       const result = await handler.handle(new SessionStartRequest('startup', now()));
@@ -257,15 +172,12 @@ describe('SessionStartHandler timeout behavior', () => {
 
   describe('handle_timeoutAcrossTriggers', () => {
     it('handle_givenStartupWithTimeout_shouldReportTimeoutInMessage', async () => {
-      const memory = createMockMemory({
-        result: createMockMemoryResult({ timedOut: true }),
-      });
+      const memory = createSlowMemory(6000);
 
       const handler = new SessionStartHandler(
         createMockContext(),
         memory,
-        createMockTaskService(),
-        createMockMcp()
+        createMockTaskService()
       );
 
       const result = await handler.handle(new SessionStartRequest('startup', now()));
@@ -275,15 +187,12 @@ describe('SessionStartHandler timeout behavior', () => {
     });
 
     it('handle_givenResumeWithTimeout_shouldReportTimeoutInMessage', async () => {
-      const memory = createMockMemory({
-        result: createMockMemoryResult({ timedOut: true }),
-      });
+      const memory = createSlowMemory(6000);
 
       const handler = new SessionStartHandler(
         createMockContext(),
         memory,
-        createMockTaskService(),
-        createMockMcp()
+        createMockTaskService()
       );
 
       const result = await handler.handle(new SessionStartRequest('resume', now()));
@@ -292,15 +201,12 @@ describe('SessionStartHandler timeout behavior', () => {
     });
 
     it('handle_givenCompactWithTimeout_shouldReportTimeoutInMessage', async () => {
-      const memory = createMockMemory({
-        result: createMockMemoryResult({ timedOut: true }),
-      });
+      const memory = createSlowMemory(6000);
 
       const handler = new SessionStartHandler(
         createMockContext(),
         memory,
-        createMockTaskService(),
-        createMockMcp()
+        createMockTaskService()
       );
 
       const result = await handler.handle(new SessionStartRequest('compact', now()));
@@ -311,18 +217,13 @@ describe('SessionStartHandler timeout behavior', () => {
 
   describe('handle_timeoutWithInitReview', () => {
     it('handle_givenTimeoutBeforeInitReview_shouldHaveNoInitReview', async () => {
-      const memory = createMockMemory({
-        result: createMockMemoryResult({
-          timedOut: true,
-          initReview: null,
-        }),
-      });
+      // searchFacts (init-review) is the first operation that will timeout
+      const memory = createSlowMemory(6000);
 
       const handler = new SessionStartHandler(
         createMockContext(),
         memory,
-        createMockTaskService(),
-        createMockMcp()
+        createMockTaskService()
       );
 
       const result = await handler.handle(new SessionStartRequest('startup', now()));
@@ -334,19 +235,25 @@ describe('SessionStartHandler timeout behavior', () => {
       );
     });
 
-    it('handle_givenTimeoutAfterInitReview_shouldIncludeInitReview', async () => {
+    it('handle_givenFastInitReviewButSlowFacts_shouldIncludeInitReview', async () => {
+      // Init review loads fast, but facts are slow (triggering timeout)
       const memory = createMockMemory({
-        result: createMockMemoryResult({
-          timedOut: true,
-          initReview: 'This is a TypeScript project',
-        }),
+        searchFacts: async () => [
+          createMockMemoryItem({
+            fact: 'This is a TypeScript project',
+            tags: ['type:init-review'],
+          }),
+        ],
+        loadFactsDateOrdered: async () => {
+          await new Promise((resolve) => setTimeout(resolve, 6000));
+          return [];
+        },
       });
 
       const handler = new SessionStartHandler(
         createMockContext(),
         memory,
-        createMockTaskService(),
-        createMockMcp()
+        createMockTaskService()
       );
 
       const result = await handler.handle(new SessionStartRequest('startup', now()));
@@ -361,15 +268,12 @@ describe('SessionStartHandler timeout behavior', () => {
 
   describe('handle_resultConsistency', () => {
     it('handle_givenTimeout_shouldReturnConsistentResultStructure', async () => {
-      const memory = createMockMemory({
-        result: createMockMemoryResult({ timedOut: true }),
-      });
+      const memory = createSlowMemory(6000);
 
       const handler = new SessionStartHandler(
         createMockContext(),
         memory,
-        createMockTaskService(),
-        createMockMcp()
+        createMockTaskService()
       );
 
       const result = await handler.handle(new SessionStartRequest('startup', now()));

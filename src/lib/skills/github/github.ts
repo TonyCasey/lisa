@@ -173,32 +173,19 @@ async function handleIssues(
         assignee: args.assignee as string | undefined,
         milestone: args.milestone as string | undefined,
       });
-      const { loadEnv } = await import('../shared/utils/env');
-      const env = loadEnv();
-
       let taskInfo: { persisted: boolean; groupId?: string; error?: string } | undefined;
-      if (env.STORAGE_MODE === 'local') {
+      {
         const { getCurrentGroupId } = await import('../shared/group-id');
         const { createTaskService } = await import('../shared/services');
-        const {
-          createNeo4jClient,
-          createNeo4jConfigFromEnv,
-          createMcpClient,
-          createMcpConfigFromEnv,
-        } = await import('../shared/clients');
+        const { createGitMem } = await import('../shared/clients');
 
         const rawGroup = args.group;
         const groupId =
           typeof rawGroup === 'string' && rawGroup.trim().length > 0
             ? rawGroup
             : getCurrentGroupId();
-        const neo4jClient = createNeo4jClient(createNeo4jConfigFromEnv(env.raw));
-        const mcpClient = createMcpClient(createMcpConfigFromEnv(env.raw));
-        const taskService = createTaskService({
-          neo4jClient,
-          mcpClient,
-          zepClient: null,
-        });
+        const gitMem = createGitMem();
+        const taskService = createTaskService({ gitMem });
 
         try {
           await persistCreatedIssueTask({
@@ -218,8 +205,6 @@ async function handleIssues(
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           taskInfo = { persisted: false, groupId, error: message };
-        } finally {
-          await neo4jClient.disconnect();
         }
       }
 
@@ -428,12 +413,7 @@ async function handleSync(
   const { createGitHubClient, createGitHubSyncService, createTaskService } = await import('../shared/services');
   const {
     createGhCliClientFromEnv,
-    createNeo4jClient,
-    createNeo4jConfigFromEnv,
-    createMcpClient,
-    createMcpConfigFromEnv,
-    createZepClient,
-    createZepConfigFromEnv,
+    createGitMem,
   } = await import('../shared/clients');
 
   const repo = args.repo as string;
@@ -469,16 +449,8 @@ async function handleSync(
   const ghCli = createGhCliClientFromEnv();
   const githubClient = createGitHubClient(ghCli);
 
-  const neo4jClient = createNeo4jClient(createNeo4jConfigFromEnv());
-  const mcpClient = createMcpClient(createMcpConfigFromEnv());
-  const zepConfig = createZepConfigFromEnv();
-  const zepClient = zepConfig ? createZepClient(zepConfig) : null;
-
-  const taskService = createTaskService({
-    neo4jClient,
-    mcpClient,
-    zepClient,
-  });
+  const gitMem = createGitMem();
+  const taskService = createTaskService({ gitMem });
 
   const syncService = createGitHubSyncService({
     github: githubClient,

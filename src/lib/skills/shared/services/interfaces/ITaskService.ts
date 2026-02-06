@@ -4,6 +4,11 @@
  */
 
 /**
+ * Backend mode for task operations.
+ */
+export type TaskMode = 'git-mem';
+
+/**
  * External system link source types.
  */
 export type ExternalLinkSource = 'github' | 'jira' | 'linear';
@@ -42,7 +47,7 @@ export interface ITaskListResult {
   group: string;
   groups: string[];
   tasks: ITask[];
-  mode: 'neo4j' | 'mcp' | 'zep-cloud';
+  mode: TaskMode;
 }
 
 /**
@@ -64,7 +69,7 @@ export interface ITaskWriteResult {
   group: string;
   result?: unknown;
   message_uuid?: string;
-  mode: 'mcp' | 'zep-cloud' | 'neo4j';
+  mode: TaskMode;
 }
 
 /**
@@ -99,7 +104,7 @@ export interface ITaskLinkResult {
     externalLink?: ITaskExternalLink;
   };
   group: string;
-  mode: 'mcp' | 'zep-cloud' | 'neo4j';
+  mode: TaskMode;
 }
 
 /**
@@ -108,7 +113,6 @@ export interface ITaskLinkResult {
 export interface ITaskService {
   /**
    * List tasks from storage.
-   * Always uses Neo4j direct for better date ordering.
    *
    * @param groupIds - Group identifiers to search
    * @param limit - Maximum number of tasks to return
@@ -126,7 +130,6 @@ export interface ITaskService {
 
   /**
    * Add a new task.
-   * Uses MCP or Zep depending on configuration.
    *
    * @param title - Task title/description
    * @param groupId - Group identifier for storage
@@ -140,7 +143,6 @@ export interface ITaskService {
 
   /**
    * Update an existing task (creates a new version).
-   * Uses MCP or Zep depending on configuration.
    *
    * @param title - Task title/description
    * @param groupId - Group identifier for storage

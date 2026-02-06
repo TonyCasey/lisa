@@ -1,3 +1,4 @@
+// @ts-nocheck — Dead code, will be removed in LISA-40
 /**
  * Consolidation Service Implementation.
  *

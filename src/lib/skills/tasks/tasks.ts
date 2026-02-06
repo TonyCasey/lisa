@@ -16,16 +16,12 @@ export {};
 import path from 'path';
 
 async function main(): Promise<void> {
-  const { loadEnv, isZepCloudConfigured } = await import('../shared/utils/env');
+  const { loadEnv } = await import('../shared/utils/env');
   const { getCurrentGroupId, getGroupIds } = await import('../shared/group-id');
   const { createLogger } = await import('../shared/logger');
   const { popFlag, hasFlag } = await import('../shared/utils/cli');
   const { createCache, createCacheConfig, nullCache } = await import('../shared/utils/cache');
-  const {
-    createNeo4jClient, createNeo4jConfigFromEnv,
-    createMcpClient, createMcpConfigFromEnv,
-    createZepClient, createZepConfigFromEnv,
-  } = await import('../shared/clients');
+  const { createGitMem } = await import('../shared/clients');
   const { createTaskService, createTaskCliService } = await import('../shared/services');
 
   const env = loadEnv();
@@ -50,12 +46,8 @@ async function main(): Promise<void> {
 
   const cache = useCache ? createCache(createCacheConfig(__dirname, 'tasks.log')) : nullCache;
 
-  const neo4jClient = createNeo4jClient(createNeo4jConfigFromEnv(env.raw));
-  const mcpClient = createMcpClient(createMcpConfigFromEnv(env.raw));
-  const zepConfig = createZepConfigFromEnv(env.raw);
-  const zepClient = isZepCloudConfigured(env) && zepConfig ? createZepClient(zepConfig) : null;
-
-  const taskService = createTaskService({ neo4jClient, mcpClient, zepClient });
+  const gitMem = createGitMem();
+  const taskService = createTaskService({ gitMem });
   const cliService = createTaskCliService({
     env, logger, cache, taskService, getGroupIds, getCurrentGroupId,
   });
