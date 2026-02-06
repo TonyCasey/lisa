@@ -15,12 +15,12 @@
     "./skills/memory": "./dist/lib/skills/memory/memory.js",
     "./skills/tasks": "./dist/lib/skills/tasks/tasks.js",
     "./skills/jira": "./dist/lib/skills/jira/jira.js",
-    "./skills/git/bump-version": "./dist/lib/skills/git/bump-version.js",
+    "./skills/github/bump-version": "./dist/lib/skills/github/bump-version.js",
     "./skills/lisa/storage": "./dist/lib/skills/lisa/storage.js",
     "./skills/lisa/compile-skills": "./dist/lib/skills/lisa/compile-skills.js",
     "./skills/prompt": "./dist/lib/skills/prompt/prompt.js",
-    "./skills/init-review": "./dist/lib/skills/init-review/init-review.js",
-    "./skills/init-review/ai-enrich": "./dist/lib/skills/init-review/ai-enrich.js"
+    "./skills/review": "./dist/lib/skills/review/init-review.js",
+    "./skills/review/ai-enrich": "./dist/lib/skills/review/ai-enrich.js"
   },
   "engines": {
     "node": ">=18.0.0"

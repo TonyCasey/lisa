@@ -480,6 +480,7 @@ export async function initCommand(opts: IInitOptions, services: ICliServices): P
       if (relativePath.includes('shared') || relativePath.includes('common')) return false;
       if (relativePath.includes('scripts')) return false;
       if (basename === 'SKILL.md' || basename === 'SKILL.local.md') return true;
+      if (basename.endsWith('.txt') || basename.endsWith('.json')) return true;
       if (basename === 'cache' || basename === '.gitkeep') return true;
 
       return fs.statSync(src).isDirectory();
@@ -502,6 +503,10 @@ export async function initCommand(opts: IInitOptions, services: ICliServices): P
   copies.push(services.templateCopier.copy('.lisa/rules/shared/clean-architecture.md', path.join(rulesDir, 'shared', 'clean-architecture.md'), replacements, force));
   copies.push(services.templateCopier.copy('.lisa/rules/shared/code-quality-rules.md', path.join(rulesDir, 'shared', 'code-quality-rules.md'), replacements, force));
   copies.push(services.templateCopier.copy('.lisa/rules/shared/testing-principles.md', path.join(rulesDir, 'shared', 'testing-principles.md'), replacements, force));
+  copies.push(services.templateCopier.copy('.lisa/rules/shared/git-rules.md', path.join(rulesDir, 'shared', 'git-rules.md'), replacements, force));
+  copies.push(services.templateCopier.copy('.lisa/rules/shared/git-rules.local.md', path.join(rulesDir, 'shared', 'git-rules.local.md'), replacements, force));
+  copies.push(services.templateCopier.copy('.lisa/rules/shared/memory-rules.md', path.join(rulesDir, 'shared', 'memory-rules.md'), replacements, force));
+  copies.push(services.templateCopier.copy('.lisa/rules/shared/task-rules.md', path.join(rulesDir, 'shared', 'task-rules.md'), replacements, force));
   copies.push(services.templateCopier.copy('.lisa/rules/typescript/coding-standards.md', path.join(rulesDir, 'typescript', 'coding-standards.md'), replacements, force));
   copies.push(services.templateCopier.copy('.lisa/rules/typescript/testing.md', path.join(rulesDir, 'typescript', 'testing.md'), replacements, force));
   copies.push(services.templateCopier.copy('.lisa/rules/typescript/typescript-config-guide.md', path.join(rulesDir, 'typescript', 'typescript-config-guide.md'), replacements, force));
