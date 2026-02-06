@@ -15,15 +15,21 @@ jobs:
         with:
           fetch-depth: 0  # Full history needed for GitClient tests
 
-      - name: Clone and build git-mem dependency
-        run: |
-          git clone --depth 1 https://github.com/TonyCasey/git-mem.git ../git-mem
-          cd ../git-mem && npm ci && npm run build
+      - name: Checkout git-mem dependency
+        uses: actions/checkout@v4
+        with:
+          repository: TonyCasey/git-mem
+          path: .git-mem-dep
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: 'npm'
+
+      - name: Build and link git-mem dependency
+        run: |
+          cd .git-mem-dep && npm ci && npm run build && cd ..
+          ln -s "$PWD/.git-mem-dep" ../git-mem
 
       - name: Install dependencies
         run: npm ci
