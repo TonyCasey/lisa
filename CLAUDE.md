@@ -114,8 +114,8 @@ Skills are invoked with `/skill-name` in Claude Code:
 | `/tasks` | Create, load, or summarize tasks | "tasks", "list tasks", "add task" |
 | `/lisa` | Intelligent assistant for memory and tasks | "lisa", "hey lisa" |
 | `/jira` | Create and manage Jira issues | "jira", "create ticket" |
-| `/git` | GitHub and Git workflow helpers | "create pr", "pr checks" |
-| `/init-review` | Initial codebase review and summary | First session in a repo |
+| `/github` | GitHub/Git workflow helpers, Issues, Projects | "create pr", "github issues", "bump version" |
+| `/review` | Initial codebase review and summary | First session in a repo |
 
 Skills source: `src/project/.lisa/skills/`
 Skills deployed to: `.lisa/skills/`

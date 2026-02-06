@@ -441,7 +441,7 @@ async function main() {
   await fs.ensureDir(claudeSkillsDir);
   
   // Create individual symlinks for each Lisa skill (same pattern as OpenCode)
-  const lisaSkills = ['memory', 'tasks', 'lisa', 'git', 'jira', 'init-review', 'prompt'];
+  const lisaSkills = ['memory', 'tasks', 'lisa', 'jira', 'review', 'prompt', 'github', 'pr'];
   for (const skill of lisaSkills) {
     const skillLink = path.join(claudeSkillsDir, skill);
     const skillTarget = path.join(targetLisa, 'skills', skill);
@@ -481,7 +481,7 @@ async function main() {
     const opencodeSkillsDir = path.join(targetOpenCode, 'skills');
     await fs.ensureDir(opencodeSkillsDir);
     
-    const lisaSkills = ['memory', 'tasks', 'lisa', 'git', 'jira', 'init-review', 'prompt'];
+    const lisaSkills = ['memory', 'tasks', 'lisa', 'jira', 'review', 'prompt', 'github', 'pr'];
     for (const skill of lisaSkills) {
       const skillLink = path.join(opencodeSkillsDir, skill);
       const skillTarget = path.join(targetLisa, 'skills', skill);

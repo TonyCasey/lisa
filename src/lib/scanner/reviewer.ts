@@ -93,8 +93,8 @@ async function runInitReview(projectPath: string): Promise<{
   // Look for init-review script in the project's .lisa folder
   // or in our dist/project location
   const possiblePaths = [
-    path.join(projectPath, '.lisa', 'skills', 'init-review', 'scripts', 'init-review.js'),
-    path.join(__dirname, '..', '..', 'project', '.lisa', 'skills', 'init-review', 'scripts', 'init-review.js'),
+    path.join(projectPath, '.lisa', 'skills', 'review', 'scripts', 'init-review.js'),
+    path.join(__dirname, '..', '..', 'project', '.lisa', 'skills', 'review', 'scripts', 'init-review.js'),
   ];
 
   let scriptPath: string | null = null;

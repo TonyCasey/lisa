@@ -522,7 +522,7 @@ export async function initCommand(opts: IInitOptions, services: ICliServices): P
 
     await fs.ensureDir(claudeSkillsDir);
 
-    const lisaSkills = ['memory', 'tasks', 'lisa', 'git', 'jira', 'init-review', 'prompt', 'github'];
+    const lisaSkills = ['memory', 'tasks', 'lisa', 'jira', 'review', 'prompt', 'github', 'pr'];
     for (const skill of lisaSkills) {
       const skillLink = path.join(claudeSkillsDir, skill);
       const skillTarget = path.join(skillsDir, skill);
@@ -583,7 +583,7 @@ export async function initCommand(opts: IInitOptions, services: ICliServices): P
 
     await fs.ensureDir(opencodeSkillsDir);
 
-    const lisaSkills = ['memory', 'tasks', 'lisa', 'git', 'jira', 'init-review', 'prompt'];
+    const lisaSkills = ['memory', 'tasks', 'lisa', 'jira', 'review', 'prompt', 'github', 'pr'];
     for (const skill of lisaSkills) {
       const skillLink = path.join(opencodeSkillsDir, skill);
       const skillTarget = path.join(skillsDir, skill);
