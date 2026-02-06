@@ -8,7 +8,6 @@ export { ILisaContext } from './ILisaContext';
 export { IMemoryReader, IMemoryWriter, IMemoryService, IMemoryDateOptions } from './IMemoryService';
 export type { IMemorySaveOptions } from './dal/IMemoryRepository';
 export { ITaskReader, ITaskWriter, ITaskService } from './ITaskService';
-export { IMcpClient } from './IMcpClient';
 export type { IGitMemClient } from './IGitMemClient';
 export { ISessionCaptureService } from './ISessionCaptureService';
 export { EventHandler, IEventEmitter } from './IEventEmitter';

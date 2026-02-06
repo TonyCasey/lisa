@@ -2,8 +2,8 @@
  * Infrastructure service implementations.
  */
 
-export { MemoryService } from './MemoryService';
-export { TaskService } from './TaskService';
+export { GitMemMemoryService } from './GitMemMemoryService';
+export { GitMemTaskService } from './GitMemTaskService';
 export { EventEmitter } from './EventEmitter';
 export { SessionCaptureService } from './SessionCaptureService';
 export { RecursionService } from './RecursionService';

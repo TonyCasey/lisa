@@ -16,6 +16,18 @@ import type {ILogger} from '../domain';
 import {CliExitError, runPrWatchLoop} from './cli-utils';
 
 /**
+ * Create a git-mem backed memory service for PR memory operations.
+ */
+async function createPrMemoryService(): Promise<import('../domain/interfaces/IMemoryService').IMemoryWriter> {
+  const { MemoryService, NotesService, MemoryRepository } = await import('git-mem/dist/index');
+  const { GitMemMemoryService } = await import('../infrastructure/services/GitMemMemoryService');
+  const notes = new NotesService();
+  const repo = new MemoryRepository(notes);
+  const gitMem = new MemoryService(repo);
+  return new GitMemMemoryService(gitMem);
+}
+
+/**
  * Format a poll result for console display.
  * Shared between pr create (watch loop) and pr poll.
  */
@@ -74,7 +86,7 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
 
         let neo4jConnection: Neo4jConnectionManager | undefined;
         try {
-          const { GithubClient, Neo4jPullRequestRepository, createNeo4jConnectionManager, McpClient, MemoryService } = await import('../infrastructure');
+          const { GithubClient, Neo4jPullRequestRepository, createNeo4jConnectionManager } = await import('../infrastructure');
           const { PrCreateHandler, PrPollHandler } = await import('../application/handlers');
 
           const githubClient = new GithubClient();
@@ -127,9 +139,7 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
 
           if (shouldPoll && result.pr) {
             const { getCurrentGroupId } = await import('../skills/common/group-id');
-            const mcpEndpoint = process.env.MCP_ENDPOINT || process.env.GRAPHITI_ENDPOINT || 'http://localhost:8000/mcp/';
-            const mcpClient = new McpClient(mcpEndpoint, process.env.GRAPHITI_API_KEY);
-            const memoryService = new MemoryService(mcpClient);
+            const memoryService = await createPrMemoryService();
             const groupId = getCurrentGroupId();
             const pollHandler = new PrPollHandler(githubClient, prRepository, undefined, memoryService, groupId);
             const pollOptions: IPrPollOptions = {
@@ -598,14 +608,12 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
         log.info('Saving PR note', { prNumber: parsedPrNumber, repo: opts.repo });
 
         try {
-          const { GithubClient, MemoryService, McpClient } = await import('../infrastructure');
+          const { GithubClient } = await import('../infrastructure');
           const { PrRememberHandler } = await import('../application/handlers');
           const { getCurrentGroupId } = await import('../skills/common/group-id');
 
           const githubClient = new GithubClient();
-          const mcpEndpoint = process.env.MCP_ENDPOINT || process.env.GRAPHITI_ENDPOINT || 'http://localhost:8000/mcp/';
-          const mcpClient = new McpClient(mcpEndpoint, process.env.GRAPHITI_API_KEY);
-          const memoryService = new MemoryService(mcpClient);
+          const memoryService = await createPrMemoryService();
           const groupId = getCurrentGroupId();
 
           const handler = new PrRememberHandler(githubClient, memoryService, groupId);
@@ -768,7 +776,7 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
 
         let neo4jConnection: Neo4jConnectionManager | undefined;
         try {
-          const { GithubClient, Neo4jPullRequestRepository, createNeo4jConnectionManager, MemoryService, McpClient } = await import('../infrastructure');
+          const { GithubClient, Neo4jPullRequestRepository, createNeo4jConnectionManager } = await import('../infrastructure');
           const { PrPollHandler } = await import('../application/handlers');
           const { NotificationService } = await import('../infrastructure/notifications');
           const { getCurrentGroupId } = await import('../skills/common/group-id');
@@ -805,9 +813,7 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
           const notificationService = opts.notify && !opts.watch ? new NotificationService() : undefined;
 
           // Create memory service for auto-capture of merged PRs
-          const mcpEndpoint = process.env.MCP_ENDPOINT || process.env.GRAPHITI_ENDPOINT || 'http://localhost:8000/mcp/';
-          const mcpClient = new McpClient(mcpEndpoint, process.env.GRAPHITI_API_KEY);
-          const memoryService = new MemoryService(mcpClient);
+          const memoryService = await createPrMemoryService();
           const groupId = getCurrentGroupId();
 
           const handler = new PrPollHandler(githubClient, prRepository, notificationService, memoryService, groupId);
