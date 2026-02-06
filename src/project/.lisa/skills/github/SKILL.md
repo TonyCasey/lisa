@@ -459,6 +459,24 @@ lisa bump-version patch
 lisa bump-version major
 ```
 
+#### Configuration
+
+Control version bumping via `LISA_AUTO_BUMP_VERSION` in `.lisa/.env`:
+
+| Value | Behavior |
+|-------|----------|
+| `true` (default) | Enabled, defaults to `minor` bump |
+| `false` | Disabled, bump commands are skipped |
+| `patch` / `minor` / `major` | Enabled with that bump type as the default |
+
+```bash
+# In .lisa/.env:
+LISA_AUTO_BUMP_VERSION=false        # Disable version bumping
+LISA_AUTO_BUMP_VERSION=patch        # Default to patch bumps
+```
+
+A CLI argument always overrides the env default: `lisa bump-version major` bumps major regardless of the env setting.
+
 ### Workflow: Push with Version Bump
 
 1. **Bump version** (default: minor):
