@@ -421,14 +421,17 @@ gh pr edit <PR_NUMBER> --repo <owner/repo> --add-label "TEST"
 ```
 
 ### Check CircleCI Pipeline Status
+
+**Prerequisites:** Set `CIRCLE_TOKEN` environment variable, or have CircleCI CLI configured at `~/.circleci/cli.yml`.
+
 ```bash
 # Get latest pipeline for a branch
-curl -s -H "Circle-Token: $(cat ~/.circleci/cli.yml | grep token | awk '{print $2}')" \
+curl -s -H "Circle-Token: ${CIRCLE_TOKEN}" \
   "https://circleci.com/api/v2/project/gh/<owner>/<repo>/pipeline?branch=<BRANCH>" \
   | jq '.items[0] | {number, state, created_at}'
 
 # Get workflow status for a pipeline
-curl -s -H "Circle-Token: $(cat ~/.circleci/cli.yml | grep token | awk '{print $2}')" \
+curl -s -H "Circle-Token: ${CIRCLE_TOKEN}" \
   "https://circleci.com/api/v2/pipeline/<PIPELINE_ID>/workflow" \
   | jq '.items[] | {name, status}'
 ```
