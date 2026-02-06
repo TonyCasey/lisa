@@ -220,7 +220,7 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
         throw new Error(`Task not found: ${taskUuid}`);
       }
 
-      const taskObj = parseTaskContent(existing.content) || {
+      const taskObj: Record<string, unknown> = parseTaskContent(existing.content) || {
         type: 'task',
         title: existing.content.slice(0, 120),
       };
@@ -262,7 +262,7 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
         throw new Error(`Task not found: ${taskUuid}`);
       }
 
-      const taskObj = parseTaskContent(existing.content) || {
+      const taskObj: Record<string, unknown> = parseTaskContent(existing.content) || {
         type: 'task',
         title: existing.content.slice(0, 120),
       };
