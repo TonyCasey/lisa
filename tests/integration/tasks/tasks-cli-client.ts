@@ -3,8 +3,8 @@
  *
  * Provides typed helpers for invoking the tasks skill script.
  * Used by integration tests to verify I/O contracts from SKILL.md.
+ * Updated for git-mem backend.
  */
-import { setTimeout as delay } from 'node:timers/promises';
 import {
   findSkillScript,
   runSkillScript,
@@ -40,7 +40,7 @@ export interface ITaskAddResponse {
   task: ITask;
   group: string;
   message_uuid?: string;
-  mode?: 'local' | 'zep-cloud';
+  mode?: 'git-mem';
 }
 
 /**
@@ -52,7 +52,7 @@ export interface ITaskUpdateResponse {
   task: ITask;
   group: string;
   message_uuid?: string;
-  mode?: 'local' | 'zep-cloud';
+  mode?: 'git-mem';
 }
 
 /**
@@ -65,7 +65,7 @@ export interface ITaskListResponse {
   group: string;
   groups?: string[];
   tasks: ITask[];
-  mode?: 'local' | 'zep-cloud';
+  mode?: 'git-mem';
 }
 
 /**
@@ -232,12 +232,12 @@ export async function updateTask(
 }
 
 /**
- * Check if the tasks endpoint is reachable
+ * Check if git-mem is ready and working in the test repository
  *
- * @param options - Client options
+ * @param options - Client options (must include testRepoPath)
  * @returns Object with ok status and optional error
  */
-export async function checkTasksEndpoint(
+export async function checkGitMemReady(
   options: ITasksClientOptions = {}
 ): Promise<{ ok: boolean; error?: Error }> {
   try {
@@ -260,7 +260,7 @@ export async function checkTasksEndpoint(
  * @returns Suite results with pass/fail status
  */
 export async function runTasksSmokeSuite(options: {
-  endpoint?: string;
+  testRepoPath: string;
   groupId: string;
   isolationGroupId: string;
 }): Promise<{
@@ -271,35 +271,33 @@ export async function runTasksSmokeSuite(options: {
 }> {
   const uniqueMarker = `smoke-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
-  // Add task with meaningful content for LLM fact extraction
+  // Add task
   const addResponse = await addTask(
     `Implement database migration for feature ${uniqueMarker}`,
     {
-      endpoint: options.endpoint,
+      testRepoPath: options.testRepoPath,
       groupId: options.groupId,
       status: 'todo',
     }
   );
 
-  // Wait for eventual consistency (Graphiti processes asynchronously)
-  // LLM fact extraction takes time
-  await delay(10000);
+  // git-mem is synchronous - no delay needed
 
   // List from primary group
   const listResponse = await listTasks({
-    endpoint: options.endpoint,
+    testRepoPath: options.testRepoPath,
     groupId: options.groupId,
     limit: 25,
   });
 
-  // Check if task was found (look for the unique marker in extracted facts)
+  // Check if task was found
   const taskFound = listResponse.tasks.some((task) =>
     task.title.includes(uniqueMarker)
   );
 
   // List from isolation group (should NOT find the task)
   const isolationList = await listTasks({
-    endpoint: options.endpoint,
+    testRepoPath: options.testRepoPath,
     groupId: options.isolationGroupId,
     limit: 15,
   });

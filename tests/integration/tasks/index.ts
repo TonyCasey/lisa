@@ -1,42 +1,39 @@
 /**
  * Tasks Skill Integration Tests
  *
- * Tests tasks skill I/O contracts against real backend (local MCP or Zep Cloud).
+ * Tests tasks skill I/O contracts against git-mem backend.
  *
- * Enable by setting environment variables:
- *   RUN_TASKS_INTEGRATION_TESTS=1
- *   STORAGE_MODE=zep-cloud (or 'local' for Docker MCP)
- *
- * ZEP_API_KEY is loaded automatically from root .env file.
+ * Enable by setting environment variable:
+ *   RUN_GITMEM_INTEGRATION_TESTS=1
  *
  * Optional overrides:
  *   TASKS_TEST_GROUP_ID=<custom-group>
- *   TASKS_TEST_ENDPOINT=<custom-endpoint>
  */
-import { test, describe, before } from 'node:test';
+import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { setTimeout as delay } from 'node:timers/promises';
 
 import {
   addTask,
   listTasks,
   runTasksSmokeSuite,
-  checkTasksEndpoint,
+  checkGitMemReady,
   tasksScriptExists,
 } from './tasks-cli-client';
+import {
+  createTestGitRepo,
+  cleanupTestGitRepo,
+  isGitMemAvailable,
+} from '../shared/test-repo-utils';
 
 // =============================================================================
 // Test Configuration
 // =============================================================================
 
-const runMode = process.env.RUN_TASKS_INTEGRATION_TESTS;
+const runMode = process.env.RUN_GITMEM_INTEGRATION_TESTS;
 const tasksTestsEnabled = runMode === '1';
-const storageMode = process.env.STORAGE_MODE || 'local';
-const isZepCloud = storageMode === 'zep-cloud';
 const baseGroupId =
   process.env.TASKS_TEST_GROUP_ID || `lisa-tasks-it-${Date.now()}`;
-const endpointOverride = process.env.TASKS_TEST_ENDPOINT;
 
 // =============================================================================
 // Test Suite
@@ -44,7 +41,7 @@ const endpointOverride = process.env.TASKS_TEST_ENDPOINT;
 
 if (!tasksTestsEnabled) {
   test.skip(
-    'Tasks integration tests disabled. Set RUN_TASKS_INTEGRATION_TESTS=1 to enable.',
+    'Tasks integration tests disabled. Set RUN_GITMEM_INTEGRATION_TESTS=1 to enable.',
     () => {}
   );
 } else if (!tasksScriptExists) {
@@ -53,19 +50,34 @@ if (!tasksTestsEnabled) {
     () => {}
   );
 } else {
-  describe(`tasks skill integration (${storageMode})`, () => {
-    let backendReady = false;
-    let backendError: Error | undefined;
+  describe('tasks skill integration (git-mem)', () => {
+    let testRepoPath: string;
+    let gitMemAvailable = false;
 
     before(async () => {
-      const status = await checkTasksEndpoint({
-        endpoint: endpointOverride,
+      // Check if git-mem CLI is available
+      gitMemAvailable = await isGitMemAvailable();
+      if (!gitMemAvailable) {
+        throw new Error('git-mem CLI not found. Install with: npm install -g git-mem');
+      }
+
+      // Create isolated test git repository
+      testRepoPath = await createTestGitRepo('lisa-gitmem-tasks');
+
+      // Verify git-mem is working in test repo
+      const status = await checkGitMemReady({
+        testRepoPath,
         groupId: `${baseGroupId}-probe`,
       });
-      backendReady = status.ok;
-      backendError = status.error;
-      if (!backendReady) {
-        throw backendError || new Error(`Tasks backend unavailable (${storageMode})`);
+      if (!status.ok) {
+        throw status.error || new Error('git-mem not ready in test repository');
+      }
+    });
+
+    after(async () => {
+      // Clean up test repository
+      if (testRepoPath) {
+        await cleanupTestGitRepo(testRepoPath);
       }
     });
 
@@ -80,7 +92,7 @@ if (!tasksTestsEnabled) {
         async () => {
           const title = `Contract test ${randomUUID()}`;
           const result = await addTask(title, {
-            endpoint: endpointOverride,
+            testRepoPath,
             groupId: `${baseGroupId}-contract`,
             status: 'todo',
           });
@@ -92,10 +104,6 @@ if (!tasksTestsEnabled) {
           assert.equal(result.task.title, title, 'task title should match input');
           assert.equal(result.task.status, 'todo', 'task status should match input');
           assert.ok(result.group, 'group should be present');
-
-          if (isZepCloud) {
-            assert.equal(result.mode, 'zep-cloud', 'mode should be "zep-cloud"');
-          }
         }
       );
 
@@ -104,7 +112,7 @@ if (!tasksTestsEnabled) {
         { timeout: 30_000 },
         async () => {
           const result = await listTasks({
-            endpoint: endpointOverride,
+            testRepoPath,
             groupId: `${baseGroupId}-contract`,
             limit: 5,
           });
@@ -114,10 +122,6 @@ if (!tasksTestsEnabled) {
           assert.equal(result.action, 'list', 'action should be "list"');
           assert.ok(Array.isArray(result.tasks), 'tasks should be an array');
           assert.ok(result.group || result.groups, 'group(s) should be present');
-
-          if (isZepCloud) {
-            assert.equal(result.mode, 'zep-cloud', 'mode should be "zep-cloud"');
-          }
         }
       );
     });
@@ -129,32 +133,30 @@ if (!tasksTestsEnabled) {
     describe('persistence', () => {
       test(
         'saves and lists task within the same group',
-        { timeout: 60_000 },
+        { timeout: 30_000 },
         async () => {
           const groupId = `${baseGroupId}-save-list`;
           const uniqueId = randomUUID().slice(0, 8);
-          // Use meaningful content that LLM fact extraction will turn into facts
           const uniqueTitle = `Implement user authentication for project ${uniqueId}`;
 
           // Add task
           const addResult = await addTask(uniqueTitle, {
-            endpoint: endpointOverride,
+            testRepoPath,
             groupId,
             status: 'todo',
           });
           assert.equal(addResult.status, 'ok');
           assert.equal(addResult.task.title, uniqueTitle);
 
-          // Wait for eventual consistency (Graphiti processes asynchronously)
-          // LLM fact extraction takes time
-          await delay(10000);
+          // git-mem is synchronous - no delay needed
 
           // List and verify
           const listResult = await listTasks({
-            endpoint: endpointOverride,
+            testRepoPath,
             groupId,
             limit: 25,
           });
+
           const found = listResult.tasks.some((task) =>
             task.title.includes(uniqueId)
           );
@@ -177,7 +179,7 @@ if (!tasksTestsEnabled) {
         async () => {
           const title = `Status todo ${randomUUID()}`;
           const result = await addTask(title, {
-            endpoint: endpointOverride,
+            testRepoPath,
             groupId: `${baseGroupId}-status`,
             status: 'todo',
           });
@@ -191,7 +193,7 @@ if (!tasksTestsEnabled) {
         async () => {
           const title = `Status doing ${randomUUID()}`;
           const result = await addTask(title, {
-            endpoint: endpointOverride,
+            testRepoPath,
             groupId: `${baseGroupId}-status`,
             status: 'doing',
           });
@@ -205,7 +207,7 @@ if (!tasksTestsEnabled) {
         async () => {
           const title = `Status done ${randomUUID()}`;
           const result = await addTask(title, {
-            endpoint: endpointOverride,
+            testRepoPath,
             groupId: `${baseGroupId}-status`,
             status: 'done',
           });
@@ -221,7 +223,7 @@ if (!tasksTestsEnabled) {
     describe('group isolation', () => {
       test(
         'tasks remain isolated across distinct groups',
-        { timeout: 60_000 },
+        { timeout: 30_000 },
         async () => {
           const sourceGroup = `${baseGroupId}-isolation-src`;
           const isolationGroup = `${baseGroupId}-isolation-dst`;
@@ -229,15 +231,16 @@ if (!tasksTestsEnabled) {
 
           // Add to source group
           await addTask(uniqueTitle, {
-            endpoint: endpointOverride,
+            testRepoPath,
             groupId: sourceGroup,
             status: 'todo',
           });
-          await delay(2000);
+
+          // git-mem is synchronous - no delay needed
 
           // List from isolation group (should NOT find the task)
           const isolationList = await listTasks({
-            endpoint: endpointOverride,
+            testRepoPath,
             groupId: isolationGroup,
             limit: 20,
           });
@@ -259,7 +262,7 @@ if (!tasksTestsEnabled) {
         { timeout: 30_000 },
         async () => {
           const result = await addTask(`Tagged task ${randomUUID()}`, {
-            endpoint: endpointOverride,
+            testRepoPath,
             groupId: `${baseGroupId}-tags`,
             status: 'todo',
             tag: 'feature',
@@ -277,10 +280,10 @@ if (!tasksTestsEnabled) {
     describe('smoke suite', () => {
       test(
         'confirms persistence and isolation',
-        { timeout: 60_000 },
+        { timeout: 30_000 },
         async () => {
           const suiteResult = await runTasksSmokeSuite({
-            endpoint: endpointOverride,
+            testRepoPath,
             groupId: `${baseGroupId}-suite`,
             isolationGroupId: `${baseGroupId}-suite-alt`,
           });

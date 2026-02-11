@@ -1,42 +1,39 @@
 /**
  * Memory Skill Integration Tests
  *
- * Tests memory skill I/O contracts against real backend (local MCP or Zep Cloud).
+ * Tests memory skill I/O contracts against git-mem backend.
  *
- * Enable by setting environment variables:
- *   RUN_MEMORY_INTEGRATION_TESTS=1
- *   STORAGE_MODE=zep-cloud (or 'local' for Docker MCP)
- *
- * ZEP_API_KEY is loaded automatically from root .env file.
+ * Enable by setting environment variable:
+ *   RUN_GITMEM_INTEGRATION_TESTS=1
  *
  * Optional overrides:
  *   MEMORY_TEST_GROUP_ID=<custom-group>
- *   MEMORY_TEST_ENDPOINT=<custom-endpoint>
  */
-import { test, describe, before } from 'node:test';
+import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { setTimeout as delay } from 'node:timers/promises';
 
 import {
   addMemory,
   loadMemory,
   runMemorySmokeSuite,
-  checkMemoryEndpoint,
+  checkGitMemReady,
   memoryScriptExists,
 } from './memory-cli-client';
+import {
+  createTestGitRepo,
+  cleanupTestGitRepo,
+  isGitMemAvailable,
+} from '../shared/test-repo-utils';
 
 // =============================================================================
 // Test Configuration
 // =============================================================================
 
-const runMode = process.env.RUN_MEMORY_INTEGRATION_TESTS;
+const runMode = process.env.RUN_GITMEM_INTEGRATION_TESTS;
 const memoryTestsEnabled = runMode === '1';
-const storageMode = process.env.STORAGE_MODE || 'local';
-const isZepCloud = storageMode === 'zep-cloud';
 const baseGroupId =
   process.env.MEMORY_TEST_GROUP_ID || `lisa-memory-it-${Date.now()}`;
-const endpointOverride = process.env.MEMORY_TEST_ENDPOINT;
 
 // =============================================================================
 // Test Suite
@@ -44,7 +41,7 @@ const endpointOverride = process.env.MEMORY_TEST_ENDPOINT;
 
 if (!memoryTestsEnabled) {
   test.skip(
-    'Memory integration tests disabled. Set RUN_MEMORY_INTEGRATION_TESTS=1 to enable.',
+    'Memory integration tests disabled. Set RUN_GITMEM_INTEGRATION_TESTS=1 to enable.',
     () => {}
   );
 } else if (!memoryScriptExists) {
@@ -53,19 +50,34 @@ if (!memoryTestsEnabled) {
     () => {}
   );
 } else {
-  describe(`memory skill integration (${storageMode})`, () => {
-    let backendReady = false;
-    let backendError: Error | undefined;
+  describe('memory skill integration (git-mem)', () => {
+    let testRepoPath: string;
+    let gitMemAvailable = false;
 
     before(async () => {
-      const status = await checkMemoryEndpoint({
-        endpoint: endpointOverride,
+      // Check if git-mem CLI is available
+      gitMemAvailable = await isGitMemAvailable();
+      if (!gitMemAvailable) {
+        throw new Error('git-mem CLI not found. Install with: npm install -g git-mem');
+      }
+
+      // Create isolated test git repository
+      testRepoPath = await createTestGitRepo('lisa-gitmem-memory');
+
+      // Verify git-mem is working in test repo
+      const status = await checkGitMemReady({
+        testRepoPath,
         groupId: `${baseGroupId}-probe`,
       });
-      backendReady = status.ok;
-      backendError = status.error;
-      if (!backendReady) {
-        throw backendError || new Error(`Memory backend unavailable (${storageMode})`);
+      if (!status.ok) {
+        throw status.error || new Error('git-mem not ready in test repository');
+      }
+    });
+
+    after(async () => {
+      // Clean up test repository
+      if (testRepoPath) {
+        await cleanupTestGitRepo(testRepoPath);
       }
     });
 
@@ -80,7 +92,7 @@ if (!memoryTestsEnabled) {
         async () => {
           const text = `Contract test ${randomUUID()}`;
           const result = await addMemory(text, {
-            endpoint: endpointOverride,
+            testRepoPath,
             groupId: `${baseGroupId}-contract`,
           });
 
@@ -89,10 +101,6 @@ if (!memoryTestsEnabled) {
           assert.equal(result.action, 'add', 'action should be "add"');
           assert.ok(result.group, 'group should be present');
           assert.equal(result.text, text, 'text should match input');
-
-          if (isZepCloud) {
-            assert.equal(result.mode, 'zep-cloud', 'mode should be "zep-cloud"');
-          }
         }
       );
 
@@ -101,7 +109,7 @@ if (!memoryTestsEnabled) {
         { timeout: 30_000 },
         async () => {
           const result = await loadMemory({
-            endpoint: endpointOverride,
+            testRepoPath,
             groupId: `${baseGroupId}-contract`,
             limit: 5,
           });
@@ -111,10 +119,6 @@ if (!memoryTestsEnabled) {
           assert.equal(result.action, 'load', 'action should be "load"');
           assert.ok(result.group || result.groups, 'group(s) should be present');
           assert.ok(Array.isArray(result.facts), 'facts should be an array');
-
-          if (isZepCloud) {
-            assert.equal(result.mode, 'zep-cloud', 'mode should be "zep-cloud"');
-          }
         }
       );
     });
@@ -126,38 +130,40 @@ if (!memoryTestsEnabled) {
     describe('persistence', () => {
       test(
         'saves and loads memory within the same group',
-        { timeout: 60_000 },
+        { timeout: 30_000 },
         async () => {
           const groupId = `${baseGroupId}-save-load`;
           const uniqueId = randomUUID().slice(0, 8);
-          // Use meaningful content that LLM fact extraction will turn into facts
           const uniqueText = `DECISION: We decided to use PostgreSQL for project ${uniqueId} because it provides better JSON support and reliability`;
 
           // Add memory
           const addResult = await addMemory(uniqueText, {
-            endpoint: endpointOverride,
+            testRepoPath,
             groupId,
           });
           assert.equal(addResult.status, 'ok');
           assert.equal(addResult.text, uniqueText);
 
-          // Wait for eventual consistency (Graphiti processes asynchronously)
-          // LLM fact extraction takes time on both local and cloud
-          await delay(isZepCloud ? 10000 : 10000);
+          // git-mem is synchronous - no delay needed
 
           // Load and verify
           const loadResult = await loadMemory({
-            endpoint: endpointOverride,
+            testRepoPath,
             groupId,
             limit: 25,
           });
 
-          // Both Zep Cloud and local Graphiti use LLM fact extraction,
-          // so we verify facts exist rather than exact text match
+          // git-mem stores raw content - verify facts exist
           assert.ok(
             loadResult.facts.length >= 1,
             `Group should have facts after add operation (got ${loadResult.facts.length} facts)`
           );
+
+          // Verify the content is retrievable
+          const found = loadResult.facts.some(
+            (fact) => (fact.fact || fact.name || '').includes(uniqueId)
+          );
+          assert.ok(found, 'Added memory should be retrievable');
         }
       );
     });
@@ -169,7 +175,7 @@ if (!memoryTestsEnabled) {
     describe('group isolation', () => {
       test(
         'memories remain isolated across distinct groups',
-        { timeout: 60_000 },
+        { timeout: 30_000 },
         async () => {
           const sourceGroup = `${baseGroupId}-isolation-src`;
           const isolationGroup = `${baseGroupId}-isolation-dst`;
@@ -177,14 +183,15 @@ if (!memoryTestsEnabled) {
 
           // Add to source group
           await addMemory(uniqueText, {
-            endpoint: endpointOverride,
+            testRepoPath,
             groupId: sourceGroup,
           });
-          await delay(isZepCloud ? 10000 : 2000);
+
+          // git-mem is synchronous - no delay needed
 
           // Load from isolation group (should NOT find the memory)
           const isolationLoad = await loadMemory({
-            endpoint: endpointOverride,
+            testRepoPath,
             groupId: isolationGroup,
             limit: 20,
           });
@@ -206,7 +213,7 @@ if (!memoryTestsEnabled) {
         { timeout: 30_000 },
         async () => {
           const result = await addMemory(`Tagged memory ${randomUUID()}`, {
-            endpoint: endpointOverride,
+            testRepoPath,
             groupId: `${baseGroupId}-tags`,
             tag: 'code:decision',
           });
@@ -222,7 +229,7 @@ if (!memoryTestsEnabled) {
           const result = await addMemory(
             `DECISION: Use TypeScript ${randomUUID()}`,
             {
-              endpoint: endpointOverride,
+              testRepoPath,
               groupId: `${baseGroupId}-tags`,
             }
           );
@@ -240,7 +247,7 @@ if (!memoryTestsEnabled) {
         { timeout: 30_000 },
         async () => {
           const result = await addMemory(`BUG: Found null pointer ${randomUUID()}`, {
-            endpoint: endpointOverride,
+            testRepoPath,
             groupId: `${baseGroupId}-tags`,
           });
 
@@ -260,27 +267,18 @@ if (!memoryTestsEnabled) {
     describe('smoke suite', () => {
       test(
         'confirms persistence and isolation',
-        { timeout: 120_000 },
+        { timeout: 30_000 },
         async () => {
           const suiteResult = await runMemorySmokeSuite({
-            endpoint: endpointOverride,
+            testRepoPath,
             groupId: `${baseGroupId}-suite`,
             isolationGroupId: `${baseGroupId}-suite-alt`,
           });
 
           assert.equal(suiteResult.addResponse.status, 'ok');
 
-          if (isZepCloud) {
-            // Zep Cloud transforms content via LLM fact extraction,
-            // so we verify facts exist rather than exact text match
-            assert.ok(
-              suiteResult.loadResponse.facts.length >= 1,
-              'Should have facts in group after add operation'
-            );
-          } else {
-            // Local MCP preserves exact text
-            assert.ok(suiteResult.primaryFound, 'Smoke suite should find added memory');
-          }
+          // git-mem stores raw content - verify memory is found
+          assert.ok(suiteResult.primaryFound, 'Smoke suite should find added memory');
 
           assert.ok(
             !suiteResult.isolationLeaked,
