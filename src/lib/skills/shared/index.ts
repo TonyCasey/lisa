@@ -1,12 +1,13 @@
 /**
  * Shared modules for Lisa skills.
- * 
+ *
  * This module provides common clients and utilities used by all skills:
- * - Client interfaces and implementations for Neo4j, MCP, and Zep
+ * - git-mem factory for memory operations
+ * - GitHub CLI client
  * - Utility functions for caching, logging, environment, and group IDs
- * 
+ *
  * Usage:
- *   import { createMcpClient, createLogger, loadEnv, getCurrentGroupId } from '../shared';
+ *   import { createGitMem, createLogger, loadEnv, getCurrentGroupId } from '../shared';
  */
 
 // Re-export everything from clients

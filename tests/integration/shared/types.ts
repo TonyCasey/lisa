@@ -8,14 +8,14 @@
  * Options for CLI runner execution
  */
 export interface ICliRunnerOptions {
-  /** Override endpoint URL (e.g., for custom Graphiti server) */
-  endpoint?: string;
-  /** Group ID for memory/task isolation */
+  /** Group ID for memory/task isolation (stored as group:<id> tag in git-mem) */
   groupId?: string;
   /** Command timeout in milliseconds (default: 30000) */
   timeout?: number;
   /** Working directory for command execution */
   cwd?: string;
+  /** Path to test git repository (overrides cwd for git-mem operations) */
+  testRepoPath?: string;
   /** Additional environment variables to pass to child process */
   env?: Record<string, string>;
 }
@@ -42,10 +42,10 @@ export interface ICliResult<T> {
 export interface IIntegrationTestConfig {
   /** Whether tests are enabled */
   enabled: boolean;
-  /** Storage mode (local MCP or zep-cloud) */
-  storageMode: 'local' | 'zep-cloud';
-  /** Optional endpoint override */
-  endpoint?: string;
+  /** Storage backend (git-mem) */
+  storageMode: 'git-mem';
+  /** Path to test git repository */
+  testRepoPath: string;
   /** Base group ID for test isolation */
   groupId: string;
   /** Test timeout in milliseconds */

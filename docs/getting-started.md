@@ -1,87 +1,62 @@
 # Getting Started with Lisa
 
-Lisa gives your AI coding assistants persistent memory. Once installed, Claude Code, OpenCode, and other AI assistants automatically remember your project context, decisions, and coding patterns across sessions.
+Lisa gives your AI coding assistants persistent memory. Once installed, Claude Code and other AI assistants automatically remember your project context, decisions, and coding patterns across sessions.
 
 ## Prerequisites
 
 - **Node.js** 18+
-- **Docker** (optional, for self-hosted Graphiti)
-- A project directory where you want memory enabled
+- **Git** repository (memories are stored in git notes)
+
+That's it! No Docker, no external services, no API keys required.
 
 ## Quick Start
-
-### Option 1: Self-Hosted with Docker (Recommended)
-
-This runs Neo4j and Graphiti locally via Docker.
 
 ```bash
 # Install Lisa globally
 npm install -g @tonycasey/lisa
 
-# Change directory to your project
+# Navigate to your project (must be a git repository)
 cd your-project
 
-# IMPORTANT: Lisa's Storage requires an OpenAI API key.
-# Create a .env file in your project root with:
-#   OPENAI_API_KEY=sk-proj-...
-# Or export it in your terminal:
-#   export OPENAI_API_KEY=sk-proj-...
-
-# Initialize and start Docker containers
+# Initialize Lisa
 lisa init
-lisa up
 ```
 
-Wait for Docker containers to start (~30 seconds), then start coding with your AI assistant.
+Lisa is now ready. Start coding with Claude Code and your context will persist across sessions.
 
-### Option 2: Zep Cloud (Managed)
+## How It Works
 
-No Docker required - uses [Zep's](https://www.getzep.com/) hosted service.
+Lisa uses **git-mem** to store memories directly in your git repository using git notes (`refs/notes/mem`). This means:
 
-```bash
-npm install -g @tonycasey/lisa
-cd your-project
-lisa init --mode zep-cloud
-```
+- **No external services** - Everything stays in your repo
+- **Version controlled** - Memories travel with your code
+- **Instant access** - No network latency, synchronous reads/writes
+- **Private by default** - Your data never leaves your machine
 
-You'll be prompted for your Zep API key and project ID.
+### Session Hooks
 
-### Option 3: Configure Later
+When you use Claude Code, Lisa automatically:
 
-Scaffold the project structure now, configure storage later.
+1. **Session Start** - Loads relevant memories, tasks, and recent git history
+2. **Session Stop** - Analyzes your session and captures significant work
 
-```bash
-npm install -g @tonycasey/lisa
-cd your-project
-lisa init --mode skip
-```
+See [Architecture Flows](./architecture/flows.md) for detailed sequence diagrams.
 
-## CLI Support Options
-
-Lisa supports multiple AI coding assistants. During `lisa init`, you can choose which to support:
+## CLI Commands
 
 ```bash
-# Support both Claude Code and OpenCode (default)
-lisa init
-
-# Claude Code only
-lisa init --claude-only
-
-# OpenCode only
-lisa init --opencode-only
-```
-
-## Verify Installation
-
-```bash
+# Check installation status
 lisa doctor
-```
 
-You should see green checkmarks for:
-- Docker (if using local mode)
-- Docker Compose
-- Compose file found
-- MCP reachable
+# Memory operations
+lisa memory add "DECISION: Using PostgreSQL for better JSON support"
+lisa memory load --limit 20
+
+# Task management
+lisa tasks add "Implement user authentication" --status todo
+lisa tasks list
+lisa tasks update "Implement user authentication" --status done
+```
 
 ## What Gets Created
 
@@ -91,32 +66,113 @@ After running `lisa init`:
 your-project/
 ├── .lisa/
 │   ├── skills/           # Memory and task skills
+│   │   ├── memory/
+│   │   ├── tasks/
+│   │   ├── lisa/
+│   │   └── ...
 │   ├── rules/            # Coding standards
-│   ├── .env              # Configuration (LOG_LEVEL, endpoints, etc.)
+│   │   ├── shared/       # Language-agnostic rules
+│   │   └── typescript/   # TypeScript-specific rules
+│   └── .env              # Configuration (LOG_LEVEL, etc.)
 │
-├── .claude/              # (if Claude Code selected)
-│   ├── settings.json     # Hook configuration (CLI commands)
-│   ├── skills/
-│   │   └── lisa/ -> ../../.lisa/skills  # Subdirectory symlink
-│   └── rules/
-│       └── lisa/ -> ../../.lisa/rules   # Subdirectory symlink
+├── .claude/              # Claude Code integration
+│   ├── settings.json     # Hook configuration
+│   ├── hooks/            # Session start/stop hooks
+│   ├── skills -> ../.lisa/skills
+│   └── rules -> ../.lisa/rules
 │
-├── .opencode/            # (if OpenCode selected)
-│   ├── plugin/
-│   │   └── lisa.js       # OpenCode plugin
-│   └── skills/
-│       ├── memory/ -> ../../.lisa/skills/memory
-│       ├── tasks/ -> ../../.lisa/skills/tasks
-│       └── ...           # Individual skill symlinks
-│
-└── docker-compose.graphiti.yml  # (if using Docker)
+└── .gitattributes        # (updated to handle notes refs)
 ```
 
-**Note:** Lisa uses subdirectory symlinks (e.g., `.claude/skills/lisa/`) instead of replacing entire folders. This preserves any existing user files in `.claude/skills/` or `.claude/rules/`.
+## Verify Installation
+
+```bash
+lisa doctor
+```
+
+You should see:
+
+```
+✓ Lisa Structure: .lisa directory configured
+✓ Claude Code Hooks: 3 hook(s) configured
+✓ Git Repository: Initialized
+✓ git-mem: Available
+
+Overall: OK
+```
+
+## Using Skills
+
+Skills are invoked in Claude Code with `/skill-name`:
+
+| Skill | Trigger | Description |
+|-------|---------|-------------|
+| `/memory` | "remember", "recall" | Store and retrieve project memories |
+| `/tasks` | "tasks", "add task" | Manage work items |
+| `/lisa` | "lisa", "hey lisa" | Natural language interface |
+| `/github` | "create pr", "github issues" | GitHub workflow helpers |
+
+### Memory Types
+
+Use prefixes for automatic categorization:
+
+```bash
+lisa memory add "DECISION: Use JWT for authentication"     # → code:decision
+lisa memory add "BUG: Race condition in connection pool"   # → context:bug
+lisa memory add "CONVENTION: Files use kebab-case"         # → code:convention
+lisa memory add "MILESTONE: Auth module complete"          # → milestone
+```
+
+### Task Workflow
+
+```bash
+# Create a task
+lisa tasks add "Fix login validation" --status todo
+
+# Start working on it
+lisa tasks update "Fix login validation" --status doing
+
+# Mark complete
+lisa tasks update "Fix login validation" --status done
+```
+
+## Sharing Memories
+
+Since memories are stored in git notes, you can share them:
+
+```bash
+# Push memories to remote
+git push origin refs/notes/mem
+
+# Fetch memories from remote
+git fetch origin refs/notes/mem:refs/notes/mem
+```
+
+**Note:** By default, git doesn't push/fetch notes. Add to your `.git/config`:
+
+```ini
+[remote "origin"]
+    fetch = +refs/notes/*:refs/notes/*
+    push = refs/notes/*
+```
+
+## Uninstalling
+
+To remove Lisa from a project:
+
+```bash
+# Remove Lisa directories
+rm -rf .lisa .claude/hooks .claude/skills .claude/rules
+
+# Remove git notes (optional - deletes all memories)
+git notes --ref=mem prune
+git update-ref -d refs/notes/mem
+```
 
 ## Next Steps
 
 - [Commands Reference](./commands.md) - Full CLI documentation
 - [Configuration](./configuration.md) - Environment variables and settings
 - [Using Skills](./skills.md) - How memory and tasks work
+- [Architecture Flows](./architecture/flows.md) - How session hooks and skills work under the hood
 - [Troubleshooting](./troubleshooting.md) - Common issues and solutions

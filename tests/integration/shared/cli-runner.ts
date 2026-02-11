@@ -2,36 +2,18 @@
  * Shared CLI Runner for Skill Integration Tests
  *
  * Provides utilities for executing skill commands via the Lisa CLI and parsing JSON output.
- * Automatically loads environment variables from root .env file.
+ * Used for git-mem integration tests.
  */
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
-import { config as dotenvConfig } from 'dotenv';
 import type { ICliRunnerOptions, ICliResult } from './types';
 
 const execAsync = promisify(exec);
 
-// Load environment variables from root .env file
+// Project root for finding CLI
 const projectRoot = path.resolve(__dirname, '..', '..', '..');
-const envPath = path.join(projectRoot, '.env');
-
-if (fs.existsSync(envPath)) {
-  dotenvConfig({ path: envPath });
-}
-
-// Cache loaded env vars for passing to child processes
-const loadedEnv: Record<string, string> = {};
-if (process.env.ZEP_API_KEY) {
-  loadedEnv.ZEP_API_KEY = process.env.ZEP_API_KEY;
-}
-if (process.env.STORAGE_MODE) {
-  loadedEnv.STORAGE_MODE = process.env.STORAGE_MODE;
-}
-if (process.env.GRAPHITI_ENDPOINT) {
-  loadedEnv.GRAPHITI_ENDPOINT = process.env.GRAPHITI_ENDPOINT;
-}
 
 /**
  * Check if the Lisa CLI is available.
@@ -84,30 +66,30 @@ export async function runSkillScript<T>(
   options: ICliRunnerOptions = {}
 ): Promise<ICliResult<T>> {
   const {
-    endpoint,
     groupId,
     timeout = 30000,
     cwd = projectRoot,
+    testRepoPath,
     env = {},
   } = options;
 
   const cmdArgs = [...args];
-  if (endpoint) cmdArgs.push('--endpoint', endpoint);
   if (groupId) cmdArgs.push('--group', groupId);
-  // Note: --cache flag may not be supported by CLI commands
 
   // Use lisa CLI command (either local dist or global installation)
   const distCli = path.join(projectRoot, 'dist', 'lib', 'cli.js');
   const lisaCmd = fs.existsSync(distCli) ? `node ${distCli}` : 'lisa';
   const cmd = `${lisaCmd} ${skillName} ${cmdArgs.join(' ')}`;
 
+  // Use testRepoPath as cwd if provided (for git-mem operations)
+  const effectiveCwd = testRepoPath || cwd;
+
   try {
     const { stdout, stderr } = await execAsync(cmd, {
       timeout,
-      cwd,
+      cwd: effectiveCwd,
       env: {
         ...process.env,
-        ...loadedEnv,
         ...env,
       },
     });

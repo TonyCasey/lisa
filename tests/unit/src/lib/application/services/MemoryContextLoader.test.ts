@@ -1,13 +1,13 @@
 /**
  * Tests for MemoryContextLoader
  *
- * Tests memory loading strategy routing:
- * - MCP fallback when no router or Neo4j unavailable
- * - DAL path with Neo4j for date-ordered facts
+ * Tests memory loading via git-mem:
  * - Init-review loading via searchFacts
- * - Node fallback when no facts found
+ * - Fact loading via loadFactsDateOrdered
  * - Task conversion to IMemoryItem format
+ * - Date options passing
  * - Graceful failure handling for each sub-operation
+ * - Group ID merging and deduplication
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
@@ -15,14 +15,11 @@ import { MemoryContextLoader } from '../../../../../../src/lib/application/servi
 import type {
   IMemoryService,
   ITaskService,
-  IMcpClient,
   IMemoryItem,
   ITask,
-  IMemoryResult,
   ILogger,
   IMemoryDateOptions,
 } from '../../../../../../src/lib/domain';
-import type { IRepositoryRouter } from '../../../../../../src/lib/domain/interfaces/dal';
 
 // ============================================================================
 // Mock Factories
@@ -39,20 +36,15 @@ function createMockMemoryItem(overrides: Partial<IMemoryItem> = {}): IMemoryItem
   };
 }
 
-function createMockMemoryResult(overrides: Partial<IMemoryResult> = {}): IMemoryResult {
-  return {
-    facts: [],
-    nodes: [],
-    tasks: [],
-    initReview: null,
-    timedOut: false,
-    ...overrides,
-  };
-}
-
 function createMockMemory(overrides: Partial<IMemoryService> = {}): IMemoryService {
   return {
-    loadMemory: async () => createMockMemoryResult(),
+    loadMemory: async () => ({
+      facts: [],
+      nodes: [],
+      tasks: [],
+      initReview: null,
+      timedOut: false,
+    }),
     loadFactsDateOrdered: async () => [],
     searchFacts: async () => [],
     saveMemory: async () => {},
@@ -99,36 +91,6 @@ function createMockTaskService(tasks: readonly ITask[] = []): ITaskService {
   };
 }
 
-function createMockMcp(overrides: Partial<IMcpClient> = {}): IMcpClient {
-  return {
-    initialize: async () => 'session-123',
-    call: async <T>() => [{} as T, 'session-123'] as [T, string],
-    ping: async () => true,
-    getSessionId: () => 'session-123',
-    ...overrides,
-  };
-}
-
-function createMockRouter(
-  neo4jAvailable: boolean,
-  overrides: Partial<IRepositoryRouter> = {}
-): IRepositoryRouter {
-  return {
-    isBackendAvailable: (backend: string) => {
-      if (backend === 'neo4j') return neo4jAvailable;
-      return false;
-    },
-    getMemoryRepository: () => { throw new Error('Not implemented in mock'); },
-    getTaskRepository: () => { throw new Error('Not implemented in mock'); },
-    getMemoryRepositoryByBackend: () => null,
-    getTaskRepositoryByBackend: () => null,
-    getAvailableBackends: () => neo4jAvailable ? ['neo4j', 'mcp'] : ['mcp'],
-    getRoutingRules: () => [],
-    setRoutingRule: () => {},
-    ...overrides,
-  } as IRepositoryRouter;
-}
-
 function createMockLogger(): ILogger {
   return {
     trace: () => {},
@@ -151,118 +113,23 @@ const defaultAliases = ['test-project', 'tp'] as const;
 const defaultBranch = 'main';
 
 describe('MemoryContextLoader', () => {
-  describe('MCP fallback path', () => {
-    it('should fall back to MCP when no router provided', async () => {
-      let loadMemoryCalled = false;
-      let receivedTimeout: number | undefined;
-
-      const memory = createMockMemory({
-        loadMemory: async (_groupIds, _aliases, _branch, timeoutMs) => {
-          loadMemoryCalled = true;
-          receivedTimeout = timeoutMs;
-          return createMockMemoryResult({
-            facts: [createMockMemoryItem({ fact: 'MCP fact' })],
-          });
-        },
-      });
-
-      // No router provided
-      const loader = new MemoryContextLoader(
-        memory,
-        createMockTaskService(),
-        createMockMcp()
-      );
-
-      const result = await loader.loadMemory(
-        defaultGroupIds,
-        defaultAliases,
-        defaultBranch
-      );
-
-      assert.strictEqual(loadMemoryCalled, true, 'loadMemory should have been called');
-      assert.strictEqual(receivedTimeout, 5000, 'should pass 5000ms timeout');
-      assert.strictEqual(result.facts.length, 1);
-      assert.strictEqual(result.facts[0].fact, 'MCP fact');
-    });
-
-    it('should fall back to MCP when router says neo4j not available', async () => {
-      let loadMemoryCalled = false;
-
-      const memory = createMockMemory({
-        loadMemory: async () => {
-          loadMemoryCalled = true;
-          return createMockMemoryResult({
-            facts: [createMockMemoryItem({ fact: 'Fallback fact' })],
-          });
-        },
-      });
-
-      const router = createMockRouter(false); // neo4j NOT available
-
-      const loader = new MemoryContextLoader(
-        memory,
-        createMockTaskService(),
-        createMockMcp(),
-        router
-      );
-
-      const result = await loader.loadMemory(
-        defaultGroupIds,
-        defaultAliases,
-        defaultBranch
-      );
-
-      assert.strictEqual(loadMemoryCalled, true, 'loadMemory should have been called as fallback');
-      assert.strictEqual(result.facts.length, 1);
-      assert.strictEqual(result.facts[0].fact, 'Fallback fact');
-    });
-  });
-
-  describe('DAL path (neo4j available)', () => {
-    it('should use DAL path when router reports neo4j available', async () => {
-      let searchFactsCalled = false;
+  describe('fact loading', () => {
+    it('should load facts via loadFactsDateOrdered', async () => {
       let loadFactsCalled = false;
-      let getTasksCalled = false;
-      let loadMemoryCalled = false;
-
-      const facts = [
-        createMockMemoryItem({ fact: 'DAL fact 1' }),
-        createMockMemoryItem({ fact: 'DAL fact 2' }),
-      ];
-
-      const tasks = [
-        createMockTask({ key: 'task-1', title: 'Task One', status: 'ready' }),
-      ];
 
       const memory = createMockMemory({
-        loadMemory: async () => {
-          loadMemoryCalled = true;
-          return createMockMemoryResult();
-        },
-        searchFacts: async () => {
-          searchFactsCalled = true;
-          return [];
-        },
         loadFactsDateOrdered: async () => {
           loadFactsCalled = true;
-          return facts;
+          return [
+            createMockMemoryItem({ fact: 'Fact 1' }),
+            createMockMemoryItem({ fact: 'Fact 2' }),
+          ];
         },
       });
 
-      const taskService = createMockTaskService(tasks);
-      const origGetTasksSimple = taskService.getTasksSimple;
-      taskService.getTasksSimple = async (groupIds) => {
-        getTasksCalled = true;
-        return origGetTasksSimple(groupIds);
-      };
-
-      const router = createMockRouter(true); // neo4j available
-
       const loader = new MemoryContextLoader(
         memory,
-        taskService,
-        createMockMcp(),
-        router,
+        createMockTaskService(),
         createMockLogger()
       );
 
@@ -272,14 +139,31 @@ describe('MemoryContextLoader', () => {
         defaultBranch
       );
 
-      assert.strictEqual(loadMemoryCalled, false, 'loadMemory (MCP path) should NOT be called');
-      assert.strictEqual(searchFactsCalled, true, 'searchFacts should have been called for init-review');
       assert.strictEqual(loadFactsCalled, true, 'loadFactsDateOrdered should have been called');
-      assert.strictEqual(getTasksCalled, true, 'getTasksSimple should have been called');
       assert.strictEqual(result.facts.length, 2);
-      assert.strictEqual(result.tasks.length, 1);
+      assert.strictEqual(result.facts[0].fact, 'Fact 1');
+      assert.strictEqual(result.facts[1].fact, 'Fact 2');
     });
 
+    it('should handle empty facts result', async () => {
+      const loader = new MemoryContextLoader(
+        createMockMemory(),
+        createMockTaskService(),
+        createMockLogger()
+      );
+
+      const result = await loader.loadMemory(
+        defaultGroupIds,
+        defaultAliases,
+        defaultBranch
+      );
+
+      assert.strictEqual(result.facts.length, 0);
+      assert.strictEqual(result.timedOut, false);
+    });
+  });
+
+  describe('init-review loading', () => {
     it('should load init-review via searchFacts with init-review query', async () => {
       let receivedQuery: string | undefined;
       let receivedLimit: number | undefined;
@@ -295,16 +179,12 @@ describe('MemoryContextLoader', () => {
             }),
           ];
         },
-        loadFactsDateOrdered: async () => [createMockMemoryItem()], // return facts so nodes path is skipped
+        loadFactsDateOrdered: async () => [createMockMemoryItem()],
       });
-
-      const router = createMockRouter(true);
 
       const loader = new MemoryContextLoader(
         memory,
         createMockTaskService(),
-        createMockMcp(),
-        router,
         createMockLogger()
       );
 
@@ -335,13 +215,9 @@ describe('MemoryContextLoader', () => {
         loadFactsDateOrdered: async () => [createMockMemoryItem()],
       });
 
-      const router = createMockRouter(true);
-
       const loader = new MemoryContextLoader(
         memory,
         createMockTaskService(),
-        createMockMcp(),
-        router,
         createMockLogger()
       );
 
@@ -363,13 +239,9 @@ describe('MemoryContextLoader', () => {
         loadFactsDateOrdered: async () => [createMockMemoryItem()],
       });
 
-      const router = createMockRouter(true);
-
       const loader = new MemoryContextLoader(
         memory,
         createMockTaskService(),
-        createMockMcp(),
-        router,
         createMockLogger()
       );
 
@@ -380,134 +252,6 @@ describe('MemoryContextLoader', () => {
       );
 
       assert.strictEqual(result.initReview, null);
-    });
-
-    it('should fall back to nodes via MCP when no facts found', async () => {
-      let mcpCallMethod: string | undefined;
-      let mcpCallParams: Record<string, unknown> | undefined;
-
-      const memory = createMockMemory({
-        searchFacts: async () => [],
-        loadFactsDateOrdered: async () => [], // No facts returned
-      });
-
-      const mcp = createMockMcp({
-        call: async <T>(method: string, params?: Record<string, unknown>) => {
-          mcpCallMethod = method;
-          mcpCallParams = params;
-          const response = {
-            result: {
-              nodes: [
-                createMockMemoryItem({ uuid: 'node-1', name: 'Node One' }),
-                createMockMemoryItem({ uuid: 'node-2', name: 'Node Two' }),
-              ],
-            },
-          };
-          return [response as T, 'session-123'] as [T, string];
-        },
-      });
-
-      const router = createMockRouter(true);
-
-      const loader = new MemoryContextLoader(
-        memory,
-        createMockTaskService(),
-        mcp,
-        router,
-        createMockLogger()
-      );
-
-      const result = await loader.loadMemory(
-        defaultGroupIds,
-        defaultAliases,
-        defaultBranch
-      );
-
-      assert.strictEqual(result.facts.length, 0, 'no facts expected');
-      assert.ok(result.nodes.length > 0, 'should have loaded nodes as fallback');
-      assert.strictEqual(mcpCallMethod, 'search_nodes', 'should call search_nodes on MCP');
-      assert.ok(mcpCallParams, 'MCP call should have params');
-      assert.ok(
-        Array.isArray(mcpCallParams?.group_ids),
-        'params should include group_ids'
-      );
-    });
-
-    it('should deduplicate nodes across project aliases', async () => {
-      const sharedNode = createMockMemoryItem({ uuid: 'shared-uuid', name: 'Shared Node' });
-
-      const mcp = createMockMcp({
-        call: async <T>() => {
-          const response = {
-            result: {
-              nodes: [sharedNode],
-            },
-          };
-          return [response as T, 'session-123'] as [T, string];
-        },
-      });
-
-      const memory = createMockMemory({
-        searchFacts: async () => [],
-        loadFactsDateOrdered: async () => [], // No facts -> triggers node fallback
-      });
-
-      const router = createMockRouter(true);
-
-      // Two aliases means two MCP calls, both returning the same node
-      const loader = new MemoryContextLoader(
-        memory,
-        createMockTaskService(),
-        mcp,
-        router,
-        createMockLogger()
-      );
-
-      const result = await loader.loadMemory(
-        defaultGroupIds,
-        ['alias-a', 'alias-b'],
-        defaultBranch
-      );
-
-      // Should deduplicate by uuid
-      assert.strictEqual(result.nodes.length, 1, 'duplicates should be removed');
-      assert.strictEqual(result.nodes[0].uuid, 'shared-uuid');
-    });
-
-    it('should not load nodes when facts are found', async () => {
-      let mcpCalled = false;
-
-      const memory = createMockMemory({
-        searchFacts: async () => [],
-        loadFactsDateOrdered: async () => [
-          createMockMemoryItem({ fact: 'Has facts' }),
-        ],
-      });
-
-      const mcp = createMockMcp({
-        call: async <T>() => {
-          mcpCalled = true;
-          return [{} as T, 'session-123'] as [T, string];
-        },
-      });
-
-      const router = createMockRouter(true);
-
-      const loader = new MemoryContextLoader(
-        memory,
-        createMockTaskService(),
-        mcp,
-        router,
-        createMockLogger()
-      );
-
-      await loader.loadMemory(
-        defaultGroupIds,
-        defaultAliases,
-        defaultBranch
-      );
-
-      assert.strictEqual(mcpCalled, false, 'should not call MCP for nodes when facts exist');
     });
   });
 
@@ -522,8 +266,6 @@ describe('MemoryContextLoader', () => {
         }),
       ];
 
-      const router = createMockRouter(true);
-
       const memory = createMockMemory({
         searchFacts: async () => [],
         loadFactsDateOrdered: async () => [createMockMemoryItem()],
@@ -532,8 +274,6 @@ describe('MemoryContextLoader', () => {
       const loader = new MemoryContextLoader(
         memory,
         createMockTaskService(tasks),
-        createMockMcp(),
-        router,
         createMockLogger()
       );
 
@@ -567,8 +307,6 @@ describe('MemoryContextLoader', () => {
         }),
       ];
 
-      const router = createMockRouter(true);
-
       const memory = createMockMemory({
         searchFacts: async () => [],
         loadFactsDateOrdered: async () => [createMockMemoryItem()],
@@ -577,8 +315,6 @@ describe('MemoryContextLoader', () => {
       const loader = new MemoryContextLoader(
         memory,
         createMockTaskService(tasks),
-        createMockMcp(),
-        router,
         createMockLogger()
       );
 
@@ -603,8 +339,6 @@ describe('MemoryContextLoader', () => {
         }),
       ];
 
-      const router = createMockRouter(true);
-
       const memory = createMockMemory({
         searchFacts: async () => [],
         loadFactsDateOrdered: async () => [createMockMemoryItem()],
@@ -613,8 +347,6 @@ describe('MemoryContextLoader', () => {
       const loader = new MemoryContextLoader(
         memory,
         createMockTaskService(tasks),
-        createMockMcp(),
-        router,
         createMockLogger()
       );
 
@@ -636,8 +368,6 @@ describe('MemoryContextLoader', () => {
         createMockTask({ key: 't3', title: 'Task 3', status: 'done' }),
       ];
 
-      const router = createMockRouter(true);
-
       const memory = createMockMemory({
         searchFacts: async () => [],
         loadFactsDateOrdered: async () => [createMockMemoryItem()],
@@ -646,8 +376,6 @@ describe('MemoryContextLoader', () => {
       const loader = new MemoryContextLoader(
         memory,
         createMockTaskService(tasks),
-        createMockMcp(),
-        router,
         createMockLogger()
       );
 
@@ -665,7 +393,7 @@ describe('MemoryContextLoader', () => {
   });
 
   describe('group ID merging', () => {
-    it('should merge hierarchicalGroupIds and projectAliases for DAL queries', async () => {
+    it('should merge hierarchicalGroupIds and projectAliases for queries', async () => {
       let receivedGroupIds: readonly string[] = [];
 
       const memory = createMockMemory({
@@ -676,13 +404,9 @@ describe('MemoryContextLoader', () => {
         loadFactsDateOrdered: async () => [createMockMemoryItem()],
       });
 
-      const router = createMockRouter(true);
-
       const loader = new MemoryContextLoader(
         memory,
         createMockTaskService(),
-        createMockMcp(),
-        router,
         createMockLogger()
       );
 
@@ -710,13 +434,9 @@ describe('MemoryContextLoader', () => {
         loadFactsDateOrdered: async () => [createMockMemoryItem()],
       });
 
-      const router = createMockRouter(true);
-
       const loader = new MemoryContextLoader(
         memory,
         createMockTaskService(),
-        createMockMcp(),
-        router,
         createMockLogger()
       );
 
@@ -758,13 +478,9 @@ describe('MemoryContextLoader', () => {
         return origGetTasks(groupIds);
       };
 
-      const router = createMockRouter(true);
-
       const loader = new MemoryContextLoader(
         memory,
         taskService,
-        createMockMcp(),
-        router,
         createMockLogger()
       );
 
@@ -800,13 +516,9 @@ describe('MemoryContextLoader', () => {
         return origGetTasks(groupIds);
       };
 
-      const router = createMockRouter(true);
-
       const loader = new MemoryContextLoader(
         memory,
         taskService,
-        createMockMcp(),
-        router,
         createMockLogger()
       );
 
@@ -837,13 +549,9 @@ describe('MemoryContextLoader', () => {
         updateTask: async () => { throw new Error('Task DB error'); },
       };
 
-      const router = createMockRouter(true);
-
       const loader = new MemoryContextLoader(
         memory,
         failingTaskService,
-        createMockMcp(),
-        router,
         createMockLogger()
       );
 
@@ -872,20 +580,9 @@ describe('MemoryContextLoader', () => {
         updateTask: async () => { throw new Error('Task error'); },
       };
 
-      // MCP call for nodes may also fail since facts are empty (triggering node fallback)
-      const mcp = createMockMcp({
-        call: async () => {
-          throw new Error('MCP node search failed');
-        },
-      });
-
-      const router = createMockRouter(true);
-
       const loader = new MemoryContextLoader(
         memory,
         failingTaskService,
-        mcp,
-        router,
         createMockLogger()
       );
 
@@ -903,85 +600,6 @@ describe('MemoryContextLoader', () => {
     });
   });
 
-  describe('branch tagging', () => {
-    it('should include repo and branch tags when building node search params', async () => {
-      let receivedParams: Record<string, unknown> | undefined;
-
-      const memory = createMockMemory({
-        searchFacts: async () => [],
-        loadFactsDateOrdered: async () => [], // No facts -> triggers node fallback
-      });
-
-      const mcp = createMockMcp({
-        call: async <T>(_method: string, params?: Record<string, unknown>) => {
-          receivedParams = params;
-          const response = { result: { nodes: [] } };
-          return [response as T, 'session-123'] as [T, string];
-        },
-      });
-
-      const router = createMockRouter(true);
-
-      const loader = new MemoryContextLoader(
-        memory,
-        createMockTaskService(),
-        mcp,
-        router,
-        createMockLogger()
-      );
-
-      await loader.loadMemory(
-        defaultGroupIds,
-        ['my-repo'],
-        'feature-branch'
-      );
-
-      assert.ok(receivedParams, 'MCP should have been called with params');
-      const tags = receivedParams?.tags as string[];
-      assert.ok(tags.includes('repo:my-repo'), 'should include repo tag');
-      assert.ok(tags.includes('branch:feature-branch'), 'should include branch tag');
-    });
-
-    it('should not include branch tag when branch is null', async () => {
-      let receivedParams: Record<string, unknown> | undefined;
-
-      const memory = createMockMemory({
-        searchFacts: async () => [],
-        loadFactsDateOrdered: async () => [],
-      });
-
-      const mcp = createMockMcp({
-        call: async <T>(_method: string, params?: Record<string, unknown>) => {
-          receivedParams = params;
-          const response = { result: { nodes: [] } };
-          return [response as T, 'session-123'] as [T, string];
-        },
-      });
-
-      const router = createMockRouter(true);
-
-      const loader = new MemoryContextLoader(
-        memory,
-        createMockTaskService(),
-        mcp,
-        router,
-        createMockLogger()
-      );
-
-      await loader.loadMemory(
-        defaultGroupIds,
-        ['my-repo'],
-        null // null branch
-      );
-
-      assert.ok(receivedParams, 'MCP should have been called');
-      const tags = receivedParams?.tags as string[];
-      assert.ok(tags.includes('repo:my-repo'), 'should include repo tag');
-      const branchTags = tags.filter((t) => t.startsWith('branch:'));
-      assert.strictEqual(branchTags.length, 0, 'should not include branch tag when null');
-    });
-  });
-
   describe('date options', () => {
     it('should pass date options to loadFactsDateOrdered', async () => {
       let receivedOptions: IMemoryDateOptions | undefined;
@@ -994,7 +612,6 @@ describe('MemoryContextLoader', () => {
         },
       });
 
-      const router = createMockRouter(true);
       const dateOptions: IMemoryDateOptions = {
         since: new Date('2026-01-01'),
         until: new Date('2026-01-31'),
@@ -1003,8 +620,6 @@ describe('MemoryContextLoader', () => {
       const loader = new MemoryContextLoader(
         memory,
         createMockTaskService(),
-        createMockMcp(),
-        router,
         createMockLogger()
       );
 
@@ -1022,37 +637,7 @@ describe('MemoryContextLoader', () => {
   });
 
   describe('result structure', () => {
-    it('should return correct IMemoryLoadResult shape on MCP path', async () => {
-      const memory = createMockMemory({
-        loadMemory: async () => createMockMemoryResult({
-          facts: [createMockMemoryItem()],
-          nodes: [createMockMemoryItem()],
-          tasks: [createMockMemoryItem()],
-          initReview: 'review text',
-          timedOut: false,
-        }),
-      });
-
-      const loader = new MemoryContextLoader(
-        memory,
-        createMockTaskService(),
-        createMockMcp()
-      );
-
-      const result = await loader.loadMemory(
-        defaultGroupIds,
-        defaultAliases,
-        defaultBranch
-      );
-
-      assert.ok('facts' in result, 'result should have facts');
-      assert.ok('nodes' in result, 'result should have nodes');
-      assert.ok('tasks' in result, 'result should have tasks');
-      assert.ok('initReview' in result, 'result should have initReview');
-      assert.ok('timedOut' in result, 'result should have timedOut');
-    });
-
-    it('should return correct IMemoryLoadResult shape on DAL path', async () => {
+    it('should return correct IMemoryLoadResult shape', async () => {
       const memory = createMockMemory({
         searchFacts: async () => [
           createMockMemoryItem({ tags: ['type:init-review'], fact: 'Init review content' }),
@@ -1060,13 +645,9 @@ describe('MemoryContextLoader', () => {
         loadFactsDateOrdered: async () => [createMockMemoryItem()],
       });
 
-      const router = createMockRouter(true);
-
       const loader = new MemoryContextLoader(
         memory,
         createMockTaskService([createMockTask()]),
-        createMockMcp(),
-        router,
         createMockLogger()
       );
 
@@ -1081,6 +662,22 @@ describe('MemoryContextLoader', () => {
       assert.ok(Array.isArray(result.tasks), 'tasks should be array');
       assert.strictEqual(typeof result.timedOut, 'boolean', 'timedOut should be boolean');
       assert.strictEqual(result.initReview, 'Init review content');
+    });
+
+    it('should always return empty nodes array (no MCP node fallback)', async () => {
+      const loader = new MemoryContextLoader(
+        createMockMemory(),
+        createMockTaskService(),
+        createMockLogger()
+      );
+
+      const result = await loader.loadMemory(
+        defaultGroupIds,
+        defaultAliases,
+        defaultBranch
+      );
+
+      assert.strictEqual(result.nodes.length, 0, 'nodes should always be empty with git-mem');
     });
   });
 });

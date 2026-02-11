@@ -2,7 +2,7 @@
 /**
  * Prompt Capture CLI - thin entry point.
  *
- * Stores user prompts as episodes in Graphiti MCP.
+ * Stores user prompts as memories in git-mem.
  *
  * Usage: node prompt.js --text "prompt text" [--role user] [--source user-prompt] [--force]
  */
@@ -10,13 +10,11 @@
 export {};
 
 async function main(): Promise<void> {
-  const { loadEnv } = await import('../shared/utils/env');
   const { getCurrentGroupId } = await import('../shared/group-id');
   const { popFlag, hasFlag } = await import('../shared/utils/cli');
-  const { createMcpClient, createMcpConfigFromEnv } = await import('../shared/clients');
+  const { createGitMem } = await import('../shared/clients');
   const { createPromptService } = await import('../shared/services');
 
-  const env = loadEnv();
   const args = process.argv.slice(2);
 
   const explicitGroup = popFlag(args, '--group', null);
@@ -36,8 +34,8 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const mcpClient = createMcpClient(createMcpConfigFromEnv(env.raw));
-  const service = createPromptService({ mcpClient });
+  const gitMem = createGitMem();
+  const service = createPromptService({ gitMem });
 
   try {
     const result = await service.addPrompt({ text, role, source, force, groupId });

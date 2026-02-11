@@ -1,8 +1,8 @@
 /**
- * Prompt service - captures user prompts to Graphiti MCP.
+ * Prompt service - captures user prompts to git-mem.
  */
 import crypto from 'crypto';
-import type { IMcpClient } from '../clients/interfaces/IMcpClient';
+import type { IMemoryService as IGitMemMemoryService } from 'git-mem/dist/index';
 
 // ============================================================================
 // Types
@@ -31,14 +31,14 @@ export interface IPromptService {
 }
 
 export interface IPromptServiceDependencies {
-  mcpClient: IMcpClient;
+  gitMem: IGitMemMemoryService;
 }
 
 /**
- * Creates a prompt service instance.
+ * Creates a prompt service instance backed by git-mem.
  */
 export function createPromptService(deps: IPromptServiceDependencies): IPromptService {
-  const { mcpClient } = deps;
+  const { gitMem } = deps;
 
   return {
     fingerprint(text: string): string {
@@ -53,31 +53,24 @@ export function createPromptService(deps: IPromptServiceDependencies): IPromptSe
       const fp = this.fingerprint(text);
       const fpTag = `fingerprint:${fp}`;
 
-      await mcpClient.initialize();
-
       // Check for duplicates unless force
       if (!force) {
-        try {
-          const searchParams = { query: fp, tags: [fpTag], max_nodes: 1, group_ids: [groupId] };
-          const existing = await mcpClient.rpcCall<{ nodes?: unknown[] }>('search_nodes', searchParams);
-          const nodes = existing?.nodes || [];
-          if (nodes.length > 0) {
-            return { status: 'skipped', reason: 'duplicate' };
-          }
-        } catch {
-          // Ignore dedupe errors
+        const { memories } = gitMem.recall(undefined, { limit: 200 });
+        const duplicate = memories.some(m => m.tags.includes(fpTag));
+        if (duplicate) {
+          return { status: 'skipped', reason: 'duplicate' };
         }
       }
 
-      const params = {
-        name: text.substring(0, 100),
-        episode_body: text,
-        source,
-        group_id: groupId,
-        tags: [fpTag, `role:${role}`, `source:${source}`],
-      };
+      const tags = [
+        `group:${groupId}`,
+        fpTag,
+        `role:${role}`,
+        `source:${source}`,
+        'prompt',
+      ];
 
-      await mcpClient.rpcCall('add_memory', params);
+      gitMem.remember(text, { tags });
 
       return { status: 'ok', action: 'add', group: groupId, role, source };
     },

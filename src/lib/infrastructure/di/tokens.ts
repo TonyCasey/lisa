@@ -11,15 +11,10 @@
 export const INFRA_TOKENS = {
   // Core
   Logger: Symbol.for('Lisa.Logger'),
-  McpClient: Symbol.for('Lisa.McpClient'),
-  
+
   // Context
   Context: Symbol.for('Lisa.Context'),
-  
-  // DAL
-  RepositoryRouter: Symbol.for('Lisa.RepositoryRouter'),
-  ConnectionManagers: Symbol.for('Lisa.ConnectionManagers'),
-  
+
   // Services
   MemoryService: Symbol.for('Lisa.MemoryService'),
   TaskService: Symbol.for('Lisa.TaskService'),
@@ -27,9 +22,6 @@ export const INFRA_TOKENS = {
   SessionCaptureService: Symbol.for('Lisa.SessionCaptureService'),
   RecursionService: Symbol.for('Lisa.RecursionService'),
   GitHubSyncService: Symbol.for('Lisa.GitHubSyncService'),
-  DeduplicationService: Symbol.for('Lisa.DeduplicationService'),
-  CurationService: Symbol.for('Lisa.CurationService'),
-  ConsolidationService: Symbol.for('Lisa.ConsolidationService'),
   PreferenceStore: Symbol.for('Lisa.PreferenceStore'),
   LlmConfigService: Symbol.for('Lisa.LlmConfigService'),
   LlmService: Symbol.for('Lisa.LlmService'),
@@ -37,9 +29,6 @@ export const INFRA_TOKENS = {
   LlmGuard: Symbol.for('Lisa.LlmGuard'),
   SummarizationService: Symbol.for('Lisa.SummarizationService'),
   TranscriptEnricher: Symbol.for('Lisa.TranscriptEnricher'),
-  CommitEnricher: Symbol.for('Lisa.CommitEnricher'),
-  LlmDeduplicationEnhancer: Symbol.for('Lisa.LlmDeduplicationEnhancer'),
-  NlCurationService: Symbol.for('Lisa.NlCurationService'),
 } as const;
 
 /**
@@ -48,7 +37,7 @@ export const INFRA_TOKENS = {
 export const APP_TOKENS = {
   // Mediator
   Mediator: Symbol.for('Lisa.Mediator'),
-  
+
   // Handlers
   SessionStartHandler: Symbol.for('Lisa.SessionStartHandler'),
   SessionStopHandler: Symbol.for('Lisa.SessionStopHandler'),
@@ -61,8 +50,6 @@ export const APP_TOKENS = {
 export const CONFIG_TOKENS = {
   ServiceConfig: Symbol.for('Lisa.ServiceConfig'),
   ProjectRoot: Symbol.for('Lisa.ProjectRoot'),
-  McpEndpoint: Symbol.for('Lisa.McpEndpoint'),
-  ApiKey: Symbol.for('Lisa.ApiKey'),
 } as const;
 
 /**

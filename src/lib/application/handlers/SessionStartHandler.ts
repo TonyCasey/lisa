@@ -1,24 +1,16 @@
 import type {
   SessionTrigger,
-  ILisaServices,
   ILisaContext,
   IMemoryService,
   ITaskService,
-  IMcpClient,
   IMemoryItem,
   ITask,
   ITaskCounts,
   ILogger,
   IMemoryDateOptions,
   IGitClient,
-  IGitTriageService,
   ITriageResult,
-  IScoredCommit,
-  ICommitEnricher,
-  IGitExtractor,
-  IGitIndexingService,
 } from '../../domain';
-import type { IRepositoryRouter } from '../../domain/interfaces/dal';
 import type { IGitHubSyncService } from '../../skills/shared/services/GitHubSyncService';
 import { emptyTaskCounts } from '../../domain';
 import type { ISessionStartResult } from '../interfaces';
@@ -28,7 +20,6 @@ import { SessionContextFormatter } from '../services/SessionContextFormatter';
 import { GitIntrospectionService } from '../services/GitIntrospectionService';
 import { MemoryContextLoader } from '../services/MemoryContextLoader';
 import { GitTriageService } from '../services/GitTriageService';
-import { createGitIndexingService } from '../services/GitIndexingService';
 
 /**
  * Configuration for recent memories display.
@@ -47,91 +38,31 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
   private readonly context: ILisaContext;
   private readonly memory: IMemoryService;
   private readonly tasks: ITaskService;
-  private readonly mcp: IMcpClient;
-  private readonly router?: IRepositoryRouter;
   private readonly logger?: ILogger;
   private readonly githubSync?: IGitHubSyncService;
-  private readonly commitEnricher?: ICommitEnricher;
-  private readonly gitExtractor?: IGitExtractor;
 
   // Extracted services
   private readonly formatter: SessionContextFormatter;
   private readonly gitService: GitIntrospectionService;
   private readonly memoryLoader: MemoryContextLoader;
-  private readonly triageService: IGitTriageService;
-  private readonly gitIndexingService: IGitIndexingService;
+  private readonly triageService: GitTriageService;
 
-  /**
-   * Create a new SessionStartHandler.
-   *
-   * @param services - Lisa services (legacy constructor for backward compatibility)
-   * @param gitClient - Git client (optional, creates default if not provided)
-   */
-  constructor(services: ILisaServices, gitClient?: IGitClient);
-
-  /**
-   * Create a new SessionStartHandler with individual service injection.
-   *
-   * @param context - Lisa context
-   * @param memory - Memory service
-   * @param tasks - Task service
-   * @param mcp - MCP client
-   * @param router - Repository router (optional)
-   * @param logger - Logger (optional)
-   * @param githubSync - GitHub sync service (optional)
-   * @param gitClient - Git client (optional)
-   */
   constructor(
     context: ILisaContext,
     memory: IMemoryService,
     tasks: ITaskService,
-    mcp: IMcpClient,
-    router?: IRepositoryRouter,
-    logger?: ILogger,
-    githubSync?: IGitHubSyncService,
-    gitClient?: IGitClient,
-  );
-
-  constructor(
-    contextOrServices: ILisaContext | ILisaServices,
-    memoryOrGitClient?: IMemoryService | IGitClient,
-    tasks?: ITaskService,
-    mcp?: IMcpClient,
-    router?: IRepositoryRouter,
     logger?: ILogger,
     githubSync?: IGitHubSyncService,
     gitClient?: IGitClient,
   ) {
-    let resolvedGitClient: IGitClient | undefined;
-
-    // Check if this is the legacy ILisaServices constructor
-    if ('context' in contextOrServices && 'memory' in contextOrServices) {
-      const services = contextOrServices as ILisaServices;
-      this.context = services.context;
-      this.memory = services.memory;
-      this.tasks = services.tasks;
-      this.mcp = services.mcp;
-      this.router = services.router;
-      this.logger = services.logger;
-      this.githubSync = services.githubSync;
-      this.commitEnricher = services.commitEnricher;
-      this.gitExtractor = services.gitExtractor;
-      resolvedGitClient = memoryOrGitClient as IGitClient | undefined;
-    } else {
-      // Individual service injection
-      this.context = contextOrServices as ILisaContext;
-      this.memory = memoryOrGitClient as IMemoryService;
-      this.tasks = tasks!;
-      this.mcp = mcp!;
-      this.router = router;
-      this.logger = logger;
-      this.githubSync = githubSync;
-      // Note: commitEnricher and gitExtractor are not available in this constructor path
-      // They can only be injected via the ILisaServices legacy constructor
-      resolvedGitClient = gitClient;
-    }
+    this.context = context;
+    this.memory = memory;
+    this.tasks = tasks;
+    this.logger = logger;
+    this.githubSync = githubSync;
 
     // Lazy-load default GitClient if none provided
+    let resolvedGitClient = gitClient;
     if (!resolvedGitClient) {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { GitClient } = require('../../infrastructure/git/GitClient');
@@ -144,12 +75,9 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
     this.memoryLoader = new MemoryContextLoader(
       this.memory,
       this.tasks,
-      this.mcp,
-      this.router,
       this.logger,
     );
     this.triageService = new GitTriageService(resolvedGitClient);
-    this.gitIndexingService = createGitIndexingService(this.memory, this.logger);
   }
 
   /**
@@ -179,23 +107,6 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
     const gitCommits = gitTriage
       ? []
       : await this.gitService.loadGitCommits(dateOptions.since, projectRoot);
-
-    // Enrich high-interest commits (fire-and-forget, non-blocking)
-    if (gitTriage && request.trigger === 'startup') {
-      this.enrichAndSaveCommits(gitTriage.highInterest, hierarchicalGroupIds[0])
-        .catch(err => this.logger?.warn('Commit enrichment failed', { error: (err as Error).message }));
-
-      // Phase 3: Extract facts from PRs via heuristics (fire-and-forget, non-blocking)
-      const prNumbers = gitTriage.highInterest
-        .map(c => c.signals.prNumber)
-        .filter((n): n is number => n !== null)
-        .filter((n, i, arr) => arr.indexOf(n) === i);  // Dedupe
-
-      if (prNumbers.length > 0) {
-        this.extractAndSavePRFacts(prNumbers, hierarchicalGroupIds[0])
-          .catch(err => this.logger?.warn('PR extraction failed', { error: (err as Error).message }));
-      }
-    }
 
     // Process tasks from memory
     const tasks = this.processTasks(memories.tasks);
@@ -282,182 +193,6 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
       this.logger?.warn('Git triage failed', { error: (error as Error).message });
       return null;
     }
-  }
-
-  /**
-   * Enrich high-interest commits and save facts to memory (fire-and-forget).
-   */
-  private async enrichAndSaveCommits(
-    commits: readonly IScoredCommit[],
-    groupId: string,
-  ): Promise<void> {
-    if (!this.commitEnricher || commits.length === 0) return;
-
-    try {
-      // Check which commits are already enriched (by short SHA tag)
-      const existingShas = await this.checkEnrichedCommits(groupId);
-      const toEnrich = commits.filter(c => !existingShas.has(c.commit.shortSha));
-
-      if (toEnrich.length === 0) {
-        this.logger?.debug('All commits already enriched, skipping');
-        return;
-      }
-
-      this.logger?.debug('Enriching commits', { count: toEnrich.length });
-
-      const result = await this.commitEnricher.enrich(toEnrich, { maxCommits: 5 });
-
-      if (result.facts.length === 0) {
-        this.logger?.debug('No facts extracted from commits');
-        return;
-      }
-
-      // Build a canonical short SHA map for consistent tagging (dedup uses shortSha)
-      const shaToShort = new Map<string, string>();
-      for (const commit of toEnrich) {
-        if (commit.commit.sha && commit.commit.shortSha) {
-          shaToShort.set(commit.commit.sha, commit.commit.shortSha);
-          shaToShort.set(commit.commit.shortSha, commit.commit.shortSha);
-        }
-      }
-
-      // Save facts to memory with proper metadata
-      for (const fact of result.facts) {
-        // Normalize SHA to short form for consistent dedup
-        const commitSha = shaToShort.get(fact.commitSha) ?? fact.commitSha;
-        const tags = [
-          'type:commit-enrichment',
-          `commit:${commitSha}`,
-          `factType:${fact.type}`,
-          `confidence:${fact.confidence}`,
-          'source:git-enrichment',
-          ...fact.tags.map(t => `tag:${t}`),
-        ];
-
-        await this.memory.addFact(groupId, fact.text, tags);
-      }
-
-      this.logger?.info('Commit enrichment complete', {
-        processed: result.commitsProcessed,
-        facts: result.facts.length,
-        inputTokens: result.usage.inputTokens,
-        outputTokens: result.usage.outputTokens,
-      });
-    } catch (error) {
-      // Non-blocking - log and continue
-      this.logger?.warn('Commit enrichment error', { error: (error as Error).message });
-    }
-  }
-
-  /**
-   * Extract facts from PRs using heuristic patterns and save to memory (fire-and-forget).
-   */
-  private async extractAndSavePRFacts(
-    prNumbers: readonly number[],
-    groupId: string,
-  ): Promise<void> {
-    if (!this.gitExtractor || prNumbers.length === 0) return;
-
-    try {
-      // Detect repo for GitHub API calls
-      const repo = await this.gitService.detectGitHubRepo(this.context.projectRoot);
-      if (!repo) {
-        this.logger?.debug('No GitHub repo detected, skipping PR extraction');
-        return;
-      }
-
-      // Check which PRs are already extracted
-      const existingPRs = await this.checkExtractedPRs(groupId);
-      const toExtract = prNumbers.filter(n => !existingPRs.has(n));
-
-      if (toExtract.length === 0) {
-        this.logger?.debug('All PRs already extracted, skipping');
-        return;
-      }
-
-      this.logger?.debug('Extracting facts from PRs', { count: toExtract.length, repo });
-
-      const result = await this.gitExtractor.extractFromPRs(toExtract, repo, { maxPRs: 5 });
-
-      if (result.facts.length === 0) {
-        this.logger?.debug('No facts extracted from PRs');
-        return;
-      }
-
-      // Delegate to GitIndexingService for quality tags and deduplication
-      const indexResult = await this.gitIndexingService.indexFacts(result.facts, groupId);
-
-      this.logger?.info('PR extraction complete', {
-        processed: result.prsProcessed,
-        skipped: result.prsSkipped,
-        factsExtracted: result.facts.length,
-        factsIndexed: indexResult.indexed,
-        duplicates: indexResult.duplicates,
-        patterns: result.patternsMatched,
-      });
-    } catch (error) {
-      // Non-blocking - log and continue
-      this.logger?.warn('PR extraction error', { error: (error as Error).message });
-    }
-  }
-
-  /**
-   * Check which PRs have already been extracted (by PR tag in memory).
-   */
-  private async checkExtractedPRs(groupId: string): Promise<Set<number>> {
-    const extractedPRs = new Set<number>();
-
-    try {
-      // Search for existing heuristic extraction facts
-      const existingFacts = await this.memory.searchFacts(
-        [groupId],
-        'type:heuristic-extraction',
-        100,
-      );
-
-      for (const fact of existingFacts) {
-        const prTag = fact.tags?.find(t => t.startsWith('pr:'));
-        if (prTag) {
-          const prNumber = parseInt(prTag.replace('pr:', ''), 10);
-          if (!isNaN(prNumber)) {
-            extractedPRs.add(prNumber);
-          }
-        }
-      }
-    } catch (error) {
-      // If search fails, return empty set (will re-extract)
-      this.logger?.debug('Could not check existing PR extractions', { error: (error as Error).message });
-    }
-
-    return extractedPRs;
-  }
-
-  /**
-   * Check which commits have already been enriched (by short SHA tag in memory).
-   */
-  private async checkEnrichedCommits(groupId: string): Promise<Set<string>> {
-    const enrichedShas = new Set<string>();
-
-    try {
-      // Search for existing commit enrichment facts
-      const existingFacts = await this.memory.searchFacts(
-        [groupId],
-        'type:commit-enrichment',
-        100,
-      );
-
-      for (const fact of existingFacts) {
-        const shaTag = fact.tags?.find(t => t.startsWith('commit:'));
-        if (shaTag) {
-          enrichedShas.add(shaTag.replace('commit:', ''));
-        }
-      }
-    } catch (error) {
-      // If search fails, return empty set (will re-enrich)
-      this.logger?.debug('Could not check existing enrichments', { error: (error as Error).message });
-    }
-
-    return enrichedShas;
   }
 
   /**

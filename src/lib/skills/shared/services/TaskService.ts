@@ -1,10 +1,8 @@
 /**
  * Task service implementation for skill scripts.
- * Uses Neo4j for reads (always), MCP or Zep for writes.
+ * Uses git-mem for all task operations.
  */
-import type { INeo4jClient } from '../clients/interfaces/INeo4jClient';
-import type { IMcpClient } from '../clients/interfaces/IMcpClient';
-import type { IZepClient } from '../clients/interfaces/IZepClient';
+import type { IMemoryService as IGitMemMemoryService } from 'git-mem/dist/index';
 import type {
   ITaskService,
   ITask,
@@ -18,33 +16,37 @@ import type {
 } from './interfaces';
 
 /**
- * Neo4j record structure for task queries.
- */
-interface Neo4jTaskRecord {
-  uuid: string;
-  name: string;
-  group_id: string;
-  created_at: string;
-  content?: string;
-}
-
-/**
  * Dependencies for creating a task service.
  */
 export interface ITaskServiceDependencies {
-  neo4jClient: INeo4jClient;
-  mcpClient: IMcpClient;
-  zepClient: IZepClient | null;
+  gitMem: IGitMemMemoryService;
 }
 
 /**
- * Creates a task service instance.
+ * Parse a task object from a git-mem memory's content field.
+ */
+function parseTaskContent(content: string): Record<string, unknown> | null {
+  try {
+    const obj = JSON.parse(content);
+    if (obj && obj.type === 'task') return obj;
+  } catch {
+    /* not JSON - ignore */
+  }
+  return null;
+}
+
+/**
+ * Creates a task service instance backed by git-mem.
  *
- * @param deps - Service dependencies (clients)
+ * Tasks are stored as git-mem memories with:
+ * - Tags: `task`, `group:<groupId>`, `status:<status>`, `task_id:<uuid>`
+ * - Content: JSON `{ type: "task", title, status, repo, assignee, ... }`
+ *
+ * @param deps - Service dependencies
  * @returns Task service implementation
  */
 export function createTaskService(deps: ITaskServiceDependencies): ITaskService {
-  const { neo4jClient, mcpClient: _mcpClient, zepClient } = deps;
+  const { gitMem } = deps;
 
   return {
     async list(
@@ -54,99 +56,74 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
       defaultAssignee: string,
       options?: ITaskLoadOptions
     ): Promise<ITaskListResult> {
-      // Always use Neo4j for list (better date ordering)
-      // Use parameterized query for groupIds to prevent Cypher injection
-      // Neo4j requires integer for LIMIT - ensure it's not a float
-      const params: Record<string, unknown> = {
-        groupIds,
-        limit: Math.floor(limit),
-      };
+      const { memories } = gitMem.recall(undefined, { limit: 500 });
 
-      // Build date filter clauses
-      const dateFilters: string[] = [];
-      
+      // Filter by group and task tag
+      const groupTags = groupIds.map(g => `group:${g}`);
+      let filtered = memories.filter(m =>
+        m.tags.includes('task') &&
+        (groupTags.length === 0 || m.tags.some(t => groupTags.includes(t)))
+      );
+
+      // Date filtering
       if (options?.since) {
-        dateFilters.push('e.created_at >= datetime($since)');
-        params.since = options.since.toISOString();
+        const sinceTime = options.since.getTime();
+        filtered = filtered.filter(m => new Date(m.createdAt).getTime() >= sinceTime);
       }
       if (options?.until) {
-        dateFilters.push('e.created_at <= datetime($until)');
-        params.until = options.until.toISOString();
+        const untilTime = options.until.getTime();
+        filtered = filtered.filter(m => new Date(m.createdAt).getTime() <= untilTime);
       }
-      
-      const dateFilterClause = dateFilters.length > 0 ? `AND ${dateFilters.join(' AND ')}` : '';
 
-      await neo4jClient.connect();
-      try {
-        const cypher = `
-          MATCH (e:Episodic)
-          WHERE e.group_id IN $groupIds
-            AND (e.name STARTS WITH 'TASK:' OR e.content CONTAINS '"type":"task"' OR e.content CONTAINS '"type": "task"')
-            ${dateFilterClause}
-          RETURN e.uuid AS uuid, e.name AS name, e.group_id AS group_id,
-                 e.created_at AS created_at, e.content AS content
-          ORDER BY e.created_at DESC
-          LIMIT $limit
-        `;
+      // Apply limit
+      filtered = filtered.slice(0, limit);
 
-        const records: Neo4jTaskRecord[] = await neo4jClient.query(cypher, params);
+      // Map to ITask
+      const tasks: ITask[] = filtered.map(m => {
+        const taskObj = parseTaskContent(m.content);
 
-        // Parse tasks from episodic records
-        const tasks: ITask[] = records.map((r: Neo4jTaskRecord) => {
-          let taskObj: Record<string, unknown> | null = null;
-          try {
-            if (r.content) taskObj = JSON.parse(r.content);
-          } catch {
-            /* ignore parse errors */
-          }
-
-          if (taskObj && taskObj.type === 'task') {
-            const task: ITask = {
-              title: String(taskObj.title || ''),
-              status: String(taskObj.status || 'unknown'),
-              repo: String(taskObj.repo || defaultRepo),
-              assignee: String(taskObj.assignee || defaultAssignee),
-              notes: taskObj.notes ? String(taskObj.notes) : undefined,
-              tag: taskObj.tag ? String(taskObj.tag) : null,
-              uuid: r.uuid,
-              created_at: r.created_at,
-            };
-            // Include external link if present
-            if (taskObj.externalLink && typeof taskObj.externalLink === 'object') {
-              const link = taskObj.externalLink as Record<string, unknown>;
-              task.externalLink = {
-                source: String(link.source) as ExternalLinkSource,
-                id: String(link.id),
-                url: String(link.url),
-                syncedAt: link.syncedAt ? String(link.syncedAt) : undefined,
-              };
-            }
-            return task;
-          }
-
-          // Fallback: extract title from name
-          const title = r.name?.replace(/^TASK:\s*/, '') || 'Unknown task';
-          return {
-            title: title.slice(0, 120),
-            status: 'unknown',
-            repo: defaultRepo,
-            assignee: defaultAssignee,
-            uuid: r.uuid,
-            created_at: r.created_at,
+        if (taskObj) {
+          const task: ITask = {
+            title: String(taskObj.title || ''),
+            status: String(taskObj.status || 'unknown'),
+            repo: String(taskObj.repo || defaultRepo),
+            assignee: String(taskObj.assignee || defaultAssignee),
+            notes: taskObj.notes ? String(taskObj.notes) : undefined,
+            tag: taskObj.tag ? String(taskObj.tag) : null,
+            uuid: m.id,
+            created_at: m.createdAt,
           };
-        });
+          if (taskObj.externalLink && typeof taskObj.externalLink === 'object') {
+            const link = taskObj.externalLink as Record<string, unknown>;
+            task.externalLink = {
+              source: String(link.source) as ExternalLinkSource,
+              id: String(link.id),
+              url: String(link.url),
+              syncedAt: link.syncedAt ? String(link.syncedAt) : undefined,
+            };
+          }
+          return task;
+        }
 
+        // Fallback: treat content as title
         return {
-          status: 'ok',
-          action: 'list',
-          group: groupIds[0] || '',
-          groups: groupIds,
-          tasks,
-          mode: 'neo4j',
+          title: m.content.slice(0, 120),
+          status: 'unknown',
+          repo: defaultRepo,
+          assignee: defaultAssignee,
+          uuid: m.id,
+          created_at: m.createdAt,
         };
-      } finally {
-        await neo4jClient.disconnect();
-      }
+      });
+
+      return {
+        status: 'ok',
+        action: 'list',
+        group: groupIds[0] || '',
+        groups: groupIds,
+        tasks,
+        mode: 'git-mem',
+      };
     },
 
     async add(
@@ -165,52 +142,21 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
         externalLink: options.externalLink ?? undefined,
       };
 
-      // Use Zep if available
-      if (zepClient) {
-        const result = await zepClient.addTask(groupId, taskObj);
-        return {
-          status: 'ok',
-          action: 'add',
-          task: taskObj,
-          group: groupId,
-          message_uuid: result.message_uuid,
-          mode: 'zep-cloud',
-        };
-      }
+      const tags = [
+        'task',
+        `group:${groupId}`,
+        `status:${taskObj.status}`,
+      ];
 
-      // Write directly to Neo4j (not MCP) for immediate persistence
-      const uuid = `task-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-      const name = `TASK: ${title.slice(0, 60)}`;
-      const content = JSON.stringify(taskObj);
-      const createdAt = new Date().toISOString();
+      gitMem.remember(JSON.stringify(taskObj), { tags });
 
-      await neo4jClient.connect();
-      try {
-        const cypher = `
-          CREATE (e:Episodic {
-            uuid: $uuid,
-            name: $name,
-            content: $content,
-            group_id: $groupId,
-            created_at: datetime($createdAt),
-            source: 'lisa-cli',
-            source_description: 'Task created via lisa tasks add'
-          })
-          RETURN e.uuid AS uuid
-        `;
-        await neo4jClient.query(cypher, { uuid, name, content, groupId, createdAt });
-
-        return {
-          status: 'ok',
-          action: 'add',
-          task: taskObj,
-          group: groupId,
-          result: { uuid, message: `Task created with uuid ${uuid}` },
-          mode: 'neo4j',
-        };
-      } finally {
-        await neo4jClient.disconnect();
-      }
+      return {
+        status: 'ok',
+        action: 'add',
+        task: taskObj,
+        group: groupId,
+        mode: 'git-mem',
+      };
     },
 
     async update(
@@ -228,55 +174,38 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
         tag: options.tag,
         externalLink: options.externalLink ?? undefined,
       };
-      const storageObj = { ...taskObj };
 
-      // Use Zep if available
-      if (zepClient) {
-        const result = await zepClient.addTask(groupId, storageObj);
-        return {
-          status: 'ok',
-          action: 'update',
-          task: taskObj,
-          group: groupId,
-          message_uuid: result.message_uuid,
-          mode: 'zep-cloud',
-        };
+      // Find and delete old version(s) of this task by title
+      const { memories } = gitMem.recall(undefined, { limit: 500 });
+      const groupTag = `group:${groupId}`;
+      const existing = memories.filter(m =>
+        m.tags.includes('task') &&
+        m.tags.includes(groupTag)
+      );
+
+      for (const m of existing) {
+        const old = parseTaskContent(m.content);
+        if (old && old.title === title) {
+          gitMem.delete(m.id);
+        }
       }
 
-      // Write directly to Neo4j for immediate persistence
-      // Update creates a new episodic node (append-only pattern)
-      const uuid = `task-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-      const name = `TASK: ${title.slice(0, 60)}`;
-      const content = JSON.stringify({ ...storageObj, updated: true });
-      const createdAt = new Date().toISOString();
+      // Remember updated version
+      const tags = [
+        'task',
+        `group:${groupId}`,
+        `status:${taskObj.status}`,
+      ];
 
-      await neo4jClient.connect();
-      try {
-        const cypher = `
-          CREATE (e:Episodic {
-            uuid: $uuid,
-            name: $name,
-            content: $content,
-            group_id: $groupId,
-            created_at: datetime($createdAt),
-            source: 'lisa-cli',
-            source_description: 'Task updated via lisa tasks update'
-          })
-          RETURN e.uuid AS uuid
-        `;
-        await neo4jClient.query(cypher, { uuid, name, content, groupId, createdAt });
+      gitMem.remember(JSON.stringify(taskObj), { tags });
 
-        return {
-          status: 'ok',
-          action: 'update',
-          task: taskObj,
-          group: groupId,
-          result: { uuid, message: `Task updated with uuid ${uuid}` },
-          mode: 'neo4j',
-        };
-      } finally {
-        await neo4jClient.disconnect();
-      }
+      return {
+        status: 'ok',
+        action: 'update',
+        task: taskObj,
+        group: groupId,
+        mode: 'git-mem',
+      };
     },
 
     async link(
@@ -284,178 +213,80 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
       groupId: string,
       externalLink: ITaskExternalLink
     ): Promise<ITaskLinkResult> {
-      // First, find the task by UUID to get its current data
-      await neo4jClient.connect();
-      
-      try {
-        const cypher = `
-          MATCH (e:Episodic)
-          WHERE e.uuid = $uuid
-          RETURN e.uuid AS uuid, e.name AS name, e.content AS content
-          LIMIT 1
-        `;
-        const records: Array<{ uuid: string; name: string; content?: string }> = 
-          await neo4jClient.query(cypher, { uuid: taskUuid });
+      const { memories } = gitMem.recall(undefined, { limit: 500 });
+      const existing = memories.find(m => m.id === taskUuid);
 
-        if (records.length === 0) {
-          throw new Error(`Task not found: ${taskUuid}`);
-        }
-
-        const record = records[0];
-        let taskObj: Record<string, unknown> = { type: 'task', title: '' };
-        
-        if (record.content) {
-          try {
-            taskObj = JSON.parse(record.content);
-          } catch {
-            // Use name as fallback title
-            taskObj.title = record.name?.replace(/^TASK:\s*/, '') || 'Unknown task';
-          }
-        }
-
-        // Add the external link with sync timestamp
-        taskObj.externalLink = {
-          ...externalLink,
-          syncedAt: new Date().toISOString(),
-        };
-
-        // Store the updated task
-        if (zepClient) {
-          await zepClient.addTask(groupId, taskObj);
-          return {
-            status: 'ok',
-            action: 'link',
-            task: {
-              title: String(taskObj.title),
-              uuid: taskUuid,
-              externalLink: taskObj.externalLink as ITaskExternalLink,
-            },
-            group: groupId,
-            mode: 'zep-cloud',
-          };
-        }
-
-        // Write directly to Neo4j for immediate persistence
-        // Link creates a new episodic node with the updated link info
-        const newUuid = `task-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-        const name = `TASK: ${String(taskObj.title).slice(0, 60)}`;
-        const content = JSON.stringify({ ...taskObj, linked: true });
-        const createdAt = new Date().toISOString();
-
-        const createCypher = `
-          CREATE (e:Episodic {
-            uuid: $uuid,
-            name: $name,
-            content: $content,
-            group_id: $groupId,
-            created_at: datetime($createdAt),
-            source: 'lisa-cli',
-            source_description: 'Task linked via lisa tasks link'
-          })
-          RETURN e.uuid AS uuid
-        `;
-        await neo4jClient.query(createCypher, { uuid: newUuid, name, content, groupId, createdAt });
-
-        return {
-          status: 'ok',
-          action: 'link',
-          task: {
-            title: String(taskObj.title),
-            uuid: taskUuid,
-            externalLink: taskObj.externalLink as ITaskExternalLink,
-          },
-          group: groupId,
-          mode: 'neo4j',
-        };
-      } finally {
-        await neo4jClient.disconnect();
+      if (!existing) {
+        throw new Error(`Task not found: ${taskUuid}`);
       }
+
+      const taskObj: Record<string, unknown> = parseTaskContent(existing.content) || {
+        type: 'task',
+        title: existing.content.slice(0, 120),
+      };
+
+      taskObj.externalLink = {
+        ...externalLink,
+        syncedAt: new Date().toISOString(),
+      };
+
+      // Delete old, remember updated
+      gitMem.delete(taskUuid);
+      const tags = existing.tags.length > 0 ? [...existing.tags] : [
+        'task',
+        `group:${groupId}`,
+      ];
+      gitMem.remember(JSON.stringify(taskObj), { tags });
+
+      return {
+        status: 'ok',
+        action: 'link',
+        task: {
+          title: String(taskObj.title),
+          uuid: taskUuid,
+          externalLink: taskObj.externalLink as ITaskExternalLink,
+        },
+        group: groupId,
+        mode: 'git-mem',
+      };
     },
 
     async unlink(
       taskUuid: string,
       groupId: string
     ): Promise<ITaskLinkResult> {
-      // First, find the task by UUID
-      await neo4jClient.connect();
-      
-      try {
-        const cypher = `
-          MATCH (e:Episodic)
-          WHERE e.uuid = $uuid
-          RETURN e.uuid AS uuid, e.name AS name, e.content AS content
-          LIMIT 1
-        `;
-        const records: Array<{ uuid: string; name: string; content?: string }> = 
-          await neo4jClient.query(cypher, { uuid: taskUuid });
+      const { memories } = gitMem.recall(undefined, { limit: 500 });
+      const existing = memories.find(m => m.id === taskUuid);
 
-        if (records.length === 0) {
-          throw new Error(`Task not found: ${taskUuid}`);
-        }
-
-        const record = records[0];
-        let taskObj: Record<string, unknown> = { type: 'task', title: '' };
-        
-        if (record.content) {
-          try {
-            taskObj = JSON.parse(record.content);
-          } catch {
-            taskObj.title = record.name?.replace(/^TASK:\s*/, '') || 'Unknown task';
-          }
-        }
-
-        // Remove the external link
-        delete taskObj.externalLink;
-
-        // Store the updated task
-        if (zepClient) {
-          await zepClient.addTask(groupId, taskObj);
-          return {
-            status: 'ok',
-            action: 'unlink',
-            task: {
-              title: String(taskObj.title),
-              uuid: taskUuid,
-            },
-            group: groupId,
-            mode: 'zep-cloud',
-          };
-        }
-
-        // Write directly to Neo4j for immediate persistence
-        // Unlink creates a new episodic node with the link removed
-        const newUuid = `task-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-        const name = `TASK: ${String(taskObj.title).slice(0, 60)}`;
-        const content = JSON.stringify({ ...taskObj, unlinked: true });
-        const createdAt = new Date().toISOString();
-
-        const createCypher = `
-          CREATE (e:Episodic {
-            uuid: $uuid,
-            name: $name,
-            content: $content,
-            group_id: $groupId,
-            created_at: datetime($createdAt),
-            source: 'lisa-cli',
-            source_description: 'Task unlinked via lisa tasks unlink'
-          })
-          RETURN e.uuid AS uuid
-        `;
-        await neo4jClient.query(createCypher, { uuid: newUuid, name, content, groupId, createdAt });
-
-        return {
-          status: 'ok',
-          action: 'unlink',
-          task: {
-            title: String(taskObj.title),
-            uuid: taskUuid,
-          },
-          group: groupId,
-          mode: 'neo4j',
-        };
-      } finally {
-        await neo4jClient.disconnect();
+      if (!existing) {
+        throw new Error(`Task not found: ${taskUuid}`);
       }
+
+      const taskObj: Record<string, unknown> = parseTaskContent(existing.content) || {
+        type: 'task',
+        title: existing.content.slice(0, 120),
+      };
+
+      delete taskObj.externalLink;
+
+      // Delete old, remember updated
+      gitMem.delete(taskUuid);
+      const tags = existing.tags.length > 0 ? [...existing.tags] : [
+        'task',
+        `group:${groupId}`,
+      ];
+      gitMem.remember(JSON.stringify(taskObj), { tags });
+
+      return {
+        status: 'ok',
+        action: 'unlink',
+        task: {
+          title: String(taskObj.title),
+          uuid: taskUuid,
+        },
+        group: groupId,
+        mode: 'git-mem',
+      };
     },
 
     async listLinked(
@@ -465,18 +296,12 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
       defaultRepo: string,
       defaultAssignee: string
     ): Promise<ITaskListResult> {
-      // Get all tasks first, then filter by external link
       const result = await this.list(groupIds, limit * 2, defaultRepo, defaultAssignee);
-      
-      // Filter to only tasks with external links
+
       let linkedTasks = result.tasks.filter((t) => t.externalLink);
-      
-      // Further filter by source if specified
       if (source) {
         linkedTasks = linkedTasks.filter((t) => t.externalLink?.source === source);
       }
-
-      // Apply limit
       linkedTasks = linkedTasks.slice(0, limit);
 
       return {

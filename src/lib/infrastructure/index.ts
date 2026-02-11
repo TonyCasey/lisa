@@ -12,16 +12,13 @@
 // Context detection
 export * from './context';
 
-// MCP client
-export * from './mcp';
-
 // Service implementations
 export * from './services';
 
 // Dependency injection
 export * from './di';
 
-// Data Access Layer (DAL) for multi-backend support
+// Data Access Layer (Neo4j PR state only)
 export * from './dal';
 
 // Logging infrastructure

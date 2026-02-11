@@ -3,8 +3,8 @@
  *
  * Provides typed helpers for invoking the memory skill script.
  * Used by integration tests to verify I/O contracts from SKILL.md.
+ * Updated for git-mem backend.
  */
-import { setTimeout as delay } from 'node:timers/promises';
 import {
   findSkillScript,
   runSkillScript,
@@ -36,7 +36,7 @@ export interface IMemoryAddResponse {
   text: string;
   tag?: string;
   message_uuid?: string;
-  mode?: 'local' | 'zep-cloud';
+  mode?: 'git-mem';
 }
 
 /**
@@ -50,7 +50,7 @@ export interface IMemoryLoadResponse {
   groups?: string[];
   query?: string;
   facts: IMemoryFact[];
-  mode?: 'local' | 'zep-cloud';
+  mode?: 'git-mem';
 }
 
 /**
@@ -175,12 +175,12 @@ export async function loadMemory(
 }
 
 /**
- * Check if the memory endpoint is reachable
+ * Check if git-mem is ready and working in the test repository
  *
- * @param options - Client options
+ * @param options - Client options (must include testRepoPath)
  * @returns Object with ok status and optional error
  */
-export async function checkMemoryEndpoint(
+export async function checkGitMemReady(
   options: IMemoryClientOptions = {}
 ): Promise<{ ok: boolean; error?: Error }> {
   try {
@@ -203,7 +203,7 @@ export async function checkMemoryEndpoint(
  * @returns Suite results with pass/fail status
  */
 export async function runMemorySmokeSuite(options: {
-  endpoint?: string;
+  testRepoPath: string;
   groupId: string;
   isolationGroupId: string;
 }): Promise<{
@@ -216,17 +216,15 @@ export async function runMemorySmokeSuite(options: {
 
   // Add memory
   const addResponse = await addMemory(`Memory smoke test: ${uniqueMarker}`, {
-    endpoint: options.endpoint,
+    testRepoPath: options.testRepoPath,
     groupId: options.groupId,
   });
 
-  // Wait for eventual consistency (Zep processes asynchronously)
-  // Zep Cloud needs longer for LLM-based fact extraction
-  await delay(10000);
+  // git-mem is synchronous - no delay needed
 
   // Load from primary group
   const loadResponse = await loadMemory({
-    endpoint: options.endpoint,
+    testRepoPath: options.testRepoPath,
     groupId: options.groupId,
     limit: 25,
   });
@@ -238,7 +236,7 @@ export async function runMemorySmokeSuite(options: {
 
   // Load from isolation group (should NOT find the memory)
   const isolationLoad = await loadMemory({
-    endpoint: options.endpoint,
+    testRepoPath: options.testRepoPath,
     groupId: options.isolationGroupId,
     limit: 15,
   });

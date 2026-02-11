@@ -1,10 +1,9 @@
 /**
  * Memory service implementation for skill scripts.
- * Uses Neo4j for reads (always), MCP or Zep for writes.
+ * Uses git-mem for all memory operations.
  */
-import type { INeo4jClient } from '../clients/interfaces/INeo4jClient';
-import type { IMcpClient } from '../clients/interfaces/IMcpClient';
-import type { IZepClient } from '../clients/interfaces/IZepClient';
+import type { IMemoryService as IGitMemMemoryService, IMemoryEntity } from 'git-mem/dist/index';
+
 import type {
   IMemoryService,
   IFact,
@@ -26,30 +25,6 @@ import type { CurationMark } from '../../../domain/interfaces/ICurationService';
 import { resolveConfidenceTag } from '../../../domain/interfaces/types/IMemoryQuality';
 import { CONSOLIDATION_ACTION_VALUES } from '../../../domain/interfaces/IConsolidationService';
 import type { ConsolidationAction } from '../../../domain/interfaces/IConsolidationService';
-import { LIFECYCLE_DEFAULTS, resolveLifecycleTag } from '../../../domain/interfaces/types/IMemoryLifecycle';
-import type { MemoryLifecycle } from '../../../domain/interfaces/types/IMemoryLifecycle';
-
-/**
- * Neo4j record structure for fact queries.
- */
-interface Neo4jFactRecord {
-  uuid: string;
-  name: string;
-  fact: string;
-  group_id: string;
-  created_at: string;
-  valid_at?: string;
-  expired_at?: string | null;
-}
-
-/**
- * Dependencies for creating a memory service.
- */
-export interface IMemoryServiceDependencies {
-  neo4jClient: INeo4jClient;
-  mcpClient: IMcpClient;
-  zepClient: IZepClient | null;
-}
 
 /**
  * Type-to-tag mapping for memory types.
@@ -67,21 +42,14 @@ const TYPE_TAG_MAP: Record<string, string> = {
 
 /**
  * Resolve a tag from the memory type or explicit tag.
- *
- * @param text - Memory text (may contain PREFIX: pattern)
- * @param options - Memory options with type/tag
- * @returns Resolved tag or undefined
  */
 function resolveTag(text: string, options: IMemoryAddOptions): string | undefined {
-  // Explicit tag takes precedence
   if (options.tag) return options.tag;
 
-  // Check type mapping
   if (options.type && TYPE_TAG_MAP[options.type.toLowerCase()]) {
     return TYPE_TAG_MAP[options.type.toLowerCase()];
   }
 
-  // Check for PREFIX: pattern in text
   const prefixMatch = text.match(/^([A-Z_]+):\s*/);
   if (prefixMatch) {
     return prefixMatch[1];
@@ -91,13 +59,33 @@ function resolveTag(text: string, options: IMemoryAddOptions): string | undefine
 }
 
 /**
- * Creates a memory service instance.
+ * Map a git-mem IMemoryEntity to the skills IFact.
+ */
+function toFact(entity: IMemoryEntity, groupId: string): IFact {
+  return {
+    uuid: entity.id,
+    name: entity.content.slice(0, 80),
+    fact: entity.content,
+    group_id: groupId,
+    created_at: entity.createdAt,
+  };
+}
+
+/**
+ * Dependencies for creating a memory service.
+ */
+export interface IMemoryServiceDependencies {
+  gitMem: IGitMemMemoryService;
+}
+
+/**
+ * Creates a memory service instance backed by git-mem.
  *
- * @param deps - Service dependencies (clients)
+ * @param deps - Service dependencies
  * @returns Memory service implementation
  */
 export function createMemoryService(deps: IMemoryServiceDependencies): IMemoryService {
-  const { neo4jClient, mcpClient, zepClient } = deps;
+  const { gitMem } = deps;
 
   return {
     async load(
@@ -106,87 +94,36 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
       limit: number,
       options?: IMemoryLoadOptions
     ): Promise<IMemoryLoadResult> {
-      // Always use Neo4j for load (better date ordering)
-      // Use parameterized query for groupIds to prevent Cypher injection
-      // Neo4j requires integer for LIMIT - ensure it's not a float
-      const params: Record<string, unknown> = {
-        groupIds,
-        limit: Math.floor(limit),
-      };
+      const searchQuery = (query && query !== '*') ? query : undefined;
+      const { memories } = gitMem.recall(searchQuery, { limit });
 
-      // Build date filter clauses
-      const dateFilters: string[] = [];
-      
+      // Client-side group filtering via tags
+      const groupTags = groupIds.map(g => `group:${g}`);
+      let filtered = memories.filter(m =>
+        groupTags.length === 0 || m.tags.some(t => groupTags.includes(t))
+      );
+
+      // Client-side date filtering
       if (options?.since) {
-        dateFilters.push('r.created_at >= datetime($since)');
-        params.since = options.since.toISOString();
+        const sinceTime = options.since.getTime();
+        filtered = filtered.filter(m => new Date(m.createdAt).getTime() >= sinceTime);
       }
       if (options?.until) {
-        dateFilters.push('r.created_at <= datetime($until)');
-        params.until = options.until.toISOString();
+        const untilTime = options.until.getTime();
+        filtered = filtered.filter(m => new Date(m.createdAt).getTime() <= untilTime);
       }
-      
-      const dateFilterClause = dateFilters.length > 0 ? `AND ${dateFilters.join(' AND ')}` : '';
 
-      await neo4jClient.connect();
-      try {
-        let cypher: string;
+      const facts: IFact[] = filtered.map(m => toFact(m, groupIds[0] || ''));
 
-        if (query && query !== '*') {
-          // Search mode: filter by query in fact text
-          params.query = query;
-          cypher = `
-            MATCH (s:Entity)-[r]->(t:Entity)
-            WHERE r.group_id IN $groupIds
-              AND r.expired_at IS NULL
-              AND (r.fact CONTAINS $query OR r.name CONTAINS $query)
-              ${dateFilterClause}
-            RETURN r.uuid AS uuid, r.name AS name, r.fact AS fact,
-                   r.group_id AS group_id, r.created_at AS created_at,
-                   r.valid_at AS valid_at, r.expired_at AS expired_at
-            ORDER BY r.created_at DESC
-            LIMIT $limit
-          `;
-        } else {
-          // List mode: return recent facts
-          cypher = `
-            MATCH (s:Entity)-[r]->(t:Entity)
-            WHERE r.group_id IN $groupIds
-              AND r.expired_at IS NULL
-              ${dateFilterClause}
-            RETURN r.uuid AS uuid, r.name AS name, r.fact AS fact,
-                   r.group_id AS group_id, r.created_at AS created_at,
-                   r.valid_at AS valid_at, r.expired_at AS expired_at
-            ORDER BY r.created_at DESC
-            LIMIT $limit
-          `;
-        }
-
-        const records: Neo4jFactRecord[] = await neo4jClient.query(cypher, params);
-
-        // Transform to standard fact format
-        const facts: IFact[] = records.map((r: Neo4jFactRecord) => ({
-          uuid: r.uuid,
-          name: r.name,
-          fact: r.fact,
-          group_id: r.group_id,
-          created_at: r.created_at,
-          valid_at: r.valid_at,
-          expired_at: r.expired_at,
-        }));
-
-        return {
-          status: 'ok',
-          action: 'load',
-          group: groupIds[0] || '',
-          groups: groupIds,
-          query: query || '',
-          facts,
-          mode: 'neo4j',
-        };
-      } finally {
-        await neo4jClient.disconnect();
-      }
+      return {
+        status: 'ok',
+        action: 'load',
+        group: groupIds[0] || '',
+        groups: groupIds,
+        query: query || '',
+        facts,
+        mode: 'git-mem',
+      };
     },
 
     async add(
@@ -196,39 +133,15 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
     ): Promise<IMemoryAddResult> {
       const tag = resolveTag(text, options);
 
-      // Use Zep if available
-      if (zepClient) {
-        const result = await zepClient.addMemory(groupId, text, {
-          tag,
-          source: options.source,
-        });
-
-        return {
-          status: 'ok',
-          action: 'add',
-          group: groupId,
-          text,
-          tag,
-          message_uuid: result.message_uuid,
-          mode: 'zep-cloud',
-        };
+      const tags: string[] = [`group:${groupId}`];
+      if (tag) {
+        // Tags containing ':' are namespaced, store as-is.
+        // Simple tags get 'type:' prefix.
+        const mcpTag = tag.includes(':') ? tag.toLowerCase() : `type:${tag.toLowerCase()}`;
+        tags.push(mcpTag);
       }
 
-      // Use MCP
-      await mcpClient.initialize();
-      // Tags already containing ':' are namespaced (e.g. lifecycle:session, code:decision)
-      // and should be stored as-is. Simple tags (DECISION, PATTERN) get 'type:' prefix.
-      const mcpTag = tag
-        ? (tag.includes(':') ? tag.toLowerCase() : `type:${tag.toLowerCase()}`)
-        : undefined;
-      const params = {
-        name: tag ? `${tag}: ${text.slice(0, 60)}` : text.slice(0, 80),
-        episode_body: text,
-        source: options.source || 'text',
-        group_id: groupId,
-        tags: mcpTag ? [mcpTag] : undefined,
-      };
-      const result = await mcpClient.rpcCall<unknown>('add_memory', params);
+      gitMem.remember(text, { tags });
 
       return {
         status: 'ok',
@@ -236,8 +149,7 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
         group: groupId,
         text,
         tag,
-        result,
-        mode: 'mcp',
+        mode: 'git-mem',
       };
     },
 
@@ -245,162 +157,79 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
       groupId: string,
       uuid: string
     ): Promise<IMemoryExpireResult> {
-      await neo4jClient.connect();
-      try {
-        // Atomic SET + RETURN to know if a record was actually expired
-        const cypher = `
-          MATCH (s:Entity)-[r]->(t:Entity)
-          WHERE r.group_id = $groupId AND r.uuid = $uuid AND r.expired_at IS NULL
-          SET r.expired_at = datetime()
-          RETURN count(r) AS affected
-        `;
-        const result = await neo4jClient.writeQuery<{ affected: number }>(
-          cypher, { groupId, uuid }
-        );
-        const affected = result[0]?.affected ?? 0;
+      const found = gitMem.delete(uuid);
 
-        return {
-          status: 'ok',
-          action: 'expire',
-          group: groupId,
-          uuid,
-          found: affected > 0,
-          mode: 'neo4j',
-        };
-      } finally {
-        await neo4jClient.disconnect();
-      }
+      return {
+        status: 'ok',
+        action: 'expire',
+        group: groupId,
+        uuid,
+        found,
+        mode: 'git-mem',
+      };
     },
 
     async cleanup(
       groupId: string,
-      dryRun: boolean
+      _dryRun: boolean
     ): Promise<IMemoryCleanupResult> {
-      await neo4jClient.connect();
-      try {
-        const now = new Date();
-        let totalExpired = 0;
-
-        const tiers: MemoryLifecycle[] = ['session', 'ephemeral'];
-
-        for (const tier of tiers) {
-          const ttl = LIFECYCLE_DEFAULTS[tier];
-          if (ttl === null) continue;
-
-          const cutoff = new Date(now.getTime() - ttl);
-          const lifecycleTag = resolveLifecycleTag(tier);
-
-          if (dryRun) {
-            // Count only (READ session)
-            const countCypher = `
-              MATCH (s:Entity)-[r]->(t:Entity)
-              WHERE r.group_id = $groupId
-                AND r.expired_at IS NULL
-                AND $lifecycleTag IN r.tags
-                AND r.created_at <= datetime($cutoff)
-              RETURN count(r) AS count
-            `;
-            const countResult = await neo4jClient.query<{ count: number }>(
-              countCypher,
-              { groupId, lifecycleTag, cutoff: cutoff.toISOString() }
-            );
-            totalExpired += countResult[0]?.count ?? 0;
-          } else {
-            // Atomic SET + RETURN count (WRITE session, no TOCTOU race)
-            const expireCypher = `
-              MATCH (s:Entity)-[r]->(t:Entity)
-              WHERE r.group_id = $groupId
-                AND r.expired_at IS NULL
-                AND $lifecycleTag IN r.tags
-                AND r.created_at <= datetime($cutoff)
-              SET r.expired_at = datetime()
-              RETURN count(r) AS expired
-            `;
-            const writeResult = await neo4jClient.writeQuery<{ expired: number }>(
-              expireCypher,
-              { groupId, lifecycleTag, cutoff: cutoff.toISOString() }
-            );
-            totalExpired += writeResult[0]?.expired ?? 0;
-          }
-        }
-
-        return {
-          status: 'ok',
-          action: 'cleanup',
-          group: groupId,
-          expiredCount: totalExpired,
-          dryRun,
-          mode: 'neo4j',
-        };
-      } finally {
-        await neo4jClient.disconnect();
-      }
+      // git-mem doesn't support TTL-based cleanup yet
+      return {
+        status: 'ok',
+        action: 'cleanup',
+        group: groupId,
+        expiredCount: 0,
+        dryRun: _dryRun,
+        mode: 'git-mem',
+      };
     },
 
     async conflicts(
       groupIds: string[],
       topic?: string
     ): Promise<IMemoryConflictsResult> {
-      await neo4jClient.connect();
-      try {
-        const params: Record<string, unknown> = { groupIds };
+      const { memories } = gitMem.recall(undefined, { limit: 200 });
 
-        const whereClauses: string[] = [
-          `r.group_id IN $groupIds`,
-          `r.fact IS NOT NULL`,
-          `r.expired_at IS NULL`,
-          `ANY(tag IN r.tags WHERE tag STARTS WITH 'type:')`,
-        ];
+      // Filter by group
+      const groupTags = groupIds.map(g => `group:${g}`);
+      const filtered = memories.filter(m =>
+        groupTags.length === 0 || m.tags.some(t => groupTags.includes(t))
+      );
 
-        if (topic) {
-          whereClauses.push(`$topic IN r.tags`);
-          params.topic = topic;
+      // Group by type:* tags
+      const typeGroups = new Map<string, IFact[]>();
+      for (const m of filtered) {
+        const typeTags = m.tags.filter(t => t.startsWith('type:'));
+        for (const typeTag of typeTags) {
+          if (topic && typeTag !== topic) continue;
+          const existing = typeGroups.get(typeTag) || [];
+          existing.push(toFact(m, groupIds[0] || ''));
+          typeGroups.set(typeTag, existing);
         }
-
-        const whereClause = whereClauses.join(' AND ');
-
-        const cypher = `
-          MATCH (s:Entity)-[r]->(t:Entity)
-          WHERE ${whereClause}
-          WITH [tag IN r.tags WHERE tag STARTS WITH 'type:' | tag][0] AS topicTag,
-               r.uuid AS uuid, r.name AS name, r.fact AS fact,
-               r.group_id AS group_id, r.created_at AS created_at
-          WITH topicTag, COLLECT({ uuid: uuid, name: name, fact: fact, group_id: group_id, created_at: created_at }) AS facts
-          WHERE SIZE(facts) > 1
-          RETURN topicTag, facts
-          LIMIT 20
-        `;
-
-        const records = await neo4jClient.query<{
-          topicTag: string;
-          facts: Array<{ uuid: string; name: string; fact: string; group_id: string; created_at: string }>;
-        }>(cypher, params);
-
-        const conflictGroups: IConflictGroup[] = records.map((record) => ({
-          topic: record.topicTag,
-          facts: record.facts.map((f) => ({
-            uuid: f.uuid,
-            name: f.name,
-            fact: f.fact,
-            group_id: f.group_id,
-            created_at: f.created_at,
-          })),
-          detectedAt: new Date().toISOString(),
-        }));
-
-        return {
-          status: 'ok',
-          action: 'conflicts',
-          group: groupIds[0] || '',
-          groups: groupIds,
-          topic: topic || '',
-          conflictGroups,
-          totalConflicts: conflictGroups.length,
-          mode: 'neo4j',
-        };
-      } finally {
-        await neo4jClient.disconnect();
       }
+
+      // Only keep groups with >1 fact (potential conflicts)
+      const conflictGroups: IConflictGroup[] = [];
+      for (const [topicTag, facts] of typeGroups) {
+        if (facts.length > 1) {
+          conflictGroups.push({
+            topic: topicTag,
+            facts,
+            detectedAt: new Date().toISOString(),
+          });
+        }
+      }
+
+      return {
+        status: 'ok',
+        action: 'conflicts',
+        group: groupIds[0] || '',
+        groups: groupIds,
+        topic: topic || '',
+        conflictGroups,
+        totalConflicts: conflictGroups.length,
+        mode: 'git-mem',
+      };
     },
 
     async dedupe(
@@ -410,118 +239,78 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
       const minSimilarity = options?.minSimilarity ?? 0.6;
       const limit = options?.limit ?? 10;
 
-      await neo4jClient.connect();
-      try {
-        // Load all non-expired facts (up to 500)
-        const params: Record<string, unknown> = {
-          groupIds: [groupId],
-          limit: 500,
-        };
+      const { memories } = gitMem.recall(undefined, { limit: 500 });
 
-        const dateFilters: string[] = [];
-        if (options?.since) {
-          dateFilters.push('r.created_at >= datetime($since)');
-          params.since = options.since.toISOString();
+      // Filter by group and date
+      const groupTag = `group:${groupId}`;
+      let filtered = memories.filter(m => m.tags.includes(groupTag));
+
+      if (options?.since) {
+        const sinceTime = options.since.getTime();
+        filtered = filtered.filter(m => new Date(m.createdAt).getTime() >= sinceTime);
+      }
+
+      const facts = filtered.map(m => ({
+        uuid: m.id,
+        name: m.content.slice(0, 80),
+        fact: m.content,
+        created_at: m.createdAt,
+      }));
+
+      // Build conflict groups for tag overlap pass
+      const typeGroups = new Map<string, typeof facts>();
+      for (const m of filtered) {
+        const typeTags = m.tags.filter(t => t.startsWith('type:'));
+        for (const typeTag of typeTags) {
+          const existing = typeGroups.get(typeTag) || [];
+          existing.push({
+            uuid: m.id,
+            name: m.content.slice(0, 80),
+            fact: m.content,
+            created_at: m.createdAt,
+          });
+          typeGroups.set(typeTag, existing);
         }
+      }
 
-        const dateFilterClause = dateFilters.length > 0 ? `AND ${dateFilters.join(' AND ')}` : '';
-
-        const factsCypher = `
-          MATCH (s:Entity)-[r]->(t:Entity)
-          WHERE r.group_id IN $groupIds
-            AND r.expired_at IS NULL
-            AND r.fact IS NOT NULL
-            ${dateFilterClause}
-          RETURN r.uuid AS uuid, r.name AS name, r.fact AS fact,
-                 r.group_id AS group_id, r.created_at AS created_at
-          ORDER BY r.created_at DESC
-          LIMIT $limit
-        `;
-
-        const factRecords: Neo4jFactRecord[] = await neo4jClient.query(factsCypher, params);
-
-        // Convert to IMemoryItem-compatible shape for the algorithm
-        const facts = factRecords.map((r) => ({
-          uuid: r.uuid,
-          name: r.name,
-          fact: r.fact,
-          created_at: r.created_at,
-        }));
-
-        // Load conflict groups for tag overlap pass
-        const conflictParams: Record<string, unknown> = { groupIds: [groupId] };
-        const conflictDateFilters: string[] = [];
-        if (options?.since) {
-          conflictDateFilters.push('r.created_at >= datetime($since)');
-          conflictParams.since = options.since.toISOString();
-        }
-        const conflictDateFilterClause =
-          conflictDateFilters.length > 0 ? `AND ${conflictDateFilters.join(' AND ')}` : '';
-        const conflictCypher = `
-          MATCH (s:Entity)-[r]->(t:Entity)
-          WHERE r.group_id IN $groupIds
-            AND r.fact IS NOT NULL
-            AND r.expired_at IS NULL
-            ${conflictDateFilterClause}
-            AND ANY(tag IN r.tags WHERE tag STARTS WITH 'type:')
-          WITH [tag IN r.tags WHERE tag STARTS WITH 'type:' | tag][0] AS topicTag,
-               r.uuid AS uuid, r.name AS name, r.fact AS fact,
-               r.group_id AS group_id, r.created_at AS created_at
-          WITH topicTag, COLLECT({ uuid: uuid, name: name, fact: fact, group_id: group_id, created_at: created_at }) AS facts
-          WHERE SIZE(facts) > 1
-          RETURN topicTag, facts
-          LIMIT 20
-        `;
-
-        const conflictRecords = await neo4jClient.query<{
-          topicTag: string;
-          facts: Array<{ uuid: string; name: string; fact: string; group_id: string; created_at: string }>;
-        }>(conflictCypher, conflictParams);
-
-        const conflictGroups = conflictRecords.map((record) => ({
-          topic: record.topicTag,
-          facts: record.facts.map((f) => ({
-            uuid: f.uuid,
-            name: f.name,
-            fact: f.fact,
-            created_at: f.created_at,
-          })),
+      const conflictGroups = [...typeGroups.entries()]
+        .filter(([, groupFacts]) => groupFacts.length > 1)
+        .map(([topicTag, groupFacts]) => ({
+          topic: topicTag,
+          facts: groupFacts,
           detectedAt: new Date().toISOString(),
         }));
 
-        // Run the three-pass detection algorithm
-        const duplicateGroups = detectDuplicatesFromFacts(facts, conflictGroups, {
-          minSimilarity,
-          limit,
-        });
+      // Run the three-pass detection algorithm
+      const duplicateGroups = detectDuplicatesFromFacts(facts, conflictGroups, {
+        minSimilarity,
+        limit,
+      });
 
-        // Map IDuplicateGroup to skill-level format
-        const skillGroups = duplicateGroups.map((g) => ({
-          reason: g.reason,
-          facts: g.facts.map((f) => ({
-            uuid: f.uuid ?? '',
-            name: f.name ?? '',
-            fact: f.fact ?? '',
-            group_id: groupId,
-            created_at: f.created_at ?? '',
-          })),
-          similarity: g.similarity,
-        }));
+      const skillGroups = duplicateGroups.map(g => ({
+        reason: g.reason,
+        facts: g.facts.map(f => ({
+          uuid: f.uuid ?? '',
+          name: f.name ?? '',
+          fact: f.fact ?? '',
+          group_id: groupId,
+          created_at: f.created_at ?? '',
+        })),
+        similarity: g.similarity,
+      }));
 
-        const totalDuplicates = skillGroups.reduce((sum, group) => sum + group.facts.length, 0);
-        return {
-          status: 'ok',
-          action: 'dedupe',
-          group: groupId,
-          totalFactsScanned: facts.length,
-          duplicateGroups: skillGroups,
-          totalDuplicates,
-          minSimilarity,
-          mode: 'neo4j',
-        };
-      } finally {
-        await neo4jClient.disconnect();
-      }
+      const totalDuplicates = skillGroups.reduce((sum, group) => sum + group.facts.length, 0);
+
+      return {
+        status: 'ok',
+        action: 'dedupe',
+        group: groupId,
+        totalFactsScanned: facts.length,
+        duplicateGroups: skillGroups,
+        totalDuplicates,
+        minSimilarity,
+        mode: 'git-mem',
+      };
     },
 
     async curate(
@@ -533,76 +322,43 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
         throw new Error(`Invalid curation mark: "${mark}". Valid marks: authoritative, draft, deprecated, needs-review`);
       }
 
-      await neo4jClient.connect();
-      try {
-        const curationTag = resolveCurationTag(mark);
+      // For git-mem: recall, find by uuid, delete, re-remember with updated tags
+      const { memories } = gitMem.recall(undefined, { limit: 500 });
+      const existing = memories.find(m => m.id === uuid);
 
-        if (mark === 'deprecated') {
-          // Atomic: add curation tag + expire in a single query
-          const cypher = `
-            MATCH (s:Entity)-[r]->(t:Entity)
-            WHERE r.group_id = $groupId AND r.uuid = $uuid AND r.expired_at IS NULL
-            SET r.tags = CASE
-              WHEN r.tags IS NULL THEN [$curationTag]
-              ELSE [tag IN r.tags WHERE NOT tag STARTS WITH 'curated:'] + [$curationTag]
-            END,
-            r.expired_at = datetime()
-            RETURN count(r) AS affected
-          `;
-          const result = await neo4jClient.writeQuery<{ affected: number }>(
-            cypher, { groupId, uuid, curationTag }
-          );
-          if ((result[0]?.affected ?? 0) === 0) {
-            throw new Error(`Fact not found: uuid="${uuid}" in group="${groupId}"`);
-          }
-        } else if (mark === 'authoritative') {
-          // Atomic: add curation tag + promote confidence in a single query
-          const confidenceTag = resolveConfidenceTag('verified');
-          const cypher = `
-            MATCH (s:Entity)-[r]->(t:Entity)
-            WHERE r.group_id = $groupId AND r.uuid = $uuid AND r.expired_at IS NULL
-            SET r.tags = CASE
-              WHEN r.tags IS NULL THEN [$curationTag, $confidenceTag]
-              ELSE [tag IN r.tags WHERE NOT tag STARTS WITH 'curated:' AND NOT tag STARTS WITH 'confidence:'] + [$curationTag, $confidenceTag]
-            END
-            RETURN count(r) AS affected
-          `;
-          const result = await neo4jClient.writeQuery<{ affected: number }>(
-            cypher, { groupId, uuid, curationTag, confidenceTag }
-          );
-          if ((result[0]?.affected ?? 0) === 0) {
-            throw new Error(`Fact not found: uuid="${uuid}" in group="${groupId}"`);
-          }
-        } else {
-          // draft / needs-review: just add the curation tag
-          const cypher = `
-            MATCH (s:Entity)-[r]->(t:Entity)
-            WHERE r.group_id = $groupId AND r.uuid = $uuid AND r.expired_at IS NULL
-            SET r.tags = CASE
-              WHEN r.tags IS NULL THEN [$curationTag]
-              ELSE [tag IN r.tags WHERE NOT tag STARTS WITH 'curated:'] + [$curationTag]
-            END
-            RETURN count(r) AS affected
-          `;
-          const result = await neo4jClient.writeQuery<{ affected: number }>(
-            cypher, { groupId, uuid, curationTag }
-          );
-          if ((result[0]?.affected ?? 0) === 0) {
-            throw new Error(`Fact not found: uuid="${uuid}" in group="${groupId}"`);
-          }
-        }
-
-        return {
-          status: 'ok',
-          action: 'curate',
-          group: groupId,
-          uuid,
-          mark,
-          mode: 'neo4j',
-        };
-      } finally {
-        await neo4jClient.disconnect();
+      if (!existing) {
+        throw new Error(`Fact not found: uuid="${uuid}" in group="${groupId}"`);
       }
+
+      const curationTag = resolveCurationTag(mark);
+      const newTags = existing.tags.filter(t => !t.startsWith('curated:'));
+      newTags.push(curationTag);
+
+      if (mark === 'authoritative') {
+        // Also promote confidence
+        const confidenceTag = resolveConfidenceTag('verified');
+        const filteredTags = newTags.filter(t => !t.startsWith('confidence:'));
+        filteredTags.push(confidenceTag);
+        // Delete and re-remember
+        gitMem.delete(uuid);
+        gitMem.remember(existing.content, { tags: filteredTags });
+      } else if (mark === 'deprecated') {
+        // Just delete the fact (equivalent to expire)
+        gitMem.delete(uuid);
+      } else {
+        // draft / needs-review: update tags
+        gitMem.delete(uuid);
+        gitMem.remember(existing.content, { tags: [...newTags] });
+      }
+
+      return {
+        status: 'ok',
+        action: 'curate',
+        group: groupId,
+        uuid,
+        mark,
+        mode: 'git-mem',
+      };
     },
 
     async consolidate(
@@ -627,94 +383,59 @@ export function createMemoryService(deps: IMemoryServiceDependencies): IMemorySe
           action: 'consolidate',
           group: groupId,
           consolidationAction: 'keep-all',
-          retainedUuid: factUuids[0],
+          retainedUuid: factUuids[0] ?? '',
           archivedUuids: [],
           relationshipsCreated: 0,
-          mode: 'neo4j',
+          mode: 'git-mem',
         };
       }
 
-      await neo4jClient.connect();
-      try {
-        if (action === 'merge') {
-          const mergedText = options?.mergedText;
-          if (!mergedText) {
-            throw new Error('merge action requires --text with merged text');
-          }
-
-          // Add the new merged fact via MCP
-          await mcpClient.initialize();
-          const mcpParams = {
-            name: mergedText.slice(0, 80),
-            episode_body: mergedText,
-            source: 'consolidation',
-            group_id: groupId,
-            tags: ['source:consolidation'],
-          };
-          await mcpClient.rpcCall<unknown>('add_memory', mcpParams);
-
-          // Batch expire all original facts with IN clause
-          const batchExpireCypher = `
-            MATCH (s:Entity)-[r]->(t:Entity)
-            WHERE r.group_id = $groupId AND r.uuid IN $uuids AND r.expired_at IS NULL
-            SET r.expired_at = datetime()
-            RETURN collect(r.uuid) AS expiredUuids
-          `;
-          await neo4jClient.writeQuery(batchExpireCypher, { groupId, uuids: factUuids });
-
-          return {
-            status: 'ok',
-            action: 'consolidate',
-            group: groupId,
-            consolidationAction: 'merge',
-            retainedUuid: 'new-merged-fact',
-            archivedUuids: [...factUuids],
-            relationshipsCreated: 0,
-            mode: 'neo4j',
-          };
+      if (action === 'merge') {
+        const mergedText = options?.mergedText;
+        if (!mergedText) {
+          throw new Error('merge action requires --text with merged text');
         }
 
-        // archive-duplicates
-        let retainUuid = options?.retainUuid;
+        // Add merged fact
+        gitMem.remember(mergedText, {
+          tags: [`group:${groupId}`, 'source:consolidation'],
+        });
 
-        if (!retainUuid) {
-          // Find the newest fact in the list
-          const findNewestCypher = `
-            MATCH (s:Entity)-[r]->(t:Entity)
-            WHERE r.group_id = $groupId AND r.uuid IN $uuids AND r.expired_at IS NULL
-            RETURN r.uuid AS uuid
-            ORDER BY r.created_at DESC
-            LIMIT 1
-          `;
-          const newestResult = await neo4jClient.query<{ uuid: string }>(
-            findNewestCypher, { groupId, uuids: factUuids }
-          );
-          retainUuid = newestResult[0]?.uuid ?? factUuids[0];
+        // Delete all originals
+        for (const uuid of factUuids) {
+          gitMem.delete(uuid);
         }
-
-        // Batch expire all except retained with IN clause
-        const archiveUuids = factUuids.filter((uuid) => uuid !== retainUuid);
-        const batchExpireCypher = `
-          MATCH (s:Entity)-[r]->(t:Entity)
-          WHERE r.group_id = $groupId AND r.uuid IN $uuids AND r.expired_at IS NULL
-          SET r.expired_at = datetime()
-          RETURN collect(r.uuid) AS expiredUuids
-        `;
-        await neo4jClient.writeQuery(batchExpireCypher, { groupId, uuids: archiveUuids });
 
         return {
           status: 'ok',
           action: 'consolidate',
           group: groupId,
-          consolidationAction: 'archive-duplicates',
-          retainedUuid: retainUuid,
-          archivedUuids: archiveUuids,
+          consolidationAction: 'merge',
+          retainedUuid: 'new-merged-fact',
+          archivedUuids: [...factUuids],
           relationshipsCreated: 0,
-          mode: 'neo4j',
+          mode: 'git-mem',
         };
-      } finally {
-        await neo4jClient.disconnect();
       }
+
+      // archive-duplicates
+      const retainUuid = options?.retainUuid ?? factUuids[0] ?? '';
+      const archiveUuids = factUuids.filter(uuid => uuid !== retainUuid);
+
+      for (const uuid of archiveUuids) {
+        gitMem.delete(uuid);
+      }
+
+      return {
+        status: 'ok',
+        action: 'consolidate',
+        group: groupId,
+        consolidationAction: 'archive-duplicates',
+        retainedUuid: retainUuid,
+        archivedUuids: archiveUuids,
+        relationshipsCreated: 0,
+        mode: 'git-mem',
+      };
     },
   };
 }
