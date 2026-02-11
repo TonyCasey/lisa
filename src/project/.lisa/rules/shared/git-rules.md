@@ -8,7 +8,6 @@
 - Use the Linear issue identifier as the branch name (lowercase, hyphenated)
 - Linear issues are displayed as `LISA-7` but branches use lowercase: `lisa-7`
 - Examples: `lisa-7`, `lisa-12`, `lisa-23`
-- For GitHub-only issues, use the issue number: `42`, `123`
 
 ### Commit Messages
 
@@ -23,7 +22,7 @@
 
 Before committing, ensure:
 
-1. **Cover new code with tests** - all new functionality must have test coverage
+1. **Cover new code with tests** - all new functionality must have test coverage to 90%
 2. **Run full tests** on the branch before committing
 3. **Check for linting errors**
 4. **Review staged changes** with `git diff --staged`
@@ -45,15 +44,8 @@ If the answer to any of these is **no**:
 
 ## Version & PR Creation
 
-Use the `/git` skill for version bumping and PR operations:
+Use the `/github` skill for version bumping and PR operations:
 
-```bash
-# Bump version before pushing (default: minor)
-lisa bump-version
-
-# Or specify: patch, minor, major
-lisa bump-version patch
-```
 
 Use the `/pr` skill to create PRs:
 
