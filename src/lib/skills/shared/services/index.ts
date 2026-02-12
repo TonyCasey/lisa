@@ -1,13 +1,27 @@
 /**
  * Shared service implementations for skill scripts.
+ *
+ * Core data services (MemoryService, TaskService, PromptService) are now
+ * consolidated in infrastructure. This file re-exports them for backwards
+ * compatibility with existing skill entry points.
  */
 
-// Re-export interfaces
-export * from './interfaces';
+// Re-export interfaces from infrastructure
+export * from '../../../infrastructure/services/skill-interfaces';
 
-// Core data services
-export { createTaskService, type ITaskServiceDependencies } from './TaskService';
-export { createMemoryService, type IMemoryServiceDependencies } from './MemoryService';
+// Core data services (re-exported from infrastructure)
+export {
+  createSkillTaskService as createTaskService,
+  type ISkillTaskServiceDependencies as ITaskServiceDependencies,
+} from '../../../infrastructure/services/SkillTaskService';
+export {
+  createSkillMemoryService as createMemoryService,
+  type ISkillMemoryServiceDependencies as IMemoryServiceDependencies,
+} from '../../../infrastructure/services/SkillMemoryService';
+export {
+  createSkillPromptService as createPromptService,
+  type ISkillPromptServiceDependencies as IPromptServiceDependencies,
+} from '../../../infrastructure/services/SkillPromptService';
 
 // CLI services
 export {
@@ -56,12 +70,7 @@ export {
   type ICompileResult,
   type IMergeResult,
 } from './SkillCompilerService';
-export {
-  createPromptService,
-  type IPromptService,
-  type IPromptArgs,
-  type IPromptResult,
-} from './PromptService';
+// PromptService is now re-exported from infrastructure (see above)
 export {
   createInitReviewService,
   type IInitReviewService,

@@ -1,6 +1,9 @@
 /**
  * Task service interface for skill scripts.
  * Provides a clean API for task CRUD operations.
+ *
+ * This is the "rich" task interface used by CLI scripts,
+ * with operations like external linking (GitHub, Jira, Linear).
  */
 
 /**
@@ -26,7 +29,7 @@ export interface ITaskExternalLink {
 /**
  * A task item.
  */
-export interface ITask {
+export interface ISkillTask {
   title: string;
   status: string;
   repo: string;
@@ -46,7 +49,7 @@ export interface ITaskListResult {
   action: 'list';
   group: string;
   groups: string[];
-  tasks: ITask[];
+  tasks: ISkillTask[];
   mode: TaskMode;
 }
 
@@ -108,9 +111,12 @@ export interface ITaskLinkResult {
 }
 
 /**
- * Task service interface.
+ * Task service interface for skill scripts.
+ *
+ * This is the "rich" interface with full CLI capabilities
+ * including external system linking.
  */
-export interface ITaskService {
+export interface ISkillTaskService {
   /**
    * List tasks from storage.
    *

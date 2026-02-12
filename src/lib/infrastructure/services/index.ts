@@ -2,8 +2,27 @@
  * Infrastructure service implementations.
  */
 
+// Domain-level git-mem services (simpler interface for DI/hooks)
 export { GitMemMemoryService } from './GitMemMemoryService';
 export { GitMemTaskService } from './GitMemTaskService';
+
+// Skill-level git-mem services (rich interface for CLI scripts)
+export {
+  createSkillMemoryService,
+  type ISkillMemoryServiceDependencies,
+} from './SkillMemoryService';
+export {
+  createSkillTaskService,
+  type ISkillTaskServiceDependencies,
+} from './SkillTaskService';
+export {
+  createSkillPromptService,
+  type ISkillPromptServiceDependencies,
+} from './SkillPromptService';
+
+// Skill interfaces (re-export for convenience)
+export * from './skill-interfaces';
+
 export { EventEmitter } from './EventEmitter';
 export { SessionCaptureService } from './SessionCaptureService';
 export { RecursionService } from './RecursionService';

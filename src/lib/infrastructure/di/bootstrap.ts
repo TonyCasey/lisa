@@ -56,8 +56,8 @@ import { createTranscriptEnricher } from '../services/TranscriptEnricher';
 import type { ISummarizationService } from '../../domain/interfaces/ISummarizationService';
 import { createLogger, createNullLogger } from '../logging';
 
-// git-mem imports
-import { MemoryService as GitMemService, NotesService, MemoryRepository } from 'git-mem/dist/index';
+// git-mem factory (shared singleton)
+import { getGitMemInstance } from '../git-mem';
 
 /**
  * Result of bootstrapping the container.
@@ -106,13 +106,11 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
   container.registerInstance(TOKENS.EventEmitter, events);
 
   // ============================================================
-  // git-mem Memory Backend
+  // git-mem Memory Backend (shared singleton)
   // ============================================================
 
-  // Wire git-mem: NotesService → MemoryRepository → MemoryService
-  const notesService = new NotesService();
-  const memoryRepo = new MemoryRepository(notesService);
-  const gitMemService = new GitMemService(memoryRepo);
+  // Use shared git-mem instance from GitMemFactory
+  const gitMemService = getGitMemInstance();
 
   // Memory Service (singleton - wraps git-mem)
   const memoryService = new GitMemMemoryService(gitMemService);
@@ -240,14 +238,13 @@ export async function bootstrapContainer(config: IServiceConfig = {}): Promise<I
           } = await import('../../skills/shared/services');
           const {
             createGhCliClientFromEnv,
-            createGitMem,
           } = await import('../../skills/shared/clients');
 
           const ghCli = createGhCliClientFromEnv();
           const githubClient = createGitHubClient(ghCli);
 
-          const skillGitMem = createGitMem();
-          const skillTaskService = createSkillTaskService({ gitMem: skillGitMem });
+          // Use the shared git-mem singleton
+          const skillTaskService = createSkillTaskService({ gitMem: gitMemService });
 
           const service = createGitHubSyncService({
             github: githubClient,

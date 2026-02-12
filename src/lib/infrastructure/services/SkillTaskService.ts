@@ -1,24 +1,27 @@
 /**
  * Task service implementation for skill scripts.
  * Uses git-mem for all task operations.
+ *
+ * This is the "rich" task service with full CLI capabilities:
+ * list, add, update, link, unlink, listLinked.
  */
 import type { IMemoryService as IGitMemMemoryService } from 'git-mem/dist/index';
 import type {
-  ITaskService,
-  ITask,
+  ISkillTaskService,
+  ISkillTask,
   ITaskListResult,
   ITaskWriteResult,
   ITaskWriteOptions,
+  ITaskLoadOptions,
   ITaskLinkResult,
   ITaskExternalLink,
   ExternalLinkSource,
-  ITaskLoadOptions,
-} from './interfaces';
+} from './skill-interfaces';
 
 /**
- * Dependencies for creating a task service.
+ * Dependencies for creating a skill task service.
  */
-export interface ITaskServiceDependencies {
+export interface ISkillTaskServiceDependencies {
   gitMem: IGitMemMemoryService;
 }
 
@@ -36,16 +39,16 @@ function parseTaskContent(content: string): Record<string, unknown> | null {
 }
 
 /**
- * Creates a task service instance backed by git-mem.
+ * Creates a skill task service instance backed by git-mem.
  *
  * Tasks are stored as git-mem memories with:
  * - Tags: `task`, `group:<groupId>`, `status:<status>`, `task_id:<uuid>`
  * - Content: JSON `{ type: "task", title, status, repo, assignee, ... }`
  *
  * @param deps - Service dependencies
- * @returns Task service implementation
+ * @returns Skill task service implementation
  */
-export function createTaskService(deps: ITaskServiceDependencies): ITaskService {
+export function createSkillTaskService(deps: ISkillTaskServiceDependencies): ISkillTaskService {
   const { gitMem } = deps;
 
   return {
@@ -78,12 +81,12 @@ export function createTaskService(deps: ITaskServiceDependencies): ITaskService 
       // Apply limit
       filtered = filtered.slice(0, limit);
 
-      // Map to ITask
-      const tasks: ITask[] = filtered.map(m => {
+      // Map to ISkillTask
+      const tasks: ISkillTask[] = filtered.map(m => {
         const taskObj = parseTaskContent(m.content);
 
         if (taskObj) {
-          const task: ITask = {
+          const task: ISkillTask = {
             title: String(taskObj.title || ''),
             status: String(taskObj.status || 'unknown'),
             repo: String(taskObj.repo || defaultRepo),

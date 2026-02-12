@@ -1,11 +1,14 @@
 /**
  * Memory service implementation for skill scripts.
  * Uses git-mem for all memory operations.
+ *
+ * This is the "rich" memory service with full CLI capabilities:
+ * load, add, expire, cleanup, conflicts, dedupe, curate, consolidate.
  */
 import type { IMemoryService as IGitMemMemoryService, IMemoryEntity } from 'git-mem/dist/index';
 
 import type {
-  IMemoryService,
+  ISkillMemoryService,
   IFact,
   IMemoryLoadResult,
   IMemoryAddResult,
@@ -18,13 +21,13 @@ import type {
   IMemoryCurateResult,
   IMemoryConsolidateResult,
   IConflictGroup,
-} from './interfaces';
-import { detectDuplicatesFromFacts } from '../../../domain/utils/deduplication';
-import { isValidCurationMark, resolveCurationTag } from '../../../domain/interfaces/ICurationService';
-import type { CurationMark } from '../../../domain/interfaces/ICurationService';
-import { resolveConfidenceTag } from '../../../domain/interfaces/types/IMemoryQuality';
-import { CONSOLIDATION_ACTION_VALUES } from '../../../domain/interfaces/IConsolidationService';
-import type { ConsolidationAction } from '../../../domain/interfaces/IConsolidationService';
+} from './skill-interfaces';
+import { detectDuplicatesFromFacts } from '../../domain/utils/deduplication';
+import { isValidCurationMark, resolveCurationTag } from '../../domain/interfaces/ICurationService';
+import type { CurationMark } from '../../domain/interfaces/ICurationService';
+import { resolveConfidenceTag } from '../../domain/interfaces/types/IMemoryQuality';
+import { CONSOLIDATION_ACTION_VALUES } from '../../domain/interfaces/IConsolidationService';
+import type { ConsolidationAction } from '../../domain/interfaces/IConsolidationService';
 
 /**
  * Type-to-tag mapping for memory types.
@@ -72,19 +75,19 @@ function toFact(entity: IMemoryEntity, groupId: string): IFact {
 }
 
 /**
- * Dependencies for creating a memory service.
+ * Dependencies for creating a skill memory service.
  */
-export interface IMemoryServiceDependencies {
+export interface ISkillMemoryServiceDependencies {
   gitMem: IGitMemMemoryService;
 }
 
 /**
- * Creates a memory service instance backed by git-mem.
+ * Creates a skill memory service instance backed by git-mem.
  *
  * @param deps - Service dependencies
- * @returns Memory service implementation
+ * @returns Skill memory service implementation
  */
-export function createMemoryService(deps: IMemoryServiceDependencies): IMemoryService {
+export function createSkillMemoryService(deps: ISkillMemoryServiceDependencies): ISkillMemoryService {
   const { gitMem } = deps;
 
   return {

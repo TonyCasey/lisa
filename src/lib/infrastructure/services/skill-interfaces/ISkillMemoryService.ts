@@ -1,9 +1,12 @@
 /**
  * Memory service interface for skill scripts.
  * Provides a clean API for memory/fact CRUD operations.
+ *
+ * This is the "rich" memory interface used by CLI scripts,
+ * with operations like dedupe, curate, conflicts, consolidate.
  */
-import type { CurationMark } from '../../../../domain/interfaces/ICurationService';
-import type { ConsolidationAction } from '../../../../domain/interfaces/IConsolidationService';
+import type { CurationMark } from '../../../domain/interfaces/ICurationService';
+import type { ConsolidationAction } from '../../../domain/interfaces/IConsolidationService';
 
 /**
  * A memory/fact item.
@@ -166,9 +169,13 @@ export interface IMemoryConsolidateResult {
 }
 
 /**
- * Memory service interface.
+ * Memory service interface for skill scripts.
+ *
+ * This is the "rich" interface with full CLI capabilities.
+ * Contrast with IMemoryService in domain/interfaces which is
+ * the simpler infrastructure interface.
  */
-export interface IMemoryService {
+export interface ISkillMemoryService {
   /**
    * Load memories/facts from storage.
    *
