@@ -1,43 +1,30 @@
 /**
  * Prompt service - captures user prompts to git-mem.
+ *
+ * Uses fingerprinting to detect and skip duplicate prompts.
  */
 import crypto from 'crypto';
 import type { IMemoryService as IGitMemMemoryService } from 'git-mem/dist/index';
+import type {
+  ISkillPromptService,
+  IPromptArgs,
+  IPromptResult,
+} from './skill-interfaces';
 
-// ============================================================================
-// Types
-// ============================================================================
-
-export interface IPromptArgs {
-  text: string;
-  role?: string;
-  source?: string;
-  force?: boolean;
-  groupId: string;
-}
-
-export interface IPromptResult {
-  status: 'ok' | 'skipped';
-  action?: 'add';
-  group?: string;
-  role?: string;
-  source?: string;
-  reason?: string;
-}
-
-export interface IPromptService {
-  fingerprint(text: string): string;
-  addPrompt(args: IPromptArgs): Promise<IPromptResult>;
-}
-
-export interface IPromptServiceDependencies {
+/**
+ * Dependencies for creating a skill prompt service.
+ */
+export interface ISkillPromptServiceDependencies {
   gitMem: IGitMemMemoryService;
 }
 
 /**
- * Creates a prompt service instance backed by git-mem.
+ * Creates a skill prompt service instance backed by git-mem.
+ *
+ * @param deps - Service dependencies
+ * @returns Skill prompt service implementation
  */
-export function createPromptService(deps: IPromptServiceDependencies): IPromptService {
+export function createSkillPromptService(deps: ISkillPromptServiceDependencies): ISkillPromptService {
   const { gitMem } = deps;
 
   return {

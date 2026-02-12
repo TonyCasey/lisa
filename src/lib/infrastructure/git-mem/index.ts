@@ -2,6 +2,7 @@
  * Git-mem infrastructure barrel export.
  */
 export { GitMemClient } from './GitMemClient';
+export { getGitMemInstance, createGitMem, resetGitMemInstance } from './GitMemFactory';
 export type {
   GitMemType,
   GitMemConfidence,
