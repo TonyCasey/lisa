@@ -1,8 +1,8 @@
 import { describe, it, beforeEach, afterEach, mock } from 'node:test';
 import assert from 'node:assert';
 import fs from 'fs';
-import path from 'path';
 import os from 'os';
+import path from 'path';
 import {
   runDoctor,
   formatBasicOutput,
@@ -14,7 +14,6 @@ import {
   type CheckStatus,
 } from '../../../../../src/lib/commands/doctor';
 import type { ICliServices } from '../../../../../src/lib/commands/cli-services';
-import { normalizeGroupId } from '../../../../../src/lib/skills/shared/utils/group-id';
 
 /**
  * Create a mock ICliServices object for testing.
@@ -266,7 +265,7 @@ describe('Doctor Command', () => {
       const result = await runDoctor({ cwd: tempDir }, services);
 
       assert.strictEqual(result.config.mode, 'local');
-      const expectedGroup = normalizeGroupId(tempDir);
+      const expectedGroup = path.basename(tempDir);
       assert.strictEqual(result.config.group, expectedGroup, 'Group should be derived from folder path');
       assert.strictEqual(result.config.endpoint, 'http://localhost:8010/mcp/');
       assert.strictEqual(result.config.envFileExists, true);
@@ -283,7 +282,7 @@ describe('Doctor Command', () => {
       const services = createMockServices();
       const result = await runDoctor({ cwd: tempDir }, services);
 
-      const expectedGroup = normalizeGroupId(tempDir);
+      const expectedGroup = path.basename(tempDir);
       assert.strictEqual(result.config.group, expectedGroup, 'Group should be derived from folder path');
     });
   });

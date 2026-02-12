@@ -38,12 +38,7 @@ export class MemoryContextLoader {
   /**
    * Load memory context from git-mem.
    */
-  async loadMemory(
-    hierarchicalGroupIds: readonly string[],
-    projectAliases: readonly string[],
-    _branch: string | null,
-    dateOptions?: IMemoryDateOptions,
-  ): Promise<IMemoryLoadResult> {
+  async loadMemory(dateOptions?: IMemoryDateOptions): Promise<IMemoryLoadResult> {
     const result: IMemoryLoadResult = {
       facts: [],
       nodes: [],
@@ -53,7 +48,6 @@ export class MemoryContextLoader {
     };
 
     const TIMEOUT_MS = 5000;
-    const allGroupIds = [...new Set([...hierarchicalGroupIds, ...projectAliases])];
 
     const cancellableResult = await withCancellation(
       async (abortSignal) => {
@@ -61,7 +55,7 @@ export class MemoryContextLoader {
         try {
           checkCancellation(abortSignal, 'Memory load cancelled before init-review');
 
-          const initFacts = await this.memory.searchFacts(allGroupIds, 'init-review', 1);
+          const initFacts = await this.memory.searchFacts('init-review', 1);
 
           checkCancellation(abortSignal, 'Memory load cancelled after init-review fetch');
 
@@ -77,7 +71,7 @@ export class MemoryContextLoader {
         try {
           checkCancellation(abortSignal, 'Memory load cancelled before facts');
 
-          const facts = await this.memory.loadFactsDateOrdered(allGroupIds, 100, dateOptions);
+          const facts = await this.memory.loadFactsDateOrdered(100, dateOptions);
 
           checkCancellation(abortSignal, 'Memory load cancelled after facts fetch');
 
@@ -90,7 +84,7 @@ export class MemoryContextLoader {
         try {
           checkCancellation(abortSignal, 'Memory load cancelled before tasks');
 
-          const loadedTasks = await this.tasks.getTasksSimple(allGroupIds);
+          const loadedTasks = await this.tasks.getTasksSimple();
 
           checkCancellation(abortSignal, 'Memory load cancelled after tasks fetch');
 

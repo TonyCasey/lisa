@@ -45,7 +45,7 @@ export function createNlCurationService(
   logger?: ILogger
 ): INlCurationService {
   return {
-    async plan(input: string, _groupId: string): Promise<INlCurationPlan> {
+    async plan(input: string): Promise<INlCurationPlan> {
       const prompt = buildCurationPrompt(input);
 
       const response = await llmGuard.complete(prompt.user, 'curation', {
@@ -65,14 +65,13 @@ export function createNlCurationService(
       };
     },
 
-    async execute(plan: INlCurationPlan, groupId: string): Promise<INlCurationResult> {
+    async execute(plan: INlCurationPlan): Promise<INlCurationResult> {
       const outputParts: string[] = [];
 
       for (const operation of plan.operations) {
         try {
           const result = await executeOperation(
             operation,
-            groupId,
             memoryService,
             curationService,
             consolidationService,
@@ -214,7 +213,6 @@ function fallbackPlan(): {
  */
 async function executeOperation(
   operation: INlOperation,
-  groupId: string,
   memoryService: IMemoryService,
   curationService: ICurationService,
   consolidationService: IConsolidationService,
@@ -230,7 +228,7 @@ async function executeOperation(
         ? operation.params.limit
         : 10;
 
-      const facts = await memoryService.searchFacts([groupId], query, limit);
+      const facts = await memoryService.searchFacts(query, limit);
 
       if (facts.length === 0) {
         return `No facts found matching "${query}".`;
@@ -254,7 +252,7 @@ async function executeOperation(
         return `Invalid curation mark: "${mark}". Valid marks: authoritative, draft, deprecated, needs-review.`;
       }
 
-      const facts = await memoryService.searchFacts([groupId], query, 5);
+      const facts = await memoryService.searchFacts(query, 5);
 
       if (facts.length === 0) {
         return `No facts found matching "${query}" to mark as ${mark}.`;
@@ -264,7 +262,7 @@ async function executeOperation(
       for (const fact of facts) {
         if (!fact.uuid) continue;
         try {
-          await curationService.markFact(groupId, fact.uuid, mark as CurationMark);
+          await curationService.markFact(fact.uuid, mark as CurationMark);
           marked++;
         } catch (error) {
           logger?.debug('Failed to mark fact', {
@@ -281,7 +279,7 @@ async function executeOperation(
         ? operation.params.query
         : '';
 
-      const facts = await memoryService.searchFacts([groupId], query, 20);
+      const facts = await memoryService.searchFacts(query, 20);
 
       if (facts.length === 0) {
         return `No facts found matching "${query}" to expire.`;
@@ -291,7 +289,7 @@ async function executeOperation(
       for (const fact of facts) {
         if (!fact.uuid) continue;
         try {
-          await memoryService.expireFact(groupId, fact.uuid);
+          await memoryService.expireFact(fact.uuid);
           expired++;
         } catch (error) {
           logger?.debug('Failed to expire fact', {
@@ -309,7 +307,7 @@ async function executeOperation(
         : undefined;
       const style = operation.params.style === 'detailed' ? 'detailed' : 'concise';
 
-      const result = await summarizationService.summarize(groupId, {
+      const result = await summarizationService.summarize({
         topic,
         style,
       });
@@ -322,7 +320,7 @@ async function executeOperation(
         ? operation.params.query
         : '';
 
-      const facts = await memoryService.searchFacts([groupId], query, 10);
+      const facts = await memoryService.searchFacts(query, 10);
       const uuids = facts.filter(f => f.uuid).map(f => f.uuid!);
 
       if (uuids.length < 2) {
@@ -330,7 +328,6 @@ async function executeOperation(
       }
 
       const result = await consolidationService.consolidate(
-        groupId,
         uuids,
         'archive-duplicates'
       );

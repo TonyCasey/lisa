@@ -3,13 +3,15 @@
  *
  * Comprehensive diagnostic tool for Lisa configuration and connectivity.
  * Supports basic, verbose, and JSON output modes.
+ *
+ * Note: Group IDs are no longer used - the git repo itself provides scoping
+ * via git-mem (git notes in refs/notes/mem).
  */
 
 import fs from 'fs-extra';
 import path from 'path';
 import chalk from 'chalk';
 import type { ICliServices } from './cli-services';
-import { getCurrentGroupId } from '../skills/shared/utils/group-id';
 
 // ============================================================================
 // Types
@@ -552,7 +554,8 @@ export async function runDoctor(
     opts.endpoint ||
     config?.endpoint ||
     (mode === 'zep-cloud' ? ZEP_CLOUD_ENDPOINT : DEFAULT_ENDPOINT);
-  const group = getCurrentGroupId(cwd);
+  // Group ID is derived from folder name for backwards compatibility
+  const group = getProjectName(cwd);
   const zepApiKey = config?.zepApiKey || process.env.ZEP_API_KEY;
 
   // Build config info

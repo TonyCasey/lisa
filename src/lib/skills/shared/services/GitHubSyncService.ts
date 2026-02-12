@@ -11,6 +11,10 @@
  * - in-progress   <-> open + in-progress label
  * - blocked       <-> open + blocked label
  * - done          <-> closed
+ *
+ * Note: Group IDs are no longer used - the git repo itself provides scoping
+ * via git-mem (git notes in refs/notes/mem). The groupId in ISyncOptions is
+ * kept for interface compatibility but ignored.
  */
 import type { IGitHubClient, IGitHubIssue } from './GitHubService';
 import type {
@@ -211,7 +215,6 @@ export function createGitHubSyncService(
     issueNumber: number
   ): Promise<ITask | undefined> {
     const result = await tasks.listLinked(
-      [options.groupId],
       'github',
       1000,
       options.defaultRepo || '',
@@ -239,7 +242,7 @@ export function createGitHubSyncService(
       syncedAt: new Date().toISOString(),
     };
 
-    await tasks.add(issue.title, options.groupId, {
+    await tasks.add(issue.title, {
       status,
       repo: options.repo,
       assignee: issue.assignees[0] || options.defaultAssignee || '',
@@ -289,7 +292,7 @@ export function createGitHubSyncService(
       syncedAt: new Date().toISOString(),
     };
 
-    await tasks.link(task.uuid, options.groupId, externalLink);
+    await tasks.link(task.uuid, externalLink);
 
     return {
       title: task.title,
@@ -303,13 +306,13 @@ export function createGitHubSyncService(
    * Update a linked task's status based on GitHub issue state.
    */
   async function updateFromGitHub(
-    options: ISyncOptions,
+    _options: ISyncOptions,
     task: ITask,
     issue: IGitHubIssue
   ): Promise<ISyncItem> {
     const newStatus = gitHubStatusToLisa(issue);
 
-    await tasks.update(task.title, options.groupId, {
+    await tasks.update(task.title, {
       status: newStatus,
       repo: task.repo,
       assignee: issue.assignees[0] || task.assignee,
@@ -367,7 +370,7 @@ export function createGitHubSyncService(
     }
 
     // Update sync timestamp on the task
-    await tasks.update(task.title, options.groupId, {
+    await tasks.update(task.title, {
       status: task.status,
       repo: task.repo,
       assignee: task.assignee,
@@ -437,7 +440,6 @@ export function createGitHubSyncService(
 
       // Get all Lisa tasks
       const tasksResult = await tasks.list(
-        [options.groupId],
         1000,
         options.defaultRepo || '',
         options.defaultAssignee || ''

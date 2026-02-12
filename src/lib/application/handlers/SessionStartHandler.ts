@@ -94,12 +94,7 @@ export class SessionStartHandler implements IRequestHandler<SessionStartRequest,
 
     // Load memory and run git triage in parallel
     const [memories, gitTriage] = await Promise.all([
-      this.memoryLoader.loadMemory(
-        hierarchicalGroupIds,
-        projectAliases,
-        branch,
-        dateOptions,
-      ),
+      this.memoryLoader.loadMemory(dateOptions),
       this.runGitTriage(dateOptions.since, projectRoot),
     ]);
 

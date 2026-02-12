@@ -103,7 +103,7 @@ export class SessionStopHandler implements IRequestHandler<SessionStopRequest, I
 
     // Save captured facts to memory with session lifecycle and quality tags
     for (const fact of captured.facts) {
-      await this.memory.addFactWithLifecycle(this.context.groupId, fact, {
+      await this.memory.addFactWithLifecycle(fact, {
         lifecycle: 'session',
         tags,
       });
@@ -113,7 +113,6 @@ export class SessionStopHandler implements IRequestHandler<SessionStopRequest, I
     await this.events.emit({
       type: 'memory:save',
       facts: captured.facts,
-      groupId: this.context.groupId,
       timestamp: toISOTimestamp(),
     });
 
@@ -138,7 +137,7 @@ export class SessionStopHandler implements IRequestHandler<SessionStopRequest, I
 
     try {
       // Get current tasks
-      const tasks = await this.tasks.getTasksSimple([this.context.groupId]);
+      const tasks = await this.tasks.getTasksSimple();
 
       // Count incomplete tasks without external links
       const unlinkedIncompleteTasks = tasks.filter(

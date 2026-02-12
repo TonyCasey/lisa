@@ -50,6 +50,8 @@ export interface IConsolidationOptions {
  * Consolidation service interface.
  *
  * Provides operations for consolidating duplicate or related facts.
+ *
+ * Note: Group IDs are no longer used - the git repo provides scoping via git-mem.
  */
 export interface IConsolidationService {
   /**
@@ -62,7 +64,6 @@ export interface IConsolidationService {
    *   expire the rest, create supersedes relationships
    * - `keep-all`: No-op, return empty result
    *
-   * @param groupId - Group ID the facts belong to
    * @param factUuids - UUIDs of facts to consolidate (minimum 2)
    * @param action - Consolidation action to perform
    * @param options - Additional options (retainUuid, mergedText)
@@ -70,7 +71,6 @@ export interface IConsolidationService {
    * @throws Error if retainUuid is not in the provided UUIDs
    */
   consolidate(
-    groupId: string,
     factUuids: readonly string[],
     action: ConsolidationAction,
     options?: IConsolidationOptions

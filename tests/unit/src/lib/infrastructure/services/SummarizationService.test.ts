@@ -39,8 +39,8 @@ const mockFacts: IMemoryItem[] = [
 
 // ── Mock memory service ────────────────────────────────────
 
-interface ILoadCall { groupIds: readonly string[]; limit?: number; options?: IMemoryDateOptions }
-interface ISearchCall { groupIds: readonly string[]; query: string; limit?: number }
+interface ILoadCall { limit?: number; options?: IMemoryDateOptions }
+interface ISearchCall { query: string; limit?: number }
 
 function createMockMemoryService(facts: IMemoryItem[] = mockFacts): IMemoryService & { loadCalls: ILoadCall[]; searchCalls: ISearchCall[] } {
   const loadCalls: ILoadCall[] = [];
@@ -53,12 +53,12 @@ function createMockMemoryService(facts: IMemoryItem[] = mockFacts): IMemoryServi
     async loadMemory() {
       return { facts: [], nodes: [], tasks: [], initReview: null, timedOut: false } as IMemoryResult;
     },
-    async loadFactsDateOrdered(groupIds: readonly string[], limit?: number, options?: IMemoryDateOptions) {
-      loadCalls.push({ groupIds, limit, options });
+    async loadFactsDateOrdered(limit?: number, options?: IMemoryDateOptions) {
+      loadCalls.push({ limit, options });
       return facts.slice(0, limit ?? facts.length);
     },
-    async searchFacts(groupIds: readonly string[], query: string, limit?: number) {
-      searchCalls.push({ groupIds, query, limit });
+    async searchFacts(query: string, limit?: number) {
+      searchCalls.push({ query, limit });
       // Simulate search by filtering on topic tag
       return facts
         .filter(f => f.tags?.some(t => t.includes(query)) || f.fact?.includes(query))
@@ -109,11 +109,10 @@ describe('SummarizationService', () => {
       const guard = createMockLlmGuard();
       const svc = createSummarizationService(memory, guard);
 
-      const result = await svc.summarize('group-1');
+      const result = await svc.summarize();
 
       // Should have loaded facts
       assert.strictEqual(memory.loadCalls.length, 1);
-      assert.deepStrictEqual(memory.loadCalls[0]?.groupIds, ['group-1']);
 
       // Should have called LLM
       assert.strictEqual(guard.calls.length, 1);
@@ -130,7 +129,7 @@ describe('SummarizationService', () => {
       const guard = createMockLlmGuard();
       const svc = createSummarizationService(memory, guard);
 
-      const result = await svc.summarize('group-1');
+      const result = await svc.summarize();
       assert.deepStrictEqual([...result.topics], ['database', 'api', 'authentication']);
     });
 
@@ -141,7 +140,7 @@ describe('SummarizationService', () => {
       );
       const svc = createSummarizationService(memory, guard);
 
-      const result = await svc.summarize('group-1');
+      const result = await svc.summarize();
       assert.strictEqual(result.summary, 'This is the summary.');
     });
 
@@ -150,7 +149,7 @@ describe('SummarizationService', () => {
       const guard = createMockLlmGuard();
       const svc = createSummarizationService(memory, guard);
 
-      const result = await svc.summarize('group-1');
+      const result = await svc.summarize();
       assert.strictEqual(result.timeRange.from, '2025-01-10T10:00:00.000Z');
       assert.strictEqual(result.timeRange.to, '2025-01-12T10:00:00.000Z');
     });
@@ -160,7 +159,7 @@ describe('SummarizationService', () => {
       const guard = createMockLlmGuard();
       const svc = createSummarizationService(memory, guard);
 
-      const result = await svc.summarize('group-1');
+      const result = await svc.summarize();
       assert.strictEqual(result.usage.inputTokens, 100);
       assert.strictEqual(result.usage.outputTokens, 50);
       assert.strictEqual(result.usage.totalTokens, 150);
@@ -171,7 +170,7 @@ describe('SummarizationService', () => {
       const guard = createMockLlmGuard();
       const svc = createSummarizationService(memory, guard);
 
-      await svc.summarize('group-1', { topic: 'database' });
+      await svc.summarize({ topic: 'database' });
 
       assert.strictEqual(memory.searchCalls.length, 1);
       assert.strictEqual(memory.searchCalls[0]?.query, 'database');
@@ -184,7 +183,7 @@ describe('SummarizationService', () => {
       const svc = createSummarizationService(memory, guard);
 
       const since = new Date('2025-01-11T00:00:00.000Z');
-      await svc.summarize('group-1', { since });
+      await svc.summarize({ since });
 
       assert.strictEqual(memory.loadCalls.length, 1);
       assert.strictEqual(memory.loadCalls[0]?.options?.since, since);
@@ -195,7 +194,7 @@ describe('SummarizationService', () => {
       const guard = createMockLlmGuard();
       const svc = createSummarizationService(memory, guard);
 
-      await svc.summarize('group-1', { maxFacts: 2 });
+      await svc.summarize({ maxFacts: 2 });
 
       assert.strictEqual(memory.loadCalls.length, 1);
       assert.strictEqual(memory.loadCalls[0]?.limit, 2);
@@ -206,7 +205,7 @@ describe('SummarizationService', () => {
       const guard = createMockLlmGuard();
       const svc = createSummarizationService(memory, guard);
 
-      const result = await svc.summarize('group-1');
+      const result = await svc.summarize();
 
       assert.strictEqual(result.factCount, 0);
       assert.ok(result.summary.includes('No facts found'));
@@ -219,7 +218,7 @@ describe('SummarizationService', () => {
       const guard = createMockLlmGuard();
       const svc = createSummarizationService(memory, guard);
 
-      await svc.summarize('group-1', { style: 'detailed' });
+      await svc.summarize({ style: 'detailed' });
 
       assert.strictEqual(guard.calls.length, 1);
       assert.strictEqual(guard.calls[0]?.options?.maxTokens, 2048);
@@ -230,7 +229,7 @@ describe('SummarizationService', () => {
       const guard = createMockLlmGuard();
       const svc = createSummarizationService(memory, guard);
 
-      await svc.summarize('group-1', { style: 'concise' });
+      await svc.summarize({ style: 'concise' });
 
       assert.strictEqual(guard.calls.length, 1);
       assert.strictEqual(guard.calls[0]?.options?.maxTokens, 1024);
@@ -241,7 +240,7 @@ describe('SummarizationService', () => {
       const guard = createMockLlmGuard('Just a plain summary without topics.');
       const svc = createSummarizationService(memory, guard);
 
-      const result = await svc.summarize('group-1');
+      const result = await svc.summarize();
       assert.strictEqual(result.summary, 'Just a plain summary without topics.');
       assert.strictEqual(result.topics.length, 0);
     });
@@ -251,7 +250,7 @@ describe('SummarizationService', () => {
       const guard = createMockLlmGuard('Summary text\n\nTOPICS: not-valid-json');
       const svc = createSummarizationService(memory, guard);
 
-      const result = await svc.summarize('group-1');
+      const result = await svc.summarize();
       assert.strictEqual(result.summary, 'Summary text');
       assert.strictEqual(result.topics.length, 0);
     });
@@ -268,7 +267,7 @@ describe('SummarizationService', () => {
       const svc = createSummarizationService(memory, guard);
 
       await assert.rejects(
-        async () => svc.summarize('group-1'),
+        async () => svc.summarize(),
         (error: unknown) => {
           assert.ok(error instanceof Error);
           assert.ok(error.message.includes('LLM provider unavailable'));
@@ -288,7 +287,7 @@ describe('SummarizationService', () => {
       const svc = createSummarizationService(memory, guard);
 
       const since = new Date('2025-01-10T00:00:00.000Z');
-      const result = await svc.summarize('group-1', { topic: 'decision', since });
+      const result = await svc.summarize({ topic: 'decision', since });
 
       // searchFacts should be called (topic path)
       assert.strictEqual(memory.searchCalls.length, 1);
@@ -302,7 +301,7 @@ describe('SummarizationService', () => {
       const guard = createMockLlmGuard();
       const svc = createSummarizationService(memory, guard);
 
-      await svc.summarize('group-1');
+      await svc.summarize();
 
       assert.strictEqual(guard.calls.length, 1);
       assert.ok(guard.calls[0]?.options?.systemPrompt);

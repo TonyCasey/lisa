@@ -79,7 +79,6 @@ export function createSummarizationService(
 ): ISummarizationService {
   return {
     async summarize(
-      groupId: string,
       options: ISummarizationOptions = {}
     ): Promise<ISummarizationResult> {
       const maxFacts = options.maxFacts ?? DEFAULT_MAX_FACTS;
@@ -88,7 +87,7 @@ export function createSummarizationService(
       let facts: IMemoryItem[];
 
       if (options.topic) {
-        facts = await memoryService.searchFacts([groupId], options.topic, maxFacts);
+        facts = await memoryService.searchFacts(options.topic, maxFacts);
         // Post-filter by since date — searchFacts doesn't support date filtering
         if (options.since) {
           const sinceMs = options.since.getTime();
@@ -100,7 +99,7 @@ export function createSummarizationService(
       } else {
         const dateOpts: IMemoryDateOptions = {};
         if (options.since) dateOpts.since = options.since;
-        facts = await memoryService.loadFactsDateOrdered([groupId], maxFacts, dateOpts);
+        facts = await memoryService.loadFactsDateOrdered(maxFacts, dateOpts);
       }
 
       if (facts.length === 0) {
@@ -114,7 +113,6 @@ export function createSummarizationService(
       }
 
       logger?.debug('Summarization: loaded facts', {
-        groupId,
         factCount: facts.length,
         topic: options.topic,
         since: options.since?.toISOString(),
@@ -136,7 +134,6 @@ export function createSummarizationService(
       const timeRange = computeTimeRange(facts);
 
       logger?.debug('Summarization: complete', {
-        groupId,
         factCount: facts.length,
         topicCount: topics.length,
         inputTokens: response.usage.inputTokens,

@@ -94,13 +94,13 @@ function createMockTaskService(tasks: ITask[] = []): ITaskService {
       closed: 0,
       unknown: 0,
     }),
-    createTask: async (_groupId, input) => ({
+    createTask: async (input) => ({
       key: 'new-task',
       status: input.status || 'ready',
       title: input.title,
       blocked: [...(input.blocked || [])],
     }),
-    updateTask: async (_groupId, _taskId, updates) => ({
+    updateTask: async (_taskId, updates) => ({
       key: 'task-1',
       status: updates.status || 'ready',
       title: updates.title || 'Task',
@@ -227,7 +227,7 @@ describe('SessionStopHandler', () => {
       const savedOptions: unknown[] = [];
       const context = createMockContext();
       const memory = createMockMemory({
-        addFactWithLifecycle: async (_groupId, fact, options) => {
+        addFactWithLifecycle: async (fact, options) => {
           savedFacts.push(fact);
           savedOptions.push(options);
         },

@@ -73,10 +73,7 @@ export class PromptSubmitHandler implements IRequestHandler<PromptSubmitRequest,
     if (this.recursion && request.permissionMode === 'plan') {
       if (this.recursion.shouldRun(request.content, request.permissionMode)) {
         try {
-          recursionResult = await this.recursion.run(
-            request.content,
-            this.context.hierarchicalGroupIds
-          );
+          recursionResult = await this.recursion.run(request.content);
           if (recursionResult.hasContext) {
             planModeRecursion = true;
             additionalContext = recursionResult.summary;
@@ -93,7 +90,6 @@ export class PromptSubmitHandler implements IRequestHandler<PromptSubmitRequest,
     // Add to memory with ephemeral lifecycle (fire-and-forget style)
     try {
       await this.memory.addFactWithLifecycle(
-        this.context.groupId,
         `User prompt at ${request.timestamp}: ${truncatedContent}`,
         { lifecycle: 'ephemeral', tags: ['type:prompt'] }
       );

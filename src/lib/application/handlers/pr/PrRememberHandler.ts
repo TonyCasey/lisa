@@ -46,8 +46,7 @@ export interface IPrRememberResult {
 export class PrRememberHandler {
   constructor(
     private readonly githubClient: IGithubClient,
-    private readonly memoryService: IMemoryWriter,
-    private readonly groupId: string
+    private readonly memoryService: IMemoryWriter
   ) {}
 
   /**
@@ -85,7 +84,7 @@ export class PrRememberHandler {
       const tags = ['github:pr', `github:pr:${prNumber}`];
 
       // 5. Save to memory
-      await this.memoryService.addFact(this.groupId, fact, tags);
+      await this.memoryService.addFact(fact, tags);
 
       // 6. Return success
       return {

@@ -44,7 +44,7 @@ describe('GitIndexingService', () => {
       const service = createGitIndexingService(mockMemory, mockLogger);
       const facts = [createMockFact()];
 
-      const result = await service.indexFacts(facts, 'test-group');
+      const result = await service.indexFacts(facts);
 
       assert.strictEqual(result.indexed, 1);
       assert.strictEqual(result.skipped, 0);
@@ -53,8 +53,7 @@ describe('GitIndexingService', () => {
       const addFactCalls = (mockMemory.addFactWithLifecycle as ReturnType<typeof mock.fn>).mock.calls;
       assert.strictEqual(addFactCalls.length, 1);
 
-      const [groupId, factText, options] = addFactCalls[0].arguments;
-      assert.strictEqual(groupId, 'test-group');
+      const [factText, options] = addFactCalls[0].arguments;
       assert.strictEqual(factText, 'Test fact about a decision');
       assert.strictEqual(options.lifecycle, 'project');
 
@@ -76,10 +75,10 @@ describe('GitIndexingService', () => {
         issueNumber: 456,
       })];
 
-      await service.indexFacts(facts, 'test-group');
+      await service.indexFacts(facts);
 
       const addFactCalls = (mockMemory.addFactWithLifecycle as ReturnType<typeof mock.fn>).mock.calls;
-      const options = addFactCalls[0].arguments[2];
+      const options = addFactCalls[0].arguments[1];
       const tags = options.tags as string[];
 
       assert.ok(tags.includes('commit:abc123'), 'Should have commit tag');
@@ -90,10 +89,10 @@ describe('GitIndexingService', () => {
       const service = createGitIndexingService(mockMemory, mockLogger);
       const facts = [createMockFact()];
 
-      await service.indexFacts(facts, 'test-group', { conventionalType: 'feat' });
+      await service.indexFacts(facts, { conventionalType: 'feat' });
 
       const addFactCalls = (mockMemory.addFactWithLifecycle as ReturnType<typeof mock.fn>).mock.calls;
-      const tags = addFactCalls[0].arguments[2].tags as string[];
+      const tags = addFactCalls[0].arguments[1].tags as string[];
 
       assert.ok(tags.includes('memoryType:milestone'), 'Should have memoryType:milestone tag');
     });
@@ -102,10 +101,10 @@ describe('GitIndexingService', () => {
       const service = createGitIndexingService(mockMemory, mockLogger);
       const facts = [createMockFact()];
 
-      await service.indexFacts(facts, 'test-group', { conventionalType: 'fix' });
+      await service.indexFacts(facts, { conventionalType: 'fix' });
 
       const addFactCalls = (mockMemory.addFactWithLifecycle as ReturnType<typeof mock.fn>).mock.calls;
-      const tags = addFactCalls[0].arguments[2].tags as string[];
+      const tags = addFactCalls[0].arguments[1].tags as string[];
 
       assert.ok(tags.includes('memoryType:gotcha'), 'Should have memoryType:gotcha tag');
     });
@@ -114,10 +113,10 @@ describe('GitIndexingService', () => {
       const service = createGitIndexingService(mockMemory, mockLogger);
       const facts = [createMockFact()];
 
-      await service.indexFacts(facts, 'test-group', { conventionalType: 'refactor' });
+      await service.indexFacts(facts, { conventionalType: 'refactor' });
 
       const addFactCalls = (mockMemory.addFactWithLifecycle as ReturnType<typeof mock.fn>).mock.calls;
-      const tags = addFactCalls[0].arguments[2].tags as string[];
+      const tags = addFactCalls[0].arguments[1].tags as string[];
 
       assert.ok(tags.includes('memoryType:decision'), 'Should have memoryType:decision tag');
     });
@@ -126,10 +125,10 @@ describe('GitIndexingService', () => {
       const service = createGitIndexingService(mockMemory, mockLogger);
       const facts = [createMockFact()];
 
-      await service.indexFacts(facts, 'test-group', { conventionalType: 'docs' });
+      await service.indexFacts(facts, { conventionalType: 'docs' });
 
       const addFactCalls = (mockMemory.addFactWithLifecycle as ReturnType<typeof mock.fn>).mock.calls;
-      const tags = addFactCalls[0].arguments[2].tags as string[];
+      const tags = addFactCalls[0].arguments[1].tags as string[];
 
       assert.ok(tags.includes('memoryType:convention'), 'Should have memoryType:convention tag');
     });
@@ -138,7 +137,7 @@ describe('GitIndexingService', () => {
       const service = createGitIndexingService(mockMemory, mockLogger);
       const facts = [createMockFact(), createMockFact()];
 
-      const result = await service.indexFacts(facts, 'test-group', { conventionalType: 'chore' });
+      const result = await service.indexFacts(facts, { conventionalType: 'chore' });
 
       assert.strictEqual(result.indexed, 0);
       assert.strictEqual(result.skipped, 2);
@@ -152,7 +151,7 @@ describe('GitIndexingService', () => {
       const service = createGitIndexingService(mockMemory, mockLogger);
       const facts = [createMockFact()];
 
-      const result = await service.indexFacts(facts, 'test-group', { conventionalType: 'ci' });
+      const result = await service.indexFacts(facts, { conventionalType: 'ci' });
 
       assert.strictEqual(result.indexed, 0);
       assert.strictEqual(result.skipped, 1);
@@ -166,7 +165,7 @@ describe('GitIndexingService', () => {
       const service = createGitIndexingService(mockMemory, mockLogger);
       const facts = [createMockFact()];
 
-      const result = await service.indexFacts(facts, 'test-group');
+      const result = await service.indexFacts(facts);
 
       assert.strictEqual(result.indexed, 0);
       assert.strictEqual(result.duplicates, 1);
@@ -180,7 +179,7 @@ describe('GitIndexingService', () => {
       const service = createGitIndexingService(mockMemory, mockLogger);
       const facts = [createMockFact()];
 
-      const result = await service.indexFacts(facts, 'test-group');
+      const result = await service.indexFacts(facts);
 
       assert.strictEqual(result.indexed, 1);
       assert.strictEqual(result.duplicates, 0);
@@ -194,7 +193,7 @@ describe('GitIndexingService', () => {
       const service = createGitIndexingService(mockMemory, mockLogger);
       const facts = [createMockFact()];
 
-      const result = await service.indexFacts(facts, 'test-group', { skipDeduplication: true });
+      const result = await service.indexFacts(facts, { skipDeduplication: true });
 
       assert.strictEqual(result.indexed, 1);
       assert.strictEqual(result.duplicates, 0);
@@ -213,7 +212,7 @@ describe('GitIndexingService', () => {
       const facts = [createMockFact()];
 
       // With high threshold (0.99), should not be considered duplicate
-      const result1 = await service.indexFacts(facts, 'test-group', { similarityThreshold: 0.99 });
+      const result1 = await service.indexFacts(facts, { similarityThreshold: 0.99 });
       assert.strictEqual(result1.indexed, 1);
       assert.strictEqual(result1.duplicates, 0);
     });
@@ -226,7 +225,7 @@ describe('GitIndexingService', () => {
         createMockFact({ text: 'First fact about testing' }),  // Duplicate within batch
       ];
 
-      const result = await service.indexFacts(facts, 'test-group');
+      const result = await service.indexFacts(facts);
 
       assert.strictEqual(result.indexed, 2);
       assert.strictEqual(result.duplicates, 1);
@@ -248,7 +247,7 @@ describe('GitIndexingService', () => {
         createMockFact({ text: 'Fact 3' }),
       ];
 
-      const result = await service.indexFacts(facts, 'test-group');
+      const result = await service.indexFacts(facts);
 
       assert.strictEqual(result.indexed, 2);
       assert.strictEqual(result.skipped, 1);
@@ -263,7 +262,7 @@ describe('GitIndexingService', () => {
       const facts = [createMockFact()];
 
       // Should not throw, should continue without deduplication
-      const result = await service.indexFacts(facts, 'test-group');
+      const result = await service.indexFacts(facts);
 
       assert.strictEqual(result.indexed, 1);
     });
@@ -274,10 +273,10 @@ describe('GitIndexingService', () => {
         matchedPattern: 'decision-keyword',
       })];
 
-      await service.indexFacts(facts, 'test-group');
+      await service.indexFacts(facts);
 
       const addFactCalls = (mockMemory.addFactWithLifecycle as ReturnType<typeof mock.fn>).mock.calls;
-      const tags = addFactCalls[0].arguments[2].tags as string[];
+      const tags = addFactCalls[0].arguments[1].tags as string[];
 
       assert.ok(tags.includes('pattern:decision-keyword'), 'Should have pattern tag');
     });
@@ -288,10 +287,10 @@ describe('GitIndexingService', () => {
         tags: ['typescript', 'authentication'],
       })];
 
-      await service.indexFacts(facts, 'test-group');
+      await service.indexFacts(facts);
 
       const addFactCalls = (mockMemory.addFactWithLifecycle as ReturnType<typeof mock.fn>).mock.calls;
-      const tags = addFactCalls[0].arguments[2].tags as string[];
+      const tags = addFactCalls[0].arguments[1].tags as string[];
 
       assert.ok(tags.includes('tag:typescript'), 'Should have prefixed tag:typescript');
       assert.ok(tags.includes('tag:authentication'), 'Should have prefixed tag:authentication');
@@ -303,7 +302,7 @@ describe('GitIndexingService', () => {
       const service = createGitIndexingService(mockMemory);  // No logger
       const facts = [createMockFact()];
 
-      const result = await service.indexFacts(facts, 'test-group');
+      const result = await service.indexFacts(facts);
 
       assert.strictEqual(result.indexed, 1);
     });
@@ -313,7 +312,7 @@ describe('GitIndexingService', () => {
     it('should handle empty facts array', async () => {
       const service = createGitIndexingService(mockMemory, mockLogger);
 
-      const result = await service.indexFacts([], 'test-group');
+      const result = await service.indexFacts([]);
 
       assert.strictEqual(result.indexed, 0);
       assert.strictEqual(result.skipped, 0);

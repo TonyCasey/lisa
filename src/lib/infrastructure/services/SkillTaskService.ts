@@ -4,6 +4,9 @@
  *
  * This is the "rich" task service with full CLI capabilities:
  * list, add, update, link, unlink, listLinked.
+ *
+ * Note: Group IDs are no longer used - the git repo itself provides scoping
+ * via git-mem (git notes in refs/notes/mem).
  */
 import type { IMemoryService as IGitMemMemoryService } from 'git-mem/dist/index';
 import type {
@@ -42,8 +45,10 @@ function parseTaskContent(content: string): Record<string, unknown> | null {
  * Creates a skill task service instance backed by git-mem.
  *
  * Tasks are stored as git-mem memories with:
- * - Tags: `task`, `group:<groupId>`, `status:<status>`, `task_id:<uuid>`
+ * - Tags: `task`, `status:<status>`
  * - Content: JSON `{ type: "task", title, status, repo, assignee, ... }`
+ *
+ * Note: Group IDs are no longer used - the git repo itself provides scoping.
  *
  * @param deps - Service dependencies
  * @returns Skill task service implementation
@@ -53,7 +58,6 @@ export function createSkillTaskService(deps: ISkillTaskServiceDependencies): ISk
 
   return {
     async list(
-      groupIds: string[],
       limit: number,
       defaultRepo: string,
       defaultAssignee: string,
@@ -61,12 +65,8 @@ export function createSkillTaskService(deps: ISkillTaskServiceDependencies): ISk
     ): Promise<ITaskListResult> {
       const { memories } = gitMem.recall(undefined, { limit: 500 });
 
-      // Filter by group and task tag
-      const groupTags = groupIds.map(g => `group:${g}`);
-      let filtered = memories.filter(m =>
-        m.tags.includes('task') &&
-        (groupTags.length === 0 || m.tags.some(t => groupTags.includes(t)))
-      );
+      // Filter by task tag only (no group filtering needed)
+      let filtered = memories.filter(m => m.tags.includes('task'));
 
       // Date filtering
       if (options?.since) {
@@ -122,8 +122,6 @@ export function createSkillTaskService(deps: ISkillTaskServiceDependencies): ISk
       return {
         status: 'ok',
         action: 'list',
-        group: groupIds[0] || '',
-        groups: groupIds,
         tasks,
         mode: 'git-mem',
       };
@@ -131,7 +129,6 @@ export function createSkillTaskService(deps: ISkillTaskServiceDependencies): ISk
 
     async add(
       title: string,
-      groupId: string,
       options: ITaskWriteOptions
     ): Promise<ITaskWriteResult> {
       const taskObj = {
@@ -147,7 +144,6 @@ export function createSkillTaskService(deps: ISkillTaskServiceDependencies): ISk
 
       const tags = [
         'task',
-        `group:${groupId}`,
         `status:${taskObj.status}`,
       ];
 
@@ -157,14 +153,12 @@ export function createSkillTaskService(deps: ISkillTaskServiceDependencies): ISk
         status: 'ok',
         action: 'add',
         task: taskObj,
-        group: groupId,
         mode: 'git-mem',
       };
     },
 
     async update(
       title: string,
-      groupId: string,
       options: ITaskWriteOptions
     ): Promise<ITaskWriteResult> {
       const taskObj = {
@@ -180,11 +174,7 @@ export function createSkillTaskService(deps: ISkillTaskServiceDependencies): ISk
 
       // Find and delete old version(s) of this task by title
       const { memories } = gitMem.recall(undefined, { limit: 500 });
-      const groupTag = `group:${groupId}`;
-      const existing = memories.filter(m =>
-        m.tags.includes('task') &&
-        m.tags.includes(groupTag)
-      );
+      const existing = memories.filter(m => m.tags.includes('task'));
 
       for (const m of existing) {
         const old = parseTaskContent(m.content);
@@ -196,7 +186,6 @@ export function createSkillTaskService(deps: ISkillTaskServiceDependencies): ISk
       // Remember updated version
       const tags = [
         'task',
-        `group:${groupId}`,
         `status:${taskObj.status}`,
       ];
 
@@ -206,14 +195,12 @@ export function createSkillTaskService(deps: ISkillTaskServiceDependencies): ISk
         status: 'ok',
         action: 'update',
         task: taskObj,
-        group: groupId,
         mode: 'git-mem',
       };
     },
 
     async link(
       taskUuid: string,
-      groupId: string,
       externalLink: ITaskExternalLink
     ): Promise<ITaskLinkResult> {
       const { memories } = gitMem.recall(undefined, { limit: 500 });
@@ -235,10 +222,7 @@ export function createSkillTaskService(deps: ISkillTaskServiceDependencies): ISk
 
       // Delete old, remember updated
       gitMem.delete(taskUuid);
-      const tags = existing.tags.length > 0 ? [...existing.tags] : [
-        'task',
-        `group:${groupId}`,
-      ];
+      const tags = existing.tags.length > 0 ? [...existing.tags] : ['task'];
       gitMem.remember(JSON.stringify(taskObj), { tags });
 
       return {
@@ -249,14 +233,12 @@ export function createSkillTaskService(deps: ISkillTaskServiceDependencies): ISk
           uuid: taskUuid,
           externalLink: taskObj.externalLink as ITaskExternalLink,
         },
-        group: groupId,
         mode: 'git-mem',
       };
     },
 
     async unlink(
-      taskUuid: string,
-      groupId: string
+      taskUuid: string
     ): Promise<ITaskLinkResult> {
       const { memories } = gitMem.recall(undefined, { limit: 500 });
       const existing = memories.find(m => m.id === taskUuid);
@@ -274,10 +256,7 @@ export function createSkillTaskService(deps: ISkillTaskServiceDependencies): ISk
 
       // Delete old, remember updated
       gitMem.delete(taskUuid);
-      const tags = existing.tags.length > 0 ? [...existing.tags] : [
-        'task',
-        `group:${groupId}`,
-      ];
+      const tags = existing.tags.length > 0 ? [...existing.tags] : ['task'];
       gitMem.remember(JSON.stringify(taskObj), { tags });
 
       return {
@@ -287,19 +266,17 @@ export function createSkillTaskService(deps: ISkillTaskServiceDependencies): ISk
           title: String(taskObj.title),
           uuid: taskUuid,
         },
-        group: groupId,
         mode: 'git-mem',
       };
     },
 
     async listLinked(
-      groupIds: string[],
       source: ExternalLinkSource | undefined,
       limit: number,
       defaultRepo: string,
       defaultAssignee: string
     ): Promise<ITaskListResult> {
-      const result = await this.list(groupIds, limit * 2, defaultRepo, defaultAssignee);
+      const result = await this.list(limit * 2, defaultRepo, defaultAssignee);
 
       let linkedTasks = result.tasks.filter((t) => t.externalLink);
       if (source) {

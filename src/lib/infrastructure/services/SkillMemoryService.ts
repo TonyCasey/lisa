@@ -4,6 +4,9 @@
  *
  * This is the "rich" memory service with full CLI capabilities:
  * load, add, expire, cleanup, conflicts, dedupe, curate, consolidate.
+ *
+ * Note: Group IDs are no longer used - the git repo itself provides scoping
+ * via git-mem (git notes in refs/notes/mem).
  */
 import type { IMemoryService as IGitMemMemoryService, IMemoryEntity } from 'git-mem/dist/index';
 
@@ -64,12 +67,11 @@ function resolveTag(text: string, options: IMemoryAddOptions): string | undefine
 /**
  * Map a git-mem IMemoryEntity to the skills IFact.
  */
-function toFact(entity: IMemoryEntity, groupId: string): IFact {
+function toFact(entity: IMemoryEntity): IFact {
   return {
     uuid: entity.id,
     name: entity.content.slice(0, 80),
     fact: entity.content,
-    group_id: groupId,
     created_at: entity.createdAt,
   };
 }
@@ -92,7 +94,6 @@ export function createSkillMemoryService(deps: ISkillMemoryServiceDependencies):
 
   return {
     async load(
-      groupIds: string[],
       query: string,
       limit: number,
       options?: IMemoryLoadOptions
@@ -100,11 +101,8 @@ export function createSkillMemoryService(deps: ISkillMemoryServiceDependencies):
       const searchQuery = (query && query !== '*') ? query : undefined;
       const { memories } = gitMem.recall(searchQuery, { limit });
 
-      // Client-side group filtering via tags
-      const groupTags = groupIds.map(g => `group:${g}`);
-      let filtered = memories.filter(m =>
-        groupTags.length === 0 || m.tags.some(t => groupTags.includes(t))
-      );
+      // No group filtering - git repo provides scoping
+      let filtered = memories;
 
       // Client-side date filtering
       if (options?.since) {
@@ -116,13 +114,11 @@ export function createSkillMemoryService(deps: ISkillMemoryServiceDependencies):
         filtered = filtered.filter(m => new Date(m.createdAt).getTime() <= untilTime);
       }
 
-      const facts: IFact[] = filtered.map(m => toFact(m, groupIds[0] || ''));
+      const facts: IFact[] = filtered.map(m => toFact(m));
 
       return {
         status: 'ok',
         action: 'load',
-        group: groupIds[0] || '',
-        groups: groupIds,
         query: query || '',
         facts,
         mode: 'git-mem',
@@ -131,12 +127,11 @@ export function createSkillMemoryService(deps: ISkillMemoryServiceDependencies):
 
     async add(
       text: string,
-      groupId: string,
       options: IMemoryAddOptions
     ): Promise<IMemoryAddResult> {
       const tag = resolveTag(text, options);
 
-      const tags: string[] = [`group:${groupId}`];
+      const tags: string[] = [];
       if (tag) {
         // Tags containing ':' are namespaced, store as-is.
         // Simple tags get 'type:' prefix.
@@ -149,7 +144,6 @@ export function createSkillMemoryService(deps: ISkillMemoryServiceDependencies):
       return {
         status: 'ok',
         action: 'add',
-        group: groupId,
         text,
         tag,
         mode: 'git-mem',
@@ -157,7 +151,6 @@ export function createSkillMemoryService(deps: ISkillMemoryServiceDependencies):
     },
 
     async expire(
-      groupId: string,
       uuid: string
     ): Promise<IMemoryExpireResult> {
       const found = gitMem.delete(uuid);
@@ -165,7 +158,6 @@ export function createSkillMemoryService(deps: ISkillMemoryServiceDependencies):
       return {
         status: 'ok',
         action: 'expire',
-        group: groupId,
         uuid,
         found,
         mode: 'git-mem',
@@ -173,14 +165,12 @@ export function createSkillMemoryService(deps: ISkillMemoryServiceDependencies):
     },
 
     async cleanup(
-      groupId: string,
       _dryRun: boolean
     ): Promise<IMemoryCleanupResult> {
       // git-mem doesn't support TTL-based cleanup yet
       return {
         status: 'ok',
         action: 'cleanup',
-        group: groupId,
         expiredCount: 0,
         dryRun: _dryRun,
         mode: 'git-mem',
@@ -188,25 +178,20 @@ export function createSkillMemoryService(deps: ISkillMemoryServiceDependencies):
     },
 
     async conflicts(
-      groupIds: string[],
       topic?: string
     ): Promise<IMemoryConflictsResult> {
       const { memories } = gitMem.recall(undefined, { limit: 200 });
 
-      // Filter by group
-      const groupTags = groupIds.map(g => `group:${g}`);
-      const filtered = memories.filter(m =>
-        groupTags.length === 0 || m.tags.some(t => groupTags.includes(t))
-      );
+      // No group filtering - git repo provides scoping
 
       // Group by type:* tags
       const typeGroups = new Map<string, IFact[]>();
-      for (const m of filtered) {
+      for (const m of memories) {
         const typeTags = m.tags.filter(t => t.startsWith('type:'));
         for (const typeTag of typeTags) {
           if (topic && typeTag !== topic) continue;
           const existing = typeGroups.get(typeTag) || [];
-          existing.push(toFact(m, groupIds[0] || ''));
+          existing.push(toFact(m));
           typeGroups.set(typeTag, existing);
         }
       }
@@ -226,8 +211,6 @@ export function createSkillMemoryService(deps: ISkillMemoryServiceDependencies):
       return {
         status: 'ok',
         action: 'conflicts',
-        group: groupIds[0] || '',
-        groups: groupIds,
         topic: topic || '',
         conflictGroups,
         totalConflicts: conflictGroups.length,
@@ -236,7 +219,6 @@ export function createSkillMemoryService(deps: ISkillMemoryServiceDependencies):
     },
 
     async dedupe(
-      groupId: string,
       options?: { minSimilarity?: number; limit?: number; since?: Date }
     ): Promise<IMemoryDedupeResult> {
       const minSimilarity = options?.minSimilarity ?? 0.6;
@@ -244,9 +226,8 @@ export function createSkillMemoryService(deps: ISkillMemoryServiceDependencies):
 
       const { memories } = gitMem.recall(undefined, { limit: 500 });
 
-      // Filter by group and date
-      const groupTag = `group:${groupId}`;
-      let filtered = memories.filter(m => m.tags.includes(groupTag));
+      // No group filtering - git repo provides scoping
+      let filtered = memories;
 
       if (options?.since) {
         const sinceTime = options.since.getTime();
@@ -296,7 +277,6 @@ export function createSkillMemoryService(deps: ISkillMemoryServiceDependencies):
           uuid: f.uuid ?? '',
           name: f.name ?? '',
           fact: f.fact ?? '',
-          group_id: groupId,
           created_at: f.created_at ?? '',
         })),
         similarity: g.similarity,
@@ -307,7 +287,6 @@ export function createSkillMemoryService(deps: ISkillMemoryServiceDependencies):
       return {
         status: 'ok',
         action: 'dedupe',
-        group: groupId,
         totalFactsScanned: facts.length,
         duplicateGroups: skillGroups,
         totalDuplicates,
@@ -317,7 +296,6 @@ export function createSkillMemoryService(deps: ISkillMemoryServiceDependencies):
     },
 
     async curate(
-      groupId: string,
       uuid: string,
       mark: CurationMark
     ): Promise<IMemoryCurateResult> {
@@ -330,7 +308,7 @@ export function createSkillMemoryService(deps: ISkillMemoryServiceDependencies):
       const existing = memories.find(m => m.id === uuid);
 
       if (!existing) {
-        throw new Error(`Fact not found: uuid="${uuid}" in group="${groupId}"`);
+        throw new Error(`Fact not found: uuid="${uuid}"`);
       }
 
       const curationTag = resolveCurationTag(mark);
@@ -357,7 +335,6 @@ export function createSkillMemoryService(deps: ISkillMemoryServiceDependencies):
       return {
         status: 'ok',
         action: 'curate',
-        group: groupId,
         uuid,
         mark,
         mode: 'git-mem',
@@ -365,7 +342,6 @@ export function createSkillMemoryService(deps: ISkillMemoryServiceDependencies):
     },
 
     async consolidate(
-      groupId: string,
       factUuids: string[],
       action: ConsolidationAction,
       options?: { retainUuid?: string; mergedText?: string }
@@ -384,7 +360,6 @@ export function createSkillMemoryService(deps: ISkillMemoryServiceDependencies):
         return {
           status: 'ok',
           action: 'consolidate',
-          group: groupId,
           consolidationAction: 'keep-all',
           retainedUuid: factUuids[0] ?? '',
           archivedUuids: [],
@@ -401,7 +376,7 @@ export function createSkillMemoryService(deps: ISkillMemoryServiceDependencies):
 
         // Add merged fact
         gitMem.remember(mergedText, {
-          tags: [`group:${groupId}`, 'source:consolidation'],
+          tags: ['source:consolidation'],
         });
 
         // Delete all originals
@@ -412,7 +387,6 @@ export function createSkillMemoryService(deps: ISkillMemoryServiceDependencies):
         return {
           status: 'ok',
           action: 'consolidate',
-          group: groupId,
           consolidationAction: 'merge',
           retainedUuid: 'new-merged-fact',
           archivedUuids: [...factUuids],
@@ -432,7 +406,6 @@ export function createSkillMemoryService(deps: ISkillMemoryServiceDependencies):
       return {
         status: 'ok',
         action: 'consolidate',
-        group: groupId,
         consolidationAction: 'archive-duplicates',
         retainedUuid: retainUuid,
         archivedUuids: archiveUuids,

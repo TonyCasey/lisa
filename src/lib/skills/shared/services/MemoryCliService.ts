@@ -57,8 +57,6 @@ export interface IMemoryCliDependencies {
   logger: ILogger;
   cache: ICache;
   memoryService: IMemoryService;
-  getGroupIds: () => string[];
-  getCurrentGroupId: () => string;
   resolveTag: (text: string, explicitTag: string | null, entityType: string | null) => string | undefined;
 }
 
@@ -118,12 +116,12 @@ export function parseTtlDuration(input: string): number | null {
  * Creates a memory CLI service instance.
  */
 export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCliService {
-  const { env, logger, cache, memoryService, getGroupIds, getCurrentGroupId, resolveTag } = deps;
+  const { env, logger, cache, memoryService, resolveTag } = deps;
 
   return {
     async run(args: IMemoryCliArgs): Promise<MemoryCliResult> {
       const {
-        command, payload, explicitGroup, query, limit,
+        command, payload, query, limit,
         explicitTag, entityType, source, since, until,
         lifecycle, ttl, dryRun, uuid, topic, minSimilarity,
         mark, action, retain, mergedText,
@@ -133,18 +131,11 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
         throw new Error('command must be add|load|expire|cleanup|conflicts|dedupe|curate|consolidate');
       }
 
-      // Use explicit --group if provided, otherwise use canonical folder-based group ID
-      const groupId = explicitGroup || getCurrentGroupId();
-
-      logger.info(`Executing command: ${command}`, { mode: env.STORAGE_MODE, group: groupId });
+      logger.info(`Executing command: ${command}`, { mode: env.STORAGE_MODE });
 
       let result: MemoryCliResult;
 
       if (command === 'load') {
-        // Always use canonical group IDs for loading (hierarchical lookup)
-        const groupIds = explicitGroup ? [explicitGroup] : getGroupIds();
-        logger.debug('Using Neo4j direct mode for load');
-
         // Parse date filters - throw error on invalid values
         const loadOptions: IMemoryLoadOptions = {};
         if (since) {
@@ -162,16 +153,15 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
           loadOptions.until = parsedUntil;
         }
 
-        result = await memoryService.load(groupIds, query, limit, loadOptions);
+        result = await memoryService.load(query, limit, loadOptions);
       } else if (command === 'expire') {
         const targetUuid = uuid || payload;
         if (!targetUuid) throw new Error('expire requires a UUID (--uuid <id> or positional argument)');
-        result = await memoryService.expire(groupId, targetUuid);
+        result = await memoryService.expire(targetUuid);
       } else if (command === 'cleanup') {
-        result = await memoryService.cleanup(groupId, dryRun);
+        result = await memoryService.cleanup(dryRun);
       } else if (command === 'conflicts') {
-        const groupIds = explicitGroup ? [explicitGroup] : getGroupIds();
-        result = await memoryService.conflicts(groupIds, topic ?? undefined);
+        result = await memoryService.conflicts(topic ?? undefined);
       } else if (command === 'dedupe') {
         const dedupeOptions: { minSimilarity?: number; limit?: number; since?: Date } = {};
         if (minSimilarity !== null) dedupeOptions.minSimilarity = minSimilarity;
@@ -183,12 +173,12 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
           }
           dedupeOptions.since = parsedSince;
         }
-        result = await memoryService.dedupe(groupId, dedupeOptions);
+        result = await memoryService.dedupe(dedupeOptions);
       } else if (command === 'curate') {
         const targetUuid = uuid || payload;
         if (!targetUuid) throw new Error('curate requires a UUID (--uuid <id> or positional argument)');
         if (!mark) throw new Error('curate requires --mark (authoritative, draft, deprecated, needs-review)');
-        result = await memoryService.curate(groupId, targetUuid, mark as CurationMark);
+        result = await memoryService.curate(targetUuid, mark as CurationMark);
       } else if (command === 'consolidate') {
         // Parse UUIDs from payload (space-separated)
         const factUuids = payload ? payload.split(/\s+/).filter(Boolean) : [];
@@ -197,7 +187,7 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
         const consolidateOptions: { retainUuid?: string; mergedText?: string } = {};
         if (retain) consolidateOptions.retainUuid = retain;
         if (mergedText) consolidateOptions.mergedText = mergedText;
-        result = await memoryService.consolidate(groupId, factUuids, consolidateAction, consolidateOptions);
+        result = await memoryService.consolidate(factUuids, consolidateAction, consolidateOptions);
       } else {
         // add
         if (!payload) throw new Error('add requires text payload');
@@ -219,7 +209,7 @@ export function createMemoryCliService(deps: IMemoryCliDependencies): IMemoryCli
           ttlMs = parsed;
         }
 
-        result = await memoryService.add(payload, groupId, {
+        result = await memoryService.add(payload, {
           tag,
           type: entityType ?? lifecycle ?? undefined,
           source,

@@ -15,15 +15,6 @@ export {
   isLocalMcpConfigured,
   type IEnvConfig,
 } from './env';
-export {
-  getCurrentGroupId,
-  getGroupIds,
-  getGroupIdsWithLegacy,
-  getHierarchicalGroupIds,
-  normalizeGroupId,
-  createZepUserId,
-  createZepThreadId,
-} from './group-id';
 
 // CLI argument parsing
 export {

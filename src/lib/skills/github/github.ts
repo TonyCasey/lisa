@@ -94,11 +94,10 @@ export interface ICreatedIssueSummary {
 
 export async function persistCreatedIssueTask(options: {
   tasks: ITaskService;
-  groupId: string;
   repo: string;
   issue: ICreatedIssueSummary;
 }): Promise<void> {
-  const { tasks, groupId, repo, issue } = options;
+  const { tasks, repo, issue } = options;
   const externalLink: ITaskExternalLink = {
     source: 'github',
     id: String(issue.number),
@@ -114,7 +113,7 @@ export async function persistCreatedIssueTask(options: {
     externalLink,
   };
 
-  const linked = await tasks.listLinked([groupId], 'github', 1000, repo, issue.assignee || '');
+  const linked = await tasks.listLinked('github', 1000, repo, issue.assignee || '');
   const existing = linked.tasks.find(
     (task) => task.externalLink?.source === 'github' && task.externalLink?.id === String(issue.number)
   );
@@ -125,7 +124,7 @@ export async function persistCreatedIssueTask(options: {
     return;
   }
 
-  await tasks.add(issue.title, groupId, taskOptions);
+  await tasks.add(issue.title, taskOptions);
 }
 
 async function handleIssues(
@@ -173,24 +172,17 @@ async function handleIssues(
         assignee: args.assignee as string | undefined,
         milestone: args.milestone as string | undefined,
       });
-      let taskInfo: { persisted: boolean; groupId?: string; error?: string } | undefined;
+      let taskInfo: { persisted: boolean; error?: string } | undefined;
       {
-        const { getCurrentGroupId } = await import('../shared/group-id');
         const { createTaskService } = await import('../shared/services');
         const { createGitMem } = await import('../shared/clients');
 
-        const rawGroup = args.group;
-        const groupId =
-          typeof rawGroup === 'string' && rawGroup.trim().length > 0
-            ? rawGroup
-            : getCurrentGroupId();
         const gitMem = createGitMem();
         const taskService = createTaskService({ gitMem });
 
         try {
           await persistCreatedIssueTask({
             tasks: taskService,
-            groupId,
             repo,
             issue: {
               number: result.number,
@@ -201,10 +193,10 @@ async function handleIssues(
             },
           });
 
-          taskInfo = { persisted: true, groupId };
+          taskInfo = { persisted: true };
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
-          taskInfo = { persisted: false, groupId, error: message };
+          taskInfo = { persisted: false, error: message };
         }
       }
 
@@ -430,20 +422,9 @@ async function handleSync(
     direction = 'export';
   }
 
-  // Get group ID (use canonical folder-based group, allow --group override)
-  const { getCurrentGroupId } = await import('../shared/group-id');
-  const rawGroup = args.group;
-  if (rawGroup !== undefined && typeof rawGroup !== 'string') {
-    console.log(formatError(
-      '--group requires a value',
-      'github sync --repo owner/repo [--import|--export] [--dry-run] [--group <id>]'
-    ));
-    process.exit(1);
-  }
-  const groupId =
-    typeof rawGroup === 'string' && rawGroup.trim().length > 0
-      ? rawGroup
-      : getCurrentGroupId();
+  // Note: Group IDs are no longer used - the git repo provides scoping via git-mem.
+  // --group flag is ignored for backwards compatibility.
+  const groupId = ''; // Unused, but kept for ISyncOptions interface
 
   // Create dependencies
   const ghCli = createGhCliClientFromEnv();

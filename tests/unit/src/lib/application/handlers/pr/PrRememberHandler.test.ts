@@ -69,12 +69,11 @@ describe('PrRememberHandler', () => {
   let handler: PrRememberHandler;
   let mockGithubClient: GithubClient;
   let mockMemoryWriter: IMemoryWriter;
-  const groupId = 'test-group-id';
 
   beforeEach(() => {
     mockGithubClient = createMockGithubClient();
     mockMemoryWriter = createMockMemoryWriter();
-    handler = new PrRememberHandler(mockGithubClient, mockMemoryWriter, groupId);
+    handler = new PrRememberHandler(mockGithubClient, mockMemoryWriter);
   });
 
   describe('execute', () => {
@@ -94,11 +93,11 @@ describe('PrRememberHandler', () => {
     it('should include PR title in the saved fact', async () => {
       let savedFact: string | undefined;
       mockMemoryWriter = createMockMemoryWriter({
-        addFact: async (_groupId, fact) => {
+        addFact: async (fact) => {
           savedFact = fact;
         },
       });
-      handler = new PrRememberHandler(mockGithubClient, mockMemoryWriter, groupId);
+      handler = new PrRememberHandler(mockGithubClient, mockMemoryWriter);
 
       await handler.execute({
         prNumber: 50,
@@ -114,11 +113,11 @@ describe('PrRememberHandler', () => {
     it('should save fact with correct tags', async () => {
       let savedTags: readonly string[] | undefined;
       mockMemoryWriter = createMockMemoryWriter({
-        addFact: async (_groupId, _fact, tags) => {
+        addFact: async (_fact, tags) => {
           savedTags = tags;
         },
       });
-      handler = new PrRememberHandler(mockGithubClient, mockMemoryWriter, groupId);
+      handler = new PrRememberHandler(mockGithubClient, mockMemoryWriter);
 
       const result = await handler.execute({
         prNumber: 50,
@@ -131,21 +130,22 @@ describe('PrRememberHandler', () => {
       assert.deepStrictEqual(result.tags, ['github:pr', 'github:pr:50']);
     });
 
-    it('should save to the correct group ID', async () => {
-      let usedGroupId: string | undefined;
+    it('should call addFact with fact text', async () => {
+      let calledFact: string | undefined;
       mockMemoryWriter = createMockMemoryWriter({
-        addFact: async (gId) => {
-          usedGroupId = gId;
+        addFact: async (fact) => {
+          calledFact = fact;
         },
       });
-      handler = new PrRememberHandler(mockGithubClient, mockMemoryWriter, groupId);
+      handler = new PrRememberHandler(mockGithubClient, mockMemoryWriter);
 
       await handler.execute({
         prNumber: 50,
         note: 'Test note',
       });
 
-      assert.strictEqual(usedGroupId, groupId);
+      assert.ok(calledFact);
+      assert.ok(calledFact.includes('PR #50'));
     });
 
     it('should use provided repo instead of detecting', async () => {
@@ -156,7 +156,7 @@ describe('PrRememberHandler', () => {
           return createMockPrResponse();
         },
       });
-      handler = new PrRememberHandler(mockGithubClient, mockMemoryWriter, groupId);
+      handler = new PrRememberHandler(mockGithubClient, mockMemoryWriter);
 
       await handler.execute({
         prNumber: 50,
@@ -171,7 +171,7 @@ describe('PrRememberHandler', () => {
       mockGithubClient = createMockGithubClient({
         getPr: async () => null as unknown as IGhPrResponse,
       });
-      handler = new PrRememberHandler(mockGithubClient, mockMemoryWriter, groupId);
+      handler = new PrRememberHandler(mockGithubClient, mockMemoryWriter);
 
       const result = await handler.execute({
         prNumber: 999,
@@ -188,7 +188,7 @@ describe('PrRememberHandler', () => {
           throw new Error('GitHub API error');
         },
       });
-      handler = new PrRememberHandler(mockGithubClient, mockMemoryWriter, groupId);
+      handler = new PrRememberHandler(mockGithubClient, mockMemoryWriter);
 
       const result = await handler.execute({
         prNumber: 50,
@@ -205,7 +205,7 @@ describe('PrRememberHandler', () => {
           throw new Error('Memory save failed');
         },
       });
-      handler = new PrRememberHandler(mockGithubClient, mockMemoryWriter, groupId);
+      handler = new PrRememberHandler(mockGithubClient, mockMemoryWriter);
 
       const result = await handler.execute({
         prNumber: 50,
@@ -235,7 +235,7 @@ describe('PrRememberHandler', () => {
         },
         getPr: async () => createMockPrResponse(),
       });
-      handler = new PrRememberHandler(mockGithubClient, mockMemoryWriter, groupId);
+      handler = new PrRememberHandler(mockGithubClient, mockMemoryWriter);
 
       const result = await handler.execute({
         prNumber: 50,
@@ -250,7 +250,7 @@ describe('PrRememberHandler', () => {
       mockGithubClient = createMockGithubClient({
         getCurrentRepo: async () => undefined as unknown as string,
       });
-      handler = new PrRememberHandler(mockGithubClient, mockMemoryWriter, groupId);
+      handler = new PrRememberHandler(mockGithubClient, mockMemoryWriter);
 
       const result = await handler.execute({
         prNumber: 50,

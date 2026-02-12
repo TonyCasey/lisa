@@ -6,13 +6,15 @@
  * Spawned by init-review.ts after static analysis.
  *
  * Usage: node ai-enrich.js <projectRoot> <agentsDir>
+ *
+ * Note: Group IDs are no longer used - the git repo itself provides scoping
+ * via git-mem (git notes in refs/notes/mem).
  */
 
 export {};
 
 import fs from 'fs';
 import path from 'path';
-import { getCurrentGroupId } from '../shared/group-id';
 
 interface IStaticAnalysis {
   summary: string;
@@ -156,7 +158,8 @@ async function main(): Promise<void> {
   log(`Generated enriched summary: ${enrichedSummary.slice(0, 100)}...`);
 
   const config = loadConfig();
-  const groupId = getCurrentGroupId(projectRoot);
+  // Note: groupId is deprecated but kept for backwards compatibility with MCP protocol
+  const groupId = path.basename(projectRoot);
   log(`Using endpoint: ${config.endpoint}, group: ${groupId}`);
 
   const sessionId = await initializeMCP(config.endpoint, config.zepApiKey);

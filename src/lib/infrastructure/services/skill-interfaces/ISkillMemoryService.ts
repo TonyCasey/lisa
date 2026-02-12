@@ -4,6 +4,9 @@
  *
  * This is the "rich" memory interface used by CLI scripts,
  * with operations like dedupe, curate, conflicts, consolidate.
+ *
+ * Note: Group IDs are no longer used - the git repo itself provides scoping
+ * via git-mem (git notes in refs/notes/mem).
  */
 import type { CurationMark } from '../../../domain/interfaces/ICurationService';
 import type { ConsolidationAction } from '../../../domain/interfaces/IConsolidationService';
@@ -15,7 +18,6 @@ export interface IFact {
   uuid: string;
   name: string;
   fact: string;
-  group_id: string;
   created_at: string;
   valid_at?: string;
   expired_at?: string | null;
@@ -32,8 +34,6 @@ export type MemoryMode = 'git-mem';
 export interface IMemoryLoadResult {
   status: 'ok';
   action: 'load';
-  group: string;
-  groups: string[];
   query: string;
   facts: IFact[];
   mode: MemoryMode;
@@ -45,7 +45,6 @@ export interface IMemoryLoadResult {
 export interface IMemoryAddResult {
   status: 'ok';
   action: 'add';
-  group: string;
   text: string;
   tag?: string;
   result?: unknown;
@@ -77,7 +76,6 @@ export interface IMemoryLoadOptions {
 export interface IMemoryExpireResult {
   status: 'ok';
   action: 'expire';
-  group: string;
   uuid: string;
   found: boolean;
   mode: MemoryMode;
@@ -89,7 +87,6 @@ export interface IMemoryExpireResult {
 export interface IMemoryCleanupResult {
   status: 'ok';
   action: 'cleanup';
-  group: string;
   expiredCount: number;
   dryRun: boolean;
   mode: MemoryMode;
@@ -110,8 +107,6 @@ export interface IConflictGroup {
 export interface IMemoryConflictsResult {
   status: 'ok';
   action: 'conflicts';
-  group: string;
-  groups: string[];
   topic: string;
   conflictGroups: IConflictGroup[];
   totalConflicts: number;
@@ -134,7 +129,6 @@ export interface IDuplicateGroup {
 export interface IMemoryDedupeResult {
   status: 'ok';
   action: 'dedupe';
-  group: string;
   totalFactsScanned: number;
   duplicateGroups: IDuplicateGroup[];
   totalDuplicates: number;
@@ -148,7 +142,6 @@ export interface IMemoryDedupeResult {
 export interface IMemoryCurateResult {
   status: 'ok';
   action: 'curate';
-  group: string;
   uuid: string;
   mark: CurationMark;
   mode: MemoryMode;
@@ -160,7 +153,6 @@ export interface IMemoryCurateResult {
 export interface IMemoryConsolidateResult {
   status: 'ok';
   action: 'consolidate';
-  group: string;
   consolidationAction: ConsolidationAction;
   retainedUuid: string;
   archivedUuids: string[];
@@ -174,18 +166,18 @@ export interface IMemoryConsolidateResult {
  * This is the "rich" interface with full CLI capabilities.
  * Contrast with IMemoryService in domain/interfaces which is
  * the simpler infrastructure interface.
+ *
+ * Note: Group IDs are no longer used - the git repo provides scoping.
  */
 export interface ISkillMemoryService {
   /**
    * Load memories/facts from storage.
    *
-   * @param groupIds - Group identifiers to search
    * @param query - Optional search query (empty string or '*' for all)
    * @param limit - Maximum number of facts to return
    * @param options - Optional date filtering options
    */
   load(
-    groupIds: string[],
     query: string,
     limit: number,
     options?: IMemoryLoadOptions
@@ -195,82 +187,56 @@ export interface ISkillMemoryService {
    * Add a new memory/fact.
    *
    * @param text - Memory text content
-   * @param groupId - Group identifier for storage
    * @param options - Additional options (tag, type, source)
    */
-  add(
-    text: string,
-    groupId: string,
-    options: IMemoryAddOptions
-  ): Promise<IMemoryAddResult>;
+  add(text: string, options: IMemoryAddOptions): Promise<IMemoryAddResult>;
 
   /**
    * Expire a single fact by UUID.
    *
-   * @param groupId - Group identifier
    * @param uuid - UUID of the fact to expire
    */
-  expire(
-    groupId: string,
-    uuid: string
-  ): Promise<IMemoryExpireResult>;
+  expire(uuid: string): Promise<IMemoryExpireResult>;
 
   /**
    * Clean up expired facts based on lifecycle TTL defaults.
    *
-   * @param groupId - Group identifier
    * @param dryRun - If true, count without expiring
    */
-  cleanup(
-    groupId: string,
-    dryRun: boolean
-  ): Promise<IMemoryCleanupResult>;
+  cleanup(dryRun: boolean): Promise<IMemoryCleanupResult>;
 
   /**
    * Find groups of potentially conflicting facts.
    *
-   * @param groupIds - Group identifiers to search
    * @param topic - Optional topic tag to filter by
    */
-  conflicts(
-    groupIds: string[],
-    topic?: string
-  ): Promise<IMemoryConflictsResult>;
+  conflicts(topic?: string): Promise<IMemoryConflictsResult>;
 
   /**
-   * Detect duplicate facts within a group.
+   * Detect duplicate facts.
    *
-   * @param groupId - Group identifier to scan
    * @param options - Detection options
    */
   dedupe(
-    groupId: string,
     options?: { minSimilarity?: number; limit?: number; since?: Date }
   ): Promise<IMemoryDedupeResult>;
 
   /**
    * Mark a fact with a curation status.
    *
-   * @param groupId - Group identifier
    * @param uuid - UUID of the fact to mark
    * @param mark - Curation mark (authoritative, draft, deprecated, needs-review)
    */
-  curate(
-    groupId: string,
-    uuid: string,
-    mark: CurationMark
-  ): Promise<IMemoryCurateResult>;
+  curate(uuid: string, mark: CurationMark): Promise<IMemoryCurateResult>;
 
   /**
    * Consolidate multiple facts.
    *
-   * @param groupId - Group identifier
    * @param factUuids - UUIDs of facts to consolidate (minimum 2)
    * @param action - Consolidation action (merge, archive-duplicates, keep-all)
    * @param options - Additional options (retainUuid, mergedText)
    */
   consolidate(
-    groupId: string,
     factUuids: string[],
     action: ConsolidationAction,
     options?: { retainUuid?: string; mergedText?: string }

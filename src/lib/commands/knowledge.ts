@@ -484,14 +484,13 @@ export function registerKnowledgeCommands(program: Command): void {
 
         const summarizer = createSummarizationService(memory, guard);
 
-        const groupId = opts.group || 'default';
         const since = opts.since ? new Date(opts.since) : undefined;
         if (since !== undefined && isNaN(since.getTime())) {
           console.log(JSON.stringify({ status: 'error', action: 'summarize', error: `Invalid date: ${opts.since}` }, null, 2));
           process.exitCode = 1;
           return;
         }
-        const result = await summarizer.summarize(groupId, {
+        const result = await summarizer.summarize({
           since,
           topic: opts.topic,
           style: opts.style === 'detailed' ? 'detailed' : 'concise',

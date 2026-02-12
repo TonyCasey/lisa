@@ -37,19 +37,17 @@ export interface ISummarizationOptions {
 /**
  * Summarization service.
  * Produces LLM-generated digests of project memory facts.
+ *
+ * Note: Group IDs are no longer used - the git repo provides scoping via git-mem.
  */
 export interface ISummarizationService {
   /**
-   * Summarize memory facts for a group.
+   * Summarize memory facts.
    *
-   * @param groupId - Group ID to summarize facts from
    * @param options - Optional filters and style settings
    * @throws LlmDisabledError if LLM is disabled
    * @throws LlmFeatureDisabledError if summarization feature is disabled
    * @throws LlmBudgetExceededError if monthly budget limit is exceeded
    */
-  summarize(
-    groupId: string,
-    options?: ISummarizationOptions
-  ): Promise<ISummarizationResult>;
+  summarize(options?: ISummarizationOptions): Promise<ISummarizationResult>;
 }

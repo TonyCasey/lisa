@@ -71,7 +71,7 @@ describe('SessionStopHandler — quality tags (#179)', () => {
   it('should include source:session-capture and confidence:medium tags', async () => {
     const savedOptions: Array<{ lifecycle: string; tags: string[] }> = [];
     const memory = createMockMemory({
-      addFactWithLifecycle: async (_groupId, _fact, options) => {
+      addFactWithLifecycle: async (_fact, options) => {
         savedOptions.push(options as { lifecycle: string; tags: string[] });
       },
     });
@@ -94,7 +94,7 @@ describe('SessionStopHandler — quality tags (#179)', () => {
   it('should include taskType tag when work has detectedTaskType', async () => {
     const savedOptions: Array<{ lifecycle: string; tags: string[] }> = [];
     const memory = createMockMemory({
-      addFactWithLifecycle: async (_groupId, _fact, options) => {
+      addFactWithLifecycle: async (_fact, options) => {
         savedOptions.push(options as { lifecycle: string; tags: string[] });
       },
     });
@@ -131,7 +131,7 @@ describe('SessionStopHandler — quality tags (#179)', () => {
   it('should not include taskType tag when work has no detectedTaskType', async () => {
     const savedOptions: Array<{ lifecycle: string; tags: string[] }> = [];
     const memory = createMockMemory({
-      addFactWithLifecycle: async (_groupId, _fact, options) => {
+      addFactWithLifecycle: async (_fact, options) => {
         savedOptions.push(options as { lifecycle: string; tags: string[] });
       },
     });
@@ -169,7 +169,7 @@ describe('SessionStopHandler — quality tags (#179)', () => {
   it('should not include taskType tag when work field is undefined', async () => {
     const savedOptions: Array<{ lifecycle: string; tags: string[] }> = [];
     const memory = createMockMemory({
-      addFactWithLifecycle: async (_groupId, _fact, options) => {
+      addFactWithLifecycle: async (_fact, options) => {
         savedOptions.push(options as { lifecycle: string; tags: string[] });
       },
     });
@@ -200,7 +200,7 @@ describe('SessionStopHandler — quality tags (#179)', () => {
   it('should apply same tags to all facts in a session', async () => {
     const savedOptions: Array<{ lifecycle: string; tags: string[] }> = [];
     const memory = createMockMemory({
-      addFactWithLifecycle: async (_groupId, _fact, options) => {
+      addFactWithLifecycle: async (_fact, options) => {
         savedOptions.push(options as { lifecycle: string; tags: string[] });
       },
     });
@@ -245,7 +245,7 @@ describe('SessionStopHandler — quality tags (#179)', () => {
     for (const taskType of taskTypes) {
       const savedTags: string[][] = [];
       const memory = createMockMemory({
-        addFactWithLifecycle: async (_groupId, _fact, options) => {
+        addFactWithLifecycle: async (_fact, options) => {
           const opts = options as { tags: string[] };
           savedTags.push(opts.tags);
         },

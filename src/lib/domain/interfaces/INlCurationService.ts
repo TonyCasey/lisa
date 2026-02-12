@@ -68,6 +68,8 @@ export interface INlCurationResult {
 /**
  * Natural language curation service.
  * Translates natural language into structured memory operations.
+ *
+ * Note: Group IDs are no longer used - the git repo provides scoping via git-mem.
  */
 export interface INlCurationService {
   /**
@@ -75,17 +77,15 @@ export interface INlCurationService {
    * Does NOT execute — returns a plan for user review.
    *
    * @param input - Natural language command
-   * @param groupId - Memory group to operate on
    * @throws LlmDisabledError if LLM is disabled
    * @throws LlmFeatureDisabledError if curation feature is disabled
    */
-  plan(input: string, groupId: string): Promise<INlCurationPlan>;
+  plan(input: string): Promise<INlCurationPlan>;
 
   /**
    * Execute a previously generated plan.
    *
    * @param plan - The plan to execute
-   * @param groupId - Memory group to operate on
    */
-  execute(plan: INlCurationPlan, groupId: string): Promise<INlCurationResult>;
+  execute(plan: INlCurationPlan): Promise<INlCurationResult>;
 }

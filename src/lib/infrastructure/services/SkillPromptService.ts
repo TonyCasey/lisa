@@ -2,6 +2,9 @@
  * Prompt service - captures user prompts to git-mem.
  *
  * Uses fingerprinting to detect and skip duplicate prompts.
+ *
+ * Note: Group IDs are no longer used - the git repo itself provides scoping
+ * via git-mem (git notes in refs/notes/mem).
  */
 import crypto from 'crypto';
 import type { IMemoryService as IGitMemMemoryService } from 'git-mem/dist/index';
@@ -33,7 +36,7 @@ export function createSkillPromptService(deps: ISkillPromptServiceDependencies):
     },
 
     async addPrompt(args: IPromptArgs): Promise<IPromptResult> {
-      const { text, role = 'user', source = 'user-prompt', force = false, groupId } = args;
+      const { text, role = 'user', source = 'user-prompt', force = false } = args;
 
       if (!text) throw new Error('prompt requires text');
 
@@ -50,7 +53,6 @@ export function createSkillPromptService(deps: ISkillPromptServiceDependencies):
       }
 
       const tags = [
-        `group:${groupId}`,
         fpTag,
         `role:${role}`,
         `source:${source}`,
@@ -59,7 +61,7 @@ export function createSkillPromptService(deps: ISkillPromptServiceDependencies):
 
       gitMem.remember(text, { tags });
 
-      return { status: 'ok', action: 'add', group: groupId, role, source };
+      return { status: 'ok', action: 'add', role, source };
     },
   };
 }

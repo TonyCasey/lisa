@@ -1,9 +1,12 @@
 /**
  * Storage service - manages Lisa storage mode (local/zep-cloud).
+ *
+ * Note: Group IDs are no longer used - the git repo itself provides scoping
+ * via git-mem (git notes in refs/notes/mem).
  */
 import fs from 'fs';
+import path from 'path';
 import { execFileSync } from 'child_process';
-import { getCurrentGroupId } from '../group-id';
 
 // ============================================================================
 // Types
@@ -194,7 +197,8 @@ export function createStorageService(deps: IStorageServiceDependencies): IStorag
       const env = service.readEnvConfig();
       const mode = env.STORAGE_MODE || process.env.STORAGE_MODE || 'local';
       const endpoint = env.GRAPHITI_ENDPOINT || process.env.GRAPHITI_ENDPOINT || defaultLocalEndpoint;
-      const groupId = getCurrentGroupId();
+      // Group ID is derived from cwd folder name for backwards compatibility
+      const groupId = path.basename(process.cwd());
 
       let isConnected = false;
       let connectionError: string | undefined;

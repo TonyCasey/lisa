@@ -57,20 +57,20 @@ function createMockLlmGuard(responseText: string): ILlmGuard & { calls: IGuardCa
 }
 
 function createMockMemoryService(facts: IMemoryItem[] = []): IMemoryService & {
-  searchCalls: Array<{ groupIds: readonly string[]; query: string; limit?: number }>;
-  expireCalls: Array<{ groupId: string; uuid: string }>;
+  searchCalls: Array<{ query: string; limit?: number }>;
+  expireCalls: Array<{ uuid: string }>;
 } {
-  const searchCalls: Array<{ groupIds: readonly string[]; query: string; limit?: number }> = [];
-  const expireCalls: Array<{ groupId: string; uuid: string }> = [];
+  const searchCalls: Array<{ query: string; limit?: number }> = [];
+  const expireCalls: Array<{ uuid: string }> = [];
   return {
     searchCalls,
     expireCalls,
-    async searchFacts(groupIds: readonly string[], query: string, limit?: number) {
-      searchCalls.push({ groupIds, query, limit });
+    async searchFacts(query: string, limit?: number) {
+      searchCalls.push({ query, limit });
       return facts;
     },
-    async expireFact(groupId: string, uuid: string) {
-      expireCalls.push({ groupId, uuid });
+    async expireFact(uuid: string) {
+      expireCalls.push({ uuid });
     },
     async loadFactsDateOrdered() { return []; },
     async addMemory() { return undefined; },
@@ -81,19 +81,19 @@ function createMockMemoryService(facts: IMemoryItem[] = []): IMemoryService & {
     async getFactsByTags() { return []; },
     async updateFact() {},
   } as unknown as IMemoryService & {
-    searchCalls: Array<{ groupIds: readonly string[]; query: string; limit?: number }>;
-    expireCalls: Array<{ groupId: string; uuid: string }>;
+    searchCalls: Array<{ query: string; limit?: number }>;
+    expireCalls: Array<{ uuid: string }>;
   };
 }
 
 function createMockCurationService(): ICurationService & {
-  markCalls: Array<{ groupId: string; uuid: string; mark: CurationMark }>;
+  markCalls: Array<{ uuid: string; mark: CurationMark }>;
 } {
-  const markCalls: Array<{ groupId: string; uuid: string; mark: CurationMark }> = [];
+  const markCalls: Array<{ uuid: string; mark: CurationMark }> = [];
   return {
     markCalls,
-    async markFact(groupId: string, uuid: string, mark: CurationMark) {
-      markCalls.push({ groupId, uuid, mark });
+    async markFact(uuid: string, mark: CurationMark) {
+      markCalls.push({ uuid, mark });
     },
     computeQualityScore() { return 0.5; },
     rankByQuality(items: readonly IMemoryItem[]) { return items; },
@@ -101,13 +101,13 @@ function createMockCurationService(): ICurationService & {
 }
 
 function createMockConsolidationService(): IConsolidationService & {
-  consolidateCalls: Array<{ groupId: string; uuids: readonly string[] }>;
+  consolidateCalls: Array<{ uuids: readonly string[] }>;
 } {
-  const consolidateCalls: Array<{ groupId: string; uuids: readonly string[] }> = [];
+  const consolidateCalls: Array<{ uuids: readonly string[] }> = [];
   return {
     consolidateCalls,
-    async consolidate(groupId: string, factUuids: readonly string[]) {
-      consolidateCalls.push({ groupId, uuids: factUuids });
+    async consolidate(factUuids: readonly string[]) {
+      consolidateCalls.push({ uuids: factUuids });
       return {
         action: 'archive-duplicates' as const,
         retainedUuid: factUuids[0]!,
@@ -149,7 +149,7 @@ describe('NlCurationService', () => {
         createMockConsolidationService(), createMockSummarizationService()
       );
 
-      await service.plan('what do we know about auth?', 'test-group');
+      await service.plan('what do we know about auth?');
 
       assert.strictEqual(guard.calls.length, 1);
       assert.strictEqual(guard.calls[0]?.feature, 'curation');
@@ -168,7 +168,7 @@ describe('NlCurationService', () => {
         createMockConsolidationService(), createMockSummarizationService()
       );
 
-      const plan = await service.plan('what do we know about authentication?', 'test-group');
+      const plan = await service.plan('what do we know about authentication?');
 
       assert.strictEqual(plan.intent, 'query');
       assert.strictEqual(plan.isDestructive, false);
@@ -192,7 +192,7 @@ describe('NlCurationService', () => {
         createMockConsolidationService(), createMockSummarizationService()
       );
 
-      const plan = await service.plan('mark the PostgreSQL decision as authoritative', 'test-group');
+      const plan = await service.plan('mark the PostgreSQL decision as authoritative');
 
       assert.strictEqual(plan.intent, 'mark');
       assert.strictEqual(plan.isDestructive, false);
@@ -215,7 +215,7 @@ describe('NlCurationService', () => {
         createMockConsolidationService(), createMockSummarizationService()
       );
 
-      const plan = await service.plan('forget everything about the old API design', 'test-group');
+      const plan = await service.plan('forget everything about the old API design');
 
       assert.strictEqual(plan.intent, 'expire');
       assert.strictEqual(plan.isDestructive, true);
@@ -236,7 +236,7 @@ describe('NlCurationService', () => {
         createMockConsolidationService(), createMockSummarizationService()
       );
 
-      const plan = await service.plan('consolidate duplicate database facts', 'test-group');
+      const plan = await service.plan('consolidate duplicate database facts');
 
       assert.strictEqual(plan.intent, 'consolidate');
       assert.strictEqual(plan.isDestructive, true);
@@ -255,7 +255,7 @@ describe('NlCurationService', () => {
         createMockConsolidationService(), createMockSummarizationService()
       );
 
-      const plan = await service.plan('summarize what happened this week', 'test-group');
+      const plan = await service.plan('summarize what happened this week');
 
       assert.strictEqual(plan.intent, 'summarize');
       assert.strictEqual(plan.isDestructive, false);
@@ -274,7 +274,7 @@ describe('NlCurationService', () => {
         createMockConsolidationService(), createMockSummarizationService()
       );
 
-      const plan = await service.plan('test', 'test-group');
+      const plan = await service.plan('test');
 
       assert.deepStrictEqual(plan.usage, MOCK_USAGE);
     });
@@ -292,7 +292,7 @@ describe('NlCurationService', () => {
         createMockConsolidationService(), createMockSummarizationService()
       );
 
-      await service.plan('test', 'test-group');
+      await service.plan('test');
 
       assert.strictEqual(guard.calls[0]?.options?.temperature, 0.2);
     });
@@ -304,7 +304,7 @@ describe('NlCurationService', () => {
         createMockConsolidationService(), createMockSummarizationService()
       );
 
-      const plan = await service.plan('something', 'test-group');
+      const plan = await service.plan('something');
 
       assert.strictEqual(plan.intent, 'query');
       assert.strictEqual(plan.isDestructive, false);
@@ -325,7 +325,7 @@ describe('NlCurationService', () => {
         createMockConsolidationService(), createMockSummarizationService()
       );
 
-      const plan = await service.plan('test', 'test-group');
+      const plan = await service.plan('test');
 
       assert.strictEqual(plan.intent, 'query');
     });
@@ -343,7 +343,7 @@ describe('NlCurationService', () => {
         createMockConsolidationService(), createMockSummarizationService()
       );
 
-      const plan = await service.plan('auth stuff', 'test-group');
+      const plan = await service.plan('auth stuff');
 
       assert.strictEqual(plan.intent, 'query');
     });
@@ -361,7 +361,7 @@ describe('NlCurationService', () => {
         createMockConsolidationService(), createMockSummarizationService()
       );
 
-      const plan = await service.plan('test', 'test-group');
+      const plan = await service.plan('test');
 
       assert.ok(plan.operations.length >= 1);
       assert.strictEqual(plan.operations[0]?.type, 'search');
@@ -383,7 +383,7 @@ describe('NlCurationService', () => {
         createMockConsolidationService(), createMockSummarizationService()
       );
 
-      const plan = await service.plan('test', 'test-group');
+      const plan = await service.plan('test');
 
       assert.strictEqual(plan.operations.length, 1);
       assert.strictEqual(plan.operations[0]?.type, 'search');
@@ -402,7 +402,7 @@ describe('NlCurationService', () => {
         createMockConsolidationService(), createMockSummarizationService()
       );
 
-      const plan = await service.plan('forget old stuff', 'test-group');
+      const plan = await service.plan('forget old stuff');
 
       // Expire is always destructive regardless of the LLM boolean
       assert.strictEqual(plan.intent, 'expire');
@@ -427,7 +427,7 @@ describe('NlCurationService', () => {
         usage: MOCK_USAGE,
       };
 
-      const result = await service.execute(plan, 'test-group');
+      const result = await service.execute(plan);
 
       assert.strictEqual(result.executed, true);
       assert.ok(result.output.includes('Found 2 fact(s)'));
@@ -455,7 +455,7 @@ describe('NlCurationService', () => {
         usage: MOCK_USAGE,
       };
 
-      const result = await service.execute(plan, 'test-group');
+      const result = await service.execute(plan);
 
       assert.strictEqual(result.executed, true);
       assert.ok(result.output.includes('Marked 1 fact(s) as authoritative'));
@@ -481,7 +481,7 @@ describe('NlCurationService', () => {
         usage: MOCK_USAGE,
       };
 
-      const result = await service.execute(plan, 'test-group');
+      const result = await service.execute(plan);
 
       assert.strictEqual(result.executed, true);
       assert.ok(result.output.includes('Expired 2 fact(s)'));
@@ -504,7 +504,7 @@ describe('NlCurationService', () => {
         usage: MOCK_USAGE,
       };
 
-      const result = await service.execute(plan, 'test-group');
+      const result = await service.execute(plan);
 
       assert.strictEqual(result.executed, true);
       assert.ok(result.output.includes('authentication'));
@@ -530,7 +530,7 @@ describe('NlCurationService', () => {
         usage: MOCK_USAGE,
       };
 
-      const result = await service.execute(plan, 'test-group');
+      const result = await service.execute(plan);
 
       assert.strictEqual(result.executed, true);
       assert.ok(result.output.includes('Consolidated'));
@@ -552,7 +552,7 @@ describe('NlCurationService', () => {
         usage: MOCK_USAGE,
       };
 
-      const result = await service.execute(plan, 'test-group');
+      const result = await service.execute(plan);
 
       assert.ok(result.output.includes('No facts found'));
     });
@@ -573,7 +573,7 @@ describe('NlCurationService', () => {
         usage: MOCK_USAGE,
       };
 
-      const result = await service.execute(plan, 'test-group');
+      const result = await service.execute(plan);
 
       assert.ok(result.output.includes('Invalid curation mark'));
     });
@@ -595,7 +595,7 @@ describe('NlCurationService', () => {
         usage: MOCK_USAGE,
       };
 
-      const result = await service.execute(plan, 'test-group');
+      const result = await service.execute(plan);
 
       assert.ok(result.output.includes('Not enough facts'));
     });
@@ -627,7 +627,7 @@ describe('NlCurationService', () => {
         usage: MOCK_USAGE,
       };
 
-      const result = await service.execute(plan, 'test-group');
+      const result = await service.execute(plan);
 
       assert.strictEqual(result.executed, true);
       assert.ok(result.output.includes('Failed'));
@@ -653,7 +653,7 @@ describe('NlCurationService', () => {
         usage: MOCK_USAGE,
       };
 
-      const result = await service.execute(plan, 'test-group');
+      const result = await service.execute(plan);
 
       assert.strictEqual(result.executed, true);
       assert.ok(result.output.includes('Found 2 fact(s)'));
@@ -674,7 +674,7 @@ describe('NlCurationService', () => {
         usage: MOCK_USAGE,
       };
 
-      const result = await service.execute(plan, 'test-group');
+      const result = await service.execute(plan);
 
       assert.strictEqual(result.plan, plan);
     });
