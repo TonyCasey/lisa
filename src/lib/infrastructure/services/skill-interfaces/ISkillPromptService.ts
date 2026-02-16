@@ -22,6 +22,7 @@ export interface IPromptArgs {
 export interface IPromptResult {
   status: 'ok' | 'skipped';
   action?: 'add';
+  /** @deprecated Group IDs are no longer used; always undefined. */
   group?: string;
   role?: string;
   source?: string;
