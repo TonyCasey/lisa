@@ -111,7 +111,6 @@ export function createGitIndexingService(
   return {
     async indexFacts(
       facts: readonly IHeuristicFact[],
-      groupId: string,
       options: IGitIndexingOptions = {}
     ): Promise<IGitIndexingResult> {
       const {
@@ -145,7 +144,6 @@ export function createGitIndexingService(
         try {
           // Search for existing facts with similar metadata
           existingFacts = await memory.searchFacts(
-            [groupId],
             'source:code-analysis extractionMethod:heuristic',
             100
           );
@@ -183,7 +181,7 @@ export function createGitIndexingService(
 
         // Save to memory with lifecycle metadata
         try {
-          await memory.addFactWithLifecycle(groupId, fact.text, {
+          await memory.addFactWithLifecycle(fact.text, {
             lifecycle: 'project',
             tags,
           });

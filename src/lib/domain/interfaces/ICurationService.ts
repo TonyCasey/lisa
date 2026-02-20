@@ -74,6 +74,8 @@ export function parseCurationTag(tags: readonly string[]): CurationMark | null {
  *
  * Provides operations for curating facts (marking quality)
  * and computing quality scores for ranking.
+ *
+ * Note: Group IDs are no longer used - the git repo provides scoping via git-mem.
  */
 export interface ICurationService {
   /**
@@ -83,12 +85,10 @@ export interface ICurationService {
    * - `deprecated`: Also expires the fact
    * - `authoritative`: Promotes confidence to `verified`
    *
-   * @param groupId - Group ID the fact belongs to
    * @param uuid - UUID of the fact to mark
    * @param mark - The curation mark to apply
    */
   markFact(
-    groupId: string,
     uuid: string,
     mark: CurationMark
   ): Promise<void>;

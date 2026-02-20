@@ -11,11 +11,15 @@ import { SessionStopRequest } from '../../../../../../src/lib/application/mediat
 import type {
   ILisaContext,
   IMemoryService,
+  IMemorySaveOptions,
   ISessionCaptureService,
   IEventEmitter,
   ICapturedWork,
   LisaEvent,
 } from '../../../../../../src/lib/domain';
+
+/** Captured options from addFactWithLifecycle calls. */
+type SavedOptions = IMemorySaveOptions;
 
 // ============================================================================
 // Mock Factories
@@ -69,10 +73,10 @@ function createMockEvents(): IEventEmitter {
 
 describe('SessionStopHandler — quality tags (#179)', () => {
   it('should include source:session-capture and confidence:medium tags', async () => {
-    const savedOptions: Array<{ lifecycle: string; tags: string[] }> = [];
+    const savedOptions: SavedOptions[] = [];
     const memory = createMockMemory({
-      addFactWithLifecycle: async (_groupId, _fact, options) => {
-        savedOptions.push(options as { lifecycle: string; tags: string[] });
+      addFactWithLifecycle: async (_fact, options) => {
+        savedOptions.push(options);
       },
     });
 
@@ -92,10 +96,10 @@ describe('SessionStopHandler — quality tags (#179)', () => {
   });
 
   it('should include taskType tag when work has detectedTaskType', async () => {
-    const savedOptions: Array<{ lifecycle: string; tags: string[] }> = [];
+    const savedOptions: SavedOptions[] = [];
     const memory = createMockMemory({
-      addFactWithLifecycle: async (_groupId, _fact, options) => {
-        savedOptions.push(options as { lifecycle: string; tags: string[] });
+      addFactWithLifecycle: async (_fact, options) => {
+        savedOptions.push(options);
       },
     });
 
@@ -129,10 +133,10 @@ describe('SessionStopHandler — quality tags (#179)', () => {
   });
 
   it('should not include taskType tag when work has no detectedTaskType', async () => {
-    const savedOptions: Array<{ lifecycle: string; tags: string[] }> = [];
+    const savedOptions: SavedOptions[] = [];
     const memory = createMockMemory({
-      addFactWithLifecycle: async (_groupId, _fact, options) => {
-        savedOptions.push(options as { lifecycle: string; tags: string[] });
+      addFactWithLifecycle: async (_fact, options) => {
+        savedOptions.push(options);
       },
     });
 
@@ -167,10 +171,10 @@ describe('SessionStopHandler — quality tags (#179)', () => {
   });
 
   it('should not include taskType tag when work field is undefined', async () => {
-    const savedOptions: Array<{ lifecycle: string; tags: string[] }> = [];
+    const savedOptions: SavedOptions[] = [];
     const memory = createMockMemory({
-      addFactWithLifecycle: async (_groupId, _fact, options) => {
-        savedOptions.push(options as { lifecycle: string; tags: string[] });
+      addFactWithLifecycle: async (_fact, options) => {
+        savedOptions.push(options);
       },
     });
 
@@ -198,10 +202,10 @@ describe('SessionStopHandler — quality tags (#179)', () => {
   });
 
   it('should apply same tags to all facts in a session', async () => {
-    const savedOptions: Array<{ lifecycle: string; tags: string[] }> = [];
+    const savedOptions: SavedOptions[] = [];
     const memory = createMockMemory({
-      addFactWithLifecycle: async (_groupId, _fact, options) => {
-        savedOptions.push(options as { lifecycle: string; tags: string[] });
+      addFactWithLifecycle: async (_fact, options) => {
+        savedOptions.push(options);
       },
     });
 
@@ -245,9 +249,8 @@ describe('SessionStopHandler — quality tags (#179)', () => {
     for (const taskType of taskTypes) {
       const savedTags: string[][] = [];
       const memory = createMockMemory({
-        addFactWithLifecycle: async (_groupId, _fact, options) => {
-          const opts = options as { tags: string[] };
-          savedTags.push(opts.tags);
+        addFactWithLifecycle: async (_fact, options) => {
+          savedTags.push(options.tags ?? []);
         },
       });
 

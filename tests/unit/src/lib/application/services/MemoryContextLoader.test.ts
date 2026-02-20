@@ -7,7 +7,6 @@
  * - Task conversion to IMemoryItem format
  * - Date options passing
  * - Graceful failure handling for each sub-operation
- * - Group ID merging and deduplication
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
@@ -76,13 +75,13 @@ function createMockTaskService(tasks: readonly ITask[] = []): ITaskService {
       closed: tasks.filter((t) => t.status === 'closed').length,
       unknown: tasks.filter((t) => t.status === 'unknown').length,
     }),
-    createTask: async (_groupId, input) => ({
+    createTask: async (input) => ({
       key: 'new-task',
       status: input.status || 'ready',
       title: input.title,
       blocked: [...(input.blocked || [])],
     }),
-    updateTask: async (_groupId, _taskId, updates) => ({
+    updateTask: async (_taskId, updates) => ({
       key: 'task-1',
       status: updates.status || 'ready',
       title: updates.title || 'Task',
@@ -108,10 +107,6 @@ function createMockLogger(): ILogger {
 // Tests
 // ============================================================================
 
-const defaultGroupIds = ['test-group', 'parent-group'] as const;
-const defaultAliases = ['test-project', 'tp'] as const;
-const defaultBranch = 'main';
-
 describe('MemoryContextLoader', () => {
   describe('fact loading', () => {
     it('should load facts via loadFactsDateOrdered', async () => {
@@ -133,11 +128,7 @@ describe('MemoryContextLoader', () => {
         createMockLogger()
       );
 
-      const result = await loader.loadMemory(
-        defaultGroupIds,
-        defaultAliases,
-        defaultBranch
-      );
+      const result = await loader.loadMemory();
 
       assert.strictEqual(loadFactsCalled, true, 'loadFactsDateOrdered should have been called');
       assert.strictEqual(result.facts.length, 2);
@@ -152,11 +143,7 @@ describe('MemoryContextLoader', () => {
         createMockLogger()
       );
 
-      const result = await loader.loadMemory(
-        defaultGroupIds,
-        defaultAliases,
-        defaultBranch
-      );
+      const result = await loader.loadMemory();
 
       assert.strictEqual(result.facts.length, 0);
       assert.strictEqual(result.timedOut, false);
@@ -169,7 +156,7 @@ describe('MemoryContextLoader', () => {
       let receivedLimit: number | undefined;
 
       const memory = createMockMemory({
-        searchFacts: async (_groupIds, query, limit) => {
+        searchFacts: async (query, limit) => {
           receivedQuery = query;
           receivedLimit = limit;
           return [
@@ -188,11 +175,7 @@ describe('MemoryContextLoader', () => {
         createMockLogger()
       );
 
-      const result = await loader.loadMemory(
-        defaultGroupIds,
-        defaultAliases,
-        defaultBranch
-      );
+      const result = await loader.loadMemory();
 
       assert.strictEqual(receivedQuery, 'init-review', 'should search for init-review');
       assert.strictEqual(receivedLimit, 1, 'should request only 1 result');
@@ -221,11 +204,7 @@ describe('MemoryContextLoader', () => {
         createMockLogger()
       );
 
-      const result = await loader.loadMemory(
-        defaultGroupIds,
-        defaultAliases,
-        defaultBranch
-      );
+      const result = await loader.loadMemory();
 
       assert.strictEqual(result.initReview, 'Init review from name field');
     });
@@ -245,11 +224,7 @@ describe('MemoryContextLoader', () => {
         createMockLogger()
       );
 
-      const result = await loader.loadMemory(
-        defaultGroupIds,
-        defaultAliases,
-        defaultBranch
-      );
+      const result = await loader.loadMemory();
 
       assert.strictEqual(result.initReview, null);
     });
@@ -277,11 +252,7 @@ describe('MemoryContextLoader', () => {
         createMockLogger()
       );
 
-      const result = await loader.loadMemory(
-        defaultGroupIds,
-        defaultAliases,
-        defaultBranch
-      );
+      const result = await loader.loadMemory();
 
       assert.strictEqual(result.tasks.length, 1);
       const taskItem = result.tasks[0];
@@ -318,11 +289,7 @@ describe('MemoryContextLoader', () => {
         createMockLogger()
       );
 
-      const result = await loader.loadMemory(
-        defaultGroupIds,
-        defaultAliases,
-        defaultBranch
-      );
+      const result = await loader.loadMemory();
 
       const tags = result.tasks[0].tags as readonly string[];
       assert.ok(tags.includes('blocked_by:PROJ-50'), 'should include first blocked_by');
@@ -350,11 +317,7 @@ describe('MemoryContextLoader', () => {
         createMockLogger()
       );
 
-      const result = await loader.loadMemory(
-        defaultGroupIds,
-        defaultAliases,
-        defaultBranch
-      );
+      const result = await loader.loadMemory();
 
       const tags = result.tasks[0].tags as readonly string[];
       const blockedTags = tags.filter((t) => t.startsWith('blocked_by:'));
@@ -379,78 +342,12 @@ describe('MemoryContextLoader', () => {
         createMockLogger()
       );
 
-      const result = await loader.loadMemory(
-        defaultGroupIds,
-        defaultAliases,
-        defaultBranch
-      );
+      const result = await loader.loadMemory();
 
       assert.strictEqual(result.tasks.length, 3);
       assert.strictEqual(result.tasks[0].uuid, 't1');
       assert.strictEqual(result.tasks[1].uuid, 't2');
       assert.strictEqual(result.tasks[2].uuid, 't3');
-    });
-  });
-
-  describe('group ID merging', () => {
-    it('should merge hierarchicalGroupIds and projectAliases for queries', async () => {
-      let receivedGroupIds: readonly string[] = [];
-
-      const memory = createMockMemory({
-        searchFacts: async (groupIds) => {
-          receivedGroupIds = groupIds;
-          return [];
-        },
-        loadFactsDateOrdered: async () => [createMockMemoryItem()],
-      });
-
-      const loader = new MemoryContextLoader(
-        memory,
-        createMockTaskService(),
-        createMockLogger()
-      );
-
-      await loader.loadMemory(
-        ['group-a', 'group-b'],
-        ['alias-x', 'alias-y'],
-        defaultBranch
-      );
-
-      // Should combine and deduplicate
-      assert.ok(receivedGroupIds.includes('group-a'));
-      assert.ok(receivedGroupIds.includes('group-b'));
-      assert.ok(receivedGroupIds.includes('alias-x'));
-      assert.ok(receivedGroupIds.includes('alias-y'));
-    });
-
-    it('should deduplicate overlapping group IDs and aliases', async () => {
-      let receivedGroupIds: readonly string[] = [];
-
-      const memory = createMockMemory({
-        searchFacts: async (groupIds) => {
-          receivedGroupIds = groupIds;
-          return [];
-        },
-        loadFactsDateOrdered: async () => [createMockMemoryItem()],
-      });
-
-      const loader = new MemoryContextLoader(
-        memory,
-        createMockTaskService(),
-        createMockLogger()
-      );
-
-      // 'shared-id' appears in both lists
-      await loader.loadMemory(
-        ['shared-id', 'group-only'],
-        ['shared-id', 'alias-only'],
-        defaultBranch
-      );
-
-      // Should be deduplicated via Set
-      const uniqueIds = [...new Set(receivedGroupIds)];
-      assert.strictEqual(receivedGroupIds.length, uniqueIds.length, 'IDs should be deduplicated');
-      assert.strictEqual(receivedGroupIds.length, 3, 'should have 3 unique IDs');
     });
   });
 
@@ -473,9 +370,9 @@ describe('MemoryContextLoader', () => {
         createMockTask({ key: 't1', title: 'Task 1', status: 'ready' }),
       ]);
       const origGetTasks = taskService.getTasksSimple;
-      taskService.getTasksSimple = async (groupIds) => {
+      taskService.getTasksSimple = async () => {
         getTasksCalled = true;
-        return origGetTasks(groupIds);
+        return origGetTasks();
       };
 
       const loader = new MemoryContextLoader(
@@ -484,11 +381,7 @@ describe('MemoryContextLoader', () => {
         createMockLogger()
       );
 
-      const result = await loader.loadMemory(
-        defaultGroupIds,
-        defaultAliases,
-        defaultBranch
-      );
+      const result = await loader.loadMemory();
 
       assert.strictEqual(result.initReview, null, 'initReview should be null after search failure');
       assert.strictEqual(loadFactsCalled, true, 'should still load facts');
@@ -511,9 +404,9 @@ describe('MemoryContextLoader', () => {
         createMockTask({ key: 't1', title: 'Task 1', status: 'ready' }),
       ]);
       const origGetTasks = taskService.getTasksSimple;
-      taskService.getTasksSimple = async (groupIds) => {
+      taskService.getTasksSimple = async () => {
         getTasksCalled = true;
-        return origGetTasks(groupIds);
+        return origGetTasks();
       };
 
       const loader = new MemoryContextLoader(
@@ -522,11 +415,7 @@ describe('MemoryContextLoader', () => {
         createMockLogger()
       );
 
-      const result = await loader.loadMemory(
-        defaultGroupIds,
-        defaultAliases,
-        defaultBranch
-      );
+      const result = await loader.loadMemory();
 
       assert.strictEqual(result.facts.length, 0, 'no facts after failure');
       assert.strictEqual(getTasksCalled, true, 'should still load tasks after fact failure');
@@ -555,11 +444,7 @@ describe('MemoryContextLoader', () => {
         createMockLogger()
       );
 
-      const result = await loader.loadMemory(
-        defaultGroupIds,
-        defaultAliases,
-        defaultBranch
-      );
+      const result = await loader.loadMemory();
 
       assert.strictEqual(result.facts.length, 1, 'facts should still be loaded');
       assert.strictEqual(result.tasks.length, 0, 'tasks should be empty after failure');
@@ -586,11 +471,7 @@ describe('MemoryContextLoader', () => {
         createMockLogger()
       );
 
-      const result = await loader.loadMemory(
-        defaultGroupIds,
-        defaultAliases,
-        defaultBranch
-      );
+      const result = await loader.loadMemory();
 
       assert.strictEqual(result.facts.length, 0);
       assert.strictEqual(result.nodes.length, 0);
@@ -606,7 +487,7 @@ describe('MemoryContextLoader', () => {
 
       const memory = createMockMemory({
         searchFacts: async () => [],
-        loadFactsDateOrdered: async (_groupIds, _limit, options) => {
+        loadFactsDateOrdered: async (_limit, options) => {
           receivedOptions = options;
           return [createMockMemoryItem()];
         },
@@ -623,12 +504,7 @@ describe('MemoryContextLoader', () => {
         createMockLogger()
       );
 
-      await loader.loadMemory(
-        defaultGroupIds,
-        defaultAliases,
-        defaultBranch,
-        dateOptions
-      );
+      await loader.loadMemory(dateOptions);
 
       assert.ok(receivedOptions, 'date options should have been passed');
       assert.deepStrictEqual(receivedOptions?.since, new Date('2026-01-01'));
@@ -651,11 +527,7 @@ describe('MemoryContextLoader', () => {
         createMockLogger()
       );
 
-      const result = await loader.loadMemory(
-        defaultGroupIds,
-        defaultAliases,
-        defaultBranch
-      );
+      const result = await loader.loadMemory();
 
       assert.ok(Array.isArray(result.facts), 'facts should be array');
       assert.ok(Array.isArray(result.nodes), 'nodes should be array');
@@ -671,11 +543,7 @@ describe('MemoryContextLoader', () => {
         createMockLogger()
       );
 
-      const result = await loader.loadMemory(
-        defaultGroupIds,
-        defaultAliases,
-        defaultBranch
-      );
+      const result = await loader.loadMemory();
 
       assert.strictEqual(result.nodes.length, 0, 'nodes should always be empty with git-mem');
     });

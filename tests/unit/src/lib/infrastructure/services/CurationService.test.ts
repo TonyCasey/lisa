@@ -23,20 +23,20 @@ function createMockWriter(): IMemoryWriter & { calls: { method: string; args: un
   const calls: { method: string; args: unknown[] }[] = [];
   return {
     calls,
-    async saveMemory(groupId: string, facts: readonly string[]): Promise<void> {
-      calls.push({ method: 'saveMemory', args: [groupId, facts] });
+    async saveMemory(facts: readonly string[]): Promise<void> {
+      calls.push({ method: 'saveMemory', args: [facts] });
     },
-    async addFact(groupId: string, fact: string, tags?: readonly string[]): Promise<void> {
-      calls.push({ method: 'addFact', args: [groupId, fact, tags] });
+    async addFact(fact: string, tags?: readonly string[]): Promise<void> {
+      calls.push({ method: 'addFact', args: [fact, tags] });
     },
-    async addFactWithLifecycle(groupId: string, fact: string, options: unknown): Promise<void> {
-      calls.push({ method: 'addFactWithLifecycle', args: [groupId, fact, options] });
+    async addFactWithLifecycle(fact: string, options: unknown): Promise<void> {
+      calls.push({ method: 'addFactWithLifecycle', args: [fact, options] });
     },
-    async expireFact(groupId: string, uuid: string): Promise<void> {
-      calls.push({ method: 'expireFact', args: [groupId, uuid] });
+    async expireFact(uuid: string): Promise<void> {
+      calls.push({ method: 'expireFact', args: [uuid] });
     },
-    async cleanupExpired(groupId: string): Promise<number> {
-      calls.push({ method: 'cleanupExpired', args: [groupId] });
+    async cleanupExpired(): Promise<number> {
+      calls.push({ method: 'cleanupExpired', args: [] });
       return 0;
     },
   };
@@ -64,41 +64,41 @@ describe('CurationService', () => {
 
   describe('markFact()', () => {
     it('should add curation tag for draft mark', async () => {
-      await service.markFact('group1', 'uuid1', 'draft');
+      await service.markFact('uuid1', 'draft');
 
       const addCalls = mockWriter.calls.filter((c) => c.method === 'addFact');
       assert.strictEqual(addCalls.length, 1);
-      assert.deepStrictEqual(addCalls[0].args[2], ['curated:draft']);
+      assert.deepStrictEqual(addCalls[0].args[1], ['curated:draft']);
     });
 
     it('should add curation tag for needs-review mark', async () => {
-      await service.markFact('group1', 'uuid1', 'needs-review');
+      await service.markFact('uuid1', 'needs-review');
 
       const addCalls = mockWriter.calls.filter((c) => c.method === 'addFact');
       assert.strictEqual(addCalls.length, 1);
-      assert.deepStrictEqual(addCalls[0].args[2], ['curated:needs-review']);
+      assert.deepStrictEqual(addCalls[0].args[1], ['curated:needs-review']);
     });
 
     it('should expire fact when marking as deprecated', async () => {
-      await service.markFact('group1', 'uuid1', 'deprecated');
+      await service.markFact('uuid1', 'deprecated');
 
       const expireCalls = mockWriter.calls.filter((c) => c.method === 'expireFact');
       assert.strictEqual(expireCalls.length, 1);
-      assert.deepStrictEqual(expireCalls[0].args, ['group1', 'uuid1']);
+      assert.deepStrictEqual(expireCalls[0].args, ['uuid1']);
     });
 
     it('should promote confidence to verified when marking as authoritative', async () => {
-      await service.markFact('group1', 'uuid1', 'authoritative');
+      await service.markFact('uuid1', 'authoritative');
 
       const addCalls = mockWriter.calls.filter((c) => c.method === 'addFact');
       // One for curation tag, one for confidence promotion
       assert.strictEqual(addCalls.length, 2);
-      assert.deepStrictEqual(addCalls[0].args[2], ['curated:authoritative']);
-      assert.deepStrictEqual(addCalls[1].args[2], ['confidence:verified']);
+      assert.deepStrictEqual(addCalls[0].args[1], ['curated:authoritative']);
+      assert.deepStrictEqual(addCalls[1].args[1], ['confidence:verified']);
     });
 
     it('should not expire or promote for draft mark', async () => {
-      await service.markFact('group1', 'uuid1', 'draft');
+      await service.markFact('uuid1', 'draft');
 
       const expireCalls = mockWriter.calls.filter((c) => c.method === 'expireFact');
       const addCalls = mockWriter.calls.filter((c) => c.method === 'addFact');

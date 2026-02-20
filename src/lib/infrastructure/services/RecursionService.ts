@@ -98,7 +98,7 @@ export class RecursionService implements IRecursionService {
   /**
    * Run memory recursion for a plan mode prompt.
    */
-  async run(prompt: string, groupIds: readonly string[]): Promise<IRecursionResult> {
+  async run(prompt: string): Promise<IRecursionResult> {
     // Extract topics from prompt
     const topics = this.extractTopics(prompt);
     if (topics.length === 0) {
@@ -114,9 +114,9 @@ export class RecursionService implements IRecursionService {
     });
 
     const searchPromise = Promise.all([
-      this.searchByType(groupIds, query, 'decision'),
-      this.searchByType(groupIds, query, 'retrospective'),
-      this.searchTasks(groupIds, query),
+      this.searchByType(query, 'decision'),
+      this.searchByType(query, 'retrospective'),
+      this.searchTasks(query),
     ]);
 
     let decisions: IMemoryItem[] = [];
@@ -181,14 +181,12 @@ export class RecursionService implements IRecursionService {
    * Search memory for facts of a specific type.
    */
   private async searchByType(
-    groupIds: readonly string[],
     query: string,
     type: string
   ): Promise<IMemoryItem[]> {
     try {
       // Search with the query - the memory service will filter by tags if supported
       const results = await this.memory.searchFacts(
-        groupIds,
         `${type} ${query}`,
         this.config.maxResultsPerType * 2
       );
@@ -207,14 +205,11 @@ export class RecursionService implements IRecursionService {
   /**
    * Search for related tasks.
    */
-  private async searchTasks(
-    groupIds: readonly string[],
-    query: string
-  ): Promise<ITask[]> {
+  private async searchTasks(query: string): Promise<ITask[]> {
     try {
       // Use task service to get tasks
-      const allTasks = await this.tasks.getTasksSimple(groupIds);
-      
+      const allTasks = await this.tasks.getTasksSimple();
+
       // Filter tasks by query relevance (simple keyword matching)
       const queryWords = query.toLowerCase().split(/\s+/);
       const relevant = allTasks

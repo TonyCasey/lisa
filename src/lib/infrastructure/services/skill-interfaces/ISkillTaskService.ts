@@ -4,6 +4,9 @@
  *
  * This is the "rich" task interface used by CLI scripts,
  * with operations like external linking (GitHub, Jira, Linear).
+ *
+ * Note: Group IDs are no longer used - the git repo itself provides scoping
+ * via git-mem (git notes in refs/notes/mem).
  */
 
 /**
@@ -47,8 +50,6 @@ export interface ISkillTask {
 export interface ITaskListResult {
   status: 'ok';
   action: 'list';
-  group: string;
-  groups: string[];
   tasks: ISkillTask[];
   mode: TaskMode;
 }
@@ -69,7 +70,6 @@ export interface ITaskWriteResult {
     tag?: string | null;
     externalLink?: ITaskExternalLink;
   };
-  group: string;
   result?: unknown;
   message_uuid?: string;
   mode: TaskMode;
@@ -106,7 +106,6 @@ export interface ITaskLinkResult {
     uuid: string;
     externalLink?: ITaskExternalLink;
   };
-  group: string;
   mode: TaskMode;
 }
 
@@ -115,19 +114,19 @@ export interface ITaskLinkResult {
  *
  * This is the "rich" interface with full CLI capabilities
  * including external system linking.
+ *
+ * Note: Group IDs are no longer used - the git repo provides scoping.
  */
 export interface ISkillTaskService {
   /**
    * List tasks from storage.
    *
-   * @param groupIds - Group identifiers to search
    * @param limit - Maximum number of tasks to return
    * @param defaultRepo - Default repo name for tasks without one
    * @param defaultAssignee - Default assignee for tasks without one
    * @param options - Optional date filtering options
    */
   list(
-    groupIds: string[],
     limit: number,
     defaultRepo: string,
     defaultAssignee: string,
@@ -138,63 +137,42 @@ export interface ISkillTaskService {
    * Add a new task.
    *
    * @param title - Task title/description
-   * @param groupId - Group identifier for storage
    * @param options - Additional task options
    */
-  add(
-    title: string,
-    groupId: string,
-    options: ITaskWriteOptions
-  ): Promise<ITaskWriteResult>;
+  add(title: string, options: ITaskWriteOptions): Promise<ITaskWriteResult>;
 
   /**
    * Update an existing task (creates a new version).
    *
    * @param title - Task title/description
-   * @param groupId - Group identifier for storage
    * @param options - Updated task options
    */
-  update(
-    title: string,
-    groupId: string,
-    options: ITaskWriteOptions
-  ): Promise<ITaskWriteResult>;
+  update(title: string, options: ITaskWriteOptions): Promise<ITaskWriteResult>;
 
   /**
    * Link a task to an external system (GitHub, Jira, etc.).
    *
    * @param taskUuid - UUID of the task to link
-   * @param groupId - Group identifier
    * @param externalLink - External link details
    */
-  link(
-    taskUuid: string,
-    groupId: string,
-    externalLink: ITaskExternalLink
-  ): Promise<ITaskLinkResult>;
+  link(taskUuid: string, externalLink: ITaskExternalLink): Promise<ITaskLinkResult>;
 
   /**
    * Unlink a task from its external system.
    *
    * @param taskUuid - UUID of the task to unlink
-   * @param groupId - Group identifier
    */
-  unlink(
-    taskUuid: string,
-    groupId: string
-  ): Promise<ITaskLinkResult>;
+  unlink(taskUuid: string): Promise<ITaskLinkResult>;
 
   /**
    * List tasks filtered by external link source.
    *
-   * @param groupIds - Group identifiers to search
    * @param source - External link source to filter by (optional, returns all linked if omitted)
    * @param limit - Maximum number of tasks to return
    * @param defaultRepo - Default repo name for tasks without one
    * @param defaultAssignee - Default assignee for tasks without one
    */
   listLinked(
-    groupIds: string[],
     source: ExternalLinkSource | undefined,
     limit: number,
     defaultRepo: string,

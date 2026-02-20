@@ -1,5 +1,7 @@
 /**
  * Tests for GitHub issue task persistence helper.
+ *
+ * Note: Group IDs are no longer used - the git repo provides scoping via git-mem.
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
@@ -16,7 +18,6 @@ import type {
 
 interface ITaskCall {
   title: string;
-  groupId: string;
   options: ITaskWriteOptions;
 }
 
@@ -41,7 +42,6 @@ function createMockTaskService(linkedTasks: ITask[] = []) {
   const addCalls: ITaskCall[] = [];
   const updateCalls: ITaskCall[] = [];
   const listLinkedCalls: Array<{
-    groupIds: string[];
     source: ExternalLinkSource | undefined;
   }> = [];
 
@@ -49,13 +49,11 @@ function createMockTaskService(linkedTasks: ITask[] = []) {
     list: async (): Promise<ITaskListResult> => ({
       status: 'ok',
       action: 'list',
-      group: '',
-      groups: [],
       tasks: [],
-      mode: 'neo4j',
+      mode: 'git-mem',
     }),
-    add: async (title: string, groupId: string, options: ITaskWriteOptions): Promise<ITaskWriteResult> => {
-      addCalls.push({ title, groupId, options });
+    add: async (title: string, options: ITaskWriteOptions): Promise<ITaskWriteResult> => {
+      addCalls.push({ title, options });
       return {
         status: 'ok',
         action: 'add',
@@ -66,12 +64,11 @@ function createMockTaskService(linkedTasks: ITask[] = []) {
           repo: options.repo || '',
           assignee: options.assignee || '',
         },
-        group: groupId,
-        mode: 'neo4j',
+        mode: 'git-mem',
       };
     },
-    update: async (title: string, groupId: string, options: ITaskWriteOptions): Promise<ITaskWriteResult> => {
-      updateCalls.push({ title, groupId, options });
+    update: async (title: string, options: ITaskWriteOptions): Promise<ITaskWriteResult> => {
+      updateCalls.push({ title, options });
       return {
         status: 'ok',
         action: 'update',
@@ -82,8 +79,7 @@ function createMockTaskService(linkedTasks: ITask[] = []) {
           repo: options.repo || '',
           assignee: options.assignee || '',
         },
-        group: groupId,
-        mode: 'neo4j',
+        mode: 'git-mem',
       };
     },
     link: async (): Promise<ITaskLinkResult> => {
@@ -93,17 +89,14 @@ function createMockTaskService(linkedTasks: ITask[] = []) {
       throw new Error('unlink should not be called');
     },
     listLinked: async (
-      groupIds: string[],
       source: ExternalLinkSource | undefined
     ): Promise<ITaskListResult> => {
-      listLinkedCalls.push({ groupIds, source });
+      listLinkedCalls.push({ source });
       return {
         status: 'ok',
         action: 'list',
-        group: groupIds[0] || '',
-        groups: groupIds,
         tasks: linkedTasks,
-        mode: 'neo4j',
+        mode: 'git-mem',
       };
     },
   };
@@ -117,7 +110,6 @@ describe('persistCreatedIssueTask', () => {
 
     await persistCreatedIssueTask({
       tasks: service,
-      groupId: 'group-1',
       repo: 'owner/repo',
       issue: {
         number: 42,
@@ -132,7 +124,6 @@ describe('persistCreatedIssueTask', () => {
     assert.strictEqual(addCalls.length, 1);
     const call = addCalls[0];
     assert.strictEqual(call.title, 'Issue title');
-    assert.strictEqual(call.groupId, 'group-1');
     assert.strictEqual(call.options.repo, 'owner/repo');
     assert.strictEqual(call.options.assignee, 'alice');
     assert.strictEqual(call.options.notes, 'Issue body');
@@ -155,7 +146,6 @@ describe('persistCreatedIssueTask', () => {
 
     await persistCreatedIssueTask({
       tasks: service,
-      groupId: 'group-1',
       repo: 'owner/repo',
       issue: {
         number: 42,
@@ -175,13 +165,11 @@ describe('persistCreatedIssueTask', () => {
       list: async (): Promise<ITaskListResult> => ({
         status: 'ok',
         action: 'list',
-        group: '',
-        groups: [],
         tasks: [],
-        mode: 'neo4j',
+        mode: 'git-mem',
       }),
       add: async (): Promise<ITaskWriteResult> => {
-        throw new Error('Neo4j unavailable');
+        throw new Error('git-mem unavailable');
       },
       update: async (): Promise<ITaskWriteResult> => {
         throw new Error('unexpected update call');
@@ -195,17 +183,14 @@ describe('persistCreatedIssueTask', () => {
       listLinked: async (): Promise<ITaskListResult> => ({
         status: 'ok',
         action: 'list',
-        group: 'group-1',
-        groups: ['group-1'],
         tasks: [],
-        mode: 'neo4j',
+        mode: 'git-mem',
       }),
     };
 
     await assert.rejects(
       () => persistCreatedIssueTask({
         tasks: failingService,
-        groupId: 'group-1',
         repo: 'owner/repo',
         issue: {
           number: 42,
@@ -213,7 +198,7 @@ describe('persistCreatedIssueTask', () => {
           title: 'Issue title',
         },
       }),
-      /Neo4j unavailable/
+      /git-mem unavailable/
     );
   });
 });

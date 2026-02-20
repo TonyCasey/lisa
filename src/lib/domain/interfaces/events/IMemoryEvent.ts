@@ -2,20 +2,22 @@ import type { ISOTimestamp } from '../../types';
 
 /**
  * Event emitted when memory is loaded.
+ *
+ * Note: Group IDs are no longer used - the git repo provides scoping via git-mem.
  */
 export interface IMemoryLoadEvent {
   readonly type: 'memory:load';
-  readonly groupId: string;
   readonly timestamp: ISOTimestamp;
 }
 
 /**
  * Event emitted when memory is saved.
+ *
+ * Note: Group IDs are no longer used - the git repo provides scoping via git-mem.
  */
 export interface IMemorySaveEvent {
   readonly type: 'memory:save';
   readonly facts: readonly string[];
-  readonly groupId: string;
   readonly timestamp: ISOTimestamp;
 }
 
@@ -23,12 +25,10 @@ export interface IMemorySaveEvent {
  * Create a memory load event.
  */
 export function createMemoryLoadEvent(
-  groupId: string,
   timestamp: ISOTimestamp
 ): IMemoryLoadEvent {
   return {
     type: 'memory:load',
-    groupId,
     timestamp,
   };
 }
@@ -38,13 +38,11 @@ export function createMemoryLoadEvent(
  */
 export function createMemorySaveEvent(
   facts: readonly string[],
-  groupId: string,
   timestamp: ISOTimestamp
 ): IMemorySaveEvent {
   return {
     type: 'memory:save',
     facts,
-    groupId,
     timestamp,
   };
 }

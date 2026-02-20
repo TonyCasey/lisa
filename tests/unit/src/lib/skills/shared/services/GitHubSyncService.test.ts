@@ -6,15 +6,16 @@
  * - Export: Lisa tasks -> GitHub Issues
  * - Bidirectional sync with conflict resolution
  * - Status mapping
+ *
+ * Note: Group IDs are no longer used - the git repo provides scoping via git-mem.
+ * The groupId in ISyncOptions is kept for interface compatibility but ignored.
  */
-import { describe, it, beforeEach } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import {
   createGitHubSyncService,
   lisaStatusToGitHub,
   gitHubStatusToLisa,
-  type IGitHubSyncService,
-  type ISyncOptions,
 } from '../../../../../../../src/lib/skills/shared/services/GitHubSyncService';
 import type { IGitHubClient, IGitHubIssue } from '../../../../../../../src/lib/skills/shared/services/GitHubService';
 import type {
@@ -24,7 +25,6 @@ import type {
   ITaskWriteResult,
   ITaskLinkResult,
   ITaskExternalLink,
-  ExternalLinkSource,
   ITaskWriteOptions,
 } from '../../../../../../../src/lib/skills/shared/services/interfaces';
 
@@ -83,46 +83,38 @@ function createMockTaskService(overrides: Partial<ITaskService> = {}): ITaskServ
     list: async (): Promise<ITaskListResult> => ({
       status: 'ok',
       action: 'list',
-      group: 'test-group',
-      groups: ['test-group'],
       tasks: [],
-      mode: 'neo4j',
+      mode: 'git-mem',
     }),
     listLinked: async (): Promise<ITaskListResult> => ({
       status: 'ok',
       action: 'list',
-      group: 'test-group',
-      groups: ['test-group'],
       tasks: [],
-      mode: 'neo4j',
+      mode: 'git-mem',
     }),
     add: async (title: string): Promise<ITaskWriteResult> => ({
       status: 'ok',
       action: 'add',
       task: { type: 'task', title, status: 'ready', repo: '', assignee: '' },
-      group: 'test-group',
-      mode: 'mcp',
+      mode: 'git-mem',
     }),
     update: async (title: string): Promise<ITaskWriteResult> => ({
       status: 'ok',
       action: 'update',
       task: { type: 'task', title, status: 'ready', repo: '', assignee: '' },
-      group: 'test-group',
-      mode: 'mcp',
+      mode: 'git-mem',
     }),
-    link: async (taskUuid: string, _groupId: string, externalLink: ITaskExternalLink): Promise<ITaskLinkResult> => ({
+    link: async (taskUuid: string, externalLink: ITaskExternalLink): Promise<ITaskLinkResult> => ({
       status: 'ok',
       action: 'link',
       task: { title: 'Task', uuid: taskUuid, externalLink },
-      group: 'test-group',
-      mode: 'mcp',
+      mode: 'git-mem',
     }),
     unlink: async (taskUuid: string): Promise<ITaskLinkResult> => ({
       status: 'ok',
       action: 'unlink',
       task: { title: 'Task', uuid: taskUuid },
-      group: 'test-group',
-      mode: 'mcp',
+      mode: 'git-mem',
     }),
     ...overrides,
   };
@@ -209,8 +201,8 @@ describe('GitHubSyncService', () => {
 
   describe('sync() - Import', () => {
     it('should import new GitHub issues as Lisa tasks', async () => {
-      const addCalls: Array<{ title: string; groupId: string; options: ITaskWriteOptions }> = [];
-      
+      const addCalls: Array<{ title: string; options: ITaskWriteOptions }> = [];
+
       const github = createMockGitHubClient({
         listIssues: async () => ({
           issues: [
@@ -225,27 +217,22 @@ describe('GitHubSyncService', () => {
         list: async () => ({
           status: 'ok',
           action: 'list',
-          group: 'test',
-          groups: ['test'],
           tasks: [],
-          mode: 'neo4j',
+          mode: 'git-mem',
         }),
         listLinked: async () => ({
           status: 'ok',
           action: 'list',
-          group: 'test',
-          groups: ['test'],
           tasks: [],
-          mode: 'neo4j',
+          mode: 'git-mem',
         }),
-        add: async (title, groupId, options) => {
-          addCalls.push({ title, groupId, options });
+        add: async (title, options) => {
+          addCalls.push({ title, options });
           return {
             status: 'ok',
             action: 'add',
             task: { type: 'task', title, status: 'ready', repo: '', assignee: '' },
-            group: groupId,
-            mode: 'mcp',
+            mode: 'git-mem',
           };
         },
       });
@@ -277,28 +264,24 @@ describe('GitHubSyncService', () => {
         list: async () => ({
           status: 'ok',
           action: 'list',
-          group: 'test',
-          groups: ['test'],
           tasks: [
             createMockTask({
               title: 'Issue 1',
               externalLink: { source: 'github', id: '1', url: 'https://github.com/owner/repo/issues/1' },
             }),
           ],
-          mode: 'neo4j',
+          mode: 'git-mem',
         }),
         listLinked: async () => ({
           status: 'ok',
           action: 'list',
-          group: 'test',
-          groups: ['test'],
           tasks: [
             createMockTask({
               title: 'Issue 1',
               externalLink: { source: 'github', id: '1', url: 'https://github.com/owner/repo/issues/1' },
             }),
           ],
-          mode: 'neo4j',
+          mode: 'git-mem',
         }),
       });
 
@@ -327,8 +310,6 @@ describe('GitHubSyncService', () => {
         list: async () => ({
           status: 'ok',
           action: 'list',
-          group: 'test',
-          groups: ['test'],
           tasks: [
             createMockTask({
               title: 'Issue 1',
@@ -336,13 +317,11 @@ describe('GitHubSyncService', () => {
               externalLink: { source: 'github', id: '1', url: 'https://github.com/owner/repo/issues/1' },
             }),
           ],
-          mode: 'neo4j',
+          mode: 'git-mem',
         }),
         listLinked: async () => ({
           status: 'ok',
           action: 'list',
-          group: 'test',
-          groups: ['test'],
           tasks: [
             createMockTask({
               title: 'Issue 1',
@@ -350,16 +329,15 @@ describe('GitHubSyncService', () => {
               externalLink: { source: 'github', id: '1', url: 'https://github.com/owner/repo/issues/1' },
             }),
           ],
-          mode: 'neo4j',
+          mode: 'git-mem',
         }),
-        update: async (title, _groupId, options) => {
+        update: async (title, options) => {
           updateCalls.push({ title, options });
           return {
             status: 'ok',
             action: 'update',
             task: { type: 'task', title, status: options.status || 'ready', repo: '', assignee: '' },
-            group: 'test',
-            mode: 'mcp',
+            mode: 'git-mem',
           };
         },
       });
@@ -393,8 +371,7 @@ describe('GitHubSyncService', () => {
             status: 'ok',
             action: 'add',
             task: { type: 'task', title: 'Issue 1', status: 'ready', repo: '', assignee: '' },
-            group: 'test',
-            mode: 'mcp',
+            mode: 'git-mem',
           };
         },
       });
@@ -434,22 +411,19 @@ describe('GitHubSyncService', () => {
         list: async () => ({
           status: 'ok',
           action: 'list',
-          group: 'test',
-          groups: ['test'],
           tasks: [
             createMockTask({ title: 'Task 1', uuid: 'uuid-1' }),
             createMockTask({ title: 'Task 2', uuid: 'uuid-2' }),
           ],
-          mode: 'neo4j',
+          mode: 'git-mem',
         }),
-        link: async (taskUuid, _groupId, externalLink) => {
+        link: async (taskUuid, externalLink) => {
           linkCalls.push({ taskUuid, externalLink });
           return {
             status: 'ok',
             action: 'link',
             task: { title: 'Task', uuid: taskUuid, externalLink },
-            group: 'test',
-            mode: 'mcp',
+            mode: 'git-mem',
           };
         },
       });
@@ -484,10 +458,8 @@ describe('GitHubSyncService', () => {
         list: async () => ({
           status: 'ok',
           action: 'list',
-          group: 'test',
-          groups: ['test'],
           tasks: [createMockTask({ title: 'Task 1', status: 'done', uuid: 'uuid-1' })],
-          mode: 'neo4j',
+          mode: 'git-mem',
         }),
       });
 
@@ -516,10 +488,8 @@ describe('GitHubSyncService', () => {
         list: async () => ({
           status: 'ok',
           action: 'list',
-          group: 'test',
-          groups: ['test'],
           tasks: [createMockTask({ title: 'Task 1', status: 'in-progress', uuid: 'uuid-1' })],
-          mode: 'neo4j',
+          mode: 'git-mem',
         }),
       });
 
@@ -561,20 +531,16 @@ describe('GitHubSyncService', () => {
         list: async () => ({
           status: 'ok',
           action: 'list',
-          group: 'test',
-          groups: ['test'],
           tasks: [
             createMockTask({ title: 'New Task', uuid: 'uuid-new' }), // No external link - will be exported
           ],
-          mode: 'neo4j',
+          mode: 'git-mem',
         }),
         listLinked: async () => ({
           status: 'ok',
           action: 'list',
-          group: 'test',
-          groups: ['test'],
           tasks: [],
-          mode: 'neo4j',
+          mode: 'git-mem',
         }),
         add: async () => {
           addCalls++;
@@ -582,8 +548,7 @@ describe('GitHubSyncService', () => {
             status: 'ok',
             action: 'add',
             task: { type: 'task', title: 'Existing Issue', status: 'ready', repo: '', assignee: '' },
-            group: 'test',
-            mode: 'mcp',
+            mode: 'git-mem',
           };
         },
       });
@@ -623,8 +588,6 @@ describe('GitHubSyncService', () => {
         list: async () => ({
           status: 'ok',
           action: 'list',
-          group: 'test',
-          groups: ['test'],
           tasks: [
             createMockTask({
               title: 'Conflicting Issue',
@@ -634,13 +597,11 @@ describe('GitHubSyncService', () => {
               externalLink: { source: 'github', id: '1', url: 'https://github.com/owner/repo/issues/1' },
             }),
           ],
-          mode: 'neo4j',
+          mode: 'git-mem',
         }),
         listLinked: async () => ({
           status: 'ok',
           action: 'list',
-          group: 'test',
-          groups: ['test'],
           tasks: [
             createMockTask({
               title: 'Conflicting Issue',
@@ -650,16 +611,15 @@ describe('GitHubSyncService', () => {
               externalLink: { source: 'github', id: '1', url: 'https://github.com/owner/repo/issues/1' },
             }),
           ],
-          mode: 'neo4j',
+          mode: 'git-mem',
         }),
-        update: async (title, _groupId, options) => {
+        update: async (title, options) => {
           updateCalls.push({ title, status: options.status });
           return {
             status: 'ok',
             action: 'update',
             task: { type: 'task', title, status: options.status || 'ready', repo: '', assignee: '' },
-            group: 'test',
-            mode: 'mcp',
+            mode: 'git-mem',
           };
         },
       });

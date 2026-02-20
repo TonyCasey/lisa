@@ -6,13 +6,15 @@
  * Spawned by init-review.ts after static analysis.
  *
  * Usage: node ai-enrich.js <projectRoot> <agentsDir>
+ *
+ * Note: Group IDs are no longer used - the git repo itself provides scoping
+ * via git-mem (git notes in refs/notes/mem).
  */
 
 export {};
 
 import fs from 'fs';
 import path from 'path';
-import { getCurrentGroupId } from '../shared/group-id';
 
 interface IStaticAnalysis {
   summary: string;
@@ -80,7 +82,7 @@ async function initializeMCP(endpoint: string, apiKey?: string): Promise<string 
   }
 }
 
-async function addEnrichedMemory(endpoint: string, sessionId: string, summary: string, groupId: string, apiKey?: string): Promise<boolean> {
+async function addEnrichedMemory(endpoint: string, sessionId: string, summary: string, apiKey?: string): Promise<boolean> {
   try {
     const headers: Record<string, string> = { 'Content-Type': 'application/json', 'MCP-SESSION-ID': sessionId, Accept: 'application/json, text/event-stream' };
     if (apiKey && endpoint.includes('getzep.com')) headers['Authorization'] = `Api-Key ${apiKey}`;
@@ -96,7 +98,6 @@ async function addEnrichedMemory(endpoint: string, sessionId: string, summary: s
             name: 'INIT-REVIEW (AI Enriched): ' + summary.slice(0, 60),
             episode_body: `INIT-REVIEW: ${summary}`,
             source: 'skill:init-review-enrich',
-            group_id: groupId,
             tags: ['type:init-review', 'scope:codebase', 'ai:enriched'],
           },
         },
@@ -156,13 +157,12 @@ async function main(): Promise<void> {
   log(`Generated enriched summary: ${enrichedSummary.slice(0, 100)}...`);
 
   const config = loadConfig();
-  const groupId = getCurrentGroupId(projectRoot);
-  log(`Using endpoint: ${config.endpoint}, group: ${groupId}`);
+  log(`Using endpoint: ${config.endpoint}`);
 
   const sessionId = await initializeMCP(config.endpoint, config.zepApiKey);
   if (!sessionId) { log('Could not initialize MCP'); return; }
 
-  const success = await addEnrichedMemory(config.endpoint, sessionId, enrichedSummary, groupId, config.zepApiKey);
+  const success = await addEnrichedMemory(config.endpoint, sessionId, enrichedSummary, config.zepApiKey);
 
   if (success) {
     log('Successfully stored enriched memory');

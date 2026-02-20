@@ -47,7 +47,7 @@ describe('GitMemMemoryService', () => {
       const entity = createMockEntity({ content: 'Important decision' });
       mockGitMem.recall = mock.fn(() => ({ memories: [entity], total: 1 }));
 
-      const result = await service.loadMemory(['test-group'], [], null);
+      const result = await service.loadMemory();
 
       assert.equal(result.facts.length, 1);
       assert.equal(result.facts[0]?.uuid, 'test-uuid-1');
@@ -59,45 +59,31 @@ describe('GitMemMemoryService', () => {
       assert.equal(result.tasks.length, 0);
     });
 
-    it('should filter by group tags', async () => {
-      const matchEntity = createMockEntity({ id: 'match', tags: ['group:mygroup'] });
-      const otherEntity = createMockEntity({ id: 'other', tags: ['group:othergroup'] });
-      mockGitMem.recall = mock.fn(() => ({
-        memories: [matchEntity, otherEntity],
-        total: 2,
-      }));
-
-      const result = await service.loadMemory(['mygroup'], [], null);
-
-      assert.equal(result.facts.length, 1);
-      assert.equal(result.facts[0]?.uuid, 'match');
-    });
-
     it('should extract init-review as separate field', async () => {
       const regular = createMockEntity({ id: 'regular', content: 'A fact' });
       const initReview = createMockEntity({
         id: 'review',
         content: 'Codebase review content',
-        tags: ['group:test-group', 'init-review'],
+        tags: ['init-review'],
       });
       mockGitMem.recall = mock.fn(() => ({
         memories: [regular, initReview],
         total: 2,
       }));
 
-      const result = await service.loadMemory(['test-group'], [], null);
+      const result = await service.loadMemory();
 
       assert.equal(result.facts.length, 1);
       assert.equal(result.facts[0]?.uuid, 'regular');
       assert.equal(result.initReview, 'Codebase review content');
     });
 
-    it('should return all facts when no groupIds filter', async () => {
+    it('should return all facts from git-mem', async () => {
       const e1 = createMockEntity({ id: '1', tags: [] });
-      const e2 = createMockEntity({ id: '2', tags: ['group:something'] });
+      const e2 = createMockEntity({ id: '2', tags: ['sometag'] });
       mockGitMem.recall = mock.fn(() => ({ memories: [e1, e2], total: 2 }));
 
-      const result = await service.loadMemory([], [], null);
+      const result = await service.loadMemory();
 
       assert.equal(result.facts.length, 2);
     });
@@ -111,7 +97,7 @@ describe('GitMemMemoryService', () => {
       ];
       mockGitMem.recall = mock.fn(() => ({ memories: entities, total: 2 }));
 
-      const result = await service.loadFactsDateOrdered(['test-group'], 5);
+      const result = await service.loadFactsDateOrdered(5);
 
       assert.equal(result.length, 2);
       assert.equal(mockGitMem.recall.mock.calls[0]?.arguments[1]?.limit, 5);
@@ -122,7 +108,7 @@ describe('GitMemMemoryService', () => {
       const recent = createMockEntity({ id: 'recent', createdAt: '2026-02-06T12:00:00.000Z' });
       mockGitMem.recall = mock.fn(() => ({ memories: [old, recent], total: 2 }));
 
-      const result = await service.loadFactsDateOrdered(['test-group'], 10, {
+      const result = await service.loadFactsDateOrdered(10, {
         since: new Date('2026-02-01'),
       });
 
@@ -135,7 +121,7 @@ describe('GitMemMemoryService', () => {
       const recent = createMockEntity({ id: 'recent', createdAt: '2026-02-06T12:00:00.000Z' });
       mockGitMem.recall = mock.fn(() => ({ memories: [old, recent], total: 2 }));
 
-      const result = await service.loadFactsDateOrdered(['test-group'], 10, {
+      const result = await service.loadFactsDateOrdered(10, {
         until: new Date('2026-01-15'),
       });
 
@@ -149,7 +135,7 @@ describe('GitMemMemoryService', () => {
       const entity = createMockEntity({ content: 'TypeScript config' });
       mockGitMem.recall = mock.fn(() => ({ memories: [entity], total: 1 }));
 
-      const result = await service.searchFacts(['test-group'], 'typescript');
+      const result = await service.searchFacts('typescript');
 
       assert.equal(result.length, 1);
       assert.equal(mockGitMem.recall.mock.calls[0]?.arguments[0], 'typescript');
@@ -158,7 +144,7 @@ describe('GitMemMemoryService', () => {
     it('should respect limit parameter', async () => {
       mockGitMem.recall = mock.fn(() => ({ memories: [], total: 0 }));
 
-      await service.searchFacts(['test-group'], 'query', 5);
+      await service.searchFacts('query', 5);
 
       assert.equal(mockGitMem.recall.mock.calls[0]?.arguments[1]?.limit, 5);
     });
@@ -166,29 +152,25 @@ describe('GitMemMemoryService', () => {
 
   describe('saveMemory', () => {
     it('should call remember for each fact', async () => {
-      await service.saveMemory('mygroup', ['Fact 1', 'Fact 2', 'Fact 3']);
+      await service.saveMemory(['Fact 1', 'Fact 2', 'Fact 3']);
 
       assert.equal(mockGitMem.remember.mock.callCount(), 3);
       assert.equal(mockGitMem.remember.mock.calls[0]?.arguments[0], 'Fact 1');
-      assert.deepEqual(mockGitMem.remember.mock.calls[0]?.arguments[1]?.tags, ['group:mygroup']);
     });
   });
 
   describe('addFact', () => {
-    it('should call remember with group tag', async () => {
-      await service.addFact('mygroup', 'A new fact');
+    it('should call remember', async () => {
+      await service.addFact('A new fact');
 
       assert.equal(mockGitMem.remember.mock.callCount(), 1);
       assert.equal(mockGitMem.remember.mock.calls[0]?.arguments[0], 'A new fact');
-      const tags = mockGitMem.remember.mock.calls[0]?.arguments[1]?.tags as string[];
-      assert.ok(tags.includes('group:mygroup'));
     });
 
     it('should include additional tags', async () => {
-      await service.addFact('mygroup', 'Tagged fact', ['feature', 'auth']);
+      await service.addFact('Tagged fact', ['feature', 'auth']);
 
       const tags = mockGitMem.remember.mock.calls[0]?.arguments[1]?.tags as string[];
-      assert.ok(tags.includes('group:mygroup'));
       assert.ok(tags.includes('feature'));
       assert.ok(tags.includes('auth'));
     });
@@ -196,7 +178,7 @@ describe('GitMemMemoryService', () => {
 
   describe('addFactWithLifecycle', () => {
     it('should pass lifecycle and confidence as tags', async () => {
-      await service.addFactWithLifecycle('mygroup', 'Session fact', {
+      await service.addFactWithLifecycle('Session fact', {
         lifecycle: 'session',
         confidence: 'medium',
         sourceType: 'session-capture',
@@ -205,7 +187,6 @@ describe('GitMemMemoryService', () => {
       assert.equal(mockGitMem.remember.mock.callCount(), 1);
       const opts = mockGitMem.remember.mock.calls[0]?.arguments[1];
       const tags = opts?.tags as string[];
-      assert.ok(tags.includes('group:mygroup'));
       assert.ok(tags.includes('lifecycle:session'));
       assert.ok(tags.includes('confidence:medium'));
       assert.ok(tags.includes('source:session-capture'));
@@ -214,21 +195,21 @@ describe('GitMemMemoryService', () => {
     });
 
     it('should merge option tags without duplicates', async () => {
-      await service.addFactWithLifecycle('mygroup', 'Fact', {
+      await service.addFactWithLifecycle('Fact', {
         lifecycle: 'project',
-        tags: ['custom-tag', 'group:mygroup'],
+        tags: ['custom-tag', 'lifecycle:project'],
       });
 
       const tags = mockGitMem.remember.mock.calls[0]?.arguments[1]?.tags as string[];
-      const groupTags = tags.filter(t => t === 'group:mygroup');
-      assert.equal(groupTags.length, 1);
+      const lifecycleTags = tags.filter(t => t === 'lifecycle:project');
+      assert.equal(lifecycleTags.length, 1);
       assert.ok(tags.includes('custom-tag'));
     });
   });
 
   describe('expireFact', () => {
     it('should call git-mem delete with uuid', async () => {
-      await service.expireFact('mygroup', 'uuid-to-delete');
+      await service.expireFact('uuid-to-delete');
 
       assert.equal(mockGitMem.delete.mock.callCount(), 1);
       assert.equal(mockGitMem.delete.mock.calls[0]?.arguments[0], 'uuid-to-delete');
@@ -237,7 +218,7 @@ describe('GitMemMemoryService', () => {
 
   describe('cleanupExpired', () => {
     it('should return 0 (not supported)', async () => {
-      const result = await service.cleanupExpired('mygroup');
+      const result = await service.cleanupExpired();
 
       assert.equal(result, 0);
     });

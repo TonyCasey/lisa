@@ -34,6 +34,8 @@ export interface IRecursionConfig {
  * When a user submits a prompt, this service searches memory for
  * relevant context: previous decisions, learnings, and tasks.
  * The search strategy adapts based on the detected task type.
+ *
+ * Note: Group IDs are no longer used - the git repo provides scoping via git-mem.
  */
 export interface IRecursionService {
   /**
@@ -41,11 +43,10 @@ export interface IRecursionService {
    * Searches for relevant decisions, learnings, and tasks.
    *
    * @param prompt - The user's prompt text
-   * @param groupIds - Hierarchical group IDs to search
    * @param taskType - Optional task type to adjust search strategy
    * @returns Recursion result with found context
    */
-  run(prompt: string, groupIds: readonly string[], taskType?: TaskType): Promise<IRecursionResult>;
+  run(prompt: string, taskType?: TaskType): Promise<IRecursionResult>;
 
   /**
    * Check if recursion should run for a given prompt.

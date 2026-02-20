@@ -103,78 +103,70 @@ describe('parseTtlDuration', () => {
 // --- MemoryCliService expire/cleanup command tests ---
 
 describe('MemoryCliService', () => {
-  let expireCalls: Array<{ groupId: string; uuid: string }>;
-  let cleanupCalls: Array<{ groupId: string; dryRun: boolean }>;
-  let addCalls: Array<{ text: string; groupId: string; options: unknown }>;
-  let conflictsCalls: Array<{ groupIds: string[]; topic?: string }>;
-  let dedupeCalls: Array<{ groupId: string; options?: unknown }>;
+  let expireCalls: Array<{ uuid: string }>;
+  let cleanupCalls: Array<{ dryRun: boolean }>;
+  let addCalls: Array<{ text: string; options: unknown }>;
+  let conflictsCalls: Array<{ topic?: string }>;
+  let dedupeCalls: Array<{ options?: unknown }>;
 
   const memoryService: IMemoryService = {
-    load: async (groupIds): Promise<IMemoryLoadResult> => ({
+    load: async (): Promise<IMemoryLoadResult> => ({
       status: 'ok',
       action: 'load',
-      group: groupIds[0] || '',
-      groups: groupIds,
       query: '',
       facts: [],
-      mode: 'neo4j',
+      mode: 'git-mem',
     }),
-    add: async (text, groupId, options): Promise<IMemoryAddResult> => {
-      addCalls.push({ text, groupId, options });
+    add: async (text, options): Promise<IMemoryAddResult> => {
+      addCalls.push({ text, options });
       return {
         status: 'ok',
         action: 'add',
-        group: groupId,
         text,
-        mode: 'mcp',
+        mode: 'git-mem',
       };
     },
-    expire: async (groupId, uuid): Promise<IMemoryExpireResult> => {
-      expireCalls.push({ groupId, uuid });
+    expire: async (uuid): Promise<IMemoryExpireResult> => {
+      expireCalls.push({ uuid });
       return {
         status: 'ok',
         action: 'expire',
-        group: groupId,
         uuid,
         found: true,
-        mode: 'neo4j',
+        mode: 'git-mem',
       };
     },
-    cleanup: async (groupId, dryRun): Promise<IMemoryCleanupResult> => {
-      cleanupCalls.push({ groupId, dryRun });
+    cleanup: async (dryRun): Promise<IMemoryCleanupResult> => {
+      cleanupCalls.push({ dryRun });
       return {
         status: 'ok',
         action: 'cleanup',
-        group: groupId,
         expiredCount: 3,
         dryRun,
-        mode: 'neo4j',
+        mode: 'git-mem',
       };
     },
-    conflicts: async (groupIds, topic): Promise<IMemoryConflictsResult> => {
-      conflictsCalls.push({ groupIds, topic });
+    conflicts: async (topic): Promise<IMemoryConflictsResult> => {
+      conflictsCalls.push({ topic });
       return {
         status: 'ok',
         action: 'conflicts',
-        group: groupIds[0] || '',
-        groups: groupIds,
         topic: topic || '',
         conflictGroups: [],
         totalConflicts: 0,
-        mode: 'neo4j',
+        mode: 'git-mem',
       };
     },
-    dedupe: async (groupId, options): Promise<IMemoryDedupeResult> => {
-      dedupeCalls.push({ groupId, options });
+    dedupe: async (options): Promise<IMemoryDedupeResult> => {
+      dedupeCalls.push({ options });
       return {
         status: 'ok',
         action: 'dedupe',
-        group: groupId,
         totalFactsScanned: 0,
         duplicateGroups: [],
         totalDuplicates: 0,
         minSimilarity: (options as Record<string, unknown>)?.minSimilarity as number ?? 0.6,
-        mode: 'neo4j',
+        mode: 'git-mem',
       };
     },
   };
@@ -197,6 +189,10 @@ describe('MemoryCliService', () => {
       uuid: null,
       topic: null,
       minSimilarity: null,
+      mark: null,
+      action: null,
+      retain: null,
+      mergedText: null,
     };
   }
 
@@ -213,8 +209,6 @@ describe('MemoryCliService', () => {
     logger: noopLogger,
     cache: noopCache,
     memoryService,
-    getGroupIds: () => ['test-group'],
-    getCurrentGroupId: () => 'test-group',
     resolveTag: (_text, explicitTag, entityType) => {
       if (explicitTag) return explicitTag;
       if (entityType === 'session') return 'lifecycle:session';
@@ -232,7 +226,6 @@ describe('MemoryCliService', () => {
 
       assert.strictEqual(expireCalls.length, 1);
       assert.strictEqual(expireCalls[0].uuid, 'abc-123');
-      assert.strictEqual(expireCalls[0].groupId, 'test-group');
       assert.strictEqual(result.action, 'expire');
     });
 
@@ -246,17 +239,6 @@ describe('MemoryCliService', () => {
       assert.strictEqual(expireCalls.length, 1);
       assert.strictEqual(expireCalls[0].uuid, 'def-456');
       assert.strictEqual(result.action, 'expire');
-    });
-
-    it('should use explicit group if provided', async () => {
-      await cliService.run({
-        ...defaultArgs(),
-        command: 'expire',
-        uuid: 'abc-123',
-        explicitGroup: 'custom-group',
-      });
-
-      assert.strictEqual(expireCalls[0].groupId, 'custom-group');
     });
 
     it('should throw if no uuid provided', async () => {
@@ -276,7 +258,6 @@ describe('MemoryCliService', () => {
 
       assert.strictEqual(cleanupCalls.length, 1);
       assert.strictEqual(cleanupCalls[0].dryRun, false);
-      assert.strictEqual(cleanupCalls[0].groupId, 'test-group');
       assert.strictEqual(result.action, 'cleanup');
     });
 
@@ -291,16 +272,6 @@ describe('MemoryCliService', () => {
       assert.strictEqual(cleanupCalls[0].dryRun, true);
       const cleanupResult = result as IMemoryCleanupResult;
       assert.strictEqual(cleanupResult.dryRun, true);
-    });
-
-    it('should use explicit group if provided', async () => {
-      await cliService.run({
-        ...defaultArgs(),
-        command: 'cleanup',
-        explicitGroup: 'custom-group',
-      });
-
-      assert.strictEqual(cleanupCalls[0].groupId, 'custom-group');
     });
   });
 
@@ -350,14 +321,13 @@ describe('MemoryCliService', () => {
   });
 
   describe('conflicts command', () => {
-    it('should call memoryService.conflicts with default group IDs', async () => {
+    it('should call memoryService.conflicts', async () => {
       const result = await cliService.run({
         ...defaultArgs(),
         command: 'conflicts',
       });
 
       assert.strictEqual(conflictsCalls.length, 1);
-      assert.deepStrictEqual(conflictsCalls[0].groupIds, ['test-group']);
       assert.strictEqual(conflictsCalls[0].topic, undefined);
       assert.strictEqual(result.action, 'conflicts');
     });
@@ -372,17 +342,6 @@ describe('MemoryCliService', () => {
       assert.strictEqual(conflictsCalls.length, 1);
       assert.strictEqual(conflictsCalls[0].topic, 'type:decision');
     });
-
-    it('should use explicit group if provided', async () => {
-      await cliService.run({
-        ...defaultArgs(),
-        command: 'conflicts',
-        explicitGroup: 'custom-group',
-      });
-
-      assert.strictEqual(conflictsCalls.length, 1);
-      assert.deepStrictEqual(conflictsCalls[0].groupIds, ['custom-group']);
-    });
   });
 
   describe('dedupe command', () => {
@@ -393,7 +352,6 @@ describe('MemoryCliService', () => {
       });
 
       assert.strictEqual(dedupeCalls.length, 1);
-      assert.strictEqual(dedupeCalls[0].groupId, 'test-group');
       assert.strictEqual(result.action, 'dedupe');
     });
 
@@ -442,16 +400,6 @@ describe('MemoryCliService', () => {
         }),
         { message: /Invalid --since date/ }
       );
-    });
-
-    it('should use explicit group if provided', async () => {
-      await cliService.run({
-        ...defaultArgs(),
-        command: 'dedupe',
-        explicitGroup: 'custom-group',
-      });
-
-      assert.strictEqual(dedupeCalls[0].groupId, 'custom-group');
     });
   });
 

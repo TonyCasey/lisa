@@ -3,12 +3,15 @@
  * Task management CLI - thin entry point.
  *
  * Commands:
- *   node tasks.js list [--group <id>] [--limit N] [--since <date>] [--until <date>] [--all] [--cache]
- *   node tasks.js list-linked [--linked github|jira|linear] [--group <id>] [--limit N]
- *   node tasks.js add "task text" [--status todo|doing|done] [--tag foo] [--link github#123] [--group <id>] [--cache]
- *   node tasks.js update "task text" [--status ...] [--tag foo] [--link github#123] [--group <id>] [--cache]
- *   node tasks.js link <uuid> --link github#123 [--group <id>]
- *   node tasks.js unlink <uuid> [--group <id>]
+ *   node tasks.js list [--limit N] [--since <date>] [--until <date>] [--all] [--cache]
+ *   node tasks.js list-linked [--linked github|jira|linear] [--limit N]
+ *   node tasks.js add "task text" [--status todo|doing|done] [--tag foo] [--link github#123] [--cache]
+ *   node tasks.js update "task text" [--status ...] [--tag foo] [--link github#123] [--cache]
+ *   node tasks.js link <uuid> --link github#123
+ *   node tasks.js unlink <uuid>
+ *
+ * Note: Group IDs are no longer used - the git repo itself provides scoping
+ * via git-mem (git notes in refs/notes/mem).
  */
 
 export {};
@@ -17,7 +20,6 @@ import path from 'path';
 
 async function main(): Promise<void> {
   const { loadEnv } = await import('../shared/utils/env');
-  const { getCurrentGroupId, getGroupIds } = await import('../shared/group-id');
   const { createLogger } = await import('../shared/logger');
   const { popFlag, hasFlag } = await import('../shared/utils/cli');
   const { createCache, createCacheConfig, nullCache } = await import('../shared/utils/cache');
@@ -29,7 +31,8 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
 
   const command = args.shift() ?? '';
-  const explicitGroup = popFlag(args, '--group', null);
+  // --group flag is ignored but still consumed for backwards compatibility
+  popFlag(args, '--group', null);
   const limit = Number(popFlag(args, '--limit', '20')) || 20;
   const status = popFlag(args, '--status', 'todo');
   const tag = popFlag(args, '--tag', null);
@@ -49,12 +52,12 @@ async function main(): Promise<void> {
   const gitMem = createGitMem();
   const taskService = createTaskService({ gitMem });
   const cliService = createTaskCliService({
-    env, logger, cache, taskService, getGroupIds, getCurrentGroupId,
+    env, logger, cache, taskService,
   });
 
   try {
     const result = await cliService.run({
-      command, payload, explicitGroup, limit, status, tag, repo, assignee, notes, link, linkedSource, since, until, all,
+      command, payload, limit, status, tag, repo, assignee, notes, link, linkedSource, since, until, all,
     });
     console.log(JSON.stringify(result, null, 2));
   } catch (err: unknown) {

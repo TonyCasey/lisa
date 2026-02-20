@@ -145,8 +145,7 @@ export class PrPollHandler {
     private readonly githubClient: IGithubClient,
     private readonly prRepository: IPullRequestRepository,
     private readonly notificationService?: INotificationService,
-    private readonly memoryService?: IMemoryWriter,
-    private readonly groupId?: string
+    private readonly memoryService?: IMemoryWriter
   ) {
     this.logPath = path.join(os.homedir(), '.lisa', 'pr-poll.log');
     this.cachePath = path.join(os.homedir(), '.lisa', 'pr-poll-cache.json');
@@ -420,11 +419,11 @@ export class PrPollHandler {
           log(`${pr.repo}#${pr.number}: PR merged`);
 
           // Auto-capture merged PR to memory
-          if (this.memoryService && this.groupId) {
+          if (this.memoryService) {
             try {
               const fact = `PR MERGED: #${pr.number} ${ghPr.title}`;
               const tags = ['github:pr', 'github:pr-merged', `github:pr:${pr.number}`];
-              await this.memoryService.addFact(this.groupId, fact, tags);
+              await this.memoryService.addFact(fact, tags);
               log(`${pr.repo}#${pr.number}: saved to memory`);
             } catch (memError) {
               // Don't fail the poll if memory save fails

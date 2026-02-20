@@ -1,5 +1,8 @@
 /**
  * Task CLI service - encapsulates all task CLI command logic.
+ *
+ * Note: Group IDs are no longer used - the git repo itself provides scoping
+ * via git-mem (git notes in refs/notes/mem).
  */
 import type { IEnvConfig } from '../utils/env';
 import type { ILogger } from '../utils/interfaces/ILogger';
@@ -21,7 +24,6 @@ import { parseDate } from '../../../utils/dateParser';
 export interface ITaskCliArgs {
   command: string;
   payload: string;
-  explicitGroup: string | null;
   limit: number;
   status: string;
   tag: string | null;
@@ -43,8 +45,6 @@ export interface ITaskCliDependencies {
   logger: ILogger;
   cache: ICache;
   taskService: ITaskService;
-  getGroupIds: () => string[];
-  getCurrentGroupId: () => string;
 }
 
 /**
@@ -94,28 +94,24 @@ function parseExternalLinkRef(ref: string): ITaskExternalLink | null {
  * Creates a task CLI service instance.
  */
 export function createTaskCliService(deps: ITaskCliDependencies): ITaskCliService {
-  const { env, logger, cache, taskService, getGroupIds, getCurrentGroupId } = deps;
+  const { env, logger, cache, taskService } = deps;
 
   return {
     async run(args: ITaskCliArgs): Promise<ITaskListResult | ITaskWriteResult | ITaskLinkResult> {
-      const { command, payload, explicitGroup, limit, status, tag, repo, assignee, notes, link, linkedSource, since, until, all } = args;
+      const { command, payload, limit, status, tag, repo, assignee, notes, link, linkedSource, since, until, all } = args;
 
       const validCommands = ['add', 'list', 'update', 'link', 'unlink', 'list-linked'];
       if (!validCommands.includes(command)) {
         throw new Error(`command must be ${validCommands.join('|')}`);
       }
 
-      // Use explicit --group if provided, otherwise use canonical folder-based group ID
-      const groupId = explicitGroup || getCurrentGroupId();
-
-      logger.info(`Executing command: ${command}`, { mode: env.STORAGE_MODE, group: groupId });
+      logger.info(`Executing command: ${command}`, { mode: env.STORAGE_MODE });
 
       let result: ITaskListResult | ITaskWriteResult | ITaskLinkResult;
 
       if (command === 'list') {
-        const groupIds = explicitGroup ? [explicitGroup] : getGroupIds();
-        logger.debug('Using Neo4j direct mode for list');
-        
+        logger.debug('Using git-mem mode for list');
+
         // Parse date filters - throw error on invalid values
         const loadOptions: ITaskLoadOptions = {};
         let effectiveSince = since;
@@ -136,17 +132,16 @@ export function createTaskCliService(deps: ITaskCliDependencies): ITaskCliServic
           }
           loadOptions.until = parsedUntil;
         }
-        
-        result = await taskService.list(groupIds, limit, repo, assignee, loadOptions);
+
+        result = await taskService.list(limit, repo, assignee, loadOptions);
       } else if (command === 'list-linked') {
         // List tasks with external links
-        const groupIds = explicitGroup ? [explicitGroup] : getGroupIds();
         const source = linkedSource as ExternalLinkSource | undefined;
         logger.debug('Listing linked tasks', { source });
-        result = await taskService.listLinked(groupIds, source, limit, repo, assignee);
+        result = await taskService.listLinked(source, limit, repo, assignee);
       } else if (command === 'add') {
         if (!payload) throw new Error('add requires task text (title)');
-        
+
         // Parse external link if provided
         let externalLink: ITaskExternalLink | undefined;
         if (link) {
@@ -156,11 +151,11 @@ export function createTaskCliService(deps: ITaskCliDependencies): ITaskCliServic
           }
           externalLink = { ...parsed, syncedAt: new Date().toISOString() };
         }
-        
-        result = await taskService.add(payload, groupId, { status, repo, assignee, notes, tag, externalLink });
+
+        result = await taskService.add(payload, { status, repo, assignee, notes, tag, externalLink });
       } else if (command === 'update') {
         if (!payload) throw new Error('update requires task text (title)');
-        
+
         // Parse external link if provided (null means unlink)
         let externalLink: ITaskExternalLink | null | undefined;
         if (link === '') {
@@ -173,25 +168,25 @@ export function createTaskCliService(deps: ITaskCliDependencies): ITaskCliServic
           }
           externalLink = { ...parsed, syncedAt: new Date().toISOString() };
         }
-        
-        result = await taskService.update(payload, groupId, { status, repo, assignee, notes, tag, externalLink });
+
+        result = await taskService.update(payload, { status, repo, assignee, notes, tag, externalLink });
       } else if (command === 'link') {
         // Link command: payload is UUID, link is the reference
         if (!payload) throw new Error('link requires task UUID');
         if (!link) throw new Error('link requires --link github#123 or similar');
-        
+
         const parsed = parseExternalLinkRef(link);
         if (!parsed) {
           throw new Error(`Invalid link format: ${link}. Expected: github#123, jira#PROJ-456, or linear#ABC-123`);
         }
         const externalLink = { ...parsed, syncedAt: new Date().toISOString() };
-        
-        result = await taskService.link(payload, groupId, externalLink);
+
+        result = await taskService.link(payload, externalLink);
       } else if (command === 'unlink') {
         // Unlink command: payload is UUID
         if (!payload) throw new Error('unlink requires task UUID');
-        
-        result = await taskService.unlink(payload, groupId);
+
+        result = await taskService.unlink(payload);
       } else {
         throw new Error(`Unknown command: ${command}`);
       }

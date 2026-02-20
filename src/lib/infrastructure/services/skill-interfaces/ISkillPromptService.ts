@@ -1,6 +1,9 @@
 /**
  * Prompt service interface for skill scripts.
  * Captures user prompts to git-mem with deduplication.
+ *
+ * Note: Group IDs are no longer used - the git repo itself provides scoping
+ * via git-mem (git notes in refs/notes/mem).
  */
 
 /**
@@ -11,7 +14,6 @@ export interface IPromptArgs {
   role?: string;
   source?: string;
   force?: boolean;
-  groupId: string;
 }
 
 /**
@@ -20,6 +22,7 @@ export interface IPromptArgs {
 export interface IPromptResult {
   status: 'ok' | 'skipped';
   action?: 'add';
+  /** @deprecated Group IDs are no longer used; always undefined. */
   group?: string;
   role?: string;
   source?: string;

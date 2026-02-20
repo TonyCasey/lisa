@@ -17,7 +17,6 @@ export {};
 
 async function main(): Promise<void> {
   const { loadEnv } = await import('../shared/utils/env');
-  const { getCurrentGroupId, getGroupIds } = await import('../shared/group-id');
   const { createLogger } = await import('../shared/logger');
   const { popFlag, hasFlag } = await import('../shared/utils/cli');
   const { createCache, createCacheConfig, nullCache } = await import('../shared/utils/cache');
@@ -62,7 +61,7 @@ async function main(): Promise<void> {
   const gitMem = createGitMem();
   const memoryService = createMemoryService({ gitMem });
   const cliService = createMemoryCliService({
-    env, logger, cache, memoryService, getGroupIds, getCurrentGroupId, resolveTag,
+    env, logger, cache, memoryService, resolveTag,
   });
 
   try {

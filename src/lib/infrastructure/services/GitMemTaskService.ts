@@ -6,7 +6,8 @@
  *   - 'task' tag to identify task memories
  *   - 'task_id:<key>' for unique identification
  *   - 'status:<status>' for current status
- *   - 'group:<groupId>' for scoping
+ *
+ * Note: Group IDs are no longer used - the git repo provides scoping via git-mem.
  */
 
 import type { IMemoryService as IGitMemMemoryService, IMemoryEntity } from 'git-mem/dist/index';
@@ -66,12 +67,11 @@ function toTask(entity: IMemoryEntity): ITask {
 }
 
 function buildTaskTags(
-  groupId: string,
   key: string,
   status: TaskStatus,
   blocked?: readonly string[]
 ): string[] {
-  const tags = [TASK_TAG, `task_id:${key}`, `status:${status}`, `group:${groupId}`];
+  const tags = [TASK_TAG, `task_id:${key}`, `status:${status}`];
   if (blocked) {
     for (const b of blocked) {
       tags.push(`blocked_by:${b}`);
@@ -98,31 +98,22 @@ function deduplicateByTaskId(tasks: ITask[]): ITask[] {
 export class GitMemTaskService implements ITaskService {
   constructor(private readonly gitMem: IGitMemMemoryService) {}
 
-  async getTasks(
-    groupIds: readonly string[],
-    _aliases: readonly string[],
-    _branch: string | null
-  ): Promise<readonly ITask[]> {
-    return this.getTasksSimple(groupIds);
+  async getTasks(): Promise<readonly ITask[]> {
+    return this.getTasksSimple();
   }
 
-  async getTasksSimple(groupIds: readonly string[]): Promise<readonly ITask[]> {
+  async getTasksSimple(): Promise<readonly ITask[]> {
     const { memories } = this.gitMem.recall(undefined, {
       tag: TASK_TAG,
       limit: 200,
     });
 
-    const groupTags = groupIds.map(g => `group:${g}`);
-    const filtered = memories.filter(m =>
-      groupTags.length === 0 || m.tags.some(t => groupTags.includes(t))
-    );
-
-    const tasks = filtered.map(toTask);
+    const tasks = memories.map(toTask);
     return deduplicateByTaskId(tasks);
   }
 
-  async getTaskCounts(groupIds: readonly string[]): Promise<ITaskCounts> {
-    const tasks = await this.getTasksSimple(groupIds);
+  async getTaskCounts(): Promise<ITaskCounts> {
+    const tasks = await this.getTasksSimple();
     const counts = emptyTaskCounts();
     const mutable = counts as unknown as Record<string, number>;
 
@@ -137,12 +128,12 @@ export class GitMemTaskService implements ITaskService {
     return counts;
   }
 
-  async createTask(groupId: string, task: ITaskInput): Promise<ITask> {
+  async createTask(task: ITaskInput): Promise<ITask> {
     const key = `task-${Date.now()}`;
     const status = task.status || 'ready';
 
     this.gitMem.remember(`TASK: ${task.title}`, {
-      tags: buildTaskTags(groupId, key, status, task.blocked),
+      tags: buildTaskTags(key, status, task.blocked),
     });
 
     return {
@@ -154,13 +145,9 @@ export class GitMemTaskService implements ITaskService {
     };
   }
 
-  async updateTask(
-    groupId: string,
-    taskId: string,
-    updates: ITaskUpdate
-  ): Promise<ITask> {
+  async updateTask(taskId: string, updates: ITaskUpdate): Promise<ITask> {
     // Find existing task
-    const tasks = await this.getTasksSimple([groupId]);
+    const tasks = await this.getTasksSimple();
     const existing = tasks.find(t => t.key === taskId);
 
     const title = updates.title ?? existing?.title ?? 'Unknown task';
@@ -169,7 +156,7 @@ export class GitMemTaskService implements ITaskService {
 
     // Create updated task memory (new memory with same task_id, latest wins)
     this.gitMem.remember(`TASK: ${title}`, {
-      tags: buildTaskTags(groupId, taskId, status, blocked),
+      tags: buildTaskTags(taskId, status, blocked),
     });
 
     return {

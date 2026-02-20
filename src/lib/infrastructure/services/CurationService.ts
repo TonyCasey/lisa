@@ -85,24 +85,23 @@ export function createCurationService(
 ): ICurationService {
   return {
     async markFact(
-      groupId: string,
       uuid: string,
       mark: CurationMark
     ): Promise<void> {
       const curationTag = resolveCurationTag(mark);
 
       // Add the curation tag to the fact
-      await memoryWriter.addFact(groupId, `__curate:${uuid}`, [curationTag]);
+      await memoryWriter.addFact(`__curate:${uuid}`, [curationTag]);
 
       // Side effects by mark
       if (mark === 'deprecated') {
-        await memoryWriter.expireFact(groupId, uuid);
+        await memoryWriter.expireFact(uuid);
       }
 
       if (mark === 'authoritative') {
         // Promote confidence to verified
         const confidenceTag = resolveConfidenceTag('verified');
-        await memoryWriter.addFact(groupId, `__promote:${uuid}`, [confidenceTag]);
+        await memoryWriter.addFact(`__promote:${uuid}`, [confidenceTag]);
       }
     },
 

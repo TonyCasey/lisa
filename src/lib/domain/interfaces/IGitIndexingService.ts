@@ -88,6 +88,8 @@ export interface IGitIndexingResult {
 
 /**
  * Service for indexing extracted git facts to memory.
+ *
+ * Note: Group IDs are no longer used - the git repo provides scoping via git-mem.
  */
 export interface IGitIndexingService {
   /**
@@ -99,13 +101,11 @@ export interface IGitIndexingService {
    * - Deduplication against existing memories
    *
    * @param facts - Facts extracted from git history
-   * @param groupId - Memory group ID to save to
    * @param options - Indexing options
    * @returns Indexing result with counts
    */
   indexFacts(
     facts: readonly IHeuristicFact[],
-    groupId: string,
     options?: IGitIndexingOptions
   ): Promise<IGitIndexingResult>;
 }

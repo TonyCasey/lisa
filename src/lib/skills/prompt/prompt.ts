@@ -5,21 +5,22 @@
  * Stores user prompts as memories in git-mem.
  *
  * Usage: node prompt.js --text "prompt text" [--role user] [--source user-prompt] [--force]
+ *
+ * Note: Group IDs are no longer used - the git repo itself provides scoping
+ * via git-mem (git notes in refs/notes/mem).
  */
 
 export {};
 
 async function main(): Promise<void> {
-  const { getCurrentGroupId } = await import('../shared/group-id');
   const { popFlag, hasFlag } = await import('../shared/utils/cli');
   const { createGitMem } = await import('../shared/clients');
   const { createPromptService } = await import('../shared/services');
 
   const args = process.argv.slice(2);
 
-  const explicitGroup = popFlag(args, '--group', null);
-  // Use explicit --group if provided, otherwise use canonical folder-based group ID
-  const groupId = explicitGroup || getCurrentGroupId();
+  // --group flag is ignored but still consumed for backwards compatibility
+  popFlag(args, '--group', null);
   const text = popFlag(args, '--text', null) || popFlag(args, '-t', null);
   const role = popFlag(args, '--role', 'user') || popFlag(args, '-r', 'user');
   const source = popFlag(args, '--source', 'user-prompt') || popFlag(args, '-s', 'user-prompt');
@@ -38,7 +39,7 @@ async function main(): Promise<void> {
   const service = createPromptService({ gitMem });
 
   try {
-    const result = await service.addPrompt({ text, role, source, force, groupId });
+    const result = await service.addPrompt({ text, role, source, force });
 
     if (result.status === 'skipped') {
       console.log('Duplicate prompt; skipping (use --force to override).');

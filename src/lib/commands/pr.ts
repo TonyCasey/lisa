@@ -138,10 +138,8 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
             && opts.watch !== false;
 
           if (shouldPoll && result.pr) {
-            const { getCurrentGroupId } = await import('../skills/common/group-id');
             const memoryService = await createPrMemoryService();
-            const groupId = getCurrentGroupId();
-            const pollHandler = new PrPollHandler(githubClient, prRepository, undefined, memoryService, groupId);
+            const pollHandler = new PrPollHandler(githubClient, prRepository, undefined, memoryService);
             const pollOptions: IPrPollOptions = {
               autoUnwatch: true,
               logToFile: true,
@@ -610,13 +608,11 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
         try {
           const { GithubClient } = await import('../infrastructure');
           const { PrRememberHandler } = await import('../application/handlers');
-          const { getCurrentGroupId } = await import('../skills/common/group-id');
 
           const githubClient = new GithubClient();
           const memoryService = await createPrMemoryService();
-          const groupId = getCurrentGroupId();
 
-          const handler = new PrRememberHandler(githubClient, memoryService, groupId);
+          const handler = new PrRememberHandler(githubClient, memoryService);
           const result = await handler.execute({
             prNumber: parsedPrNumber,
             repo: opts.repo,
@@ -779,7 +775,6 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
           const { GithubClient, Neo4jPullRequestRepository, createNeo4jConnectionManager } = await import('../infrastructure');
           const { PrPollHandler } = await import('../application/handlers');
           const { NotificationService } = await import('../infrastructure/notifications');
-          const { getCurrentGroupId } = await import('../skills/common/group-id');
 
           const githubClient = new GithubClient();
           neo4jConnection = createNeo4jConnectionManager();
@@ -814,9 +809,8 @@ export function registerPrCommands(prCmd: Command, cliLogger: ILogger): void {
 
           // Create memory service for auto-capture of merged PRs
           const memoryService = await createPrMemoryService();
-          const groupId = getCurrentGroupId();
 
-          const handler = new PrPollHandler(githubClient, prRepository, notificationService, memoryService, groupId);
+          const handler = new PrPollHandler(githubClient, prRepository, notificationService, memoryService);
           const pollOptions = {
             autoUnwatch: opts.autoUnwatch,
             logToFile: opts.log,

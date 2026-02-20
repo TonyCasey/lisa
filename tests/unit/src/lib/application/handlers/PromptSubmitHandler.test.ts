@@ -182,10 +182,10 @@ describe('PromptSubmitHandler', () => {
 
   describe('memory storage', () => {
     it('should add prompt to memory with ephemeral lifecycle', async () => {
-      let addedFact: { groupId: string; fact: string; options: unknown } | undefined;
+      let addedFact: { fact: string; options: unknown } | undefined;
       const mockMemory = createMockMemoryService({
-        addFactWithLifecycle: async (groupId, fact, options) => {
-          addedFact = { groupId, fact, options };
+        addFactWithLifecycle: async (fact, options) => {
+          addedFact = { fact, options };
         },
       });
 
@@ -198,7 +198,6 @@ describe('PromptSubmitHandler', () => {
       await handler.handle(request);
 
       assert.ok(addedFact, 'Fact should be added');
-      assert.strictEqual(addedFact.groupId, 'test-group');
       assert.ok(addedFact.fact.includes('User prompt at 2024-01-15T10:00:00.000Z'));
       assert.ok(addedFact.fact.includes('Test prompt content'));
       const opts = addedFact.options as { lifecycle: string; tags: string[] };
@@ -209,7 +208,7 @@ describe('PromptSubmitHandler', () => {
     it('should truncate long prompts to 200 characters', async () => {
       let addedFact: string | undefined;
       const mockMemory = createMockMemoryService({
-        addFactWithLifecycle: async (_groupId, fact) => {
+        addFactWithLifecycle: async (fact) => {
           addedFact = fact;
         },
       });
@@ -232,7 +231,7 @@ describe('PromptSubmitHandler', () => {
     it('should not truncate short prompts', async () => {
       let addedFact: string | undefined;
       const mockMemory = createMockMemoryService({
-        addFactWithLifecycle: async (_groupId, fact) => {
+        addFactWithLifecycle: async (fact) => {
           addedFact = fact;
         },
       });
@@ -302,23 +301,19 @@ describe('PromptSubmitHandler', () => {
       assert.strictEqual(result.additionalContext, 'Found relevant context');
     });
 
-    it('should pass hierarchical group IDs to recursion', async () => {
-      let receivedGroupIds: readonly string[] | undefined;
+    it('should pass prompt to recursion service', async () => {
+      let receivedPrompt: string | undefined;
       const mockRecursion = createMockRecursionService({
         shouldRun: () => true,
-        run: async (_prompt, groupIds) => {
-          receivedGroupIds = groupIds;
+        run: async (prompt) => {
+          receivedPrompt = prompt;
           return createMockRecursionResult({ hasContext: true, summary: 'context' });
         },
       });
 
-      const customContext = createMockContext({
-        hierarchicalGroupIds: ['child-group', 'parent-group', 'root-group'],
-      });
-
-      const handler = new PromptSubmitHandler(customContext, memory, mockRecursion);
+      const handler = new PromptSubmitHandler(context, memory, mockRecursion);
       const request = new PromptSubmitRequest(
-        'Test',
+        'Test prompt for recursion',
         '2024-01-15T10:00:00.000Z',
         undefined,
         'plan' as PermissionMode
@@ -326,7 +321,7 @@ describe('PromptSubmitHandler', () => {
 
       await handler.handle(request);
 
-      assert.deepStrictEqual(receivedGroupIds, ['child-group', 'parent-group', 'root-group']);
+      assert.strictEqual(receivedPrompt, 'Test prompt for recursion');
     });
 
     it('should not run recursion when shouldRun returns false', async () => {

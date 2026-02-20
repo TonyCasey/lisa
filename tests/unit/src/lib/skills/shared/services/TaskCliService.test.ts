@@ -1,5 +1,7 @@
 /**
  * Tests for TaskCliService default date filtering.
+ *
+ * Note: Group IDs are no longer used - the git repo provides scoping via git-mem.
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
@@ -41,55 +43,47 @@ const env: IEnvConfig = {
 };
 
 function createTaskServiceRecorder() {
-  const listCalls: Array<{ groupIds: string[]; limit: number; options?: unknown }> = [];
+  const listCalls: Array<{ limit: number; options?: unknown }> = [];
 
   const service: ITaskService = {
-    list: async (groupIds, limit, _repo, _assignee, options): Promise<ITaskListResult> => {
-      listCalls.push({ groupIds, limit, options });
+    list: async (limit, _repo, _assignee, options): Promise<ITaskListResult> => {
+      listCalls.push({ limit, options });
       return {
         status: 'ok',
         action: 'list',
-        group: groupIds[0] || '',
-        groups: groupIds,
         tasks: [],
-        mode: 'neo4j',
+        mode: 'git-mem',
       };
     },
     listLinked: async (): Promise<ITaskListResult> => ({
       status: 'ok',
       action: 'list',
-      group: 'group-1',
-      groups: ['group-1'],
       tasks: [],
-      mode: 'neo4j',
+      mode: 'git-mem',
     }),
     add: async (): Promise<ITaskWriteResult> => ({
       status: 'ok',
       action: 'add',
       task: { type: 'task', title: 'x', status: 'todo', repo: '', assignee: '' },
-      group: 'group-1',
-      mode: 'neo4j',
+      mode: 'git-mem',
     }),
     update: async (): Promise<ITaskWriteResult> => ({
       status: 'ok',
       action: 'update',
       task: { type: 'task', title: 'x', status: 'todo', repo: '', assignee: '' },
-      group: 'group-1',
-      mode: 'neo4j',
+      mode: 'git-mem',
     }),
     link: async (): Promise<ITaskLinkResult> => ({
       status: 'ok',
       action: 'link',
       task: { title: 'x', uuid: 'task-1' },
-      group: 'group-1',
-      mode: 'neo4j',
+      mode: 'git-mem',
     }),
     unlink: async (): Promise<ITaskLinkResult> => ({
       status: 'ok',
       action: 'unlink',
       task: { title: 'x', uuid: 'task-1' },
-      group: 'group-1',
-      mode: 'neo4j',
+      mode: 'git-mem',
     }),
   };
 
@@ -104,14 +98,11 @@ describe('TaskCliService list defaults', () => {
       logger: noopLogger,
       cache: noopCache,
       taskService: service,
-      getGroupIds: () => ['group-1'],
-      getCurrentGroupId: () => 'group-1',
     });
 
     await cli.run({
       command: 'list',
       payload: '',
-      explicitGroup: null,
       limit: 20,
       status: 'todo',
       tag: null,
@@ -139,14 +130,11 @@ describe('TaskCliService list defaults', () => {
       logger: noopLogger,
       cache: noopCache,
       taskService: service,
-      getGroupIds: () => ['group-1'],
-      getCurrentGroupId: () => 'group-1',
     });
 
     await cli.run({
       command: 'list',
       payload: '',
-      explicitGroup: null,
       limit: 20,
       status: 'todo',
       tag: null,
