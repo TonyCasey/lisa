@@ -162,6 +162,25 @@ describe('Doctor Command', () => {
       assert.ok(gitMemCheck.message.includes('Memory notes found'));
     });
 
+    it('should detect git-mem notes from packed-refs', async () => {
+      // Simulate packed refs (after git gc)
+      fs.mkdirSync(path.join(tempDir, '.git'), { recursive: true });
+      fs.writeFileSync(
+        path.join(tempDir, '.git', 'packed-refs'),
+        '# pack-refs with: peeled fully-peeled sorted\nabc123 refs/notes/mem\n'
+      );
+      fs.mkdirSync(path.join(tempDir, '.lisa', 'skills'), { recursive: true });
+      fs.mkdirSync(path.join(tempDir, '.lisa', 'rules'), { recursive: true });
+
+      const services = createMockServices();
+      const result = await runDoctor({ cwd: tempDir }, services);
+
+      const gitMemCheck = result.checks.find(c => c.name === 'Git-Mem Storage');
+      assert.ok(gitMemCheck);
+      assert.strictEqual(gitMemCheck.status, 'ok');
+      assert.ok(gitMemCheck.message.includes('Memory notes found'));
+    });
+
     it('should check Claude Code hooks when .claude exists', async () => {
       fs.mkdirSync(path.join(tempDir, '.git'), { recursive: true });
       fs.mkdirSync(path.join(tempDir, '.lisa', 'skills'), { recursive: true });

@@ -254,13 +254,26 @@ async function checkClaudeHooks(cwd: string): Promise<ICheckResult> {
 
 /**
  * Check git-mem notes existence.
+ * Checks both loose refs and packed-refs for notes/mem.
  */
 async function checkGitMem(cwd: string): Promise<ICheckResult> {
   const start = Date.now();
-  const notesRef = path.join(cwd, '.git', 'refs', 'notes', 'mem');
 
-  // Check if git notes for memory exist
-  const hasNotes = await fs.pathExists(notesRef);
+  // Check both loose refs and packed-refs for git notes
+  const looseRef = path.join(cwd, '.git', 'refs', 'notes', 'mem');
+  const packedRefs = path.join(cwd, '.git', 'packed-refs');
+
+  let hasNotes = await fs.pathExists(looseRef);
+
+  // If no loose ref, check packed-refs (refs can be packed by git gc)
+  if (!hasNotes && (await fs.pathExists(packedRefs))) {
+    try {
+      const content = await fs.readFile(packedRefs, 'utf8');
+      hasNotes = content.includes('refs/notes/mem');
+    } catch {
+      // Ignore read errors
+    }
+  }
 
   if (hasNotes) {
     return {
