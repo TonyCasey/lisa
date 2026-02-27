@@ -17,37 +17,20 @@ import type { ICliServices } from '../../../../../src/lib/commands/cli-services'
 
 /**
  * Create a mock ICliServices object for testing.
+ * Note: Doctor no longer uses docker or mcp services, but the interface requires them.
  */
-function createMockServices(overrides?: {
-  dockerVersion?: string | Error;
-  dockerComposeVersion?: string | Error;
-  mcpPing?: void | Error;
-}): ICliServices {
+function createMockServices(): ICliServices {
   return {
     templateCopier: {
       copy: mock.fn(() => Promise.resolve({ skipped: false })),
     },
     docker: {
-      version: mock.fn(async () => {
-        if (overrides?.dockerVersion instanceof Error) {
-          throw overrides.dockerVersion;
-        }
-        return overrides?.dockerVersion ?? 'Docker version 24.0.0';
-      }),
-      composeVersion: mock.fn(async () => {
-        if (overrides?.dockerComposeVersion instanceof Error) {
-          throw overrides.dockerComposeVersion;
-        }
-        return overrides?.dockerComposeVersion ?? 'Docker Compose version v2.20.0';
-      }),
+      version: mock.fn(async () => 'Docker version 24.0.0'),
+      composeVersion: mock.fn(async () => 'Docker Compose version v2.20.0'),
       compose: mock.fn(() => Promise.resolve()),
     },
     mcp: {
-      ping: mock.fn(async () => {
-        if (overrides?.mcpPing instanceof Error) {
-          throw overrides.mcpPing;
-        }
-      }),
+      ping: mock.fn(() => Promise.resolve()),
     },
   };
 }
@@ -62,16 +45,14 @@ function createMockResult(overrides?: Partial<IDoctorResult>): IDoctorResult {
     version: '2.5.2',
     overallStatus: 'ok',
     config: {
-      mode: 'local',
-      group: 'test-project',
-      endpoint: 'http://localhost:8010/mcp/',
-      envFilePath: '/test/project/.lisa/.env',
-      envFileExists: true,
-      zepApiKeyConfigured: false,
+      storage: 'git-mem',
+      projectName: 'test-project',
     },
     checks: [
-      { name: 'Lisa Structure', status: 'ok', message: '.lisa directory configured' },
-      { name: 'Docker', status: 'ok', message: 'Docker 24.0.0', durationMs: 100 },
+      { name: 'Git Repository', status: 'ok', message: 'Git repository detected', durationMs: 10 },
+      { name: 'Lisa Structure', status: 'ok', message: '.lisa directory configured', durationMs: 20 },
+      { name: 'Claude Code Hooks', status: 'ok', message: '1 hook(s) configured', durationMs: 15 },
+      { name: 'Git-Mem Storage', status: 'ok', message: 'Ready (no memories stored yet)', durationMs: 5 },
     ],
     transcripts: {
       searchPaths: ['/home/user/.claude/projects', '/home/user/.claude'],
@@ -98,7 +79,21 @@ describe('Doctor Command', () => {
       }
     });
 
+    it('should return error status when not a git repository', async () => {
+      const services = createMockServices();
+      const result = await runDoctor({ cwd: tempDir }, services);
+
+      assert.strictEqual(result.overallStatus, 'error');
+      const gitCheck = result.checks.find(c => c.name === 'Git Repository');
+      assert.ok(gitCheck);
+      assert.strictEqual(gitCheck.status, 'error');
+      assert.ok(gitCheck.message.includes('Not a git repository'));
+    });
+
     it('should return error status when .lisa directory is missing', async () => {
+      // Create .git to pass git check
+      fs.mkdirSync(path.join(tempDir, '.git'), { recursive: true });
+
       const services = createMockServices();
       const result = await runDoctor({ cwd: tempDir }, services);
 
@@ -109,14 +104,11 @@ describe('Doctor Command', () => {
       assert.ok(lisaCheck.message.includes('not found'));
     });
 
-    it('should return ok status when .lisa directory exists with subdirs', async () => {
-      // Create .lisa structure
+    it('should return ok for Lisa Structure when .lisa directory exists with subdirs', async () => {
+      // Create .git and .lisa structure
+      fs.mkdirSync(path.join(tempDir, '.git'), { recursive: true });
       fs.mkdirSync(path.join(tempDir, '.lisa', 'skills'), { recursive: true });
       fs.mkdirSync(path.join(tempDir, '.lisa', 'rules'), { recursive: true });
-      fs.writeFileSync(
-        path.join(tempDir, '.lisa', '.env'),
-        'STORAGE_MODE=skip\n'
-      );
 
       const services = createMockServices();
       const result = await runDoctor({ cwd: tempDir }, services);
@@ -126,69 +118,54 @@ describe('Doctor Command', () => {
       assert.strictEqual(lisaCheck.status, 'ok');
     });
 
-    it('should check Docker in local mode', async () => {
-      // Create .lisa with local mode
-      fs.mkdirSync(path.join(tempDir, '.lisa', 'skills'), { recursive: true });
-      fs.mkdirSync(path.join(tempDir, '.lisa', 'rules'), { recursive: true });
-      fs.writeFileSync(
-        path.join(tempDir, '.lisa', '.env'),
-        'STORAGE_MODE=local\n'
-      );
-
-      const services = createMockServices({ dockerVersion: 'Docker version 24.0.0' });
-      const result = await runDoctor({ cwd: tempDir }, services);
-
-      const dockerCheck = result.checks.find(c => c.name === 'Docker');
-      assert.ok(dockerCheck);
-      assert.strictEqual(dockerCheck.status, 'ok');
-      assert.ok(dockerCheck.message.includes('24.0.0'));
-    });
-
-    it('should report Docker error when Docker is unavailable', async () => {
-      fs.mkdirSync(path.join(tempDir, '.lisa', 'skills'), { recursive: true });
-      fs.mkdirSync(path.join(tempDir, '.lisa', 'rules'), { recursive: true });
-      fs.writeFileSync(
-        path.join(tempDir, '.lisa', '.env'),
-        'STORAGE_MODE=local\n'
-      );
-
-      const services = createMockServices({
-        dockerVersion: new Error('Docker daemon not running'),
-      });
-      const result = await runDoctor({ cwd: tempDir }, services);
-
-      const dockerCheck = result.checks.find(c => c.name === 'Docker');
-      assert.ok(dockerCheck);
-      assert.strictEqual(dockerCheck.status, 'error');
-      assert.ok(dockerCheck.details?.includes('Docker daemon'));
-    });
-
-    it('should not check Docker in skip mode', async () => {
-      fs.mkdirSync(path.join(tempDir, '.lisa', 'skills'), { recursive: true });
-      fs.mkdirSync(path.join(tempDir, '.lisa', 'rules'), { recursive: true });
-      fs.writeFileSync(
-        path.join(tempDir, '.lisa', '.env'),
-        'STORAGE_MODE=skip\n'
-      );
+    it('should warn when .lisa subdirectories are missing', async () => {
+      fs.mkdirSync(path.join(tempDir, '.git'), { recursive: true });
+      fs.mkdirSync(path.join(tempDir, '.lisa'), { recursive: true });
+      // Missing skills and rules
 
       const services = createMockServices();
       const result = await runDoctor({ cwd: tempDir }, services);
 
-      const dockerCheck = result.checks.find(c => c.name === 'Docker');
-      assert.strictEqual(dockerCheck, undefined);
+      const lisaCheck = result.checks.find(c => c.name === 'Lisa Structure');
+      assert.ok(lisaCheck);
+      assert.strictEqual(lisaCheck.status, 'warning');
+      assert.ok(lisaCheck.message.includes('Missing directories'));
+    });
 
-      const storageCheck = result.checks.find(c => c.name === 'Storage Backend');
-      assert.ok(storageCheck);
-      assert.strictEqual(storageCheck.status, 'warning');
+    it('should check Git-Mem storage', async () => {
+      fs.mkdirSync(path.join(tempDir, '.git'), { recursive: true });
+      fs.mkdirSync(path.join(tempDir, '.lisa', 'skills'), { recursive: true });
+      fs.mkdirSync(path.join(tempDir, '.lisa', 'rules'), { recursive: true });
+
+      const services = createMockServices();
+      const result = await runDoctor({ cwd: tempDir }, services);
+
+      const gitMemCheck = result.checks.find(c => c.name === 'Git-Mem Storage');
+      assert.ok(gitMemCheck);
+      assert.strictEqual(gitMemCheck.status, 'ok');
+      // When no notes exist yet, should say "Ready"
+      assert.ok(gitMemCheck.message.includes('Ready'));
+    });
+
+    it('should detect git-mem notes when present', async () => {
+      fs.mkdirSync(path.join(tempDir, '.git', 'refs', 'notes'), { recursive: true });
+      fs.writeFileSync(path.join(tempDir, '.git', 'refs', 'notes', 'mem'), 'test-ref');
+      fs.mkdirSync(path.join(tempDir, '.lisa', 'skills'), { recursive: true });
+      fs.mkdirSync(path.join(tempDir, '.lisa', 'rules'), { recursive: true });
+
+      const services = createMockServices();
+      const result = await runDoctor({ cwd: tempDir }, services);
+
+      const gitMemCheck = result.checks.find(c => c.name === 'Git-Mem Storage');
+      assert.ok(gitMemCheck);
+      assert.strictEqual(gitMemCheck.status, 'ok');
+      assert.ok(gitMemCheck.message.includes('Memory notes found'));
     });
 
     it('should check Claude Code hooks when .claude exists', async () => {
+      fs.mkdirSync(path.join(tempDir, '.git'), { recursive: true });
       fs.mkdirSync(path.join(tempDir, '.lisa', 'skills'), { recursive: true });
       fs.mkdirSync(path.join(tempDir, '.lisa', 'rules'), { recursive: true });
-      fs.writeFileSync(
-        path.join(tempDir, '.lisa', '.env'),
-        'STORAGE_MODE=skip\n'
-      );
 
       // Create .claude with settings
       fs.mkdirSync(path.join(tempDir, '.claude'), { recursive: true });
@@ -211,12 +188,9 @@ describe('Doctor Command', () => {
     });
 
     it('should warn when no hooks are configured', async () => {
+      fs.mkdirSync(path.join(tempDir, '.git'), { recursive: true });
       fs.mkdirSync(path.join(tempDir, '.lisa', 'skills'), { recursive: true });
       fs.mkdirSync(path.join(tempDir, '.lisa', 'rules'), { recursive: true });
-      fs.writeFileSync(
-        path.join(tempDir, '.lisa', '.env'),
-        'STORAGE_MODE=skip\n'
-      );
 
       // Create .claude with empty settings
       fs.mkdirSync(path.join(tempDir, '.claude'), { recursive: true });
@@ -234,13 +208,24 @@ describe('Doctor Command', () => {
       assert.ok(hooksCheck.message.includes('No hooks'));
     });
 
-    it('should include timing information in checks', async () => {
+    it('should warn when .claude directory is missing', async () => {
+      fs.mkdirSync(path.join(tempDir, '.git'), { recursive: true });
       fs.mkdirSync(path.join(tempDir, '.lisa', 'skills'), { recursive: true });
       fs.mkdirSync(path.join(tempDir, '.lisa', 'rules'), { recursive: true });
-      fs.writeFileSync(
-        path.join(tempDir, '.lisa', '.env'),
-        'STORAGE_MODE=skip\n'
-      );
+
+      const services = createMockServices();
+      const result = await runDoctor({ cwd: tempDir }, services);
+
+      const hooksCheck = result.checks.find(c => c.name === 'Claude Code Hooks');
+      assert.ok(hooksCheck);
+      assert.strictEqual(hooksCheck.status, 'warning');
+      assert.ok(hooksCheck.message.includes('not found'));
+    });
+
+    it('should include timing information in checks', async () => {
+      fs.mkdirSync(path.join(tempDir, '.git'), { recursive: true });
+      fs.mkdirSync(path.join(tempDir, '.lisa', 'skills'), { recursive: true });
+      fs.mkdirSync(path.join(tempDir, '.lisa', 'rules'), { recursive: true });
 
       const services = createMockServices();
       const result = await runDoctor({ cwd: tempDir }, services);
@@ -254,46 +239,28 @@ describe('Doctor Command', () => {
     });
 
     it('should populate config information correctly', async () => {
+      fs.mkdirSync(path.join(tempDir, '.git'), { recursive: true });
       fs.mkdirSync(path.join(tempDir, '.lisa', 'skills'), { recursive: true });
       fs.mkdirSync(path.join(tempDir, '.lisa', 'rules'), { recursive: true });
-      fs.writeFileSync(
-        path.join(tempDir, '.lisa', '.env'),
-        'STORAGE_MODE=local\nGRAPHITI_ENDPOINT=http://localhost:8010/mcp/\n'
-      );
 
       const services = createMockServices();
       const result = await runDoctor({ cwd: tempDir }, services);
 
-      assert.strictEqual(result.config.mode, 'local');
-      const expectedGroup = path.basename(tempDir);
-      assert.strictEqual(result.config.group, expectedGroup, 'Group should be derived from folder path');
-      assert.strictEqual(result.config.endpoint, 'http://localhost:8010/mcp/');
-      assert.strictEqual(result.config.envFileExists, true);
-    });
-
-    it('runDoctor_givenNoGroupEnv_shouldDeriveGroupFromFolderPath', async () => {
-      fs.mkdirSync(path.join(tempDir, '.lisa', 'skills'), { recursive: true });
-      fs.mkdirSync(path.join(tempDir, '.lisa', 'rules'), { recursive: true });
-      fs.writeFileSync(
-        path.join(tempDir, '.lisa', '.env'),
-        'STORAGE_MODE=skip\n'
-      );
-
-      const services = createMockServices();
-      const result = await runDoctor({ cwd: tempDir }, services);
-
-      const expectedGroup = path.basename(tempDir);
-      assert.strictEqual(result.config.group, expectedGroup, 'Group should be derived from folder path');
+      assert.strictEqual(result.config.storage, 'git-mem');
+      assert.ok(result.config.projectName);
+      // Project name should be derived from folder
+      const expectedProjectName = path.basename(tempDir);
+      assert.strictEqual(result.config.projectName, expectedProjectName);
     });
   });
 
   describe('formatBasicOutput', () => {
-    it('should include mode and group', () => {
+    it('should include project name and storage', () => {
       const result = createMockResult();
       const output = formatBasicOutput(result);
 
-      assert.ok(output.includes('Mode: local'));
-      assert.ok(output.includes('Group: test-project'));
+      assert.ok(output.includes('Project: test-project'));
+      assert.ok(output.includes('Storage: git-mem'));
     });
 
     it('should show checkmarks for passing checks', () => {
@@ -304,7 +271,6 @@ describe('Doctor Command', () => {
       });
       const output = formatBasicOutput(result);
 
-      // Check for the checkmark character
       assert.ok(output.includes('Test Check'));
       assert.ok(output.includes('All good'));
     });
@@ -359,22 +325,20 @@ describe('Doctor Command', () => {
       const output = formatVerboseOutput(result);
 
       assert.ok(output.includes('Configuration'));
-      assert.ok(output.includes('Mode: local'));
-      assert.ok(output.includes('Group: test-project'));
-      assert.ok(output.includes('Endpoint:'));
-      assert.ok(output.includes('Env File:'));
+      assert.ok(output.includes('Project: test-project'));
+      assert.ok(output.includes('Storage: git-mem'));
     });
 
     it('should include health checks with timing', () => {
       const result = createMockResult({
         checks: [
-          { name: 'Docker', status: 'ok', message: 'Docker 24.0.0', durationMs: 150 },
+          { name: 'Git Repository', status: 'ok', message: 'Git repository detected', durationMs: 150 },
         ],
       });
       const output = formatVerboseOutput(result);
 
       assert.ok(output.includes('Health Checks'));
-      assert.ok(output.includes('Docker'));
+      assert.ok(output.includes('Git Repository'));
       assert.ok(output.includes('150ms'));
     });
 
@@ -451,7 +415,8 @@ describe('Doctor Command', () => {
       assert.strictEqual(parsed.timestamp, result.timestamp);
       assert.strictEqual(parsed.projectRoot, result.projectRoot);
       assert.strictEqual(parsed.version, result.version);
-      assert.strictEqual(parsed.config.mode, result.config.mode);
+      assert.strictEqual(parsed.config.storage, result.config.storage);
+      assert.strictEqual(parsed.config.projectName, result.config.projectName);
       assert.strictEqual(parsed.checks.length, result.checks.length);
     });
 
@@ -483,13 +448,12 @@ describe('Doctor Command', () => {
     it('should be ok when all checks pass', async () => {
       const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lisa-doctor-test-'));
       try {
+        // Set up all required structure
+        fs.mkdirSync(path.join(tempDir, '.git', 'refs', 'notes'), { recursive: true });
+        fs.writeFileSync(path.join(tempDir, '.git', 'refs', 'notes', 'mem'), 'test-ref');
         fs.mkdirSync(path.join(tempDir, '.lisa', 'skills'), { recursive: true });
         fs.mkdirSync(path.join(tempDir, '.lisa', 'rules'), { recursive: true });
         fs.mkdirSync(path.join(tempDir, '.claude'), { recursive: true });
-        fs.writeFileSync(
-          path.join(tempDir, '.lisa', '.env'),
-          'STORAGE_MODE=skip\n'
-        );
         fs.writeFileSync(
           path.join(tempDir, '.claude', 'settings.json'),
           JSON.stringify({ hooks: { SessionStart: ['lisa hook session-start'] } })
@@ -498,8 +462,7 @@ describe('Doctor Command', () => {
         const services = createMockServices();
         const result = await runDoctor({ cwd: tempDir }, services);
 
-        // In skip mode with all structure present, should be warning (skip mode itself is a warning)
-        assert.strictEqual(result.overallStatus, 'warning');
+        assert.strictEqual(result.overallStatus, 'ok');
       } finally {
         fs.rmSync(tempDir, { recursive: true, force: true });
       }
@@ -508,7 +471,7 @@ describe('Doctor Command', () => {
     it('should be error when any check has error status', async () => {
       const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lisa-doctor-test-'));
       try {
-        // No .lisa directory = error
+        // No .git directory = error
         const services = createMockServices();
         const result = await runDoctor({ cwd: tempDir }, services);
 
@@ -521,18 +484,15 @@ describe('Doctor Command', () => {
     it('should be warning when checks have warnings but no errors', async () => {
       const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lisa-doctor-test-'));
       try {
+        fs.mkdirSync(path.join(tempDir, '.git'), { recursive: true });
         fs.mkdirSync(path.join(tempDir, '.lisa', 'skills'), { recursive: true });
         fs.mkdirSync(path.join(tempDir, '.lisa', 'rules'), { recursive: true });
-        fs.writeFileSync(
-          path.join(tempDir, '.lisa', '.env'),
-          'STORAGE_MODE=skip\n'
-        );
         // No .claude directory = warning
 
         const services = createMockServices();
         const result = await runDoctor({ cwd: tempDir }, services);
 
-        // Should have warnings (no .claude, skip mode) but no errors
+        // Should have warnings (no .claude) but no errors
         const hasError = result.checks.some(c => c.status === 'error');
         const hasWarning = result.checks.some(c => c.status === 'warning');
 
