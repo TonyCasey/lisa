@@ -2,23 +2,19 @@
  * Init Command Module
  *
  * Scaffolds Lisa project structure including .lisa, .claude, .opencode directories.
- * Handles storage configuration (local Docker, Zep Cloud, or skip).
+ * Storage is handled by git-mem (git notes) - no Docker or external services needed.
  */
 
 import path from 'path';
 import os from 'os';
 import fs from 'fs-extra';
 import chalk from 'chalk';
-import { checkbox, confirm, input, password, select } from '@inquirer/prompts';
+import { checkbox, confirm } from '@inquirer/prompts';
 import type { ICliServices } from './cli-services';
 import {
   TEMPLATE_ROOT,
   BUNDLED_OPENCODE_ROOT,
-  DEFAULT_ENDPOINT,
-  ZEP_CLOUD_ENDPOINT,
-  type DeploymentMode,
   type CliSupport,
-  type IGraphitiConfig,
 } from './shared';
 import { CronService } from '../infrastructure/cron';
 
@@ -173,31 +169,6 @@ export async function cleanupPreviousInstall(
 // ============================================================================
 // Interactive Prompts
 // ============================================================================
-
-async function promptDeploymentMode(): Promise<DeploymentMode> {
-  return await select({
-    message: 'How would you like to configure storage?',
-    choices: [
-      { name: 'Set up later (scaffold project, configure storage later)', value: 'skip' as DeploymentMode },
-      { name: 'Local Docker (runs Neo4j + MCP server locally)', value: 'local' as DeploymentMode },
-      { name: 'Zep Cloud (managed storage service)', value: 'zep-cloud' as DeploymentMode },
-    ],
-  });
-}
-
-async function promptZepCloudConfig(): Promise<Partial<IGraphitiConfig>> {
-  const zepApiKey = await password({
-    message: 'Zep API Key:',
-    validate: (val) => val.length > 0 || 'API key is required',
-  });
-
-  const zepProjectId = await input({
-    message: 'Zep Project ID:',
-    validate: (val) => val.length > 0 || 'Project ID is required',
-  });
-
-  return { zepApiKey, zepProjectId, endpoint: ZEP_CLOUD_ENDPOINT };
-}
 
 async function promptCliSupport(): Promise<CliSupport[]> {
   const choices = await checkbox({
@@ -368,14 +339,8 @@ async function setupPrPolling(config: IPrPollingConfig, verbose: boolean): Promi
 // ============================================================================
 
 export interface IInitOptions {
-  endpoint?: string;
-  group?: string;
   force?: boolean;
   cwd: string;
-  includeDocker?: boolean;
-  mode?: DeploymentMode;
-  zepApiKey?: string;
-  zepProjectId?: string;
   yes?: boolean;
   isolated?: boolean;
   cliSupport?: CliSupport[];
@@ -396,47 +361,20 @@ export async function initCommand(opts: IInitOptions, services: ICliServices): P
   const force = Boolean(opts.force);
   const verbose = opts.verbose !== false;
   const cwd = opts.cwd;
-  let config: IGraphitiConfig;
   let cliSupport: CliSupport[];
 
-  const hasExplicitMode = opts.mode !== undefined;
-  const skipPrompts = opts.yes || hasExplicitMode;
-
-  if (skipPrompts) {
-    const mode = opts.mode || 'local';
-    config = {
-      mode,
-      endpoint: opts.endpoint || (mode === 'zep-cloud' ? ZEP_CLOUD_ENDPOINT : DEFAULT_ENDPOINT),
-      zepApiKey: opts.zepApiKey,
-      zepProjectId: opts.zepProjectId,
-    };
+  // Determine CLI support
+  if (opts.yes || opts.cliSupport) {
     cliSupport = opts.cliSupport || ['claude-code', 'opencode'];
   } else {
-    const mode = await promptDeploymentMode();
-    let modeConfig: Partial<IGraphitiConfig>;
-
-    if (mode === 'zep-cloud') {
-      modeConfig = await promptZepCloudConfig();
-    } else {
-      modeConfig = { endpoint: DEFAULT_ENDPOINT };
-    }
-
     cliSupport = await promptCliSupport();
-
-    config = {
-      mode,
-      endpoint: modeConfig.endpoint || DEFAULT_ENDPOINT,
-      ...modeConfig,
-    };
   }
 
-  const includeDocker = opts.includeDocker !== false && config.mode !== 'zep-cloud' && config.mode !== 'skip';
   const supportClaudeCode = cliSupport.includes('claude-code');
   const supportOpenCode = cliSupport.includes('opencode');
 
   const projectName = path.basename(cwd);
   const replacements = {
-    GRAPHITI_ENDPOINT: config.endpoint,
     PROJECT_NAME: projectName,
   };
 
@@ -444,7 +382,6 @@ export async function initCommand(opts: IInitOptions, services: ICliServices): P
   const skillsDir = path.join(lisaDir, 'skills');
   const rulesDir = path.join(lisaDir, 'rules');
   const claudeDir = path.join(cwd, '.claude');
-  const composeDest = path.join(cwd, 'docker-compose.graphiti.yml');
 
   const copies: Array<Promise<{ skipped: boolean } | void>> = [];
 
@@ -604,31 +541,16 @@ export async function initCommand(opts: IInitOptions, services: ICliServices): P
     }
   }
 
-  if (includeDocker) {
-    copies.push(services.templateCopier.copy('.lisa/docker/docker-compose.graphiti.yml', composeDest, replacements, force));
-  }
-
   await Promise.all(copies);
 
   // Output summary
   const scaffoldedDirs = ['.lisa'];
   if (supportClaudeCode) scaffoldedDirs.push('.claude');
   if (supportOpenCode) scaffoldedDirs.push('.opencode');
-  if (includeDocker) scaffoldedDirs.push('Docker assets');
 
   console.log(chalk.green(`Scaffolded ${scaffoldedDirs.join(', ')} into ${cwd}`));
-  console.log(`Mode: ${config.mode}`);
-  console.log(`Endpoint: ${config.endpoint}`);
+  console.log(`Storage: git-mem (git notes)`);
   console.log(`CLI Support: ${cliSupport.join(', ')}`);
-
-  if (config.mode === 'skip') {
-    console.log('');
-    console.log(chalk.cyan('To configure storage later:'));
-    console.log(chalk.cyan('  1. Read .lisa/docs/STORAGE_SETUP.md'));
-    console.log(chalk.cyan('  2. Edit .lisa/.env with your configuration'));
-    console.log(chalk.cyan('  3. Start a new terminal session'));
-    console.log(chalk.cyan('  4. Run `lisa doctor` to verify connection'));
-  }
 
   if (opts.isolated) {
     const libDir = path.join(claudeDir, 'lib');
@@ -666,7 +588,7 @@ export async function initCommand(opts: IInitOptions, services: ICliServices): P
   if (!opts.skipPrPolling) {
     let prPollingConfig: IPrPollingConfig;
 
-    if (skipPrompts) {
+    if (opts.yes) {
       // Non-interactive mode: use enablePrPolling flag (default: false to avoid surprises)
       prPollingConfig = {
         enabled: opts.enablePrPolling ?? false,

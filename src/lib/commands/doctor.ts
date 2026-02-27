@@ -1,11 +1,8 @@
 /**
  * Doctor Command Module
  *
- * Comprehensive diagnostic tool for Lisa configuration and connectivity.
- * Supports basic, verbose, and JSON output modes.
- *
- * Note: Group IDs are no longer used - the git repo itself provides scoping
- * via git-mem (git notes in refs/notes/mem).
+ * Diagnostic tool for Lisa configuration.
+ * Storage is handled by git-mem (git notes) - no external services needed.
  */
 
 import fs from 'fs-extra';
@@ -37,13 +34,8 @@ export interface ICheckResult {
  * Configuration information.
  */
 export interface IConfigInfo {
-  mode: string;
-  group: string;
-  endpoint: string;
-  envFilePath: string;
-  envFileExists: boolean;
-  zepApiKeyConfigured: boolean;
-  zepProjectId?: string;
+  storage: string;
+  projectName: string;
 }
 
 /**
@@ -78,61 +70,13 @@ export interface IDoctorResult {
  */
 export interface IDoctorOptions {
   cwd: string;
-  compose?: string;
-  endpoint?: string;
   verbose?: boolean;
   json?: boolean;
 }
 
 // ============================================================================
-// Constants
-// ============================================================================
-
-const DEFAULT_ENDPOINT = 'http://localhost:8010/mcp/';
-const ZEP_CLOUD_ENDPOINT = 'https://api.getzep.com/mcp/';
-
-type DeploymentMode = 'local' | 'zep-cloud' | 'skip';
-
-// ============================================================================
 // Configuration Loading
 // ============================================================================
-
-interface ILoadedConfig {
-  endpoint?: string;
-  mode?: DeploymentMode;
-  zepApiKey?: string;
-  zepProjectId?: string;
-}
-
-/**
- * Load Lisa configuration from .lisa/.env file.
- */
-async function loadConfig(cwd: string): Promise<ILoadedConfig | null> {
-  const lisaEnv = path.join(cwd, '.lisa', '.env');
-  const map: Record<string, string> = {};
-
-  if (await fs.pathExists(lisaEnv)) {
-    const raw = await fs.readFile(lisaEnv, 'utf8');
-    raw.split(/\r?\n/).forEach((line) => {
-      if (!line || line.startsWith('#')) return;
-      const idx = line.indexOf('=');
-      if (idx === -1) return;
-      const key = line.slice(0, idx).trim();
-      map[key] = line.slice(idx + 1).trim();
-    });
-  }
-
-  if (Object.keys(map).length === 0) {
-    return null;
-  }
-
-  return {
-    endpoint: map.GRAPHITI_ENDPOINT,
-    mode: map.STORAGE_MODE as DeploymentMode | undefined,
-    zepApiKey: map.ZEP_API_KEY,
-    zepProjectId: map.ZEP_PROJECT_ID,
-  };
-}
 
 /**
  * Get project name from package.json or directory name.
@@ -179,183 +123,28 @@ function getLisaVersion(): string {
 // ============================================================================
 
 /**
- * Check Docker availability.
+ * Check if git is available and we're in a git repository.
  */
-async function checkDocker(services: ICliServices): Promise<ICheckResult> {
+async function checkGit(cwd: string): Promise<ICheckResult> {
   const start = Date.now();
-  try {
-    const version = await services.docker.version();
+  const gitDir = path.join(cwd, '.git');
+
+  if (!await fs.pathExists(gitDir)) {
     return {
-      name: 'Docker',
-      status: 'ok',
-      message: `Docker ${version.trim()}`,
-      durationMs: Date.now() - start,
-    };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return {
-      name: 'Docker',
+      name: 'Git Repository',
       status: 'error',
-      message: 'Docker not available',
-      details: message,
+      message: 'Not a git repository',
+      details: 'git-mem requires a git repository. Run "git init" first.',
       durationMs: Date.now() - start,
     };
   }
-}
 
-/**
- * Check Docker Compose availability.
- */
-async function checkDockerCompose(services: ICliServices): Promise<ICheckResult> {
-  const start = Date.now();
-  try {
-    const version = await services.docker.composeVersion();
-    return {
-      name: 'Docker Compose',
-      status: 'ok',
-      message: `Compose ${version.trim()}`,
-      durationMs: Date.now() - start,
-    };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return {
-      name: 'Docker Compose',
-      status: 'error',
-      message: 'Docker Compose not available',
-      details: message,
-      durationMs: Date.now() - start,
-    };
-  }
-}
-
-/**
- * Check compose file existence.
- */
-async function checkComposeFile(composeFile: string): Promise<ICheckResult> {
-  const start = Date.now();
-  const exists = await fs.pathExists(composeFile);
   return {
-    name: 'Compose File',
-    status: exists ? 'ok' : 'warning',
-    message: exists ? `Found: ${path.basename(composeFile)}` : 'Not found',
-    details: composeFile,
+    name: 'Git Repository',
+    status: 'ok',
+    message: 'Git repository detected',
     durationMs: Date.now() - start,
   };
-}
-
-/**
- * Check MCP/Graphiti connectivity.
- */
-async function checkMcp(
-  services: ICliServices,
-  endpoint: string,
-  apiKey?: string
-): Promise<ICheckResult> {
-  const start = Date.now();
-  try {
-    await services.mcp.ping(endpoint, { apiKey });
-    return {
-      name: 'MCP Server',
-      status: 'ok',
-      message: `Reachable at ${endpoint}`,
-      durationMs: Date.now() - start,
-    };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return {
-      name: 'MCP Server',
-      status: 'error',
-      message: `Not reachable at ${endpoint}`,
-      details: message,
-      durationMs: Date.now() - start,
-    };
-  }
-}
-
-/**
- * Check Neo4j connectivity (local mode only).
- */
-async function checkNeo4j(): Promise<ICheckResult> {
-  const start = Date.now();
-  const uri = process.env.NEO4J_URI || 'bolt://localhost:7687';
-
-  try {
-    // Dynamic import to avoid requiring neo4j-driver if not needed
-    const neo4j = await import('neo4j-driver');
-    const driver = neo4j.default.driver(
-      uri,
-      neo4j.default.auth.basic(
-        process.env.NEO4J_USER || 'neo4j',
-        process.env.NEO4J_PASSWORD || 'demodemo'
-      ),
-      { connectionTimeout: 5000 }
-    );
-
-    await driver.verifyConnectivity();
-    await driver.close();
-
-    return {
-      name: 'Neo4j',
-      status: 'ok',
-      message: `Connected to ${uri}`,
-      durationMs: Date.now() - start,
-    };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return {
-      name: 'Neo4j',
-      status: 'error',
-      message: `Cannot connect to ${uri}`,
-      details: message,
-      durationMs: Date.now() - start,
-    };
-  }
-}
-
-/**
- * Check Zep Cloud connectivity.
- */
-async function checkZepCloud(apiKey: string): Promise<ICheckResult> {
-  const start = Date.now();
-  const endpoint = 'https://api.getzep.com/api/v2/users';
-
-  try {
-    const resp = await fetch(endpoint, {
-      method: 'GET',
-      headers: {
-        Authorization: `Api-Key ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      signal: AbortSignal.timeout(10000),
-    });
-
-    // 200 or 404 means API is reachable
-    if (resp.ok || resp.status === 404) {
-      return {
-        name: 'Zep Cloud',
-        status: 'ok',
-        message: 'API reachable',
-        durationMs: Date.now() - start,
-      };
-    }
-
-    return {
-      name: 'Zep Cloud',
-      status: 'error',
-      message: `API returned ${resp.status}`,
-      details: await resp.text().catch(() => ''),
-      durationMs: Date.now() - start,
-    };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return {
-      name: 'Zep Cloud',
-      status: 'error',
-      message: 'Cannot reach Zep Cloud API',
-      details: message,
-      durationMs: Date.now() - start,
-    };
-  }
 }
 
 /**
@@ -463,6 +252,34 @@ async function checkClaudeHooks(cwd: string): Promise<ICheckResult> {
   }
 }
 
+/**
+ * Check git-mem notes existence.
+ */
+async function checkGitMem(cwd: string): Promise<ICheckResult> {
+  const start = Date.now();
+  const notesRef = path.join(cwd, '.git', 'refs', 'notes', 'mem');
+
+  // Check if git notes for memory exist
+  const hasNotes = await fs.pathExists(notesRef);
+
+  if (hasNotes) {
+    return {
+      name: 'Git-Mem Storage',
+      status: 'ok',
+      message: 'Memory notes found (refs/notes/mem)',
+      durationMs: Date.now() - start,
+    };
+  }
+
+  return {
+    name: 'Git-Mem Storage',
+    status: 'ok',
+    message: 'Ready (no memories stored yet)',
+    details: 'Memories will be stored in git notes',
+    durationMs: Date.now() - start,
+  };
+}
+
 // ============================================================================
 // Transcript Discovery
 // ============================================================================
@@ -541,74 +358,25 @@ function findTranscripts(): ITranscriptInfo {
  */
 export async function runDoctor(
   opts: IDoctorOptions,
-  services: ICliServices
+  _services: ICliServices
 ): Promise<IDoctorResult> {
   const startTime = Date.now();
   const cwd = opts.cwd;
-  const _projectName = getProjectName(cwd); // Reserved for future use
-
-  // Load configuration
-  const config = await loadConfig(cwd);
-  const mode = config?.mode || 'local';
-  const endpoint =
-    opts.endpoint ||
-    config?.endpoint ||
-    (mode === 'zep-cloud' ? ZEP_CLOUD_ENDPOINT : DEFAULT_ENDPOINT);
-  // Group ID is derived from folder name for backwards compatibility
-  const group = getProjectName(cwd);
-  const zepApiKey = config?.zepApiKey || process.env.ZEP_API_KEY;
+  const projectName = getProjectName(cwd);
 
   // Build config info
-  const envFilePath = path.join(cwd, '.lisa', '.env');
   const configInfo: IConfigInfo = {
-    mode,
-    group,
-    endpoint,
-    envFilePath,
-    envFileExists: await fs.pathExists(envFilePath),
-    zepApiKeyConfigured: !!zepApiKey,
-    zepProjectId: config?.zepProjectId,
+    storage: 'git-mem',
+    projectName,
   };
 
-  // Run health checks based on mode
+  // Run health checks
   const checks: ICheckResult[] = [];
 
-  // Always check Lisa structure and Claude hooks
+  checks.push(await checkGit(cwd));
   checks.push(await checkLisaStructure(cwd));
   checks.push(await checkClaudeHooks(cwd));
-
-  if (mode === 'local') {
-    // Local mode checks
-    checks.push(await checkDocker(services));
-    checks.push(await checkDockerCompose(services));
-
-    const composeFile =
-      opts.compose || path.join(cwd, 'docker-compose.graphiti.yml');
-    checks.push(await checkComposeFile(composeFile));
-
-    checks.push(await checkNeo4j());
-    checks.push(await checkMcp(services, endpoint));
-  } else if (mode === 'zep-cloud') {
-    // Zep Cloud mode checks
-    if (zepApiKey) {
-      checks.push(await checkZepCloud(zepApiKey));
-      checks.push(await checkMcp(services, endpoint, zepApiKey));
-    } else {
-      checks.push({
-        name: 'Zep Cloud',
-        status: 'error',
-        message: 'ZEP_API_KEY not configured',
-        details: 'Set ZEP_API_KEY in .lisa/.env or environment',
-      });
-    }
-  } else if (mode === 'skip') {
-    checks.push({
-      name: 'Storage Backend',
-      status: 'warning',
-      message: 'Storage not configured (skip mode)',
-      details: 'Run "lisa init" to configure storage',
-    });
-  }
+  checks.push(await checkGitMem(cwd));
 
   // Find transcripts
   const transcripts = findTranscripts();
@@ -690,8 +458,8 @@ export function formatBasicOutput(result: IDoctorResult): string {
   const lines: string[] = [];
 
   // Header
-  lines.push(chalk.cyan(`Mode: ${result.config.mode}`));
-  lines.push(chalk.cyan(`Group: ${result.config.group}`));
+  lines.push(chalk.cyan(`Project: ${result.config.projectName}`));
+  lines.push(chalk.cyan(`Storage: ${result.config.storage}`));
   lines.push('');
 
   // Health checks
@@ -727,17 +495,8 @@ export function formatVerboseOutput(result: IDoctorResult): string {
 
   // Configuration
   lines.push(chalk.bold('Configuration'));
-  lines.push(`  Mode: ${result.config.mode}`);
-  lines.push(`  Group: ${result.config.group}`);
-  lines.push(`  Endpoint: ${result.config.endpoint}`);
-  lines.push(`  Env File: ${result.config.envFilePath}`);
-  lines.push(`  Env File Exists: ${result.config.envFileExists ? 'Yes' : 'No'}`);
-  lines.push(
-    `  Zep API Key: ${result.config.zepApiKeyConfigured ? 'Configured' : 'Not configured'}`
-  );
-  if (result.config.zepProjectId) {
-    lines.push(`  Zep Project ID: ${result.config.zepProjectId}`);
-  }
+  lines.push(`  Project: ${result.config.projectName}`);
+  lines.push(`  Storage: ${result.config.storage}`);
   lines.push('');
 
   // Health checks with timing

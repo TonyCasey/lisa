@@ -25,24 +25,14 @@ export {
   type IInitOptions,
 } from './init';
 
-export {
-  upCommand,
-  downCommand,
-  type IDockerOptions,
-} from './docker';
-
 // Re-export shared constants and types for convenience
 export {
   TEMPLATE_ROOT,
   BUNDLED_OPENCODE_ROOT,
   VERSION,
-  DEFAULT_ENDPOINT,
-  ZEP_CLOUD_ENDPOINT,
   DEFAULT_GROUP,
   getProjectName,
-  type DeploymentMode,
   type CliSupport,
-  type IGraphitiConfig,
 } from './shared';
 
 // Extracted command group registrations
@@ -61,11 +51,10 @@ export {
   type IPrWatchLoopOptions,
 } from './cli-utils';
 
-// CLI infrastructure services (for init, doctor, up, down commands)
+// CLI infrastructure services (for init, doctor commands)
 export {
   createCliServices,
   type ICliServices,
   type ITemplateCopier,
-  type IDockerClient,
   type IMcpPingClient,
 } from './cli-services';

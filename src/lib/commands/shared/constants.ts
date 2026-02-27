@@ -17,13 +17,9 @@ export const VERSION = fs.existsSync(PACKAGE_JSON_PATH)
   ? (fs.readJsonSync(PACKAGE_JSON_PATH) as { version: string }).version
   : '0.0.0';
 
-export const DEFAULT_ENDPOINT = 'http://localhost:8010/mcp/';
-export const ZEP_CLOUD_ENDPOINT = 'https://api.getzep.com/mcp/';
-
 /**
  * Get project name from package.json or directory name.
- * Used for display purposes (e.g., init output). NOT used for group ID routing -
- * group IDs are derived from the full folder path via getCurrentGroupId().
+ * Used for display purposes (e.g., init output).
  */
 export function getProjectName(): string {
   try {
@@ -44,20 +40,5 @@ export function getProjectName(): string {
 
 export const DEFAULT_GROUP = getProjectName();
 
-// Deployment mode types
-export type DeploymentMode = 'local' | 'zep-cloud' | 'skip';
-
 // CLI support types
 export type CliSupport = 'claude-code' | 'opencode';
-
-/**
- * Graphiti configuration interface.
- * Note: groupId is no longer configurable - it's derived from the project folder path.
- */
-export interface IGraphitiConfig {
-  mode: DeploymentMode;
-  endpoint: string;
-  // Zep Cloud specific
-  zepApiKey?: string;
-  zepProjectId?: string;
-}
