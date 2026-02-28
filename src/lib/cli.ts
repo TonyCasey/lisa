@@ -11,8 +11,6 @@ import {
   doctorCommand,
   initCommand,
   cleanupPreviousInstall,
-  upCommand,
-  downCommand,
   registerHookCommands,
   registerKnowledgeCommands,
   registerSkillCommands,
@@ -20,9 +18,7 @@ import {
   registerPrCommands,
   TEMPLATE_ROOT,
   VERSION,
-  DEFAULT_ENDPOINT,
   DEFAULT_GROUP,
-  type DeploymentMode,
   type CliSupport,
 } from './commands';
 
@@ -50,13 +46,8 @@ program
 
 program
   .command('init')
-  .description('Scaffold .lisa, .claude/.opencode, and Docker assets')
-  .option('-e, --endpoint <url>', 'MCP endpoint')
-  .option('-g, --group <id>', 'Default group id')
+  .description('Scaffold .lisa and .claude/.opencode directories')
   .option('-f, --force', 'Overwrite existing files')
-  .option('-m, --mode <mode>', 'Deployment mode: local or zep-cloud')
-  .option('--zep-api-key <key>', 'Zep API key (for zep-cloud mode)')
-  .option('--zep-project-id <id>', 'Zep project ID (for zep-cloud mode)')
   .option('-y, --yes', 'Skip prompts, use defaults')
   .option('--isolated', 'Install to .claude/lib for non-npm projects (Python, Go, etc.)')
   .option('--claude-only', 'Only scaffold for Claude Code')
@@ -71,7 +62,6 @@ program
       const log = cliLogger.child({ command: 'init' });
       const verbose = cmd.verbose && !cmd.quiet;
       log.info('Starting init command', {
-        mode: cmd.mode,
         claudeOnly: cmd.claudeOnly,
         opencodeOnly: cmd.opencodeOnly,
         verbose,
@@ -91,14 +81,8 @@ program
       // If neither flag is set, cliSupport remains undefined and prompts will be shown
 
       await initCommand({
-        endpoint: cmd.endpoint,
-        group: cmd.group,
         force: cmd.force,
         cwd: process.cwd(),
-        includeDocker: true,
-        mode: cmd.mode as DeploymentMode | undefined,
-        zepApiKey: cmd.zepApiKey,
-        zepProjectId: cmd.zepProjectId,
         yes: cmd.yes,
         isolated: cmd.isolated,
         cliSupport,
@@ -114,13 +98,8 @@ program
 
 program
   .command('setup')
-  .description('Scaffold .lisa and .claude/.opencode only (no Docker assets)')
-  .option('-e, --endpoint <url>', 'MCP endpoint')
-  .option('-g, --group <id>', 'Default group id')
+  .description('Alias for init - scaffold .lisa and .claude/.opencode directories')
   .option('-f, --force', 'Overwrite existing files')
-  .option('-m, --mode <mode>', 'Deployment mode: local or zep-cloud')
-  .option('--zep-api-key <key>', 'Zep API key (for zep-cloud mode)')
-  .option('--zep-project-id <id>', 'Zep project ID (for zep-cloud mode)')
   .option('-y, --yes', 'Skip prompts, use defaults')
   .option('--isolated', 'Install to .claude/lib for non-npm projects (Python, Go, etc.)')
   .option('--claude-only', 'Only scaffold for Claude Code')
@@ -145,14 +124,8 @@ program
     }
 
     await initCommand({
-      endpoint: cmd.endpoint,
-      group: cmd.group,
       force: cmd.force,
       cwd: process.cwd(),
-      includeDocker: false,
-      mode: cmd.mode as DeploymentMode | undefined,
-      zepApiKey: cmd.zepApiKey,
-      zepProjectId: cmd.zepProjectId,
       yes: cmd.yes,
       isolated: cmd.isolated,
       cliSupport,
@@ -164,38 +137,14 @@ program
   });
 
 program
-  .command('up')
-  .description('Start Neo4j/Graph/graphiti-mcp via docker compose')
-  .option('-c, --compose <file>', 'Compose file', 'docker-compose.graphiti.yml')
-  .action(async (cmd) => {
-    const composeFile = path.resolve(process.cwd(), cmd.compose);
-    const services = createCliServices(TEMPLATE_ROOT);
-    await upCommand({ composeFile }, services);
-  });
-
-program
-  .command('down')
-  .description('Stop Neo4j/Graph/graphiti-mcp via docker compose')
-  .option('-c, --compose <file>', 'Compose file', 'docker-compose.graphiti.yml')
-  .action(async (cmd) => {
-    const composeFile = path.resolve(process.cwd(), cmd.compose);
-    const services = createCliServices(TEMPLATE_ROOT);
-    await downCommand({ composeFile }, services);
-  });
-
-program
   .command('doctor')
-  .description('Validate Lisa configuration and backend connectivity')
-  .option('-c, --compose <file>', 'Compose file', 'docker-compose.graphiti.yml')
-  .option('-e, --endpoint <url>', 'MCP endpoint override')
+  .description('Validate Lisa configuration and setup')
   .option('-v, --verbose', 'Show detailed diagnostics')
   .option('--json', 'Output results as JSON')
   .action(async (cmd) => {
     const services = createCliServices(TEMPLATE_ROOT);
     await doctorCommand({
       cwd: process.cwd(),
-      compose: cmd.compose,
-      endpoint: cmd.endpoint,
       verbose: cmd.verbose,
       json: cmd.json,
     }, services);
@@ -319,10 +268,7 @@ if (require.main === module) {
 export {
   initCommand,
   doctorCommand,
-  upCommand,
-  downCommand,
   cleanupPreviousInstall,
-  DEFAULT_ENDPOINT,
   DEFAULT_GROUP,
   TEMPLATE_ROOT,
   runScan,

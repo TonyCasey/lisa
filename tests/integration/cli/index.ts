@@ -21,14 +21,13 @@ import * as os from 'node:os';
 import {
   initCommand,
   createCliServices,
-  DEFAULT_ENDPOINT,
   DEFAULT_GROUP,
 } from '../../../src/lib/cli';
 
 // Prefer dist/project if built; fall back to src/project for dev runs
 const DIST_TEMPLATE_ROOT = path.resolve(__dirname, '..', '..', '..', 'dist', 'project');
 const SRC_TEMPLATE_ROOT = path.resolve(__dirname, '..', '..', '..', 'src', 'project');
-const TEMPLATE_ROOT = fs.pathExistsSync(path.join(DIST_TEMPLATE_ROOT, '.claude', 'config.js'))
+const TEMPLATE_ROOT = fs.pathExistsSync(path.join(DIST_TEMPLATE_ROOT, '.lisa', 'skills'))
   ? DIST_TEMPLATE_ROOT
   : SRC_TEMPLATE_ROOT;
 
@@ -70,18 +69,6 @@ async function dirExists(dirPath: string): Promise<boolean> {
   }
 }
 
-/**
- * Check if a path is a symlink (or junction on Windows)
- */
-async function isSymlink(linkPath: string): Promise<boolean> {
-  try {
-    const stat = await fs.lstat(linkPath);
-    return stat.isSymbolicLink();
-  } catch {
-    return false;
-  }
-}
-
 // =============================================================================
 // Test Suite
 // =============================================================================
@@ -111,10 +98,7 @@ describe('CLI init command integration', () => {
       test('creates .lisa directory', { timeout: 30_000 }, async () => {
         await initCommand({
           cwd: tempDir,
-          endpoint: DEFAULT_ENDPOINT,
-          group: DEFAULT_GROUP,
           force: true,
-          mode: 'skip',
           cliSupport: ['claude-code'],
         }, services);
 
@@ -140,7 +124,7 @@ describe('CLI init command integration', () => {
       test('creates Claude settings.json with hooks', { timeout: 10_000 }, async () => {
         const settingsPath = path.join(tempDir, '.claude', 'settings.json');
         assert.ok(await fs.pathExists(settingsPath), '.claude/settings.json should exist');
-        
+
         const settings = await fs.readJson(settingsPath);
         assert.ok(settings.hooks, 'settings.json should have hooks configured');
       });
@@ -164,10 +148,7 @@ describe('CLI init command integration', () => {
       test('creates .lisa directory', { timeout: 30_000 }, async () => {
         await initCommand({
           cwd: tempDir,
-          endpoint: DEFAULT_ENDPOINT,
-          group: DEFAULT_GROUP,
           force: true,
-          mode: 'skip',
           cliSupport: ['opencode'],
         }, services);
 
@@ -209,10 +190,7 @@ describe('CLI init command integration', () => {
       test('creates .lisa directory', { timeout: 30_000 }, async () => {
         await initCommand({
           cwd: tempDir,
-          endpoint: DEFAULT_ENDPOINT,
-          group: DEFAULT_GROUP,
           force: true,
-          mode: 'skip',
           cliSupport: ['claude-code', 'opencode'],
         }, services);
 
@@ -263,15 +241,13 @@ describe('CLI init command integration', () => {
       test('first init writes .env', { timeout: 30_000 }, async () => {
         await initCommand({
           cwd: tempDir,
-          endpoint: DEFAULT_ENDPOINT,
           force: false,
-          mode: 'skip',
           cliSupport: ['claude-code'],
         }, services);
 
         const envPath = path.join(tempDir, '.lisa', '.env');
-        const envContents = await fs.readFile(envPath, 'utf8');
-        assert.ok(envContents.includes(`GRAPHITI_ENDPOINT=${DEFAULT_ENDPOINT}`), 'Endpoint should be written to .env');
+        const envExists = await fs.pathExists(envPath);
+        assert.ok(envExists, '.env should be created');
       });
 
       test('second init does not overwrite existing .env', { timeout: 30_000 }, async () => {
@@ -281,9 +257,7 @@ describe('CLI init command integration', () => {
 
         await initCommand({
           cwd: tempDir,
-          endpoint: DEFAULT_ENDPOINT,
           force: true,
-          mode: 'skip',
           cliSupport: ['claude-code'],
         }, services);
 
@@ -343,11 +317,11 @@ describe('CLI init command integration', () => {
         // 4. Import and run sync logic directly (since we can't easily call the CLI)
         // Read the fallback file and sync
         const { copies } = await fs.readJson(fallbackFile) as { copies: Array<{ link: string; target: string }> };
-        
+
         for (const { link, target } of copies) {
           const linkPath = path.join(tempDir, link);
           const targetPath = path.join(tempDir, path.dirname(link), target);
-          
+
           if (await fs.pathExists(targetPath)) {
             await fs.remove(linkPath);
             await fs.copy(targetPath, linkPath);
@@ -370,7 +344,7 @@ describe('CLI init command integration', () => {
         try {
           await fs.ensureDir(path.join(emptyDir, '.lisa'));
           const fallbackFile = path.join(emptyDir, '.lisa', '.copy-fallbacks.json');
-          
+
           // Should not throw when file doesn't exist
           const exists = await fs.pathExists(fallbackFile);
           assert.ok(!exists, 'Fallback file should not exist');
@@ -395,68 +369,17 @@ describe('CLI init command integration', () => {
     });
 
     // =========================================================================
-    // Storage Mode Tests
-    // =========================================================================
-
-    describe('storage mode behavior', () => {
-      test('skip mode does not create docker files', { timeout: 30_000 }, async () => {
-        const tempDir = await createTempDir('skip-mode');
-
-        try {
-          await initCommand({
-            cwd: tempDir,
-            endpoint: DEFAULT_ENDPOINT,
-            group: DEFAULT_GROUP,
-            force: true,
-            mode: 'skip',
-            includeDocker: true, // Even with includeDocker=true, skip mode should not create docker files
-            cliSupport: ['claude-code'],
-          }, services);
-
-          const composePath = path.join(tempDir, 'docker-compose.graphiti.yml');
-          assert.ok(!(await fs.pathExists(composePath)), 'Docker compose should NOT exist in skip mode');
-        } finally {
-          await cleanupTempDir(tempDir);
-        }
-      });
-
-      test('local mode creates docker files when includeDocker=true', { timeout: 30_000 }, async () => {
-        const tempDir = await createTempDir('local-mode');
-
-        try {
-          await initCommand({
-            cwd: tempDir,
-            endpoint: DEFAULT_ENDPOINT,
-            group: DEFAULT_GROUP,
-            force: true,
-            mode: 'local',
-            includeDocker: true,
-            cliSupport: ['claude-code'],
-          }, services);
-
-          const composePath = path.join(tempDir, 'docker-compose.graphiti.yml');
-          assert.ok(await fs.pathExists(composePath), 'Docker compose should exist in local mode');
-        } finally {
-          await cleanupTempDir(tempDir);
-        }
-      });
-    });
-
-    // =========================================================================
     // .env File Tests
     // =========================================================================
 
     describe('.env file behavior', () => {
-      test('first init creates .env from template with replacements', { timeout: 30_000 }, async () => {
+      test('first init creates .env from template', { timeout: 30_000 }, async () => {
         const tempDir = await createTempDir('env-first-init');
 
         try {
           await initCommand({
             cwd: tempDir,
-            endpoint: 'http://custom:9000/mcp/',
-            group: 'my-project',
             force: true,
-            mode: 'local',
             cliSupport: ['claude-code'],
           }, services);
 
@@ -464,9 +387,7 @@ describe('CLI init command integration', () => {
           assert.ok(await fs.pathExists(envPath), '.env should be created on first init');
 
           const content = await fs.readFile(envPath, 'utf8');
-          assert.ok(content.includes('GRAPHITI_ENDPOINT=http://custom:9000/mcp/'), 'Endpoint should be replaced');
           assert.ok(content.includes('LOG_LEVEL=debug'), '.env should include LOG_LEVEL');
-          assert.ok(content.includes('STORAGE_MODE=local'), '.env should include STORAGE_MODE');
         } finally {
           await cleanupTempDir(tempDir);
         }
@@ -479,10 +400,7 @@ describe('CLI init command integration', () => {
           // First init
           await initCommand({
             cwd: tempDir,
-            endpoint: 'http://first:8000/mcp/',
-            group: 'first-group',
             force: true,
-            mode: 'local',
             cliSupport: ['claude-code'],
           }, services);
 
@@ -493,10 +411,7 @@ describe('CLI init command integration', () => {
           // Second init with force (should still preserve .env)
           await initCommand({
             cwd: tempDir,
-            endpoint: 'http://second:9000/mcp/',
-            group: 'second-group',
             force: true,
-            mode: 'local',
             cliSupport: ['claude-code'],
           }, services);
 
@@ -504,11 +419,9 @@ describe('CLI init command integration', () => {
           const content = await fs.readFile(envPath, 'utf8');
           assert.ok(content.includes('CUSTOM_VALUE=user-modified'), '.env should preserve user customizations');
           assert.ok(content.includes('LOG_LEVEL=error'), '.env should keep user LOG_LEVEL');
-          assert.ok(!content.includes('http://second:9000'), '.env should NOT have new endpoint');
         } finally {
           await cleanupTempDir(tempDir);
         }
       });
     });
   });
-

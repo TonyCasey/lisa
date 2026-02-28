@@ -9,6 +9,102 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+#### Remove Deprecated Docker/Zep Storage Options ([LISA-70](https://linear.app/tonycasey/issue/LISA-70))
+
+Simplified the CLI by removing deprecated storage options now that git-mem is the sole backend:
+
+- **Removed from `lisa init`**:
+  - Storage mode prompts (local Docker, Zep Cloud, skip)
+  - `--mode`, `--endpoint`, `--group` options
+  - `--zep-api-key`, `--zep-project-id` options
+  - Docker compose file scaffolding
+
+- **Removed commands**:
+  - `lisa up` - Docker Compose start
+  - `lisa down` - Docker Compose stop
+
+- **Simplified `lisa doctor`**:
+  - Removed Docker, Neo4j, and Zep connectivity checks
+  - Now checks: git repository, Lisa structure, Claude hooks, git-mem notes
+
+- **Cleaned up**:
+  - Deleted `docker.ts` module
+  - Deleted `.lisa/docker/` templates
+  - Simplified `.env.template` (removed STORAGE_MODE, GRAPHITI_ENDPOINT, NEO4J_* vars)
+  - Removed `DeploymentMode`, `IGraphitiConfig` types
+  - Removed `DEFAULT_ENDPOINT`, `ZEP_CLOUD_ENDPOINT` constants
+
+---
+
+## [2.27.0] - 2026-02-20
+
+### Changed
+
+#### Git-Mem: Replace All Memory Backends ([LISA-34](https://linear.app/tonycasey/issue/LISA-34))
+
+**Major architecture change**: Replaced all memory backends (MCP, Neo4j, Zep) with git-mem, a git-based memory system using git notes. This eliminates external database dependencies and simplifies the architecture.
+
+- All memory operations now use `refs/notes/mem` in the git repository
+- Repository provides natural scoping - no need for group IDs
+- Memories persist as git notes, visible via `git notes --ref=mem`
+- Removed MCP, Neo4j, and Zep repository implementations
+- Added `GitMemAdapter` and `GitMemTaskAdapter` for clean abstraction
+- Simplified DI container with fewer backends to manage
+
+#### Remove Group ID System ([LISA-59](https://linear.app/tonycasey/issue/LISA-59))
+
+Removed the group ID system (~630 lines deleted). The git repository itself now provides scoping - memories are stored in `refs/notes/mem` which is repo-specific.
+
+- Removed `group:${groupId}` tagging from all storage services
+- Removed `groupIds`/`groupId` parameters from method signatures
+- Deleted `src/lib/skills/common/group-id.ts` (~163 lines)
+- Deleted `src/lib/skills/shared/utils/group-id.ts` (~183 lines)
+- Simplified interfaces: `IMemoryService`, `ITaskService`, `ISkillMemoryService`, `ISkillTaskService`
+- Backward compatible: existing memories with `group:` tags remain stored
+
+#### Consolidate Skills Service Factories ([LISA-58](https://linear.app/tonycasey/issue/LISA-58))
+
+Consolidated skills service factory patterns for cleaner dependency injection.
+
+#### Consolidate Git into GitHub Skill ([LISA-19](https://linear.app/tonycasey/issue/LISA-19), [LISA-33](https://linear.app/tonycasey/issue/LISA-33))
+
+- Merged `/git` skill into `/github` skill
+- Renamed `/init-review` to `/review`
+- Single skill for all GitHub and git workflow operations
+
+### Added
+
+#### Repo Profile Generation Service ([LISA-11](https://linear.app/tonycasey/issue/LISA-11))
+
+Added `RepoProfileService` for generating repository profiles with project metadata and structure analysis.
+
+#### Git-Powered Memory: Phase 4 Indexing ([LISA-10](https://linear.app/tonycasey/issue/LISA-10))
+
+Added `GitIndexingService` for indexing git history into memory. Completes the git-powered memory feature.
+
+- Indexes commits, branches, tags, and file history
+- Extracts facts from commit messages and diffs
+- Supports incremental indexing (only new commits)
+
+#### Git-Powered Memory: Phase 3 Heuristic Extraction ([LISA-9](https://linear.app/tonycasey/issue/LISA-9))
+
+Added heuristic extraction for git-powered memory without LLM dependency.
+
+- Pattern-based extraction from commit messages
+- Detects decisions, conventions, and architectural changes
+- Fast local processing without API calls
+
+#### LLM Environment Variable Support ([LISA-16](https://linear.app/tonycasey/issue/LISA-16))
+
+Added environment variable support for LLM feature toggles and budget controls.
+
+- `LISA_LLM_ENABLED` - Master switch for LLM features
+- `LISA_LLM_BUDGET` - Monthly token budget
+- `LISA_LLM_FEATURES` - Comma-separated list of enabled features
+- Environment variables override preference store settings
+
 ### Fixed
 
 #### Neo4j Write Fallback for Memory ([LISA-17](https://linear.app/tonycasey/issue/LISA-17))
